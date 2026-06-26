@@ -5,6 +5,9 @@ hero:
   name: Coral Architecture
   text: A fractal, capability-first architecture
   tagline: Agents write the code; humans review and orchestrate. The same pattern from a single slice to a whole system.
+  image:
+    src: /logo.png
+    alt: Coral Architecture
   actions:
     - theme: brand
       text: Start here — the Coral Model

@@ -103,6 +103,24 @@ one organism, injected. This is what distinguishes a horizontal from a forbidden
 name, a real invariant or convention, and an injection discipline. A horizontal you reach into or
 re-implement per slice is a broken symbiosis — the slice bleaches.
 
+**Anatomy of one polyp.** The body runs a pure core (parse → validate → compute), pushes effects to
+the edge (persist / render), secretes a stable skeleton (its published contract), and *hosts* its
+cross-cutting concerns as injected symbionts:
+
+```mermaid
+flowchart LR
+  T(["trigger<br/>(the mouth)"]) --> CORE
+  subgraph CORE["pure core — no side effects"]
+    direction LR
+    P[parse] --> V[validate] --> C[compute]
+  end
+  CORE --> E[/"effect<br/>persist · call out"/]
+  E --> R[render]
+  R --> SK[("skeleton =<br/>published contract")]
+  SYM["hosted symbionts (horizontals), injected:<br/>👁 observability · 🦀 authN/Z · 🐟 business validation"]
+  SYM -. injected into the polyp .-> CORE
+```
+
 ---
 
 ## 4. The Slice Boundary  `[BOUND-*]`

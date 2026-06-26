@@ -15,6 +15,11 @@ split signal). The metaphor is itself such a concern, so it lives here once.
 
 ## The Coral Model
 
+<figure class="coral-fig">
+  <img src="/polyp.png" alt="A coral polyp: a coral-bodied animal hosting symbionts, with the same coral form branching behind it at larger scale" />
+  <figcaption>A polyp (a slice) — a self-contained animal that hosts its symbionts, with the same form repeating behind it at larger scale.</figcaption>
+</figure>
+
 The architecture is named for coral because coral is a **living fractal**: the same simple unit
 repeats and accretes from the smallest scale to the largest, and a few rules at one scale hold at
 every scale. To use the metaphor for prediction, you need an accurate picture of *how coral actually
@@ -61,6 +66,22 @@ lives* — not "coral = colorful rock." So, briefly, the biology.
 | **Bleaching** (symbiosis breaks → death) | ripping out / wrongly coupling a horizontal | broken injection kills the unit — a built-in cautionary tale |
 | Reef survives local damage | **bounded blast radius** | locality + redundancy; one dead colony ≠ a dead reef |
 
+### The fractal ladder
+
+The same unit repeats and accretes across scales — and the same three rules (own your trigger; share
+only via a named symbiont or a published skeleton; interact only through the water) hold at each one.
+
+```mermaid
+flowchart LR
+  P["🪸 Polyp<br/><b>= slice</b><br/>one capability"]
+  C["🪸🪸🪸 Colony<br/><b>= app</b><br/>many polyps"]
+  R["Reef<br/><b>= system</b><br/>colonies, over the water"]
+  I["Island<br/><b>= platform</b><br/>accreted reefs"]
+  P -->|"many polyps form a"| C
+  C -->|"colonies compose into a"| R
+  R -->|"reefs accrete into an"| I
+```
+
 ### Why this metaphor, and why it predicts
 
 - **Symbiosis is a more honest picture of a horizontal than a "shared helper."** The *same species*
@@ -82,6 +103,23 @@ lives* — not "coral = colorful rock." So, briefly, the biology.
 - **For agents, the parts form a complete, mutually-exclusive ontology** — polyp / symbiont /
   skeleton / colony / reef / signal. Almost every placement question reduces to *"is this a new
   polyp, a new symbiont, a new skeleton, or a new colony?"* — one part, one answer, less ambiguity.
+
+### Placing new code (the ontology as a decision)
+
+```mermaid
+flowchart TD
+  Q{"new code —<br/>what is it?"}
+  Q -->|"owns one capability / trigger,<br/>end to end"| POLYP["🪸 <b>POLYP</b><br/>= slice"]
+  Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| SYM["🐟 <b>SYMBIONT</b><br/>= horizontal (injected)"]
+  Q -->|"a surface others<br/>depend on"| SK["🪨 <b>SKELETON</b><br/>= published contract"]
+  Q -->|"a bundle of polyps"| COL["🪸🪸 <b>COLONY</b><br/>= app"]
+  Q -->|"none of these —<br/>just 'shared stuff'"| BAD["⛔ forbidden bucket<br/>utils / services / … — don't"]
+  class BAD bad
+  classDef bad fill:#fdecec,stroke:#d23,color:#900
+```
+
+When more than one fits, or none cleanly does, that is the signal to **flag it** (`[AGENT-2]`) rather
+than guess.
 
 Throughout the documents, **the technical nouns are primary** (slice, vertical, horizontal, app,
 system) and the coral terms are the picture mapped onto them — the way "hexagonal architecture" keeps

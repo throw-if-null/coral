@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -13,7 +14,11 @@ import path from 'node:path'
 //   id grammar  →  FAMILY(-SUBFAMILY)*-N   e.g. SCOPE-3, SYS-TEST-1, WEB-6
 // ─────────────────────────────────────────────────────────────────────────────
 const SRC = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
-const BASE = '/'
+// Base path: '/' locally; the deploy workflow sets DOCS_BASE (e.g. '/coral/' for
+// GitHub project Pages). One knob feeds both VitePress and the rule-ID link hrefs.
+const BASE = process.env.DOCS_BASE || '/'
+// VitePress does NOT apply `base` to `head` entries — prefix public assets by hand.
+const asset = (file) => `${BASE}${file}`
 
 const DOC_FILES = [
   'CONVENTIONS.md', 'ARCHITECTURE.md', 'SYSTEM.md',
@@ -95,21 +100,35 @@ function ruleIdPlugin(md) {
     if (!defPage) return label // unknown id: leave as plain code
     const href = defPage === cur
       ? `#${id}`
-      : `${BASE}${defPage.replace(/\.md$/, '')}#${id}` // extensionless: VitePress SPA-routes it
+      // .html (matching VitePress's own links) so a hard-loaded cross-page deep link
+      // hits a real static file on any host — not just an in-app SPA click.
+      : `${BASE}${defPage.replace(/\.md$/, '.html')}#${id}`
     return `<a class="rule-ref" href="${href}">${label}</a>`
   }
 }
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: 'Coral Architecture',
   description: 'A fractal, capability-first architecture — agents write, humans review.',
   base: BASE,
   lastUpdated: true,
   ignoreDeadLinks: true, // first pass: heading-anchor slugs vary; flip off later to audit
+  head: [
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: asset('favicon-32.png') }],
+    ['link', { rel: 'icon', type: 'image/png', href: asset('logo.png') }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: 'Coral Architecture' }],
+    ['meta', { property: 'og:description', content: 'A fractal, capability-first architecture — agents write, humans review.' }],
+    // base-relative now; for social-scraper previews, make this an absolute URL on deploy
+    ['meta', { property: 'og:image', content: asset('reef-banner.png') }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:image', content: asset('reef-banner.png') }],
+  ],
   markdown: {
     config: (md) => md.use(ruleIdPlugin),
   },
   themeConfig: {
+    logo: '/logo.png',
     search: { provider: 'local' },
     outline: { level: [2, 3] },
     nav: [
@@ -140,4 +159,4 @@ export default defineConfig({
       { icon: 'github', link: 'https://github.com/ClimateView/coral' },
     ],
   },
-})
+}))

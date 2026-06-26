@@ -1,5 +1,10 @@
 # Coral Architecture — the System (the Reef)
 
+<figure class="coral-fig wide">
+  <img src="/reef-banner.png" alt="A reef: several distinct coral colonies spaced apart on the seabed, linked only by flowing water currents" />
+  <figcaption>A reef (a system) — distinct colonies (apps), coupled only by the currents between them (the bus).</figcaption>
+</figure>
+
 How separately-built **colonies (apps)** compose into a **reef (a system)**. This is a different
 bounded context from the app spine — by the architecture's own `[SCOPE-3]`/`[GROW-3]` split signal,
 "one colony" and "many colonies composing into a reef" are separate documents.
@@ -20,6 +25,30 @@ The same properties that make a polyp agent-friendly (bounded context, self-veri
 the colony boundary — which is why **contract testing**, not integrated end-to-end runs, is the reef's
 test strategy: you verify each colony against the shared contract without raising the whole reef at
 once.
+
+---
+
+## The reef at a glance
+
+Colonies (apps) never fuse bodies and never share a datastore. The **only** coupling is the water —
+the bus — and the orchestration layer owns which colonies talk to which.
+
+```mermaid
+flowchart TB
+  subgraph REEF["the reef — a system"]
+    A["Colony A (app)<br/>🗄 own store"]
+    B["Colony B (app)<br/>🗄 own store"]
+    D["Colony C (app)<br/>🗄 own store"]
+    BUS{{"the water = the bus<br/>API contract · event · message bus"}}
+    A <--> BUS
+    B <--> BUS
+    D <--> BUS
+  end
+  ORCH["orchestration layer<br/>owns who-talks-to-whom · no business logic"] -. wires .-> BUS
+  X["⛔ never a shared datastore"]
+  class X bad
+  classDef bad fill:#fdecec,stroke:#d23,color:#900
+```
 
 ---
 

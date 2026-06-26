@@ -1,3 +1,40 @@
+/* Brand palette tuned to the coral/teal artwork (was VitePress default indigo).
+   Teal reads better than coral-orange as a link/accent color and matches the
+   logo's teal symbiont. */
+:root {
+  --vp-c-brand-1: #0e7c83;
+  --vp-c-brand-2: #119aa1;
+  --vp-c-brand-3: #16b8c0;
+  --vp-c-brand-soft: rgba(20, 184, 192, 0.14);
+}
+.dark {
+  --vp-c-brand-1: #3fc7cd;
+  --vp-c-brand-2: #2bb3ba;
+  --vp-c-brand-3: #1f9aa1;
+  --vp-c-brand-soft: rgba(63, 199, 205, 0.16);
+}
+
+/* Botanical-illustration "plates" — the cream-backgrounded art reads as framed
+   paper in both themes (intentional), rather than a bright box on dark mode. */
+.coral-fig {
+  margin: 1.75rem auto;
+  text-align: center;
+}
+.coral-fig img {
+  max-width: min(380px, 100%);
+  border-radius: 14px;
+  border: 1px solid var(--vp-c-divider);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+.coral-fig.wide img {
+  max-width: 100%;
+}
+.coral-fig figcaption {
+  margin-top: 0.6rem;
+  font-size: 0.85em;
+  color: var(--vp-c-text-2);
+}
+
 /* Rule-ID citations: subtle, clickable, and a clear scroll target. */
 a.rule-ref,
 a.rule-def {
