@@ -152,6 +152,40 @@
   mask: var(--wave) repeat-x left center / 40px 12px;
 }
 
+/* Mermaid diagrams: click to zoom into a full-screen lightbox */
+.vp-doc .mermaid {
+  cursor: zoom-in;
+}
+.coral-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 3vmin;
+  background: rgba(0, 17, 61, 0.85);
+  backdrop-filter: blur(3px);
+  cursor: zoom-out;
+}
+.coral-zoom-overlay.active {
+  display: flex;
+}
+.coral-zoom-inner {
+  width: min(1100px, 96vw);
+  max-height: 94vh;
+  overflow: auto;
+  padding: 1.75rem;
+  border-radius: 14px;
+  background: var(--vp-c-bg-elv);
+  box-shadow: 0 16px 56px rgba(0, 0, 0, 0.5);
+}
+.coral-zoom-inner svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* Rule-ID citations: subtle, clickable, and a clear scroll target. */
 a.rule-ref,
 a.rule-def {
