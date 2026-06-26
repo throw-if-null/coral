@@ -116,11 +116,19 @@
   margin: 1.75rem auto;
   text-align: center;
 }
+/* Content illustrations blend into the page at 80% opacity (full on hover).
+   Diagrams render as inline <svg>, not <img>, so this rule leaves them untouched. */
+.vp-doc img {
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+.vp-doc img:hover {
+  opacity: 1;
+}
+
 .coral-fig img {
-  max-width: min(380px, 100%);
-  border-radius: 14px;
-  border: 1px solid var(--vp-c-divider);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  max-width: min(360px, 100%);
+  border-radius: 12px;
 }
 .coral-fig.wide img {
   max-width: 100%;
