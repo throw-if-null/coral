@@ -152,6 +152,13 @@ export default withMermaid(defineConfig({
           { text: 'GitHub Action / Tool', link: '/appendix/gh-action' },
         ],
       },
+      {
+        text: 'Worked examples',
+        collapsed: false,
+        items: [
+          { text: 'Backend microservice review', link: '/examples/backend-review' },
+        ],
+      },
     ],
     socialLinks: [
       { icon: 'github', link: 'https://github.com/ClimateView/coral' },
