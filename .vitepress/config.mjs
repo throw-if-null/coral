@@ -132,15 +132,12 @@ export default withMermaid(defineConfig({
     search: { provider: 'local' },
     outline: { level: [2, 3] },
     nav: [
-      { text: 'Start here', link: '/CONVENTIONS' },
+      { text: 'Conventions', link: '/CONVENTIONS' },
       { text: 'App', link: '/ARCHITECTURE' },
       { text: 'System', link: '/SYSTEM' },
     ],
     sidebar: [
-      {
-        text: 'Start here',
-        items: [{ text: 'Conventions — the Coral Model', link: '/CONVENTIONS' }],
-      },
+      { text: 'Conventions & the Coral Model', link: '/CONVENTIONS' },
       { text: 'The App (one Colony)', link: '/ARCHITECTURE' },
       { text: 'The System (the Reef)', link: '/SYSTEM' },
       {

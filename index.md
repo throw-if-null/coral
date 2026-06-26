@@ -10,7 +10,7 @@ hero:
     alt: Coral Architecture
   actions:
     - theme: brand
-      text: Start here — the Coral Model
+      text: Read the Coral Model
       link: /CONVENTIONS
     - theme: alt
       text: The App (one Colony)

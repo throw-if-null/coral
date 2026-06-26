@@ -1,7 +1,12 @@
 # Coral Architecture — Conventions
 
-**Start here.** This file is the shared foundation the rest of the docs build on. It defines, in one
-place, four things every other document relies on — so none of them have to repeat it:
+<!-- AGENT NOTE (not shown on the rendered site): this file is AUTHORITATIVE for the four items
+below: the Coral glossary, the rule-ID scheme, the enforcement classes, and the [AGENT-*] operating
+model. Load it before reasoning across documents; ARCHITECTURE.md and SYSTEM.md defer to it and must
+not redefine these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
+
+This file holds the conventions every other document in the set builds on. It defines, in one place,
+four things the rest of the docs rely on — so none of them have to repeat it:
 
 - **The Coral model** — the guiding metaphor everything else is named for. ([below](#the-coral-model))
 - **The rule-ID scheme** — how rules are numbered and cited, e.g. `[DUP-2]`. ([below](#rule-ids))
