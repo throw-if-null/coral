@@ -1,10 +1,15 @@
 # Coral Architecture — Conventions
 
-**Start here.** This is the front door to the Coral Architecture docs. This file holds what every
-other document shares and must agree on: the **Coral model** (the guiding metaphor everything else
-builds on), the rule-ID scheme, the enforcement classes, and the agents-write / humans-review
-operating model. The two spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how to build one app) and
-[`SYSTEM.md`](./SYSTEM.md) (how apps compose into a system) — refer back here instead of repeating it.
+**Start here.** This file is the shared foundation the rest of the docs build on. It defines, in one
+place, four things every other document relies on — so none of them have to repeat it:
+
+- **The Coral model** — the guiding metaphor everything else is named for. ([below](#the-coral-model))
+- **The rule-ID scheme** — how rules are numbered and cited, e.g. `[DUP-2]`. ([below](#rule-ids))
+- **The enforcement classes** — `[auto]` / `[review]` / `[guide]`. ([below](#enforcement-classes))
+- **The operating model** — agents write; humans review and orchestrate. ([below](#the-operating-model-agents-write-humans-review))
+
+The two spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how to build one app) and
+[`SYSTEM.md`](./SYSTEM.md) (how apps compose into a system) — refer back here instead of repeating any of it.
 
 Keeping these shared pieces in one referenced file, rather than copying them into each document, is
 the architecture practicing what it preaches: a concern used in many places is defined once and
