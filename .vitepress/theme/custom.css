@@ -25,27 +25,27 @@
   --vp-c-brand-3: #4a72ff;
   --vp-c-brand-soft: rgba(21, 66, 216, 0.12);
 
-  /* primary button — navy fill reads strongly on cyan */
+  /* buttons — coral-pink primary (the namesake), gray-orange alt (reef sand).
+     Same in both themes so the action color stays consistent on toggle. */
   --vp-button-brand-border: transparent;
-  --vp-button-brand-text: #e6fdff;
-  --vp-button-brand-bg: #001166;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: #de3a6e;
   --vp-button-brand-hover-border: transparent;
   --vp-button-brand-hover-text: #ffffff;
-  --vp-button-brand-hover-bg: #0a2aa8;
+  --vp-button-brand-hover-bg: #ec5181;
   --vp-button-brand-active-border: transparent;
   --vp-button-brand-active-text: #ffffff;
-  --vp-button-brand-active-bg: #001a8c;
+  --vp-button-brand-active-bg: #c63062;
 
-  /* alt button — white surface, navy ink, blue on hover */
-  --vp-button-alt-border: rgba(0, 17, 61, 0.22);
-  --vp-button-alt-text: #00103d;
-  --vp-button-alt-bg: #ffffff;
-  --vp-button-alt-hover-border: #1542d8;
-  --vp-button-alt-hover-text: #1542d8;
-  --vp-button-alt-hover-bg: #ffffff;
-  --vp-button-alt-active-border: #1542d8;
-  --vp-button-alt-active-text: #1542d8;
-  --vp-button-alt-active-bg: #eaf0ff;
+  --vp-button-alt-border: rgba(58, 36, 18, 0.25);
+  --vp-button-alt-text: #3a2412;
+  --vp-button-alt-bg: #d2a07a;
+  --vp-button-alt-hover-border: #a9744a;
+  --vp-button-alt-hover-text: #2c1b0c;
+  --vp-button-alt-hover-bg: #c79068;
+  --vp-button-alt-active-border: #a9744a;
+  --vp-button-alt-active-text: #2c1b0c;
+  --vp-button-alt-active-bg: #bd8559;
 
   /* inline code */
   --vp-code-color: #00277a;
@@ -80,27 +80,26 @@
   --vp-c-brand-3: #8afcff;
   --vp-c-brand-soft: rgba(0, 249, 254, 0.16);
 
-  /* primary button — cyan fill, navy text */
+  /* buttons — same coral/sand as light, for a consistent action color on toggle */
   --vp-button-brand-border: transparent;
-  --vp-button-brand-text: #001166;
-  --vp-button-brand-bg: #00f9fe;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: #de3a6e;
   --vp-button-brand-hover-border: transparent;
-  --vp-button-brand-hover-text: #001166;
-  --vp-button-brand-hover-bg: #5cfbff;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-hover-bg: #ec5181;
   --vp-button-brand-active-border: transparent;
-  --vp-button-brand-active-text: #001166;
-  --vp-button-brand-active-bg: #00d6db;
+  --vp-button-brand-active-text: #ffffff;
+  --vp-button-brand-active-bg: #c63062;
 
-  /* alt button — deep-navy surface, cyan edge */
-  --vp-button-alt-border: rgba(0, 249, 254, 0.30);
-  --vp-button-alt-text: #aef6ff;
-  --vp-button-alt-bg: #0a1f74;
-  --vp-button-alt-hover-border: #00f9fe;
-  --vp-button-alt-hover-text: #00f9fe;
-  --vp-button-alt-hover-bg: #0c2382;
-  --vp-button-alt-active-border: #00f9fe;
-  --vp-button-alt-active-text: #00f9fe;
-  --vp-button-alt-active-bg: #0e2890;
+  --vp-button-alt-border: rgba(58, 36, 18, 0.25);
+  --vp-button-alt-text: #3a2412;
+  --vp-button-alt-bg: #d2a07a;
+  --vp-button-alt-hover-border: #a9744a;
+  --vp-button-alt-hover-text: #2c1b0c;
+  --vp-button-alt-hover-bg: #c79068;
+  --vp-button-alt-active-border: #a9744a;
+  --vp-button-alt-active-text: #2c1b0c;
+  --vp-button-alt-active-bg: #bd8559;
 
   /* inline code */
   --vp-code-color: #aef0ff;
@@ -127,6 +126,8 @@
 }
 
 .coral-fig img {
+  display: block;
+  margin: 0 auto;
   max-width: min(360px, 100%);
   border-radius: 12px;
 }
@@ -137,6 +138,18 @@
   margin-top: 0.6rem;
   font-size: 0.85em;
   color: var(--vp-c-text-2);
+}
+
+/* section dividers (---) render as a gentle ocean wave, tinted with the accent */
+.vp-doc hr {
+  border: none;
+  height: 12px;
+  margin: 2.75rem 0;
+  background-color: var(--vp-c-brand-1);
+  opacity: 0.5;
+  --wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='12' viewBox='0 0 40 12'%3E%3Cpath d='M0 6 Q10 0 20 6 T40 6' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E");
+  -webkit-mask: var(--wave) repeat-x left center / 40px 12px;
+  mask: var(--wave) repeat-x left center / 40px 12px;
 }
 
 /* Rule-ID citations: subtle, clickable, and a clear scroll target. */
