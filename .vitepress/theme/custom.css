@@ -1,0 +1,27 @@
+/* Rule-ID citations: subtle, clickable, and a clear scroll target. */
+a.rule-ref,
+a.rule-def {
+  text-decoration: none;
+}
+
+a.rule-ref code {
+  color: var(--vp-c-brand-1);
+  transition: background-color 0.15s ease;
+}
+a.rule-ref:hover code {
+  background-color: var(--vp-c-brand-soft);
+}
+
+/* a rule definition is an anchor target — keep it clear of the fixed navbar on jump */
+a.rule-def {
+  scroll-margin-top: 96px;
+}
+a.rule-def code {
+  background-color: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-weight: 600;
+}
+a.rule-def:target code {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
