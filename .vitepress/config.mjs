@@ -112,7 +112,7 @@ export default withMermaid(defineConfig({
   description: 'A fractal, capability-first architecture — agents write, humans review.',
   base: BASE,
   lastUpdated: true,
-  ignoreDeadLinks: true, // first pass: heading-anchor slugs vary; flip off later to audit
+  srcExclude: ['README.md'], // repo landing page, not a rendered site page
   head: [
     ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: asset('favicon-32.png') }],
     ['link', { rel: 'icon', type: 'image/png', href: asset('logo.png') }],
