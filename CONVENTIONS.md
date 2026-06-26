@@ -78,8 +78,9 @@ lives* — not "coral = colorful rock." So, briefly, the biology.
 
 ### The fractal ladder
 
-The same unit repeats and accretes across scales — and the same three rules (own your trigger; share
-only via a named symbiont or a published skeleton; interact only through the water) hold at each one.
+The same unit repeats and accretes across scales — and the same three rules hold at each one: own
+your trigger (the one request, command, or event you answer) end to end; share only via a named
+symbiont or a published skeleton; interact only through the water.
 
 ```mermaid
 flowchart LR
@@ -107,9 +108,10 @@ flowchart LR
   payload is well-formed and allowed by business rules. A rule about *identity/permission* is the
   crab; a rule about *the data itself* is the goby. When one case is genuinely both, flag it
   (`[AGENT-2]`).
-- **The picture is fractal, so the rules are too.** Own your trigger end to end; share only via a
-  named symbiont (horizontal) or a published skeleton (contract); interact only through the water
-  (the bus). These hold for a polyp (slice), a colony (app), and a reef (system) alike.
+- **The picture is fractal, so the rules are too.** Own your trigger (the one request, command, or
+  event you answer) end to end; share only via a named symbiont (horizontal) or a published skeleton
+  (contract); interact only through the water (the bus). These hold for a polyp (slice), a colony
+  (app), and a reef (system) alike.
 - **For agents, the parts form a complete, mutually-exclusive ontology** — polyp / symbiont /
   skeleton / colony / reef / signal. Almost every placement question reduces to *"is this a new
   polyp, a new symbiont, a new skeleton, or a new colony?"* — one part, one answer, less ambiguity.
