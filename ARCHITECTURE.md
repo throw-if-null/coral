@@ -656,6 +656,7 @@ observability mechanism, trust/security, contract versioning, and testing mechan
 
 - **`appendix/cli.md`** — CLI tools. (Written.)
 - **`appendix/backend.md`** — backends/services; heaviest use of horizontals + `[COMPOSE]`. (Partial.)
-- **`appendix/web.md`** — web apps; trust boundary is first-class. (Scaffold.)
+- **`appendix/web.md`** — web apps; trust boundary is first-class. (Partial.)
+- **`appendix/agentic-app.md`** — apps built around an LLM/agent at runtime; the model is an injected effect, the agent runs in a harness. (Partial.)
 - **`appendix/library.md`** — libraries/packages; the consumer is the root; contract = semver. (Scaffold.)
 - **`appendix/gh-action.md`** — Actions/tools; at-least-once reruns ⇒ mandatory idempotency. (Scaffold.)

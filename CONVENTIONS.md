@@ -176,6 +176,12 @@ generate code confidently.
 
 ## The Operating Model: Agents Write, Humans Review  `[AGENT-*]`
 
+This is about **agents as authors** — at *build time*, agents write the code and humans review and
+orchestrate. Don't confuse it with **agents as runtime components**, where the running app itself is or
+uses an agent — that's a different axis, covered by [`appendix/agentic-app.md`](./appendix/agentic-app.md).
+(Pleasingly, both are governed by the same *harness* pattern; this document set is the build-time
+harness, an agentic app is the run-time one.)
+
 The whole document set is designed *around* this division of labor, not merely tolerant of it. Every
 constraint earns its place by serving one of these properties:
 
@@ -209,6 +215,6 @@ the intent and apply `[AGENT-2]`.
 - **`CONVENTIONS.md`** (this file) — the shared horizontal: the Coral model, rule scheme, operating
   model. The front door — read first.
 - **`ARCHITECTURE.md`** + **`appendix/*.md`** — the **app/colony** spine: how to build one polyp-shaped
-  app (CLI, backend, web, library, tool). Each appendix is one species of polyp.
+  app (CLI, backend, web, agentic/LLM, library, tool). Each appendix is one species of polyp.
 - **`SYSTEM.md`** — the **system/reef** spine: how colonies (apps) compose into a reef over the water
   (the bus). Builds on the app spine; the app spine never cites it.

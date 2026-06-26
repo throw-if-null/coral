@@ -136,6 +136,28 @@ producer to expose its internals — only to publish a capability.
 agents orchestrate the harness. Density that would overwhelm one app (`[SCOPE-2]`) lives here as a
 *topology* problem, keeping every app slice-shaped and within agent competence.
 
+### The orchestrating harness (agent as the conductor)
+
+When an agent does the orchestrating, it is **not** a fourth, fuzzy bus form. It sits *above* the bus:
+a consumer/router that *chooses among* the reef's published capabilities. The bus underneath stays
+deterministic and contract-tested; only the choice of which capability to call is the agent's.
+
+**`[ORCH-4]` `[review]`** — An agent may orchestrate the reef **only from inside a harness** — a
+deterministic, observable app that employs the agent within walls (see
+[`appendix/agentic-app.md`](./appendix/agentic-app.md), `[AGENTIC-5]`). Never a bare model with direct
+authority over your apps.
+
+**`[ORCH-5]` `[review]`** — The harness's **tools are the apps' published bus capabilities** (`[BUS-1]`);
+the agent calls them and never reaches into internals. Every call is authorized, irreversible cross-app
+actions are **gated by a human**, and every decision and call is observed and trace-correlated
+(`[BUS-7]`, `[BUS-8]`).
+
+**`[ORCH-6]` `[review]`** — The orchestrating harness **is itself an app** — an agentic app
+(`[AGENTIC-6]`) and a polyp in the reef, with its own contract, observability, and tests. The fractal
+holds: agent-in-a-harness at slice scale, app scale, and here at reef scale. Test it in two halves —
+the harness's deterministic routing/authz/gating is contract-tested (`[SYS-TEST-*]`); the agent's
+behavior is graded by evals, never exact-match (`[AGENTIC-11]`).
+
 ---
 
 ## 3. Contract Testing  `[SYS-TEST-*]`

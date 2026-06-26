@@ -147,6 +147,7 @@ export default withMermaid(defineConfig({
           { text: 'CLI', link: '/appendix/cli' },
           { text: 'Backend / Service', link: '/appendix/backend' },
           { text: 'Web App', link: '/appendix/web' },
+          { text: 'Agentic App (LLM)', link: '/appendix/agentic-app' },
           { text: 'Library / Package', link: '/appendix/library' },
           { text: 'GitHub Action / Tool', link: '/appendix/gh-action' },
         ],
