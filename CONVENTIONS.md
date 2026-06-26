@@ -1,15 +1,15 @@
-# Coral Architecture — Conventions (the shared horizontal)
+# Coral Architecture — Conventions
 
-**Start here.** This file is the **horizontal** for the whole document set: the things that must not
-diverge across documents — the **Coral model** (the guiding metaphor), the rule-ID scheme, the
-enforcement classes, and the agents-write/humans-review operating model. Both spines
-([`ARCHITECTURE.md`](./ARCHITECTURE.md), a single app/colony, and [`SYSTEM.md`](./SYSTEM.md), a system/
-reef of apps) reference this file instead of duplicating it.
+**Start here.** This is the front door to the Coral Architecture docs. This file holds what every
+other document shares and must agree on: the **Coral model** (the guiding metaphor everything else
+builds on), the rule-ID scheme, the enforcement classes, and the agents-write / humans-review
+operating model. The two spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how to build one app) and
+[`SYSTEM.md`](./SYSTEM.md) (how apps compose into a system) — refer back here instead of repeating it.
 
-That this exists as a separate file is the architecture applied to its own docs: a cross-cutting
-concern, consumed by every document and required to stay consistent, is defined once and injected by
-reference — not copied (the `[XCUT-1]` gate), and not dumped into one growing file (the `[GROW-3]`
-split signal). The metaphor is itself such a concern, so it lives here once.
+Keeping these shared pieces in one referenced file, rather than copying them into each document, is
+the architecture practicing what it preaches: a concern used in many places is defined once and
+pointed to, never duplicated. (Once you've read the Coral model below, you'll recognize that as a
+*horizontal* — rules `[XCUT-1]` and `[GROW-3]`.)
 
 ---
 
