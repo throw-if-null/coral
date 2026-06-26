@@ -2,37 +2,41 @@
    Light: turquoise accents on a near-white surface with a faint cool tint.
    Dark:  bright turquoise accents over deep blue-grey "ocean depth" surfaces. */
 :root {
-  /* deeper turquoise accents (a notch darker than before) */
-  --vp-c-brand-1: #08707d;
-  --vp-c-brand-2: #0b8b99;
-  --vp-c-brand-3: #11aab6;
-  --vp-c-brand-soft: rgba(17, 170, 182, 0.14);
+  /* LIGHT — electric ocean cyan is the dominant surface; deep-navy ink, blue accents */
+  --vp-c-bg: #00f9fe;        /* the color seen the most */
+  --vp-c-bg-alt: #00dfe6;    /* sidebar / footer band — a deeper cyan */
+  --vp-c-bg-soft: #74fbff;   /* cards / code — lighter cyan, layered */
+  --vp-c-bg-elv: #ffffff;    /* elevated (popovers, menus) — white pops on cyan */
+  --vp-c-gutter: #00dfe6;
 
-  /* a touch darker overall: off-white content bg + stronger cool tint on surfaces */
-  --vp-c-bg: #f6fafb;
-  --vp-c-bg-soft: #e6f3f5;
-  --vp-c-bg-alt: #dceef1;
+  --vp-c-text-1: #00103d;    /* near-black navy ink */
+  --vp-c-text-2: #1a3578;
+  --vp-c-text-3: #3a5aa0;
 
-  /* hero title gets a turquoise → ocean-blue wash */
+  /* links/accents: a vivid blue, distinct from both the cyan bg and the navy ink */
+  --vp-c-brand-1: #1547e0;
+  --vp-c-brand-2: #2a5cf5;
+  --vp-c-brand-3: #5077ff;
+  --vp-c-brand-soft: rgba(21, 71, 224, 0.12);
+
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(120deg, #11aab6 30%, #1f7fd1);
+  --vp-home-hero-name-background: linear-gradient(120deg, #001166 20%, #1547e0);
 }
 
 .dark {
-  /* deep-ocean surfaces, leaning bluer/navy (replacing VitePress's near-black) */
-  --vp-c-bg: #0c1a2b;
-  --vp-c-bg-alt: #08121f;
-  --vp-c-bg-soft: #112638;
-  --vp-c-bg-elv: #142a3d;
-  --vp-c-gutter: #08121f;
+  /* DARK — deep ocean navy is the dominant surface; bright cyan accents glow on it */
+  --vp-c-bg: #001166;        /* the color seen the most */
+  --vp-c-bg-alt: #000b40;    /* sidebar / footer — darker navy */
+  --vp-c-bg-soft: #0a1f74;   /* cards / code — lighter navy, layered */
+  --vp-c-bg-elv: #0c2382;
+  --vp-c-gutter: #000b40;
 
-  /* brighter turquoise that pops against the navy */
-  --vp-c-brand-1: #45d3da;
-  --vp-c-brand-2: #2fbcc4;
-  --vp-c-brand-3: #239aa2;
-  --vp-c-brand-soft: rgba(69, 211, 218, 0.16);
+  --vp-c-brand-1: #00f9fe;   /* electric cyan accent on navy */
+  --vp-c-brand-2: #4dfbff;
+  --vp-c-brand-3: #8afcff;
+  --vp-c-brand-soft: rgba(0, 249, 254, 0.16);
 
-  --vp-home-hero-name-background: linear-gradient(120deg, #45d3da 30%, #5aa9f0);
+  --vp-home-hero-name-background: linear-gradient(120deg, #00f9fe 30%, #5aa9f0);
 }
 
 /* Botanical-illustration "plates" — the cream-backgrounded art reads as framed
