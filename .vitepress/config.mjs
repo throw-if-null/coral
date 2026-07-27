@@ -64,6 +64,46 @@ for (const rel of DOC_FILES) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Referential integrity: every rule ID that appears anywhere must be registered.
+//
+// This is the guard for the failure this file has already had twice — eleven
+// [AGENTIC-*] rules in a file the registry never read, and eleven [CLI-*] rules
+// written in a form DEF_RE didn't match. Both were silent: an unregistered ID
+// falls through to plain <code>, so nothing errors and the page still builds.
+//
+// Note *what* is compared. Checking definitions against emitted anchors only
+// proves the parser agrees with itself, and cannot see a rule it never
+// recognized as one. Checking usage against registration can: a rule nobody
+// cites is fine, but a citation with no definition means either a typo or a
+// definition written in a shape we don't parse.
+// ─────────────────────────────────────────────────────────────────────────────
+const USE_RE = new RegExp(String.raw`\`\[(${ID_CORE})\]\``, 'g')
+const orphans = new Map() // ID -> Set of files it appears in
+for (const rel of DOC_FILES) {
+  const abs = path.join(SRC, rel)
+  if (!fs.existsSync(abs)) continue
+  for (const m of fs.readFileSync(abs, 'utf8').matchAll(USE_RE)) {
+    if (registry.has(m[1])) continue
+    if (!orphans.has(m[1])) orphans.set(m[1], new Set())
+    orphans.get(m[1]).add(rel)
+  }
+}
+if (orphans.size) {
+  const msg = [
+    `${orphans.size} rule ID(s) appear in the docs but no definition was found:`,
+    ...[...orphans.keys()].sort()
+      .map((id) => `    [${id}]  cited in: ${[...orphans.get(id)].join(', ')}`),
+    'Either the citation is a typo, or the definition is written in a form DEF_RE',
+    'does not match. A definition line must open with one of:',
+    '    **`[ID]`     - `[ID]`     - **`[ID]`**',
+  ].join('\n')
+  // Same posture as VitePress's own dead-link checking: fail the build, warn in dev
+  // so an in-progress edit doesn't kill the running server.
+  if (process.argv.includes('build')) throw new Error(`[coral] ${msg}`)
+  console.warn(`\n[coral] ${msg}\n`)
+}
+
 function ruleIdPlugin(md) {
   // Pass 1: mark code-spans that hold a rule ID, flagging the one that *leads* its
   // block as the definition. "Leads" = first ID code-span preceded only by opening
