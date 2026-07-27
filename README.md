@@ -33,6 +33,24 @@ Read them in this order:
 Rules carry stable IDs like `[DUP-2]` with an enforcement class (`[auto]` / `[review]` / `[guide]`);
 on the live site every citation links to its definition.
 
+## The audit skill
+
+[`.claude/skills/coral-audit/`](./.claude/skills/coral-audit) is the operational counterpart to the
+docs: point it at a repo and it produces a `CORAL_AUDIT.md` answering one question — *is this a Coral
+app, and where does it diverge?* Structural divergences are the findings; bugs it happens to surface
+are recorded as awareness notes, never the verdict. It diagnoses only — the refactor approach is
+decided later, by a human in a separate planning session.
+
+Because it lives in `.claude/skills/`, Claude Code picks it up automatically when you work in this
+repo. To audit *other* repos — which is the point — install it at user level:
+
+```bash
+ln -s "$PWD/.claude/skills/coral-audit" ~/.claude/skills/coral-audit
+```
+
+A symlink rather than a copy, deliberately: two copies of the same rules drift, and the docs are the
+one place the rules are allowed to live.
+
 ## Run the docs locally
 
 ```bash
