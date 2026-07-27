@@ -20,16 +20,38 @@ const BASE = process.env.DOCS_BASE || '/'
 // VitePress does NOT apply `base` to `head` entries — prefix public assets by hand.
 const asset = (file) => `${BASE}${file}`
 
-const DOC_FILES = [
-  'CONVENTIONS.md', 'ARCHITECTURE.md', 'SYSTEM.md',
-  'appendix/cli.md', 'appendix/backend.md', 'appendix/web.md',
-  'appendix/library.md', 'appendix/gh-action.md',
-]
+// The spine docs are pinned first because the registry is first-definition-wins:
+// precedence has to be stable and must not depend on directory order.
+const SPINE = ['CONVENTIONS.md', 'ARCHITECTURE.md', 'SYSTEM.md']
+// Everything else is discovered, so a new appendix or example is registered just by
+// existing. This list used to be hand-maintained, and appendix/agentic-app.md was
+// never added to it — its eleven [AGENTIC-*] rules silently got no anchors and every
+// citation of them rendered as inert code. Scanning a file that defines no rules
+// costs nothing, so there is no reason to curate. README.md is skipped at any depth:
+// it is srcExclude'd, so a definition there would point at a page that isn't built.
+const SKIP = new Set(['node_modules', 'public'])
+function findDocs(dir) {
+  const out = []
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (e.name.startsWith('.') || SKIP.has(e.name)) continue
+    const abs = path.join(dir, e.name)
+    if (e.isDirectory()) out.push(...findDocs(abs))
+    else if (e.name.endsWith('.md') && e.name !== 'README.md') out.push(path.relative(SRC, abs))
+  }
+  return out
+}
+// Set preserves insertion order, so the spine keeps precedence over the sorted rest.
+const DOC_FILES = [...new Set([...SPINE, ...findDocs(SRC).sort()])]
 
 // id grammar, anchored for inline-token matching and reused (unanchored) for scanning
 const ID_CORE = '[A-Z][A-Z-]*-\\d+'
 const INLINE_ID_RE = new RegExp(`^\\[(${ID_CORE})\\]$`)
-const DEF_RE = new RegExp(String.raw`^(?:\*\*|- )\`\[(${ID_CORE})\]\``, 'gm')
+// A definition line opens with a bullet, bold, or both, then the ID code-span. All three
+// combinations occur: **`[SCOPE-1]`** (spine), - `[PLACE-1]` (bulleted), - **`[CLI-1]`**
+// (cli.md). Missing the third silently cost appendix/cli.md all eleven of its anchors.
+// The leading `- **` / `**` / `- ` is required, not optional: a wrapped paragraph line can
+// begin with a bare `[ID]` code-span, and those are citations, not definitions.
+const DEF_RE = new RegExp(String.raw`^(?:- \*\*|\*\*|- )\`\[(${ID_CORE})\]\``, 'gm')
 
 // registry: ID -> defining page (relative path, matches VitePress env.relativePath)
 const registry = new Map()

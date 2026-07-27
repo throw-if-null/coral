@@ -27,7 +27,8 @@ Read them in this order:
    enforcement classes, and the agents-write / humans-review operating model.
 2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the app spine: how to build one app.
 3. **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a bus.
-4. **[`appendix/`](./appendix)** — one file per app type (CLI, backend, web, library, GitHub Action).
+4. **[`appendix/`](./appendix)** — one file per app type (CLI, backend, web, agentic/LLM, library,
+   GitHub Action).
 
 Rules carry stable IDs like `[DUP-2]` with an enforcement class (`[auto]` / `[review]` / `[guide]`);
 on the live site every citation links to its definition.
