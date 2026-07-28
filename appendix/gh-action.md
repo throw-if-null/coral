@@ -1,41 +1,153 @@
-# Appendix: GitHub Action / Tool  (SCAFFOLD)
-
-> Status: scaffold. Slots listed below; fill with prose when an Action/tool is built against this spine.
+# Appendix: GitHub Action / Tool
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for GitHub Actions and similar
-trigger-driven tools (CI steps, webhooks, schedulers). Read the spine first. Rule IDs here will use the
-`GHA-` family, and each will carry exactly one enforcement class.
+trigger-driven tools (CI steps, webhook receivers, schedulers). Read the spine first; this appendix fills
+the app-type-specific slots and adds Action-only rules in the `GHA-` family.
 
-**Defining tension:** the platform delivers **at-least-once** — Actions get re-run, webhooks
-redeliver, schedules retry. So **idempotency is mandatory (`[IDEM-5]`)**, not advisory: any mutating
-run must dedupe (idempotency key, natural key, or check-before-write) because you do not control the
-retry. The observable contract is the action's declared outputs + exit status + annotations.
+**Defining tension:** two platform facts dominate, and both are outside your control. First, delivery is
+**at-least-once** — Actions get re-run by hand, webhooks redeliver, schedules retry — so **idempotency is
+mandatory (`[IDEM-5]`)**, not advisory. Second, the run is **privileged and the input is often hostile**:
+several trigger types hand you a write-scoped token *and* attacker-authored content in the same payload.
+Most Action defects are one of those two facts being assumed away.
 
-## Slots to fill
+---
 
-- **Boundary** → `[BOUND-1]`: one action run / one trigger event (one invocation = one slice).
-- **Observable contract** → `[CONTRACT-1]`: declared outputs + exit status + log annotations
-  (e.g. `::error::`, `::notice::`). Outputs are the typed, stable surface downstream steps consume.
-- **Composition root** → `[ROOT-1]`: the action entry point reads inputs/env, constructs/injects
-  horizontals, dispatches to the slice, and renders the result.
-- **State / effects** → `[STATE-1]`: effects are usually remote (API calls, repo mutations, artifact
-  writes); keep them at the edge and slice-local.
-- **Idempotency form** → `[IDEM-5]` **(mandatory)**: mutating runs must be safe under redelivery;
-  prefer idempotency keys / check-before-write; never assume exactly-once.
-- **Error rendering** → `[ERR-3]`: slices raise the taxonomy; the entry point maps `category` → exit
-  status + annotation; fail the step on non-recoverable categories.
-- **Observability** → `[OBS-1]`: log groups + annotations; never pollute declared outputs.
-- **Configuration** → `[CONFIG-1..4]`: declared inputs and env are resolved and validated at the entry
-  point, then injected; a missing required input fails the step immediately rather than at first use.
-- **Trust / security** → `[TRUST-1]` `[TRUST-2]`: treat inputs and event payloads as untrusted — a
-  `pull_request_target` payload is attacker-controlled; guard secret handling and token scope
-  (`[CONFIG-4]`); validate before acting.
-- **Contract versioning** → `[CONTRACT-2]`: input/output names are the versioned contract; follow
-  the action's tag/version discipline; deprecate inputs before removing.
-- **Testing** → `[TEST-1]`: exercise the entry point with simulated inputs/events against realistic
-  fixtures; assert outputs, exit status, annotations, and **idempotency under a repeated run**.
+## Boundary  → `[BOUND-1]`
 
-## Open questions to resolve when authoring
+**`[GHA-1]`** `[review]` One action run is one slice: one trigger, handled end to end. An action that does
+several unrelated things is several actions.
 
-- Composite vs. JS vs. container action — how the entry point and injection differ.
-- Distinguishing recoverable (retry-safe) from non-recoverable failures for the platform's retry.
+Where one distribution genuinely must cover several capabilities, dispatch on a declared `mode`-style input
+at the entry point and keep one slice per mode — the same shape as a CLI's subcommands (`[BOUND-2]`).
+
+## Observable contract  → `[CONTRACT-1]`
+
+**`[GHA-2]`** `[review]` The contract is **declared outputs + exit status + annotations**. Log text is not a
+contract.
+
+This is the rule with the most day-to-day consequence: a downstream step must consume your **outputs**,
+never parse your log lines. Log format is a diagnostic channel you need to stay free to change
+(`[OBS-1]`), and the moment a workflow greps it you have acquired an undeclared contract you will break by
+improving a message.
+
+**`[GHA-3]`** `[auto]` Every output the action writes is declared in `action.yml`, and the action relies on
+no undeclared output.
+
+Statically decidable by comparing `GITHUB_OUTPUT` writes against the declared `outputs:` block, in both
+directions — an undeclared write is invisible to consumers reading the manifest, and a declared output that
+is never written is a contract you are silently failing to honor.
+
+## Composition root  → `[ROOT-1]`
+
+**`[GHA-4]`** `[review]` The entry point is the root: it reads and validates inputs and environment,
+constructs and injects horizontals, dispatches to the slice, and renders the result. It holds no business
+logic.
+
+Inputs and environment are configuration (`[CONFIG-1]`, `[CONFIG-3]`): resolve and validate every required
+one *here*, and fail the step immediately with a clear annotation rather than at first use, three minutes
+into the run.
+
+## Idempotency form — mandatory  → `[IDEM-5]`
+
+**`[GHA-5]`** `[review]` Every mutating run must be safe under redelivery, via an idempotency key, a natural
+key, or check-before-write. Never assume exactly-once.
+
+The platform re-runs on a human's click, on a transient failure, and on a schedule that overlapped. The
+concrete failure shape is duplicate outward-facing effects — three identical PR comments, two release tags,
+a doubled deployment — because the effect was written as *create* rather than *ensure*. Prefer a natural
+key the platform already gives you (the commit SHA, the PR number, the run's target ref) over inventing
+one, and name the operation for what it actually is (`[IDEM-1]`, `[IDEM-3]`).
+
+Overlapping scheduled runs are the related trap: guard with a concurrency group or decline to start while
+a run is in flight (`[BOUND-5]`, `[CONC-3]`).
+
+## Trust / security — the heaviest slot  → `[TRUST-1]` `[TRUST-2]`
+
+**`[GHA-6]`** `[review]` Treat the event payload as attacker-controlled, and never interpolate it into a
+shell command or script body.
+
+`pull_request_target`, `issue_comment`, and `workflow_run` execute with a **write-scoped token** against
+content an outsider authored. Every field a stranger can type — PR title and body, branch name, issue
+comment, commit message — is an injection vector, and a `github.event.*` expression interpolated directly
+into a `run:` block is a code-execution sink, because the workflow expression is substituted into the script
+text *before* the shell ever sees it. Pass untrusted values through the **environment** (an `env:` entry
+the step reads as `"$VAR"`) so they arrive as data rather than as code, and validate them before acting.
+
+**`[GHA-7]`** `[review]` Declare `permissions:` explicitly and scope them to what the run needs; default to
+read-only.
+
+The token's default scope is far wider than most actions require, and an action that never states its
+permissions inherits whatever the repository default happens to be — which is not a decision anyone made
+for this action. Secrets come from the config horizontal (`[CONFIG-4]`), are never echoed, and are never
+written to an output; an output is readable by every downstream step.
+
+**`[GHA-8]`** `[guide]` Pin third-party actions you call by commit SHA, not by a moving tag.
+
+A moving tag is someone else's mutable code executing inside your privileged context. Pinning is the
+difference between depending on a *version* and depending on whatever that account publishes next.
+
+## Error rendering  → `[ERR-3]`
+
+**`[GHA-9]`** `[review]` Slices raise the taxonomy; the entry point maps `category` → exit status and
+annotation, and distinguishes **recoverable** from **non-recoverable** failure.
+
+The distinction is load-bearing here in a way it is not for a CLI, because a human decides whether to hit
+re-run. `infrastructure` is worth retrying and should say so in its annotation; `usage` and `validation`
+will fail identically on every re-run and should say *that*, so nobody burns twenty minutes re-running a
+malformed input. Use `::error::` for step-failing conditions and `::warning::`/`::notice::` for the rest,
+and **never fail silently with exit 0** — a green step that did nothing is the worst outcome the platform
+allows (`[ERR-3]`).
+
+## Observability  → `[OBS-1]`
+
+**`[GHA-10]`** `[auto]` Diagnostics use log groups and annotations only, never the outputs channel
+(`[OBS-3]`).
+
+Because a run has no caller to return to, say what it *did* — counts, ids touched, whether it was a no-op
+on redelivery (`[BOUND-5]`). "Skipped: already applied for SHA abc123" is what turns `[GHA-5]`'s
+idempotency from a claim into something an operator can verify from the log.
+
+## Contract versioning  → `[CONTRACT-2]`
+
+**`[GHA-11]`** `[review]` Input and output names are the versioned contract: add freely, never repurpose,
+deprecate before removing.
+
+Follow the ecosystem's moving-major-tag discipline (`v1` advancing to each compatible release, with
+immutable `v1.2.3` tags underneath). Removing or renaming an input breaks every workflow that sets it, and
+those workflows live in repositories you cannot see or fix — which makes the `[BUS-4]` prohibition on
+repurposing a name stricter here than almost anywhere else.
+
+## Testing mechanics  → `[TEST-1]`
+
+**`[GHA-12]`** `[review]` Exercise the entry point with simulated inputs and realistic event-payload
+fixtures, asserting declared outputs, exit status, annotations, **and idempotency under a repeated run**.
+
+The repeated-run assertion is the one that is always missing and always matters: invoke the slice twice
+against the same state and assert the second run is a no-op with the same outputs (`[TEST-4]`,
+`[GHA-5]`). Keep a fixture for each hostile trigger type you support, with an injection-shaped string in
+the payload fields, so `[GHA-6]` is covered by a test rather than by care.
+
+---
+
+## Action slot summary
+
+| Slot                | Action instantiation                                                  |
+| ------------------- | --------------------------------------------------------------------- |
+| boundary            | one action run / one trigger event                                    |
+| observable contract | declared outputs + exit status + annotations — **not** log text        |
+| composition root    | entry point: read/validate inputs, inject, dispatch, render           |
+| state / effects     | usually remote (API calls, repo mutations, artifacts); at the edge     |
+| configuration       | inputs + env validated at the entry point; fail the step immediately   |
+| idempotency form    | **mandatory**; natural key preferred; overlap-guard scheduled runs     |
+| error rendering     | category → exit status + annotation; recoverable vs not; never exit 0  |
+| observability       | log groups + annotations; report no-ops explicitly                    |
+| trust / security    | payload is attacker-controlled; no interpolation into `run:`; least-privilege token; pin by SHA |
+| contract versioning | input/output names; moving major tag; never repurpose                  |
+| testing             | simulated inputs + hostile fixtures; assert a repeated run is a no-op  |
+
+## Open questions
+
+- Composite vs. JavaScript vs. container action: how the entry point and dependency injection differ, and
+  whether a composite action can satisfy `[ROOT-1]` thinness at all.
+- Reusable workflows vs. actions: a reusable workflow is closer to an orchestration layer (`[ORCH-1]`) than
+  to a slice — worth deciding which rules follow it.

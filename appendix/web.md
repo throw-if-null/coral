@@ -39,24 +39,35 @@ panel.
 surface, or a thin client-side bus — **never one panel importing or reaching into another's internals**
 (`[COMPOSE-1]`). Statically: no import edge between two panel directories.
 
-**`[WEB-5]`** `[review]` A control panel must look like *one* product, so shared design tokens,
-primitives, and interaction patterns are a **horizontal** (`[XCUT-1]`): defined once as a design-system
-package, injected into every slice, never re-implemented or forked per panel. This is the cross-cutting
-concern that data fan-in doesn't have, and it is what makes UI fan-in genuinely harder.
+**`[WEB-5]`** `[review]` Shared design tokens, primitives, and interaction patterns are a **horizontal**:
+defined once as a design-system package, injected into every slice, never re-implemented or forked per
+panel.
 
-**`[WEB-6]`** `[guide]` *(pragmatism prevails — the honest fallback.)* When visual cohesion, bundle size,
-or performance makes true microfrontends uneconomical — a known weak spot with no clean industry answer —
-a **single integrated frontend is acceptable, provided it still organizes internally by capability
-slice** (each owning its view + state + call) and consumes the design-system horizontal. Treat this as the
-reversible default and **flag the choice** (`[AGENT-2]`) rather than letting "one big app" happen
-silently. The structure survives even when the deployment unit collapses to one.
+A control panel must look like *one* product, and visual cohesion is the cross-cutting concern that data
+fan-in doesn't have — it is most of what makes UI fan-in genuinely harder than the read fan-in of
+`[COMPOSE-4]`. It is also a textbook `[XCUT-1]`: cross-cutting, and carrying an invariant (one visual
+language) that is a defect when it diverges.
 
-## Trust / security  → `[TRUST-1]` `[TRUST-2]`
+**`[WEB-6]`** `[guide]` A **single integrated frontend is acceptable** where true microfrontends are
+uneconomical, provided it still organizes internally by capability slice and consumes the design-system
+horizontal.
 
-**`[WEB-7]`** `[review]` *(the heaviest slot.)* Treat the **client as hostile**: never trust anything from
-the browser. Authentication and authorization run at the server boundary as **middleware before the
-slice**; the slice receives an authenticated principal. Validate every request payload, enforce CSRF and
-session protections, and keep secrets server-side (`[CONFIG-4]`).
+This is the honest fallback, not a loophole: visual cohesion, bundle size, and performance make
+microfrontends genuinely uneconomical often enough that pretending otherwise would make the appendix
+useless, and the industry has no clean answer. Treat it as the reversible default and **flag the choice**
+(`[AGENT-2]`) rather than letting "one big app" happen silently. What matters is that the structure —
+capability slices, each owning its view, state, and one call — survives even when the deployment unit
+collapses to one.
+
+## Trust / security — the heaviest slot  → `[TRUST-1]` `[TRUST-2]`
+
+**`[WEB-7]`** `[review]` Treat the **client as hostile**: never trust anything that arrives from the
+browser.
+
+Authentication and authorization run at the server boundary as **middleware before the slice**, so the
+slice receives an already-authenticated principal. Validate every request payload, enforce CSRF and
+session protections, and keep secrets server-side (`[CONFIG-4]`) — anything shipped to the browser is
+public by definition.
 
 If resources are **user- or tenant-scoped**, the owner/tenant id is **part of the record and part of every
 query's WHERE clause** (as in `[BE-6]`) — decide before writing the slice; it changes schema, slice

@@ -61,9 +61,9 @@ process boundary requires a bus contract (`[BUS-1]`), not a re-export.
 
 ## The canonical slice
 
-Everything else in this document set exists to make code look like this. Read it before the rules;
-the rules are the reasons it is shaped this way. (Language-neutral; the full worked example is
-[`examples/go-api-slice.md`](./examples/go-api-slice.md).)
+Everything else in this document set exists to make code look like this. Read it before the rules; the
+rules are the reasons it is shaped this way. It is language-neutral — this exact capability is written out
+in real Python in [`examples/cli-slice.md`](./examples/cli-slice.md).
 
 ```
 expense/add                                    # one slice = one capability
@@ -232,9 +232,11 @@ Read in this order:
    agentic/LLM, library, GitHub Action).
 3. **[`SYSTEM.md`](./SYSTEM.md)** — the **system** spine: how apps compose over a bus. Builds on the
    app spine; the app spine never cites it.
-4. **Worked examples** — [`examples/go-api-slice.md`](./examples/go-api-slice.md) (a complete slice in
-   Go, with code) and [`examples/backend-review.md`](./examples/backend-review.md) (the rules applied
-   to a real service, including where they'd be overkill).
+4. **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python,
+   one file each), [`examples/go-api-slice.md`](./examples/go-api-slice.md) (an HTTP slice in Go, where
+   the language forces a capability across packages), and
+   [`examples/backend-review.md`](./examples/backend-review.md) (the rules applied to a real service,
+   including where they'd be overkill).
 
 ---
 

@@ -38,8 +38,9 @@ Read them in this order:
 3. **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a bus.
 4. **[`appendix/`](./appendix)** — one file per app type (CLI, backend, web, agentic/LLM, library,
    GitHub Action).
-5. **[`examples/`](./examples)** — [a complete slice in Go](./examples/go-api-slice.md) with real
-   code, and [the rules applied to a real service](./examples/backend-review.md) including where
+5. **[`examples/`](./examples)** — [two CLI slices in Python](./examples/cli-slice.md) (one file each),
+   [an HTTP slice in Go](./examples/go-api-slice.md) (where the language forces a capability across
+   packages), and [the rules applied to a real service](./examples/backend-review.md) including where
    they'd be overkill.
 
 Rules carry stable IDs like `[DUP-2]` with an enforcement class (`[auto]` / `[review]` / `[guide]`);

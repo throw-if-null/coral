@@ -17,9 +17,10 @@ A command's contract is **exit code + `stdout`/`stderr` separation + `--json`**:
 
 - **`[CLI-1]`** `[review]` Normal output goes to `stdout`; errors and diagnostics go to `stderr`.
 - **`[CLI-2]`** `[review]` Failures return non-zero exit codes.
-- **`[CLI-3]`** `[auto]` Read commands **must** support `--json` on `stdout`; mutations **may** emit a
-  `--json` result (e.g. the created id) and, if they do, it follows `[CLI-4]`. (The canonical slice shows
-  `add`, a mutation, emitting `--json`.)
+- **`[CLI-3]`** `[auto]` Read commands **must** support `--json` on `stdout`; mutations **may**, and if
+  they do it follows `[CLI-4]`. A mutation's `--json` result is typically the created id — the
+  [canonical slice](../CONVENTIONS.md#the-canonical-slice) and the
+  [CLI example](../examples/cli-slice.md) both show `add` emitting one.
 - **`[CLI-4]`** `[review]` `--json` output is stable across patch releases, fully typed, and free of
   color, progress, or decoration. → `[CONTRACT-1]`
 
@@ -30,8 +31,9 @@ constructs and injects horizontals (`db`, `config`, `errors`, `logging`). It con
 
 ## Unix-style command rules
 
-- **`[CLI-5]`** `[guide]` Commands are narrow (one command does one thing well), explicit (behavior clear
-  from name and flags), composable (output pipes and scripts cleanly), and script-friendly.
+- **`[CLI-5]`** `[guide]` Commands are narrow, explicit, composable, and script-friendly. Concretely:
+  one command does one thing well; its behavior is clear from its name and flags; its output pipes
+  cleanly; and it never requires a human at the keyboard.
 - **`[CLI-6]`** `[auto]` No interactive prompts by default. → `[CLI-5]`
 - **`[CLI-7]`** `[guide]` Command names are stable and predictable.
 

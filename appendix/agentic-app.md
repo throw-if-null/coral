@@ -78,11 +78,16 @@ owning slice (`[STATE-5]`).
 
 ## Idempotency  → `[IDEM-1]`
 
-**`[AGENTIC-8]`** `[review]` A "generate" is **non-idempotent and non-reproducible** — a retry won't
-reproduce the output — so on an at-least-once platform (`[IDEM-5]`) a mutating agent must dedupe by
-**storing the first result** keyed to the request, not by re-running.
+**`[AGENTIC-8]`** `[review]` On an at-least-once platform, a mutating agent dedupes by **storing the first
+result** keyed to the request, never by re-running.
 
-Caching by exact input is allowed, but as an optimization, not a correctness guarantee.
+The reason this is stricter than ordinary `[IDEM-5]` dedupe: a generate is not merely non-idempotent, it is
+**non-reproducible**. Re-running does not reproduce the previous output, so the usual "retry until it
+succeeds" recovery silently produces a *different* answer on the redelivery — and the second answer
+overwrites the first. The stored result is the only thing that makes the handler a true no-op.
+
+Caching by exact input is allowed, but as an optimization, not a correctness guarantee: the same prompt is
+not contractually the same output.
 
 ## Error model  → `[ERR-1]`
 

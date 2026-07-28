@@ -285,6 +285,7 @@ export default withMermaid(defineConfig({
         text: 'Worked examples',
         collapsed: false,
         items: [
+          { text: 'CLI (Python) — two slices', link: '/examples/cli-slice' },
           { text: 'Go API — a capability slice', link: '/examples/go-api-slice' },
           { text: 'Backend microservice review', link: '/examples/backend-review' },
         ],

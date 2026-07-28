@@ -11,19 +11,23 @@ orchestrate**.*
 This is the **app spine**: how to build one app — a CLI, backend, web app, library, or tool. App-type
 specifics live in the appendices under [`appendix/`](#appendix-index). How separate apps compose into a
 system lives in [`SYSTEM.md`](./SYSTEM.md). Worked code lives in
-[`examples/go-api-slice.md`](./examples/go-api-slice.md).
+[`examples/cli-slice.md`](./examples/cli-slice.md) (a CLI in Python) and
+[`examples/go-api-slice.md`](./examples/go-api-slice.md) (an HTTP endpoint in Go).
 
 ---
 
 ## How to read this document
 
-Sections 1–21 **define** the rules and explain *why* each exists. The
+Sections 1–22 **define** the rules and explain *why* each exists. The
 [Agent Execution Contract](#agent-execution-contract) is the **complete** condensed checklist: every
 `[auto]` and `[review]` rule below appears in it, so an agent that loads only the contract has the whole
 normative surface. The build fails if a rule is missing from it.
 
-Within a rule, **the first sentence is the rule** — complete and quotable on its own. What follows is
-commentary: qualifications, examples, and cross-references.
+Within a rule, **the first sentence is the rule** — complete and quotable on its own, so a reviewer can
+paste it into a comment unedited. What follows is commentary: qualifications, examples, and
+cross-references. A few rules lead with a bolded name instead (`[DUP-4]` The Extraction Test, `[TEST-3]`
+Unit tests are a scalpel) — that name is the quotable form. Where a rule ends in a colon, the list beneath
+it is part of the rule, not commentary.
 
 ---
 
@@ -174,6 +178,19 @@ handler). A genuinely long-running reconciler that owns evolving cross-domain ru
 split into its own app — and that app's slices are still triggered by reads, events, or ticks, never by
 an ambient loop.
 
+**`[BOUND-5]` `[review]`** — A scheduled or background trigger is a slice like any other: named for its
+effect, with an observable contract and its own tests.
+
+It differs from a request in one way that matters: **it has no caller to return to**, so silent failure is
+its default behavior rather than an edge case. Three things follow. Its outcome must be observable —
+success, failure, and what it processed (`[OBS-2]`); a job whose only failure signal is "the number didn't
+go up" is not shippable. It must be safe under **overlapping runs**, because the next tick can fire before
+this one finishes (`[CONC-3]`), or it must decline to start while a run is in flight. And on any platform
+that retries a missed or failed run, it must be idempotent (`[IDEM-5]`).
+
+Give it a real observable contract even though no user reads it: a summary result (counts, ids touched, a
+status) is what makes the job testable at its entry point like every other slice (`[TEST-1]`).
+
 ---
 
 ## 5. Composition Root  `[ROOT-*]`
@@ -266,8 +283,20 @@ slice. Extracting then, and touching the first slice, is expected — flag the c
 **`[XCUT-2]` `[auto]`** — A horizontal has a precise, domain- or infrastructure-oriented name (`money`,
 `period`, `errors`, `db`), never a generic bucket name (`[BUCKET-1]`).
 
-**`[XCUT-3]` `[review]`** — A horizontal is injected and consumed through its published surface, never
-reached into.
+**`[XCUT-3]` `[review]`** — A horizontal is consumed through its published surface, never reached into,
+and anything holding configuration, a connection, or per-trigger state is **injected**.
+
+Injection is about testability, not ceremony. A horizontal that is **pure and stateless** — a formatter, a
+validator, a parse invariant — may be consumed by direct import; that *is* consuming its published
+surface, and wrapping it in a container buys nothing. A horizontal that holds **configuration, a
+connection, or per-trigger state** must be injected, or the slice cannot be exercised without ambient
+setup and `[CONFIG-2]` is violated.
+
+The test is a question about the slice's tests: *could you run this slice against temporary
+infrastructure without setting an environment variable or patching a module?* If not, something that
+should be injected is being reached for. Both examples show the split concretely
+([Python](./examples/cli-slice.md#what-gets-injected-and-what-gets-imported),
+[Go](./examples/go-api-slice.md)).
 
 **`[XCUT-4]` `[guide]`** — A horizontal is the *first line* of drift control.
 
@@ -407,15 +436,88 @@ it genuinely shares the entity's invariant, the invariant — not the storage �
 (`[XCUT-5]`). Two slices writing one table is a `[GROW-3]` split signal, not a reason for a shared
 data-access layer.
 
+**`[STATE-6]` `[review]`** — A cache is an optimization, never a source of truth: every read path must be
+correct with the cache empty, and nothing may exist *only* in the cache.
+
+Test it by deleting the cache. If a read now returns wrong data rather than slow data, the cache has
+become primary storage — which means it has silently acquired an owner, a schema, and a durability
+requirement it was never designed for. Whatever the cache holds must be derivable from the real store
+(`[STATE-4]`).
+
+**`[STATE-7]` `[review]`** — Name the invalidation strategy when you add a cache, and own it in the slice
+that owns the cached value.
+
+There are three workable strategies and you must pick one explicitly: a **TTL** (staleness is bounded and
+acceptable), **write-through** from the slice that owns the underlying value, or **event-driven**
+invalidation on a change signal. A cache with no stated strategy is not shippable — it will be correct in
+testing and stale in production, and the next agent has no way to know which behavior was intended. Write
+the choice down next to the cache.
+
 ---
 
-## 13. Configuration  `[CONFIG-*]`
+## 13. Concurrency  `[CONC-*]`
+
+Two triggers can run at the same time. The architecture makes that mostly safe by construction — a slice
+owns one trigger and holds nothing between triggers — but "mostly" is where the bugs live, so the
+assumption is written down rather than left implicit.
+
+**`[CONC-1]` `[auto]`** — A slice holds no mutable state between triggers: per-trigger state lives in the
+trigger's own scope, never in a module-level or static variable.
+
+This is the rule that makes every other concurrency question tractable. A slice with no cross-trigger
+state cannot race with a copy of itself, so the only concurrency left to reason about is the *shared* kind
+— horizontals (`[CONC-2]`) and state (`[CONC-3]`). Statically decidable: mutable module-level state in a
+slice module is a violation. Immutable constants and lookup tables are fine.
+
+**`[CONC-2]` `[review]`** — Every horizontal is explicitly either **shared and concurrency-safe** or
+**constructed per trigger**, and the root constructs it accordingly.
+
+There is no third option and no default to fall back on. A connection pool, a logger, a config object, and
+a pure invariant helper (`money`) are shared and must be safe for simultaneous use. A transaction handle,
+the authenticated principal, and the correlation id are per-trigger. The failure mode is a horizontal that
+*looks* shareable and holds one trigger's state — a client object caching the last response, a builder
+reused across calls. State which kind each horizontal is where it is constructed.
+
+**`[CONC-3]` `[review]`** — When two triggers can write the same state, the slice names its strategy at the
+write: **serialize** on the affected key, use **optimistic concurrency** (compare-and-set on a
+version), or make the update **commutative**.
+
+Never assume exclusivity. The common bug is a read-modify-write split across two effects — read the row,
+compute, write it back — which is a lost-update race whenever two triggers interleave, and which testing
+almost never catches. Either collapse it into one atomic operation, or take one of the three strategies
+above and say which in the code. This is also why `[IDEM-1]` distinguishes absolute from relative updates:
+a *set* to a caller-supplied value tolerates interleaving in a way an increment does not.
+
+**`[CONC-4]` `[review]`** — A transaction is scoped to one trigger and never spans an external call.
+
+Opening a transaction, calling out to another service or a model, and then committing holds a database
+lock for the duration of somebody else's latency — it converts their slow day into your outage. Do the
+external call before the transaction or after it, and if the two must be consistent, make the effect
+idempotent (`[IDEM-5]`) and reconcile rather than holding the lock.
+
+**`[CONC-5]` `[guide]`** — The architecture's concurrency default is *one trigger, one thread of control,
+no shared mutable state*.
+
+That default is what lets a reviewer, or an agent, reason about a slice in isolation. Every escape from it
+— a shared mutable horizontal, a background worker, an in-process queue — removes that property for the
+whole app, not just for the code that uses it. Treat introducing one as a `[AGENT-2]` decision to flag,
+not a local implementation detail. Async work is a trigger, not an ambient loop (`[BOUND-4]`, `[BOUND-5]`).
+
+---
+
+## 14. Configuration  `[CONFIG-*]`
 
 Configuration is the horizontal every app has and most architectures forget to govern. Ambient config
 reads are the most common way a slice stops being self-contained.
 
 **`[CONFIG-1]` `[review]`** — Configuration is a horizontal: resolved once at the composition root,
 validated there, and injected into the slices that need it.
+
+A **feature flag is configuration**, and the same rule applies: resolve it at the root and inject the
+decision, rather than having a slice reach for a flag client mid-behavior. A slice that queries a flag
+service inline is untestable without that service and has a hidden dependency the reviewer cannot see in
+its signature. Where a flag must be evaluated per request (a per-user rollout), inject the *evaluator* as a
+horizontal and treat its result as request-bound state (`[CONC-2]`).
 
 **`[CONFIG-2]` `[auto]`** — No slice reads the process environment, a config file, or a global settings
 object directly.
@@ -438,7 +540,7 @@ rather than a design smell.
 
 ---
 
-## 14. Idempotency & Effect Semantics  `[IDEM-*]`
+## 15. Idempotency & Effect Semantics  `[IDEM-*]`
 
 **`[IDEM-1]` `[review]`** — The request or trigger's **name signals its effect semantics**, and the
 implementation matches.
@@ -482,7 +584,7 @@ Do not invent a name whose effect is ambiguous. If the *effect itself* is unclea
 
 ---
 
-## 15. Error Model  `[ERR-*]`
+## 16. Error Model  `[ERR-*]`
 
 **`[ERR-1]` `[review]`** — Use one small, stable error taxonomy, defined once as a horizontal:
 
@@ -515,7 +617,7 @@ in; never leave it implicit.
 
 ---
 
-## 16. Observability  `[OBS-*]`
+## 17. Observability  `[OBS-*]`
 
 **`[OBS-1]` `[guide]`** — Diagnostics are **opt-in, off the data path, and never part of the machine
 contract**. The principle is universal; the mechanism is per-appendix (a `--debug` flag to `stderr` for
@@ -532,7 +634,7 @@ could reach the contract channel — which is why it is `[review]` and test-cove
 
 ---
 
-## 17. Public & Observable Contracts  `[CONTRACT-*]`
+## 18. Public & Observable Contracts  `[CONTRACT-*]`
 
 **`[CONTRACT-1]` `[review]`** — What the outside world depends on — machine-readable output, HTTP API
 shape, library public API — is stable, explicit, fully typed, and free of decoration.
@@ -543,7 +645,7 @@ concrete rule lives in the appendix.
 
 ---
 
-## 18. Trust Boundary  `[TRUST-*]`
+## 19. Trust Boundary  `[TRUST-*]`
 
 **`[TRUST-1]` `[review]`** — Treat the request boundary as the **trust boundary**: validate and authorize
 untrusted input at the edge before it reaches behavior.
@@ -559,7 +661,7 @@ always come from the config horizontal (`[CONFIG-4]`).
 
 ---
 
-## 19. Testing Philosophy  `[TEST-*]`
+## 20. Testing Philosophy  `[TEST-*]`
 
 **`[TEST-1]` `[review]`** — Testing is **behavior-first**: exercise the slice's entry point, assert its
 observable contract (`[BOUND-1]`), use real or realistic temporary infrastructure, and minimize mocking.
@@ -584,7 +686,7 @@ diagnostic behavior.
 
 ---
 
-## 20. File Growth & Split Signals  `[GROW-*]`
+## 21. File Growth & Split Signals  `[GROW-*]`
 
 **`[GROW-1]` `[guide]`** — Start small: prefer one file per slice initially.
 
@@ -605,7 +707,7 @@ composition slice, `[COMPOSE-4]`) and flag for review.
 
 ---
 
-## 21. Variations on the canonical slice
+## 22. Variations on the canonical slice
 
 The [canonical slice](./CONVENTIONS.md#the-canonical-slice) lives in `CONVENTIONS.md` — read it there,
 once. [`examples/go-api-slice.md`](./examples/go-api-slice.md) is the same shape in real Go, including
@@ -645,6 +747,7 @@ Reviewers walk this same list and cite the same IDs.
 - `[STRUCT-1]` Colocate tests, or mirror the package structure where colocation is impossible.
 - `[BOUND-2]` One request/trigger — or a very tight pair — per slice, owned end to end.
 - `[BOUND-3]` Use the boundary form the appendix fixes; do not invent a new one.
+- `[BOUND-5]` A scheduled/background trigger is a slice: observable outcome, overlap-safe, tested.
 - `[ROOT-1]` Keep the root thin: register, construct, inject, bootstrap. No business logic.
 - `[ROOT-2]` The root imports no persistence or domain-internal module.
 
@@ -681,9 +784,17 @@ Reviewers walk this same list and cite the same IDs.
 - `[STATE-2]` Do not create a shared repository or data-access layer.
 - `[STATE-4]` The slice that computes derived state owns it; write it from a set-/event-named handler.
 - `[STATE-5]` One owning slice per table/file/bucket; its schema changes live with it.
+- `[STATE-6]` A cache is never a source of truth; every read path must be correct with it empty.
+- `[STATE-7]` Name the cache's invalidation strategy — TTL, write-through, or event-driven.
 - `[CONFIG-1]` Resolve, validate, and inject configuration at the root as a horizontal.
 - `[CONFIG-3]` Validate every required setting at construction; fail startup, not first use.
 - `[CONFIG-4]` Read secrets only through the config horizontal; never inline, log, or publish them.
+
+### Concurrency
+- `[CONC-1]` A slice holds no mutable state between triggers.
+- `[CONC-2]` Every horizontal is explicitly shared-and-concurrency-safe or constructed per trigger.
+- `[CONC-3]` Name the strategy where two triggers can write the same state: serialize, compare-and-set, or commute.
+- `[CONC-4]` Scope a transaction to one trigger; never hold it across an external call.
 
 ### Errors, observability, contracts, trust
 - `[ERR-1]` Use the six-category taxonomy, defined once as a horizontal.
@@ -744,6 +855,7 @@ ID it enforces so a failure points back here.
 | `[STRUCT-3]` / `[XCUT-2]` | root-level modules match an allowlist of precise names |
 | `[ROOT-2]` | the root module imports no persistence or domain-internal module |
 | `[STATE-2]` | no shared repository/data-access package |
+| `[CONC-1]` | no mutable module-level or static state in a slice module |
 | `[CONFIG-2]` | no slice module references the environment or config-file API |
 | `[CONFIG-4]` | no literal secret in source; no secret on a logged or published field |
 | `[IDEM-2]` | a read-named slice makes no one-hop write/mutation call |
@@ -781,9 +893,10 @@ New convention → new rule ID → new `[auto]` check (or `[review]` note) → e
   per-app-type instantiations.
 - **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a bus (`[BUS-*]`, `[ORCH-*]`,
   `[SYS-TEST-*]`). Builds on this doc; this doc never cites a system rule.
-- **Worked examples** — [`examples/go-api-slice.md`](./examples/go-api-slice.md) (a complete slice in
-  Go) and [`examples/backend-review.md`](./examples/backend-review.md) (the rules applied to a real
-  service, including where they'd be overkill).
+- **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python, one
+  file each), [`examples/go-api-slice.md`](./examples/go-api-slice.md) (an HTTP slice in Go, where the
+  language forces banding), and [`examples/backend-review.md`](./examples/backend-review.md) (the rules
+  applied to a real service, including where they'd be overkill).
 
 ## Appendix Index
 
@@ -798,6 +911,6 @@ trust/security, contract versioning, and testing mechanics.
 - **[`appendix/agentic-app.md`](./appendix/agentic-app.md)** — apps built around an LLM at runtime; the
   model is an injected effect and the agent runs in a harness. (Partial.)
 - **[`appendix/library.md`](./appendix/library.md)** — libraries and packages; the consumer is the root;
-  the contract is semver. (Scaffold.)
+  the contract is semver. (Written.)
 - **[`appendix/gh-action.md`](./appendix/gh-action.md)** — Actions and tools; at-least-once reruns make
-  idempotency mandatory. (Scaffold.)
+  idempotency mandatory. (Written.)

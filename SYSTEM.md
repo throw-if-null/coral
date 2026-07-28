@@ -113,9 +113,10 @@ Never trust a cross-app payload implicitly, even from a sibling app you own.
 states one.
 
 Distinct events may arrive out of order or concurrently, so a consumer that mutates shared state must be
-**safe under concurrency**: serialize per affected key, use optimistic concurrency, or make the update
-commutative. This is distinct from `[BUS-5]` dedupe — an idempotency key suppresses the *same* event
-redelivered; it does **not** order two *different* events racing on the same state.
+**safe under concurrency** — the same three strategies as `[CONC-3]` at app scale: serialize per affected
+key, use optimistic concurrency, or make the update commutative. This is distinct from `[BUS-5]` dedupe —
+an idempotency key suppresses the *same* event redelivered; it does **not** order two *different* events
+racing on the same state.
 
 **`[BUS-10]` `[review]`** — Cross-app reads are **eventually consistent**, and a computation that needs a
 coherent moment must state how it handles the skew.

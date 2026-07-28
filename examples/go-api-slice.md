@@ -1,9 +1,11 @@
 # Worked example: a Go API capability slice (one endpoint, end to end)
 
-The [other worked example](./backend-review) *reviews* a service and finds where it drifts from Coral.
-This one shows the opposite: **the smallest complete Coral slice in Go** — a single read endpoint, wired
-all the way through, with a test and its cross-cutting concerns. It is deliberately tiny; the point is the
-*shape*, which stays the same as the service grows.
+The [CLI example](./cli-slice) shows a slice in a language that imposes nothing, so each slice is one file.
+This one is the harder case: **a complete Coral slice in Go, where the language forces one capability
+across three packages** — a single read endpoint wired all the way through, with its tests and its
+cross-cutting concerns. It is deliberately tiny; the point is the *shape*, which stays the same as the
+service grows. (The [third example](./backend-review) goes the other direction and *reviews* a real service
+for where it drifts.)
 
 The capability: **fetch one document, scoped to the caller's tenant.** `GET /documents/:id`.
 
