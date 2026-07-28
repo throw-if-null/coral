@@ -69,6 +69,58 @@ class Layout:
     def rel(self, path: Path) -> str:
         return path.relative_to(self.repo).as_posix()
 
+    def _walk_parts(self, base: Path, parts: list[str]) -> Path | None:
+        current = base
+        for part in parts:
+            as_file, as_dir = current / f"{part}.py", current / part
+            # A regular package wins over a same-named module, matching CPython's
+            # own resolution order. Getting this backwards silently resolves
+            # `pkg.sub` to `pkg.py` and hides every finding inside the package.
+            if (as_dir / "__init__.py").is_file():
+                current = as_dir
+            elif as_file.is_file():
+                current = as_file
+            elif as_dir.is_dir():
+                current = as_dir
+            else:
+                return None
+        return current
+
+    def resolve_import(self, source: Path, ref) -> tuple[Path, ...]:
+        """Resolve one import to the first-party path(s) it names.
+
+        Returns () for anything external or unresolvable — stdlib, third-party, a
+        conditional import. Two checks need this ([ROOT-2] to classify what the root
+        reaches for, [STATE-2] to count which slices import a module), and the
+        resolution rule must not differ between them, so it lives here.
+
+        `from X import name` may name a submodule or a symbol; when `name` is not a
+        module, the import resolves to X itself, which is the right granularity for
+        both callers.
+        """
+        if ref.level > 0:
+            base = source.parent
+            for _ in range(ref.level - 1):
+                base = base.parent
+        else:
+            if not ref.module:
+                return ()
+            top = ref.module.split(".")[0]
+            if not ((self.repo / top).is_dir() or (self.repo / f"{top}.py").is_file()):
+                return ()  # external
+            base = self.repo
+
+        parts = ref.module.split(".") if ref.module else []
+        module = self._walk_parts(base, parts)
+        if module is None:
+            return ()
+
+        resolved: list[Path] = []
+        for name in ref.names:
+            child = self._walk_parts(module, [name]) if module.is_dir() else None
+            resolved.append(child or module)
+        return tuple(resolved) if resolved else (module,)
+
 
 def _walk(repo: Path, ignore: frozenset[str]) -> list[Path]:
     out: list[Path] = []

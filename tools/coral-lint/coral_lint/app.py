@@ -21,7 +21,9 @@ from .checks import (
     colocation,
     library_console,
     read_only,
+    root_imports,
     root_names,
+    shared_data_access,
     slice_state,
 )
 from .findings import CheckResult
@@ -32,10 +34,12 @@ EXIT_OK, EXIT_FINDINGS, EXIT_USAGE = 0, 1, 2  # [CLI-8]
 CHECKS = (
     buckets,
     root_names,
+    root_imports,
     colocation,
     ambient_config,
     slice_state,
     read_only,
+    shared_data_access,
     ad_hoc_errors,
     ambient_library_state,
     library_console,

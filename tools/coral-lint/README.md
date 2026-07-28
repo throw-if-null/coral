@@ -23,6 +23,8 @@ No dependencies, Python 3.11+, nothing to install.
 | `[CONC-1]` | module-level mutable state in a slice that something actually mutates |
 | `[IDEM-2]` | a read-named slice containing a SQL write or a `.commit()` / `.save()` |
 | `[ERR-2]` | a slice raising an exception type outside the declared taxonomy |
+| `[ROOT-2]` | a root importing something that is neither a horizontal nor a slice, reaching into slice internals, or holding SQL |
+| `[STATE-2]` | a module holding SQL that two or more slices import — a shared data-access layer |
 | `[LIB-3]` | a library with a hidden singleton, or that performs work on `import` |
 | `[LIB-5]` | a library that writes to the console or installs a process-wide handler |
 
@@ -92,6 +94,8 @@ coral_lint/
     slice_state.py           [CONC-1]     + slice_state_test.py
     read_only.py             [IDEM-2]     + read_only_test.py
     ad_hoc_errors.py         [ERR-2]      + ad_hoc_errors_test.py
+    root_imports.py          [ROOT-2]     + root_imports_test.py
+    shared_data_access.py    [STATE-2]    + shared_data_access_test.py
     ambient_library_state.py [LIB-3]      + ambient_library_state_test.py
     library_console.py       [LIB-5]      + library_console_test.py
 ```
@@ -101,17 +105,39 @@ the registry — which is the property the structure exists to buy.
 
 ```bash
 cd tools/coral-lint
-python3 -m pytest -q        # 81 tests
+python3 -m pytest -q        # 99 tests
 python3 -m coral_lint .     # the tool, checked by itself
 ```
 
 It is a CLI rather than a library, so it sets no `library_dirs` and `[LIB-3]`/`[LIB-5]` skip on it —
 reported on every run rather than quietly counted as passing.
 
-Self-checking found a real bug during development: the check implementing `[STRUCT-1]` was originally
-named `colocated_tests.py`, whose stem ends in `_tests`, so the tool classified its own slice as a test
-file and silently skipped it. The count in the run summary — "1 of 7 slices are read-named" — is what
-exposed it, which is the argument for reporting what you looked at rather than only what you found.
+Self-checking has earned its keep twice. The check implementing `[STRUCT-1]` was originally named
+`colocated_tests.py`, whose stem ends in `_tests`, so the tool classified its own slice as a test file and
+silently skipped it — the count in the run summary ("1 of 7 slices are read-named") is what exposed it,
+which is the argument for reporting what you looked at rather than only what you found. And `[STATE-2]`'s
+first-ever finding was a **false positive against `pysource.py`**: a module holding SQL-shaped *regexes*
+that eight slices import reads exactly like a data-access layer. That produced the regex-source guard
+described below, and a regression test.
+
+## How `[STATE-2]` decides adapter vs. repository
+
+Worth its own section, because a forbidden repository and a legitimate adapter can hold *identical code*.
+`[STATE-2]`'s test is **interface ownership**: if a shared package defines the data-access API and slices
+consume what it offers, it is a repository layer; if the slice declares the interface and a shared package
+merely implements it, it is an adapter.
+
+Import direction is the observable form of that, and it is exactly decidable:
+
+- a **repository** is imported **by** slices — the arrow runs slice → repository, so it accumulates every
+  caller's needs and no slice can be read alone
+- an **adapter** **imports** slices, to implement interfaces they declared — the arrow runs adapter →
+  slice, and no slice mentions it
+
+So the check is: a module holding SQL that **two or more slices import** is a shared data-access layer.
+The same module, holding the same SQL, imported by none of them, is an adapter and passes. That is why the
+[Go example](../../examples/go-api-slice.md#the-test-that-separates-this-from-a-repositories-layer)'s
+generated `store` package is not a finding, and a `queries.py` that two slices reach for is.
 
 ## Precision over coverage
 
@@ -131,6 +157,12 @@ Three places where that shows:
   because the rule itself grandfathers a `core` that denotes one bounded concept, and the
   [backend review](../../examples/backend-review.md) concluded that renaming a cohesive `models` would be
   cosmetic. A linter that shouts at the judgment calls gets muted along with its real findings.
+- SQL detection skips any string carrying regex metacharacters, because a string with `\b` or `\s+` in it
+  is a *pattern*, not a statement. Without that guard, every module which processes SQL rather than
+  executing it — a linter, a query builder, a migration tool — reads as a data-access layer.
+- Import resolution prefers a package over a same-named module, matching CPython. Getting it backwards
+  silently resolves `pkg.sub` to `pkg.py` and hides every finding inside the package — a test caught this
+  one before it shipped.
 
 ## Adding a check
 

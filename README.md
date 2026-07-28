@@ -54,10 +54,10 @@ reasoning tool; no rule requires the metaphor to apply it.
 ## The linter
 
 [`tools/coral-lint/`](./tools/coral-lint/) is the Tier 1 gate: it fails the build on the `[auto]` rules a
-static check can decide. Nine today — `[BUCKET-1]`, `[XCUT-2]`, `[STRUCT-1]`, `[CONFIG-2]`, `[CONC-1]`,
-`[IDEM-2]`, `[ERR-2]`, plus `[LIB-3]` and `[LIB-5]` for published libraries — with every other `[auto]`
-rule listed under `--coverage` alongside a stated reason it isn't checked yet, so nothing is silently
-uncovered.
+static check can decide. Eleven today — `[BUCKET-1]`, `[XCUT-2]`, `[STRUCT-1]`, `[ROOT-2]`, `[STATE-2]`,
+`[CONFIG-2]`, `[CONC-1]`, `[IDEM-2]`, `[ERR-2]`, plus `[LIB-3]` and `[LIB-5]` for published libraries —
+with every other `[auto]` rule listed under `--coverage` alongside a stated reason it isn't checked yet, so
+nothing is silently uncovered.
 
 ```bash
 cd tools/coral-lint

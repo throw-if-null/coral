@@ -95,7 +95,7 @@ composition root. Note where the Coral model fits and where it strains.
 settled facts you can cite rather than judgments you have to make — which frees your attention for the
 `[review]` rules, where it is worthless. Read its `checks[].skipped` and `coverage` fields: a check that
 skipped for missing configuration has told you nothing, and you must still judge that rule by hand. Do not
-treat a clean `coral-lint` run as a clean conformance verdict; it covers nine of the twenty-five `[auto]`
+treat a clean `coral-lint` run as a clean conformance verdict; it covers eleven of the twenty-five `[auto]`
 rules and none of the `[review]` ones.
 
 For each family, cite `file:line` and tag *earns-its-keep* vs *overkill*. The first two and the last

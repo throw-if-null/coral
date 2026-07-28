@@ -61,3 +61,10 @@ def test_ddl_owned_by_a_slice_is_not_a_write(make_layout):
         coral_toml=FEATURE_CFG,
     )
     assert read_only.run(lay).findings == ()
+
+
+def test_a_sql_shaped_regex_is_not_a_write(make_layout):
+    lay = make_layout(
+        {"app/feat/list.py": 'GUARD = r"\\bdelete\\s+from\\s"\n'}, coral_toml=FEATURE_CFG
+    )
+    assert read_only.run(lay).findings == ()

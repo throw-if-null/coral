@@ -13,9 +13,6 @@ from __future__ import annotations
 # UNIMPLEMENTED entries carry the reason, so the gap is a decision on the record
 # rather than an oversight.
 UNIMPLEMENTED: dict[str, str] = {
-    "ROOT-2": "needs a per-repo declaration of which modules count as persistence/domain internals",
-    "STATE-2": "distinguishing a forbidden data-access layer from a legitimate adapter requires "
-               "interface-ownership analysis (which side declares the interface) — planned",
     "CONFIG-4": "secret detection is better served by a dedicated scanner (gitleaks, trufflehog) "
                 "than by a second-rate regex here",
     "BUS-3": "system-scale: needs each app's connection config, not one repo's tree",

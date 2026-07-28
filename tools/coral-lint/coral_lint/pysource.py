@@ -158,12 +158,70 @@ def write_evidence(tree: ast.Module) -> list[Hit]:
     hits: list[Hit] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if _REGEX_SOURCE.search(node.value):
+                continue  # a pattern about SQL, not SQL
             match = _SQL_WRITE.search(node.value)
             if match:
                 hits.append(Hit(f"SQL {match.group(0).upper()}", node.lineno))
         elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
             if node.func.attr in _WRITE_METHODS:
                 hits.append(Hit(f".{node.func.attr}()", node.lineno))
+    unique: dict[tuple[str, int], Hit] = {(h.label, h.line): h for h in hits}
+    return sorted(unique.values(), key=lambda h: (h.line, h.label))
+
+
+# Shape-based, so prose cannot match: "select the right option" has no FROM after
+# it, and every branch demands real whitespace where SQL has real whitespace.
+# Broader than _SQL_WRITE because a module full of SELECTs is still a shared query
+# layer under [STATE-2].
+_SQL_ANY = re.compile(
+    r"\binsert\s+into\s|\bdelete\s+from\s|\bupdate\s+\w+\s+set\s|\breplace\s+into\s"
+    r"|\bupsert\s|\bmerge\s+into\s|\bselect\s[\s\S]{0,300}?\sfrom\s",
+    re.IGNORECASE,
+)
+
+# A string carrying regex metacharacters is a *pattern*, not a statement. Without
+# this guard, any module that processes SQL rather than executing it — a linter, a
+# query builder, a migration tool — reads as a data-access layer. This tool's own
+# pysource.py was the first false positive it produced, which is the argument for
+# running a checker against itself.
+_REGEX_SOURCE = re.compile(r"\\[bBsSdDwWA]|\(\?[:aiLmsux#=!<]|\[\\[sSdDwW]")
+
+
+@dataclass(frozen=True)
+class ImportRef:
+    """One import, unresolved. Resolution needs layout, so it happens in the check."""
+
+    module: str | None  # dotted module for `from X import ...`; None for `from . import ...`
+    level: int  # 0 absolute, 1 `.`, 2 `..`
+    names: tuple[str, ...]
+    line: int
+
+
+def imports(tree: ast.Module) -> list[ImportRef]:
+    refs: list[ImportRef] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                refs.append(ImportRef(alias.name, 0, (), node.lineno))
+        elif isinstance(node, ast.ImportFrom):
+            refs.append(
+                ImportRef(node.module, node.level, tuple(a.name for a in node.names), node.lineno)
+            )
+    return sorted(refs, key=lambda r: r.line)
+
+
+def sql_literals(tree: ast.Module) -> list[Hit]:
+    """String constants that are SQL statements, read or write."""
+    hits: list[Hit] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if _REGEX_SOURCE.search(node.value):
+                continue
+            match = _SQL_ANY.search(node.value)
+            if match:
+                verb = match.group(0).split()[0].upper()
+                hits.append(Hit(f"SQL {verb}", node.lineno))
     unique: dict[tuple[str, int], Hit] = {(h.label, h.line): h for h in hits}
     return sorted(unique.values(), key=lambda h: (h.line, h.label))
 
