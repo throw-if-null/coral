@@ -2,9 +2,9 @@
 
 > Status: scaffold. Slots listed below; fill with prose when an Action/tool is built against this spine.
 
-This appendix is one species of polyp. It instantiates the [Coral app spine](../ARCHITECTURE.md) for GitHub Actions and similar
-trigger-driven tools (CI steps, webhooks, schedulers). Read the spine first. Rule IDs here will use
-the `GHA-` family.
+This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for GitHub Actions and similar
+trigger-driven tools (CI steps, webhooks, schedulers). Read the spine first. Rule IDs here will use the
+`GHA-` family, and each will carry exactly one enforcement class.
 
 **Defining tension:** the platform delivers **at-least-once** — Actions get re-run, webhooks
 redeliver, schedules retry. So **idempotency is mandatory (`[IDEM-5]`)**, not advisory: any mutating
@@ -25,8 +25,11 @@ retry. The observable contract is the action's declared outputs + exit status + 
 - **Error rendering** → `[ERR-3]`: slices raise the taxonomy; the entry point maps `category` → exit
   status + annotation; fail the step on non-recoverable categories.
 - **Observability** → `[OBS-1]`: log groups + annotations; never pollute declared outputs.
-- **Trust / security** → `[TRUST-1]`: treat inputs and event payloads as untrusted; guard secret
-  handling and token scope; validate before acting.
+- **Configuration** → `[CONFIG-1..4]`: declared inputs and env are resolved and validated at the entry
+  point, then injected; a missing required input fails the step immediately rather than at first use.
+- **Trust / security** → `[TRUST-1]` `[TRUST-2]`: treat inputs and event payloads as untrusted — a
+  `pull_request_target` payload is attacker-controlled; guard secret handling and token scope
+  (`[CONFIG-4]`); validate before acting.
 - **Contract versioning** → `[CONTRACT-2]`: input/output names are the versioned contract; follow
   the action's tag/version discipline; deprecate inputs before removing.
 - **Testing** → `[TEST-1]`: exercise the entry point with simulated inputs/events against realistic

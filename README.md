@@ -1,37 +1,54 @@
 # Coral Architecture
 
-A fractal, capability-first software architecture for a world where **agents write the code and
-humans review and orchestrate**. It applies to CLIs, backends, web apps, libraries, and tools — and
-composes the same way from a single slice up to a whole system.
+A capability-first software architecture for a world where **agents write the code and humans review
+and orchestrate**. It applies to CLIs, backends, web apps, libraries, and tools — and composes the
+same way from a single slice up to a whole system.
 
 **📖 Live docs:** https://gray-hill-09bb08b03.7.azurestaticapps.net
 
 ## The idea in one breath
 
-The architecture is named for coral because coral is a *living fractal*: the same simple unit repeats
-and accretes at every scale, under a few rules that don't change.
+Code falls into exactly four categories, and knowing which you are writing answers most placement
+questions:
 
-- A **polyp** = a *slice* (one capability, owned end to end).
-- A **hosted symbiont** = a *horizontal* (a cross-cutting concern — logging, auth, a domain
-  invariant — defined once and injected, never re-built per slice).
-- A **colony** = an *app*; a **reef** = a *system*; they talk only through **the water** = a *bus*.
+- A **slice** owns one capability end to end — its trigger, parsing, validation, behavior, state
+  access, output, and tests.
+- A **horizontal** is a cross-cutting concern — logging, config, the error taxonomy, a domain
+  invariant — defined **once**, precisely named, and **injected**. Never re-built per slice.
+- The **composition root** registers slices, constructs horizontals, and injects them. No logic.
+- A **published contract** is the only surface anyone else may depend on.
 
-The same three rules hold at each scale: own your trigger end to end; share only via a named symbiont
-or a published contract; interact only across the bus.
+Anything that is none of these is a `utils`/`services`/`shared` pile, and the answer is a real
+horizontal or honest duplication — not a bucket.
+
+Three rules hold at every scale (slice, app, system): own your trigger end to end; share only through
+a named horizontal or a published contract; cross a boundary only over the bus.
+
+**Where it doesn't fit:** dense, deeply-coupled domains where every feature reaches into one central
+concept — a tax engine, a scheduler, a solver. Slicing fights those domains. Use something else and
+say so.
 
 ## The documents
 
 Read them in this order:
 
-1. **[`CONVENTIONS.md`](./CONVENTIONS.md)** — start here. The Coral model, the rule-ID scheme, the
-   enforcement classes, and the agents-write / humans-review operating model.
+1. **[`CONVENTIONS.md`](./CONVENTIONS.md)** — start here. The vocabulary, the canonical slice, the
+   rule-ID scheme, the enforcement classes, and the agents-write / humans-review operating model.
 2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the app spine: how to build one app.
 3. **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a bus.
 4. **[`appendix/`](./appendix)** — one file per app type (CLI, backend, web, agentic/LLM, library,
    GitHub Action).
+5. **[`examples/`](./examples)** — [a complete slice in Go](./examples/go-api-slice.md) with real
+   code, and [the rules applied to a real service](./examples/backend-review.md) including where
+   they'd be overkill.
 
 Rules carry stable IDs like `[DUP-2]` with an enforcement class (`[auto]` / `[review]` / `[guide]`);
-on the live site every citation links to its definition.
+on the live site every citation links to its definition. The build fails if a rule has no class, if a
+citation has no definition, or if a rule is missing from its document's Agent Execution Contract — the
+docs' own drift control is structural, not goodwill.
+
+The name is explained in one paragraph at the end of `CONVENTIONS.md`. It is a naming scheme, not a
+reasoning tool; no rule requires the metaphor to apply it.
 
 ## The audit skill
 

@@ -69,16 +69,16 @@ to dependency repos too — use them (boundary rule 3).
 
 ### 1. Frame (altitude) — before any line-by-line reading
 Produce a **structural thesis** by answering:
-- What is this repo — an app (a *species of polyp*; which app-type appendix applies?) or a
-  horizontal / framework / base layer?
+- What is this repo — an app (and which app-type appendix applies?) or a horizontal / framework /
+  base layer?
 - What is its *shape*? A thin composition root that composes concerns, or god-files mixing orchestration
   with subsystem implementation?
 - **What does it force on its consumers?** Dependency injection vs service-locator/globals? Can a
   consumer test against it without booting the whole thing? Does a change here ripple into many repos?
 - If it's a framework: is standardization achieved by *composition* or by *containment*?
 - Dependency surface: does every consumer link things it does not use?
-- Does Coral's vocabulary map cleanly (polyp / symbiont / skeleton / colony / reef)? Where it doesn't,
-  is that a smell or a gap?
+- Do the four categories map cleanly (slice / horizontal / composition root / published contract —
+  `[MODEL-1]`)? Where they don't, is that a smell in the code or a gap in the architecture?
 
 Map the surface to support this: manifest/`go.mod`, file sizes, the public API, and the critical
 subsystems — lifecycle/init, shutdown, persistence, transport/bus, HTTP, config, globals, health. For
@@ -94,12 +94,16 @@ two carry the verdict — they are capability slicing, placement/naming, and thi
 dimensions the conformance answer rests on. Do not treat them as warm-up:
 - fit: is this a command/request-shaped app the model actually covers, or a dense coupled domain it
   is weak for? does everything converge on one god-slice? — `[SCOPE-*]`
-- capability slicing, placement & role-revealing names: feature packages named for what they do,
-  placement by capability never by layer, horizontals rare and precisely named — `[STRUCT-*]` /
-  `[PLACE-*]`
+- capability slicing, placement & role-revealing names: packages named for the capability or concern
+  they own and never for a technical role, horizontals rare and precisely named — `[MODEL-*]` /
+  `[STRUCT-*]`
 - boundary & verbs — `[BOUND-*]` / `[IDEM-*]`
-- horizontals vs forbidden buckets — `[XCUT-*]` / `[BUCKET-*]`
-- effects & state — `[EFFECT-*]` / `[STATE-*]`
+- horizontals vs forbidden buckets, including the entity loophole (invariants may be a horizontal;
+  queries and storage may not) — `[XCUT-*]` / `[BUCKET-*]`
+- effects, state & schema ownership (one owning slice per table; interface ownership points
+  adapter → slice) — `[EFFECT-*]` / `[STATE-*]`
+- configuration: resolved and validated at the root, injected, never read ambiently from a slice —
+  `[CONFIG-*]`
 - errors: taxonomy, raise-vs-render, swallowing — `[ERR-*]`
 - trust boundary, secrets, authz — `[TRUST-*]`
 - delivery guarantees & contracts (events/bus, versioning) — `[BUS-*]` / `[CONTRACT-*]`
@@ -110,7 +114,9 @@ dimensions the conformance answer rests on. Do not treat them as warm-up:
 
 This list is a priority order, not the whole rule set — the docs are authoritative. App-type families
 (`[WEB-*]`, `[BE-*]`, `[CLI-*]`, `[AGENTIC-*]`, …) are deliberately absent: step 1 already selects the
-appendix that applies, so a new species of polyp needs no change here.
+appendix that applies, so a new app type needs no change here. Each spine's **Agent Execution Contract**
+is the complete list of `[auto]`/`[review]` rules for that document — use it as the checklist and this
+list as the order.
 
 For base layers especially, also scrutinize: init error handling (panic vs return; partial-init), graceful
 shutdown (ordering, timeouts, exit codes, in-flight drain), concurrency / global-state safety (data
@@ -134,7 +140,7 @@ Write `CORAL_AUDIT.md` to the **audited repo's root** (private — never publish
 a public/shared site). It is a **heavy diagnostic briefing**, optimized as input to a separate planning
 session; heaviness is intentional — the planner needs full context. Include:
 - A **conformance verdict**, led with: *is this a Coral app?* (yes / partly / no) in one paragraph, with
-  the structural thesis — what shape the code actually is versus a Coral colony.
+  the structural thesis — what shape the code actually is versus a capability-sliced app.
 - A **conformance findings table**, ranked by distance-from-Coral (note which Coral rule each breaks).
 - Per finding: *what · where (file:line) · which Coral rule it diverges from · why it's a divergence ·
   target state (what the Coral form looks like)*. Be thorough.

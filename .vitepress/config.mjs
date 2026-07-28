@@ -51,26 +51,60 @@ const INLINE_ID_RE = new RegExp(`^\\[(${ID_CORE})\\]$`)
 // (cli.md). Missing the third silently cost appendix/cli.md all eleven of its anchors.
 // The leading `- **` / `**` / `- ` is required, not optional: a wrapped paragraph line can
 // begin with a bare `[ID]` code-span, and those are citations, not definitions.
-const DEF_RE = new RegExp(String.raw`^(?:- \*\*|\*\*|- )\`\[(${ID_CORE})\]\``, 'gm')
+// Line-based (not whole-text) so the *rest* of a definition line is available to the
+// enforcement-class check below — the class always sits on the same line as the ID.
+const DEF_LINE_RE = new RegExp(String.raw`^(?:- \*\*|\*\*|- )\`\[(${ID_CORE})\]\`(.*)$`)
+const USE_RE = new RegExp(String.raw`\`\[(${ID_CORE})\]\``, 'g')
+const CLASS_RE = /`\[(auto|review|guide)\]`/g
 
-// registry: ID -> defining page (relative path, matches VitePress env.relativePath)
+// Delimiters around each spine's Agent Execution Contract. HTML comments, so they
+// don't render; explicit, so the check doesn't have to guess where the section ends
+// from heading structure.
+const CONTRACT_START = '<!-- coral:contract:start -->'
+const CONTRACT_END = '<!-- coral:contract:end -->'
+
+// registry:   ID -> defining page (relative path, matches VitePress env.relativePath)
+// defsByFile: page -> [{ id, cls }] in document order, first-definition only
 const registry = new Map()
+const defsByFile = new Map()
+const problems = []
+
 for (const rel of DOC_FILES) {
   const abs = path.join(SRC, rel)
   if (!fs.existsSync(abs)) continue
-  const text = fs.readFileSync(abs, 'utf8')
-  for (const m of text.matchAll(DEF_RE)) {
-    if (!registry.has(m[1])) registry.set(m[1], rel) // first definition wins
-  }
+  const lines = fs.readFileSync(abs, 'utf8').split('\n')
+  lines.forEach((line, i) => {
+    const m = DEF_LINE_RE.exec(line)
+    if (!m) return
+    const [, id, rest] = m
+    // First definition wins. Later leading occurrences (a contract bullet, an
+    // enforcement-table row) are citations of an already-defined rule, and are
+    // deliberately exempt from the class check — only the definition carries it.
+    if (registry.has(id)) return
+    registry.set(id, rel)
+
+    const classes = [...rest.matchAll(CLASS_RE)].map((c) => c[1])
+    if (classes.length !== 1) {
+      problems.push(
+        `[${id}] ${rel}:${i + 1} carries ${classes.length === 0 ? 'no' : classes.length}` +
+          ' enforcement class; CONVENTIONS.md requires exactly one of `[auto]` / `[review]` / `[guide]`' +
+          ' on the definition line.'
+      )
+    }
+    if (!defsByFile.has(rel)) defsByFile.set(rel, [])
+    defsByFile.get(rel).push({ id, cls: classes[0] })
+  })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Referential integrity: every rule ID that appears anywhere must be registered.
+// Check 1 — referential integrity: every rule ID that appears anywhere must be
+// registered.
 //
 // This is the guard for the failure this file has already had twice — eleven
 // [AGENTIC-*] rules in a file the registry never read, and eleven [CLI-*] rules
-// written in a form DEF_RE didn't match. Both were silent: an unregistered ID
-// falls through to plain <code>, so nothing errors and the page still builds.
+// written in a form the definition regex didn't match. Both were silent: an
+// unregistered ID falls through to plain <code>, so nothing errors and the page
+// still builds.
 //
 // Note *what* is compared. Checking definitions against emitted anchors only
 // proves the parser agrees with itself, and cannot see a rule it never
@@ -78,7 +112,6 @@ for (const rel of DOC_FILES) {
 // cites is fine, but a citation with no definition means either a typo or a
 // definition written in a shape we don't parse.
 // ─────────────────────────────────────────────────────────────────────────────
-const USE_RE = new RegExp(String.raw`\`\[(${ID_CORE})\]\``, 'g')
 const orphans = new Map() // ID -> Set of files it appears in
 for (const rel of DOC_FILES) {
   const abs = path.join(SRC, rel)
@@ -89,15 +122,48 @@ for (const rel of DOC_FILES) {
     orphans.get(m[1]).add(rel)
   }
 }
-if (orphans.size) {
-  const msg = [
-    `${orphans.size} rule ID(s) appear in the docs but no definition was found:`,
-    ...[...orphans.keys()].sort()
-      .map((id) => `    [${id}]  cited in: ${[...orphans.get(id)].join(', ')}`),
-    'Either the citation is a typo, or the definition is written in a form DEF_RE',
-    'does not match. A definition line must open with one of:',
-    '    **`[ID]`     - `[ID]`     - **`[ID]`**',
-  ].join('\n')
+for (const id of [...orphans.keys()].sort()) {
+  problems.push(
+    `[${id}] cited in ${[...orphans.get(id)].join(', ')} but never defined. Either the` +
+      ' citation is a typo, or the definition is written in a form the parser does not match.' +
+      ' A definition line must open with one of:  **`[ID]`   - `[ID]`   - **`[ID]`**'
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Check 2 — contract completeness.
+//
+// Each spine claims its Agent Execution Contract is the COMPLETE normative
+// surface: an agent that loads only the contract should miss nothing. That claim
+// used to rest on goodwill, and it was false — around twenty [auto]/[review]
+// rules existed only in the prose. So verify it: every non-[guide] rule defined
+// in a file must be cited inside that file's contract markers.
+//
+// Opt-in by marker, so appendices (which have no contract section) are exempt.
+// [guide] rules are rationale, not instructions, and stay in the prose only.
+// ─────────────────────────────────────────────────────────────────────────────
+for (const [rel, defs] of defsByFile) {
+  const text = fs.readFileSync(path.join(SRC, rel), 'utf8')
+  const start = text.indexOf(CONTRACT_START)
+  if (start === -1) continue
+  const end = text.indexOf(CONTRACT_END, start)
+  if (end === -1) {
+    problems.push(`${rel} opens ${CONTRACT_START} but never closes it with ${CONTRACT_END}.`)
+    continue
+  }
+  const cited = new Set([...text.slice(start, end).matchAll(USE_RE)].map((m) => m[1]))
+  const missing = defs.filter((d) => d.cls && d.cls !== 'guide' && !cited.has(d.id))
+  for (const d of missing) {
+    problems.push(
+      `[${d.id}] (\`[${d.cls}]\`, defined in ${rel}) is missing from that document's Agent` +
+        ' Execution Contract. Every [auto]/[review] rule must appear there, so the contract stays' +
+        ' the complete normative surface.'
+    )
+  }
+}
+
+if (problems.length) {
+  const msg = [`${problems.length} rule-registry problem(s):`, ...problems.map((p) => `    ${p}`)].join('\n')
   // Same posture as VitePress's own dead-link checking: fail the build, warn in dev
   // so an in-progress edit doesn't kill the running server.
   if (process.argv.includes('build')) throw new Error(`[coral] ${msg}`)
@@ -197,13 +263,14 @@ export default withMermaid(defineConfig({
       { text: 'Conventions', link: '/CONVENTIONS' },
       { text: 'App', link: '/ARCHITECTURE' },
       { text: 'System', link: '/SYSTEM' },
+      { text: 'Examples', link: '/examples/go-api-slice' },
     ],
     sidebar: [
-      { text: 'Conventions & the Coral Model', link: '/CONVENTIONS' },
-      { text: 'The App (one Colony)', link: '/ARCHITECTURE' },
-      { text: 'The System (the Reef)', link: '/SYSTEM' },
+      { text: 'Conventions & vocabulary', link: '/CONVENTIONS' },
+      { text: 'The App', link: '/ARCHITECTURE' },
+      { text: 'The System', link: '/SYSTEM' },
       {
-        text: 'Appendices (species of polyp)',
+        text: 'Appendices (app types)',
         collapsed: false,
         items: [
           { text: 'CLI', link: '/appendix/cli' },

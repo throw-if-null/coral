@@ -1,30 +1,29 @@
-# Coral Architecture — the App (one Colony)
+# Coral Architecture — the App
 
-*A fractal, capability-first architecture for systems where **agents write the code and humans review
-and orchestrate**.*
+*A capability-first architecture for systems where **agents write the code and humans review and
+orchestrate**.*
 
-> **Read [`CONVENTIONS.md`](./CONVENTIONS.md) first** — it paints the Coral model (how a coral lives,
-> and the polyp/symbiont/colony/reef glossary every document uses). This document assumes that
-> picture. In short: a **slice is a polyp**, a **horizontal is a hosted symbiont**, and this whole
-> document describes **one colony** — a single app.
+> **Read [`CONVENTIONS.md`](./CONVENTIONS.md) first.** It defines the seven nouns this document uses
+> (slice, horizontal, composition root, published contract, app, system, bus), the rule-ID scheme, the
+> enforcement classes, and the [canonical slice](./CONVENTIONS.md#the-canonical-slice) every rule here
+> exists to produce.
 
-This is the **single-app spine**: how to build one polyp-shaped app — a CLI, backend, web app,
-library, or tool. App-type specifics live in the appendices under [`appendix/`](#appendix-index);
-shared meta-conventions and the Coral model live in [`CONVENTIONS.md`](./CONVENTIONS.md); how colonies
-compose into a reef (a system) lives in [`SYSTEM.md`](./SYSTEM.md). See the [Document Set](#document-set).
+This is the **app spine**: how to build one app — a CLI, backend, web app, library, or tool. App-type
+specifics live in the appendices under [`appendix/`](#appendix-index). How separate apps compose into a
+system lives in [`SYSTEM.md`](./SYSTEM.md). Worked code lives in
+[`examples/go-api-slice.md`](./examples/go-api-slice.md).
 
 ---
 
 ## How to read this document
 
-The rule-ID format, enforcement classes (`[auto]`/`[review]`/`[guide]`), and the agents-write/
-humans-review operating model are shared by every document in this set and defined once in
-**[`CONVENTIONS.md`](./CONVENTIONS.md)** — read it first.
+Sections 1–21 **define** the rules and explain *why* each exists. The
+[Agent Execution Contract](#agent-execution-contract) is the **complete** condensed checklist: every
+`[auto]` and `[review]` rule below appears in it, so an agent that loads only the contract has the whole
+normative surface. The build fails if a rule is missing from it.
 
-This document is the **single-app spine**: how to build *one* CLI, backend, web app, library, or
-tool. Its prose sections explain *why*; the [Agent Execution Contract](#agent-execution-contract) at
-the end is the condensed, normative checklist. They must not contradict each other. How separate apps
-compose into a *system* lives in [`SYSTEM.md`](./SYSTEM.md).
+Within a rule, **the first sentence is the rule** — complete and quotable on its own. What follows is
+commentary: qualifications, examples, and cross-references.
 
 ---
 
@@ -39,138 +38,166 @@ This architecture optimizes for:
 5. bounded blast radius per change
 6. readability at scale for both agents and humans
 
-**`[SCOPE-1]` `[guide]`** — This architecture covers **command/request-shaped apps with
-loosely-coupled features**: each feature is largely its own world. CLIs, CRUD-shaped backends, web
-apps, libraries, and action/tool runners fit naturally.
+**`[SCOPE-1]` `[guide]`** — This architecture covers **command/request-shaped apps with loosely-coupled
+features**, where each feature is largely its own world. CLIs, CRUD-shaped backends, web apps,
+libraries, and action/tool runners fit naturally.
 
-**`[SCOPE-2]` `[guide]`** — It is **weak for dense, deeply-coupled domains** where every feature
-reaches into one large central concept (e.g. a tax engine, a scheduler, a simulation core). This is
-not a defect to patch — no architecture is universal.
+**`[SCOPE-2]` `[guide]`** — It is **weak for dense, deeply-coupled domains** where every feature reaches
+into one large central concept.
 
-**`[SCOPE-3]` `[review]`** — When features stop being independent and all converge on one large
-shared concept, **bud a new colony** — split into another bounded app/harness — rather than growing a
-shared core. The density then belongs to the *orchestration layer* (a reef-scale topology problem —
-which colonies talk to which), and each app stays polyp-shaped and within agent competence. A slice
-getting dense is a **split signal**, not a refactor-into-a-shared-core signal. See also
-[`[GROW-*]`](#19-file-growth--split-signals-grow-).
+A tax engine, a scheduler, a pricing solver, a physics or simulation core: in these, the "capability"
+boundary cuts across the thing that actually holds the complexity, and slicing fights the domain instead
+of serving it. This is not a defect to patch — no architecture is universal. If your whole product is
+one of these, use something else and say so.
 
-**`[SCOPE-4]` `[guide]`** — *What happens after the split lives in a different document.* How the
-resulting apps relate — the bus between them, orchestration, and cross-app contract testing — is
-**not** part of this single-app spine. It is the **system architecture**, defined in
-[`SYSTEM.md`](./SYSTEM.md) (families `[BUS-*]`, `[ORCH-*]`, `[SYS-TEST-*]`). This document publishes
-the split *signal* (`[SCOPE-3]`); `SYSTEM.md` consumes it. The dependency points one way: `SYSTEM.md`
-builds on these app rules; this document never cites a system rule.
+**`[SCOPE-3]` `[review]`** — When features stop being independent and all converge on one large shared
+concept, **give that concept its own app with the dense logic inside it** — do not grow a shared core
+inside this one.
+
+Be honest about what the split does: it does not dissolve the density, it **relocates and encapsulates**
+it. The new app is allowed to be internally dense — it is precisely the kind of app `[SCOPE-2]` says
+this architecture is weak for, and inside it you may use whatever model the domain wants (a rules
+engine, a state machine, a solver). What you gain is that the density is **bounded to one app behind one
+published contract**, so every other app stays slice-shaped and within an agent's context. The
+orchestration layer still carries no business logic (`[ORCH-1]` in `SYSTEM.md`) because the logic lives
+*inside* the dense app, not in the wiring.
+
+The prerequisite is a contract. **If you cannot draw a published contract around the dense concept, you
+do not have a split** — you have a domain this architecture does not fit, and the right move is to say
+so and choose differently, not to force a boundary that will leak. A slice getting dense is a *split
+signal*, not a refactor-into-a-shared-core signal; see `[GROW-3]`.
+
+**`[SCOPE-4]` `[guide]`** — What happens *after* the split is not in this document. How the resulting
+apps relate — the bus between them, orchestration, cross-app contract testing — is the system
+architecture, defined in [`SYSTEM.md`](./SYSTEM.md) (`[BUS-*]`, `[ORCH-*]`, `[SYS-TEST-*]`). This
+document publishes the split *signal*; `SYSTEM.md` consumes it. The dependency points one way.
 
 ---
 
 ## 2. The Operating Model: Agents Write, Humans Review
 
-The operating model and the `[AGENT-*]` rules (`[AGENT-1]`; `[AGENT-2]` flag-don't-guess; `[AGENT-3]`
-intent-over-letter) are cross-cutting to every document in this set, so they are defined once in
-[`CONVENTIONS.md`](./CONVENTIONS.md#the-operating-model-agents-write-humans-review) and referenced
-throughout this spine. In one line: deterministic placement, bounded blast radius, slice-sized
-context, and self-verifiable contracts exist because **agents write and humans review**.
+Defined once in
+[`CONVENTIONS.md`](./CONVENTIONS.md#the-operating-model-agents-write-humans-review-agent) (`[AGENT-1]`;
+`[AGENT-2]` flag-don't-guess; `[AGENT-3]` intent-over-letter), because it is cross-cutting to every
+document in this set. In one line: deterministic placement, bounded blast radius, slice-sized context,
+and self-verifiable contracts exist because **agents write and humans review**.
 
 ---
 
-## 3. Core Model: Verticals and Horizontals (the polyp and its symbionts)  `[MODEL-*]`
+## 3. The Four Categories of Code  `[MODEL-*]`
 
-There are exactly two kinds of code. Knowing which kind you are writing answers most placement
-questions. (See the [Coral model](./CONVENTIONS.md#the-coral-model) for the picture.)
+Knowing which category you are writing answers most placement questions.
 
-**Verticals (slices) — the polyp's body.** A vertical owns one user-facing capability end to end.
-Everything it needs — definition, input parsing, validation, behavior, state access, output
-formatting, tests — lives *inside* it, the way a polyp is a complete, self-contained animal.
+**`[MODEL-1]` `[review]`** — Every unit of code is a **slice**, a **horizontal**, the **composition
+root**, or a **published contract**.
 
-**Horizontals (cross-cutting concerns) — the hosted symbionts.** A horizontal is a concern many
-verticals share — logging, configuration, the error taxonomy, connection management, **and genuine
-domain entities/invariants**. Like the algae a polyp hosts but does not build, a horizontal is
-**defined once, precisely named, and injected** into the verticals that consume it.
+There is no fifth category. Something that is none of these is a [forbidden
+bucket](#_7-forbidden-buckets-bucket) (`[BUCKET-1]`). The four are not peers in volume:
 
-**`[MODEL-1]` `[review]`** — Every unit of code is either a vertical (owns a capability) or a
-horizontal (a named cross-cutting concern injected into verticals). There is no third category. If
-something is neither, it is a [forbidden bucket](#7-forbidden-buckets-bucket-).
+| Category | What it owns | Volume |
+|---|---|---|
+| **slice** (vertical) | one capability end to end — definition, parsing, validation, behavior, state access, output, tests | most of the code |
+| **horizontal** | one cross-cutting concern, defined once and injected | few, precisely named |
+| **composition root** | registration, construction, injection, bootstrap | exactly one, thin |
+| **published contract** | the surface others may depend on | one per slice/app that exposes anything |
 
-**`[MODEL-2]` `[review]`** — Organize by capability, never by technical layer. Do not split a
-capability's parsing, validation, behavior, state access, and output into global `services`,
-`repositories`, `models`, or `utils` modules.
+**`[MODEL-2]` `[review]`** — Every package is named for the **capability or the concern it owns**, never
+for its technical role.
 
-**`[MODEL-3]` `[guide]`** — A horizontal is a *hosted symbiont*, not a vertical. The decisive
-property is **defined once, injected many** — the *same* species of algae lives in thousands of
-polyps; the polyp hosts it rather than building its own. So a horizontal is not "a helper each slice
-copies" (that is the forbidden-bucket failure, like every burger carrying its own lettuce) — it is
-one organism, injected. This is what distinguishes a horizontal from a forbidden bucket: a precise
-name, a real invariant or convention, and an injection discipline. A horizontal you reach into or
-re-implement per slice is a broken symbiosis — the slice bleaches.
+`expense`, `summary`, `pricing`, `errors`, `db` are legitimate names. `services`, `repositories`,
+`models`, `handlers`, `utils` are not (`[BUCKET-1]`).
 
-**Anatomy of one polyp.** The body runs a pure core (parse → validate → compute), pushes effects to
-the edge (persist / render), secretes a stable skeleton (its published contract), and *hosts* its
-cross-cutting concerns as injected symbionts:
+What this forbids is a **global technical layer** — one `services` package holding every capability's
+behavior, one `repositories` package holding every capability's queries. It does *not* forbid internal
+structure. Where a language or its tooling forces one capability to span more than one package — Go's
+import-cycle rules and single-package code generation are the common case — **banding within a
+capability is permitted**, provided every band is still named for the capability or concern it owns and
+the dependency arrow points one way. [`examples/go-api-slice.md`](./examples/go-api-slice.md) works
+through exactly this case.
+
+The test is ownership, not file count: *could you delete this package and lose exactly one capability,
+or exactly one concern?* If yes, it is named right. When you introduce banding, flag it (`[AGENT-2]`) so
+the choice is visible rather than assumed.
+
+**`[MODEL-3]` `[guide]`** — A horizontal's decisive property is **defined once, injected many**.
+
+A horizontal is not "a helper each slice copies" — that is the forbidden-bucket failure. It is one
+definition, injected. Three things distinguish a horizontal from a bucket: a precise name, a real
+invariant or convention, and an injection discipline. A horizontal that slices reach into, or
+re-implement locally, has lost the property that made it worth having, and its copies will drift
+(`[XCUT-4]`).
+
+**Anatomy of one slice.** A pure core (parse → validate → compute), effects at the edge (persist /
+render), a stable published contract, and injected horizontals:
 
 ```mermaid
 flowchart LR
-  T(["trigger<br/>(the mouth)"]) --> CORE
+  T(["trigger<br/>(the one inbound request)"]) --> CORE
   subgraph CORE["pure core — no side effects"]
     direction LR
     P[parse] --> V[validate] --> C[compute]
   end
   CORE --> E[/"effect<br/>persist · call out"/]
   E --> R[render]
-  R --> SK[("skeleton =<br/>published contract")]
-  SYM["hosted symbionts (horizontals), injected:<br/>👁 observability · 🦀 authN/Z · 🐟 business validation"]
-  SYM -. injected into the polyp .-> CORE
+  R --> SK[("published contract")]
+  SYM["injected horizontals:<br/>config · errors · db · logging"]
+  SYM -. injected .-> CORE
 ```
 
 ---
 
 ## 4. The Slice Boundary  `[BOUND-*]`
 
-**`[BOUND-1]` `[guide]`** — A slice (polyp) handles **one inbound request/trigger, end to end**. This
-is the universal boundary; each app type (each species of polyp) names its concrete form:
+**`[BOUND-1]` `[guide]`** — A slice handles **one inbound request or trigger, end to end**.
 
-| App type            | The request/trigger (slice boundary) | Observable contract to assert against        |
-| ------------------- | ------------------------------------ | -------------------------------------------- |
-| CLI                 | a command invocation                 | exit code + `stdout`/`stderr` + `--json`     |
-| Backend / web       | an HTTP route / use-case             | status code + response body + side effects   |
-| Queue/event worker  | a message handler                    | ack/nack + emitted events                    |
-| GitHub Action / tool| one action run                       | outputs + exit status + annotations          |
-| Library / package   | a public API function                | return value + raised errors + types         |
+This is the universal boundary; each app type names its concrete form:
 
-**`[BOUND-2]` `[review]`** — Each request/trigger, or a very tight pair of related ones, forms a
-slice. A slice owns its behavior end to end.
+| App type             | The request/trigger (slice boundary) | Observable contract to assert against    |
+| -------------------- | ------------------------------------ | ---------------------------------------- |
+| CLI                  | a command invocation                 | exit code + `stdout`/`stderr` + `--json` |
+| Backend / web        | an HTTP route / use-case             | status code + response body + side effects |
+| Queue/event worker   | a message handler                    | ack/nack + emitted events                |
+| GitHub Action / tool | one action run                       | outputs + exit status + annotations      |
+| Library / package    | a public API function                | return value + raised errors + types     |
 
-**`[BOUND-3]` `[review]`** — The concrete boundary form is fixed by the relevant appendix. Do not
-invent a new boundary kind for an app type that already has one.
+**`[BOUND-2]` `[review]`** — Each request/trigger, or a very tight pair of related ones, forms one slice
+that owns its behavior end to end.
 
-**`[BOUND-4]` `[guide]`** — "Continuous" or "real-time" work is **not** a new boundary kind. Model it
-as an on-demand read trigger (recompute when asked), an event/message handler (recompute per event,
-idempotently — `[IDEM-5]`), or a **scheduled/timer tick** (cron-shaped — itself a trigger, handled
-like an event handler). A genuinely long-running reconciler that owns evolving cross-domain rules is a
-`[SCOPE-3]` split into its own app, not a slice — and that app's slices are still triggered by reads,
-events, or ticks, never by an ambient loop.
+**`[BOUND-3]` `[review]`** — Use the boundary form fixed by the relevant appendix; do not invent a new
+boundary kind for an app type that already has one.
+
+**`[BOUND-4]` `[guide]`** — "Continuous" or "real-time" work is **not** a new boundary kind.
+
+Model it as an on-demand read trigger (recompute when asked), an event/message handler (recompute per
+event, idempotently — `[IDEM-5]`), or a scheduled/timer tick (itself a trigger, handled like an event
+handler). A genuinely long-running reconciler that owns evolving cross-domain rules is a `[SCOPE-3]`
+split into its own app — and that app's slices are still triggered by reads, events, or ticks, never by
+an ambient loop.
 
 ---
 
-## 5. Composition Root / Edge Wiring  `[ROOT-*]`
+## 5. Composition Root  `[ROOT-*]`
 
-**`[ROOT-1]` `[review]`** — The root/entry point is **thin**. Its only jobs: register slices,
-compose sub-capabilities, construct horizontals and inject them into slices, and configure top-level
-bootstrap.
+**`[ROOT-1]` `[review]`** — The root is **thin**: it registers slices, composes sub-capabilities,
+constructs horizontals and injects them, configures bootstrap, and contains no business logic, no
+state-access calls, and no slice-specific validation.
 
-**`[ROOT-2]` `[auto]`** — The root must not contain business logic, state-access calls, or
-slice-specific validation. (Statically: the root module imports no persistence/domain internals and
-stays under a small size budget.)
+**`[ROOT-2]` `[auto]`** — The root module imports no persistence or domain-internal module.
 
-**`[ROOT-3]` `[guide]`** — For a library, the *consumer* is the composition root; the package itself
-exposes capabilities and lets the consumer wire them. Each appendix names its root form.
+Statically decidable, and it is the check that keeps `[ROOT-1]` honest: business logic in the root
+almost always announces itself as an import of the thing it operates on. Pair it with a size budget
+appropriate to your stack — if the root is the largest file in the app, `[ROOT-1]` is being violated
+whatever the imports say.
+
+**`[ROOT-3]` `[guide]`** — For a library, the *consumer* is the composition root: the package exposes
+capabilities and lets the consumer wire them. Each appendix names its root form.
 
 ---
 
 ## 6. Directory Structure & Naming  `[STRUCT-*]`
 
-Language-neutral pattern (names are shown without file extensions or a fixed language **by design** —
-the language binding fixes whether a slice is a file or a directory, the extension, and whether tests
-colocate or mirror; see `[STRUCT-1]`):
+Names below carry no file extensions and no fixed language **by design** — the language binding fixes
+whether a slice is a file or a directory, and whether tests colocate or mirror (`[STRUCT-1]`).
 
 ```
 <app>/
@@ -190,84 +217,103 @@ colocate or mirror; see `[STRUCT-1]`):
     month_test
 ```
 
-**`[STRUCT-1]` `[auto]`** — Tests live beside the code they verify where the language/framework
-allows; otherwise mirror the package/namespace structure exactly so the association is preserved.
+**`[STRUCT-1]` `[auto]`** — Tests live beside the code they verify where the language allows; otherwise
+they mirror the package/namespace structure exactly.
 
 **`[STRUCT-2]` `[review]`** — Slices live in feature packages whose names are concrete and
 domain-oriented (`expense`, `summary`), never technical layers.
 
-**`[STRUCT-3]` `[auto]`** — Root-level/horizontal modules are rare and precisely named (`db`,
-`errors`, `config`), never generic.
+**`[STRUCT-3]` `[auto]`** — Root-level horizontal modules are rare and precisely named (`db`, `errors`,
+`config`), never generic.
 
 ---
 
 ## 7. Forbidden Buckets  `[BUCKET-*]`
 
-**`[BUCKET-1]` `[auto]`** — Do not create or expand generic catch-all packages or modules:
-`shared`, `common`, `utils`, `helpers`, `services`, `repository`, or generic `models`. Do not
-introduce `core` as a home for "stuff that feels central" — if a module is genuinely a domain engine,
-name it for the domain (`pricing`, `scoring`), never `core`. (A pre-existing `core` whose name
-already denotes one specific bounded concept is grandfathered, but never grow it as a catch-all.)
+**`[BUCKET-1]` `[auto]`** — Do not create or expand generic catch-all packages: `shared`, `common`,
+`utils`, `helpers`, `services`, `repository`, or generic `models`.
 
-**`[BUCKET-2]` `[guide]`** — These names destroy locality and predictability. A forbidden bucket is
-simply a would-be horizontal with **no precise name and no injection discipline** — a pile. The cure
-is not "ban all sharing"; it is to make the shared thing a real horizontal ([`[XCUT-*]`](#8-cross-cutting-concerns-horizontals-xcut-))
-or to leave it duplicated ([`[DUP-*]`](#9-duplication-policy--extraction-test-dup-)).
+Do not introduce `core` as a home for "stuff that feels central" — if a module is genuinely a domain
+engine, name it for the domain (`pricing`, `scoring`). A pre-existing `core` whose name already denotes
+one specific bounded concept is grandfathered, but never grow it as a catch-all.
+
+**`[BUCKET-2]` `[guide]`** — These names destroy locality and predictability.
+
+A forbidden bucket is simply a would-be horizontal with **no precise name and no injection
+discipline** — a pile. The cure is not "ban all sharing"; it is to make the shared thing a real
+horizontal ([`[XCUT-*]`](#_8-cross-cutting-concerns-horizontals-xcut)) or to leave it duplicated
+([`[DUP-*]`](#_9-duplication-policy-extraction-test-dup)).
 
 ---
 
 ## 8. Cross-Cutting Concerns (Horizontals)  `[XCUT-*]`
 
-A horizontal is the *legitimate* form of sharing. It is not an exception to "no shared buckets"; it
-is a different category with its own discipline.
+A horizontal is the *legitimate* form of sharing — not an exception to "no shared buckets" but a
+different category with its own discipline.
 
-**`[XCUT-1]` `[review]`** — Promote something to a horizontal **only if** it is *both*:
-1. **genuinely cross-cutting** — consumed by two or more verticals (the count is not the test; a
-   thing consumed by exactly two verticals still qualifies), and
-2. **enforces an invariant or convention that must not diverge** — money parsing, period/date
-   format, the error taxonomy, connection management, a domain entity's identity and rules.
+**`[XCUT-1]` `[review]`** — Promote something to a horizontal only if it is **both** genuinely
+cross-cutting (consumed by two or more slices) **and** enforcing an invariant or convention that must
+not diverge.
 
-The second prong is the real gate: shared *similarity* is not enough (`[DUP-2]`) — the thing must
-enforce something that would be a bug if it diverged. The moment a *second* consumer appears for logic
-currently inline in one slice is the normal trigger to promote it; extracting then (and touching the
-first slice) is expected, not a violation — flag the change per `[AGENT-2]`.
+The second prong is the real gate. Shared *similarity* is not enough (`[DUP-2]`): the thing must enforce
+something that would be a **bug** if it diverged — money parsing, period/date format, the error
+taxonomy, connection management, a domain entity's identity rules. Two consumers is a floor, not a
+trigger; a thing consumed by twenty slices that carries no invariant is still a bucket.
 
-**`[XCUT-2]` `[auto]`** — A horizontal has a **precise, domain- or infrastructure-oriented name**
-(`money`, `period`, `errors`, `db`), never a generic bucket name (which would trip `[BUCKET-1]`).
+The normal moment to promote is when a *second* consumer appears for logic currently inline in one
+slice. Extracting then, and touching the first slice, is expected — flag the change per `[AGENT-2]`.
 
-**`[XCUT-3]` `[review]`** — A horizontal is **injected/consumed**, not reached into. Verticals depend
-on its published surface, not its internals.
+**`[XCUT-2]` `[auto]`** — A horizontal has a precise, domain- or infrastructure-oriented name (`money`,
+`period`, `errors`, `db`), never a generic bucket name (`[BUCKET-1]`).
 
-**`[XCUT-4]` `[guide]`** — A horizontal is the *first line* of drift control: if money formatting is
-a horizontal, there is structurally one copy and nothing to drift. Static/LLM drift checks are the
-backstop for what slips past this, not a substitute for it. Beware making `[XCUT]` the new escape
-hatch — `[XCUT-1]` is a gate, not a license.
+**`[XCUT-3]` `[review]`** — A horizontal is injected and consumed through its published surface, never
+reached into.
+
+**`[XCUT-4]` `[guide]`** — A horizontal is the *first line* of drift control.
+
+If money formatting is a horizontal, there is structurally one copy and nothing to drift. Static and
+LLM drift checks are the backstop for what slips past this, not a substitute for it. Beware making
+`[XCUT]` the new escape hatch — `[XCUT-1]` is a gate, not a license.
+
+**`[XCUT-5]` `[review]`** — A domain entity may be a horizontal, but only its **type and invariants** —
+never its persistence, its queries, or a multi-slice workflow.
+
+This is the loophole that lets a layered domain model walk back in wearing a horizontal's badge, so the
+line is drawn explicitly. A horizontal named for the domain (`money`, `pricing`, `booking`) may own the
+entity's type, its validation, and the rules that must hold everywhere. It must not own the entity's
+storage or its queries — that is a `repository` layer (`[BUCKET-1]`), and slices keep their own queries
+(`[STATE-1]`).
+
+The test: **if removing the horizontal would break an *invariant*, it is a horizontal; if it would only
+break *access to data*, it is a bucket.** A slice constructs and validates entities through the
+horizontal, then queries its own state itself.
 
 ---
 
 ## 9. Duplication Policy + Extraction Test  `[DUP-*]`
 
-**`[DUP-1]` `[guide]`** — Small duplication across slices is acceptable and often preferred. Do not
+**`[DUP-1]` `[guide]`** — Small duplication across slices is acceptable and often preferred; do not
 extract merely to save lines.
 
-**`[DUP-2]` `[review]`** — **Similarity is not a shared concept.** Two slices with similar-looking
-code today live in different contexts and may diverge under different pressures. Extracting on
-similarity alone couples them permanently to an abstraction one may later need to escape. Duplicate
-*incidental* similarity inside each polyp; promote to a shared symbiont only when `[XCUT-1]` is met.
+**`[DUP-2]` `[review]`** — **Similarity is not a shared concept.**
 
-**`[DUP-3]` `[review]`** — Extract (promote to a horizontal per `[XCUT-1]`) only when the extraction
-does at least one of:
-1. enforces a business invariant
-2. enforces a CLI/API/persistence convention that must not diverge
-3. provides stable infrastructure with a precise name
-4. materially clarifies a real domain calculation
+Two slices with similar-looking code today live in different contexts and may diverge under different
+pressures. Extracting on similarity alone couples them permanently to an abstraction one may later need
+to escape. Duplicate *incidental* similarity inside each slice; promote to a horizontal only when
+`[XCUT-1]` is met.
+
+**`[DUP-3]` `[review]`** — Extract only when the extraction does at least one of: enforces a business
+invariant; enforces a CLI/API/persistence convention that must not diverge; provides stable
+infrastructure with a precise name; or materially clarifies a real domain calculation.
 
 **`[DUP-4]` `[review]` — The Extraction Test.** Before extracting, ask: is this a real domain or
 infrastructure concept? Are we protecting an invariant or enforcing a convention that must stay
 consistent everywhere? Would duplication be cheaper than a permanent abstraction? If the answer is
-mostly *no*, do not extract. **Bad reasons:** "two slices repeat lines," "might be reused later,"
-"looks tidier." **Good reasons:** "monetary values must always parse/store under one invariant,"
-"dates must follow one validated format," "connection/bootstrap must be consistent."
+mostly *no*, do not extract.
+
+**Bad reasons:** "two slices repeat lines," "might be reused later," "looks tidier." **Good reasons:**
+"monetary values must always parse and store under one invariant," "dates must follow one validated
+format," "connection and bootstrap must be consistent."
 
 ---
 
@@ -276,70 +322,126 @@ mostly *no*, do not extract. **Bad reasons:** "two slices repeat lines," "might 
 Some capabilities compose others (place order → reserve inventory → charge payment). Without a rule,
 agents either copy whole workflows or quietly resurrect a `services` layer.
 
-**`[COMPOSE-1]` `[review]`** — A slice may depend on another slice's **published capability**, never
-reach into its internals (its parsing, queries, or private helpers).
+**`[COMPOSE-1]` `[review]`** — A slice may depend on another slice's **published capability**, never on
+its internals — not its parsing, its queries, or its private helpers.
 
 **`[COMPOSE-2]` `[review]`** — Prefer inverting composition through the composition root (inject the
 needed capability) over slice-to-slice imports, so the dependency is visible at the edge.
 
-**`[COMPOSE-3]` `[review]`** — If two slices need to share a multi-step workflow, that workflow is a
-candidate **horizontal** (`[XCUT-1]`) — not a reason to create a generic `services` bucket.
+**`[COMPOSE-3]` `[review]`** — A multi-step workflow two slices both need is a candidate horizontal
+(`[XCUT-1]`), not a reason to create a generic `services` bucket.
 
-**`[COMPOSE-4]` `[review]`** — Composition includes **read fan-in**, not just sequential workflows: a
-slice that aggregates several other slices' *published read* capabilities (a dashboard, a score) is a
-legitimate slice, provided it depends on published capabilities (`[COMPOSE-1]`) and adds no shared
-core. The same idea extends across a process boundary, where it becomes a system-level concern
-(`[SCOPE-4]` → `SYSTEM.md`). If a set-only slice exposes no read capability the aggregator needs, the
-owning slice publishes one — the aggregator never reaches into its state. (When the fan-in starts
-carrying its own growing cross-domain rules, that is the `[GROW-3]` split signal.)
+**`[COMPOSE-4]` `[review]`** — Read fan-in is legitimate composition: a slice that aggregates several
+other slices' published *read* capabilities — a dashboard, a score — is a legitimate slice.
+
+It must depend only on published capabilities (`[COMPOSE-1]`) and add no shared core. If a write-only
+slice exposes no read capability the aggregator needs, the owning slice publishes one; the aggregator
+never reaches into its state. The same idea across a process boundary becomes a system concern
+(`[SCOPE-4]`). When the fan-in starts carrying its own growing cross-domain rules, that is the
+`[GROW-3]` split signal.
 
 ---
 
 ## 11. Pure Core, Effects at the Edge  `[EFFECT-*]`
 
-**`[EFFECT-1]` `[review]`** — Prefer **pure functions** for parsing, validation, normalization,
-calculation, and output shaping.
+**`[EFFECT-1]` `[review]`** — Prefer pure functions for parsing, validation, normalization, calculation,
+and output shaping.
 
 **`[EFFECT-2]` `[review]`** — Keep side effects at the edges: the request boundary, state writes,
-filesystem, environment, and external process/network calls.
+filesystem, environment, and external process or network calls.
 
-**`[EFFECT-3]` `[guide]`** — Preferred slice flow: **parse → validate → compute → persist/effect →
-render**. Do not intermingle calculation and side effects unnecessarily.
+**`[EFFECT-3]` `[guide]`** — The preferred slice flow is **parse → validate → compute → persist/effect →
+render**; do not intermingle calculation and side effects unnecessarily.
 
-**`[EFFECT-4]` `[review]`** — Do not extract a function *only* to make it pure or testable. Extract
-only when it enforces a rule, clarifies a real calculation, or deserves a precise name (`[DUP-3]`).
+**`[EFFECT-4]` `[review]`** — Do not extract a function *only* to make it pure or testable; extract only
+when it enforces a rule, clarifies a real calculation, or deserves a precise name (`[DUP-3]`).
 
 ---
 
 ## 12. State & Effects  `[STATE-*]`
 
-(Generalizes "persistence." State may be a database, the filesystem, a remote API, or nothing.)
+State may be a database, the filesystem, a remote API, or nothing.
 
-**`[STATE-1]` `[review]`** — Keep state-access logic **local to the slice** that needs it. Prefer
-direct queries/calls for small and medium tools. A slice owning its own queries is the architecture
-working, not a problem to solve. Repeated patterns across slices are cheap to generate consistently.
+**`[STATE-1]` `[review]`** — Keep state-access logic local to the slice that needs it.
 
-**`[STATE-2]` `[auto]`** — Do not create a shared repository/data-access layer (a `[BUCKET-1]`
-violation). Connection management and schema bootstrap may be a small, precisely-named **horizontal**
-(`db`); it must not grow into a generic data-access layer.
+Prefer direct queries for small and medium tools. A slice owning its own queries is the architecture
+working, not a problem to solve; repeated query patterns across slices are cheap to generate
+consistently.
 
-**`[STATE-3]` `[guide]`** — A shared persistence layer accumulates special cases and forces
-cross-slice reasoning on every change. Local ownership keeps each slice independently changeable.
+**`[STATE-2]` `[auto]`** — Do not create a shared repository or data-access layer.
 
-**`[STATE-4]` `[review]`** — **Derived/computed state is owned by the slice (or app) that computes
-it**, even when every input belongs to other slices. It is not "shared state" and does not justify a
-shared layer. Persisting a derived value (e.g. a cached score) is an idempotent-set effect
-(`[IDEM-1]`); on a redelivering platform it must be idempotent (`[IDEM-5]`). Because writing the cache
-is a *set* effect, it belongs to a set-/event-named handler (a `refresh`/`recompute` slice or an
-`on_change` handler), **not** a read-named slice: a `show`/`GET` reads the cached value and never
-writes it, which keeps `[IDEM-2]` satisfied.
+Connection management, pooling, and migration *execution* may be a small, precisely-named `db`
+horizontal; it must not grow into a generic data-access layer (`[BUCKET-1]`).
+
+**The direction of interface ownership is the test**, and it is what distinguishes a forbidden repository
+from a legitimate adapter. If a shared package **defines** the data-access API and slices consume whatever
+it offers, it is a repository layer: it accumulates every caller's needs and no slice can be read alone.
+If the **slice declares the interface it needs** — listing only the operations *this* capability uses — and
+a shared package merely *implements* it, the dependency arrow runs adapter → slice and the slice stays
+self-contained. That inversion is permitted, and it is how code-generated persistence (sqlc, an ORM's
+generated queries) coexists with slice ownership; see
+[`examples/go-api-slice.md`](./examples/go-api-slice.md).
+
+**`[STATE-3]` `[guide]`** — A shared persistence layer accumulates special cases and forces cross-slice
+reasoning on every change; local ownership keeps each slice independently changeable.
+
+**`[STATE-4]` `[review]`** — Derived or computed state is owned by the slice that computes it, even when
+every input belongs to other slices.
+
+It is not "shared state" and does not justify a shared layer. Persisting a derived value (a cached
+score) is an idempotent-set effect (`[IDEM-1]`); on a redelivering platform it must be idempotent
+(`[IDEM-5]`). Because writing the cache is a *set* effect, it belongs to a set- or event-named handler —
+a `refresh`/`recompute` slice, or an `on_change` handler — **not** a read-named slice. A `show`/`GET`
+reads the cached value and never writes it, which keeps `[IDEM-2]` satisfied.
+
+**`[STATE-5]` `[review]`** — Every table, file, or bucket has **exactly one owning slice**, and its
+schema changes belong to that slice.
+
+Queries are slice-local (`[STATE-1]`), so schema must be owned too — otherwise two slices silently
+co-own a shape and every change becomes a cross-slice negotiation. Split the mechanism from the content:
+the `db` horizontal **runs** migrations; the owning slice **defines** them, and the migration lives with
+the slice.
+
+A second slice that needs the data reads it through the owner's published capability (`[COMPOSE-1]`); if
+it genuinely shares the entity's invariant, the invariant — not the storage — becomes a horizontal
+(`[XCUT-5]`). Two slices writing one table is a `[GROW-3]` split signal, not a reason for a shared
+data-access layer.
 
 ---
 
-## 13. Idempotency & Effect Semantics  `[IDEM-*]`
+## 13. Configuration  `[CONFIG-*]`
 
-**`[IDEM-1]` `[review]`** — The request/trigger's **name or method signals its effect semantics**,
-and the implementation must match. Generalized mapping:
+Configuration is the horizontal every app has and most architectures forget to govern. Ambient config
+reads are the most common way a slice stops being self-contained.
+
+**`[CONFIG-1]` `[review]`** — Configuration is a horizontal: resolved once at the composition root,
+validated there, and injected into the slices that need it.
+
+**`[CONFIG-2]` `[auto]`** — No slice reads the process environment, a config file, or a global settings
+object directly.
+
+Statically decidable, and worth gating: a single `os.Getenv` inside a slice defeats `[AGENT-1]` (the
+slice's world is no longer in one place) and makes the slice untestable without ambient setup.
+
+**`[CONFIG-3]` `[review]`** — Validate every required setting when the config horizontal is constructed,
+not at first use.
+
+A missing or malformed setting is a **startup failure** raising `infrastructure` (`[ERR-1]`), never an
+empty value that surfaces hours later as a mystery. Document the precedence order once — typically
+explicit argument → environment → file → default — and apply it in the horizontal, not per slice.
+
+**`[CONFIG-4]` `[auto]`** — Secrets are read through the config horizontal only: never inlined, never
+logged, never placed on a published contract.
+
+See `[TRUST-2]` and `[OBS-3]`. This is the one `[CONFIG]` rule whose violation is a security incident
+rather than a design smell.
+
+---
+
+## 14. Idempotency & Effect Semantics  `[IDEM-*]`
+
+**`[IDEM-1]` `[review]`** — The request or trigger's **name signals its effect semantics**, and the
+implementation matches.
 
 | Semantic        | CLI verb                              | HTTP method    | Library naming                   |
 | --------------- | ------------------------------------- | -------------- | -------------------------------- |
@@ -347,33 +449,43 @@ and the implementation must match. Generalized mapping:
 | idempotent set  | `set`/`edit`/`update`/`init`/`ensure` | `PUT`/`DELETE` | `set`/`update`/`ensure`/`upsert` |
 | non-idempotent  | `add`/`create`/`import`               | `POST`         | `add`/`create`                   |
 
-An update that **sets a field to a caller-supplied value** is idempotent (`edit`/`update`/`set`,
-`PUT`). An update that **changes state relative to its current value** (increment, append) is
-non-idempotent — name it accordingly and do not classify it as `set`.
+An update that **sets a field to a caller-supplied value** is idempotent (`edit`/`update`/`set`, `PUT`).
+An update that **changes state relative to its current value** (increment, append) is non-idempotent —
+name it accordingly and do not classify it as `set`.
 
-**`[IDEM-6]` `[review]`** — If a needed verb is not in the table, classify it by its *effect*
-(read-only / idempotent-set / non-idempotent), pick a name that signals that effect (`[IDEM-3]`), and
-proceed. Do not invent a name whose effect is ambiguous; if the effect itself is unclear, flag it
-(`[AGENT-2]`).
+**`[IDEM-2]` `[auto]`** — A read-named slice (`show`/`list`/`GET`) contains no write or mutation call,
+including a cache write.
 
-**`[IDEM-2]` `[auto]`** — A read-named slice (`show`/`list`/`GET`) must not call a mutation path —
-including writing a cache; route a derived-state write to a set-/event-named handler (`[STATE-4]`).
+Route a derived-state write to a set- or event-named handler (`[STATE-4]`). The static check is one-hop:
+a read-named slice module that calls an insert/update/delete or a write API fails. Deeper mutation
+reached through several calls is a `[review]` concern.
 
-**`[IDEM-3]` `[review]`** — Do not make a non-idempotent operation behave idempotently without
-renaming it accordingly. Command/method names must signal behavior truthfully.
+**`[IDEM-3]` `[review]`** — Do not make a non-idempotent operation behave idempotently without renaming
+it; names must signal behavior truthfully.
 
 **`[IDEM-4]` `[review]`** — Non-idempotent mutations must not be retried automatically.
 
-**`[IDEM-5]` `[review]` — At-least-once platforms make idempotency mandatory.** When the platform
-itself redelivers (queues, webhooks, GitHub Action reruns, cron retries), a handler with mutating
-effects **must** be idempotent (e.g. via an idempotency key or natural dedupe), because you do not
-control the retry. This is a hard requirement, not advice, for those app types.
+**`[IDEM-5]` `[review]` — At-least-once platforms make idempotency mandatory.** When the platform itself
+redelivers — queues, webhooks, GitHub Action reruns, cron retries — a handler with mutating effects
+**must** be idempotent, via an idempotency key or a natural dedupe key, because you do not control the
+retry.
+
+This is a hard requirement for those app types, not advice. It is also what reconciles `[IDEM-4]` with
+reality: the key makes the *handler* a safe no-op on redelivery even when the underlying operation is
+non-idempotent.
+
+**`[IDEM-6]` `[review]`** — If a needed verb is not in the `[IDEM-1]` table, classify it by its effect
+(read-only / idempotent-set / non-idempotent), pick a name that signals that effect, and proceed.
+
+Do not invent a name whose effect is ambiguous. If the *effect itself* is unclear, flag it
+(`[AGENT-2]`).
 
 ---
 
-## 14. Error Model  `[ERR-*]`
+## 15. Error Model  `[ERR-*]`
 
 **`[ERR-1]` `[review]`** — Use one small, stable error taxonomy, defined once as a horizontal:
+
 1. `usage` — invalid invocation, malformed arguments, bad flag/parameter combinations
 2. `validation` — syntactically valid input that fails business rules
 3. `not_found` — required resource does not exist
@@ -381,259 +493,281 @@ control the retry. This is a hard requirement, not advice, for those app types.
 5. `infrastructure` — database, filesystem, permissions, environment, or OS failure
 6. `internal` — unexpected bug
 
-**`[ERR-2]` `[auto]`** — Errors carry a structured shape: `{ category (one of the six), code (stable
-string id, e.g. "invalid_month"), message (human-readable) }`. Raised errors use the taxonomy enum,
-not ad-hoc strings. The `category` enum and the error type are the `errors` horizontal's published
-surface; the `code` strings are **owned by the slice that raises them** (minted locally, kept stable),
-so a slice stays self-contained and adding a code never edits a shared registry.
+**`[ERR-2]` `[auto]`** — Errors carry the structured shape `{ category, code, message }` and raised
+errors use the taxonomy enum, not ad-hoc strings.
 
-**`[ERR-3]` `[review]`** — **Slices raise. The root renders. Nothing else renders.** Validate at the
-boundary, fail fast, do not swallow errors, do not partially succeed silently. Unexpected errors are
-caught once at the root.
+`category` is one of the six; `code` is a stable string id (`"invalid_month"`); `message` is
+human-readable. The `category` enum and the error type are the `errors` horizontal's published surface.
+The `code` strings are **owned by the slice that raises them** — minted locally, kept stable — so a
+slice stays self-contained and adding a code never edits a shared registry.
 
-**`[ERR-4]` `[review]`** — **Batch/bulk operations default to all-or-nothing** (one transaction; one
-bad item aborts and rolls back). A command may offer a partial mode, but only if it **reports per-item
-outcomes explicitly** in its observable contract — partial success must never be *silent* (`[ERR-3]`).
-State which mode a command is in; never leave it implicit.
+**`[ERR-3]` `[review]`** — **Slices raise. The root renders. Nothing else renders.**
 
----
+Validate at the boundary, fail fast, do not swallow errors, do not partially succeed silently.
+Unexpected errors are caught once at the root.
 
-## 15. Observability  `[OBS-*]`
+**`[ERR-4]` `[review]`** — Batch and bulk operations default to all-or-nothing: one transaction, one bad
+item aborts and rolls back.
 
-**`[OBS-1]` `[guide]`** — Diagnostics are **opt-in, off the data path, and never pollute the machine
-contract**. This principle is universal; the mechanism is per-appendix (a `--debug` flag to `stderr`
-for CLIs; structured logs, metrics, and correlation/trace IDs for backends).
-
-**`[OBS-2]` `[review]`** — Observability is configured globally at the root, not reinvented per
-slice. Slices emit through the injected logging/tracing horizontal.
-
-**`[OBS-3]` `[auto]`** — Diagnostic output must not appear on the machine-readable contract channel
-(e.g. must not pollute `--json` on `stdout`, or the response body).
+A command may offer a partial mode, but only if it **reports per-item outcomes explicitly** in its
+observable contract — partial success must never be *silent* (`[ERR-3]`). State which mode a command is
+in; never leave it implicit.
 
 ---
 
-## 16. Public & Observable Contracts  `[CONTRACT-*]`
+## 16. Observability  `[OBS-*]`
 
-**`[CONTRACT-1]` `[review]`** — The thing the outside world depends on (machine-readable output, HTTP
-API shape, library public API) must be **stable, explicit, fully typed, and free of decoration**.
+**`[OBS-1]` `[guide]`** — Diagnostics are **opt-in, off the data path, and never part of the machine
+contract**. The principle is universal; the mechanism is per-appendix (a `--debug` flag to `stderr` for
+CLIs; structured logs, metrics, and trace IDs for backends).
+
+**`[OBS-2]` `[review]`** — Observability is configured globally at the root, not reinvented per slice;
+slices emit through the injected logging/tracing horizontal.
+
+**`[OBS-3]` `[review]`** — Diagnostic output must not appear on the machine-readable contract channel —
+not on `--json` on `stdout`, not in a response body.
+
+Assert this in behavior tests (`[TEST-4]`). It is not statically decidable in general — any print call
+could reach the contract channel — which is why it is `[review]` and test-covered rather than `[auto]`.
+
+---
+
+## 17. Public & Observable Contracts  `[CONTRACT-*]`
+
+**`[CONTRACT-1]` `[review]`** — What the outside world depends on — machine-readable output, HTTP API
+shape, library public API — is stable, explicit, fully typed, and free of decoration.
 
 **`[CONTRACT-2]` `[review]`** — Changes to a public contract follow that app type's versioning
-discipline (semver for libraries; API versioning for backends; documented stability for `--json`).
-The concrete rule lives in the appendix.
+discipline: semver for libraries, API versioning for backends, documented stability for `--json`. The
+concrete rule lives in the appendix.
 
 ---
 
-## 17. Trust Boundary  `[TRUST-*]`
+## 18. Trust Boundary  `[TRUST-*]`
 
-**`[TRUST-1]` `[review]`** — Treat the request boundary as the **trust boundary**: validate and
-authorize untrusted input at the edge before it reaches behavior.
+**`[TRUST-1]` `[review]`** — Treat the request boundary as the **trust boundary**: validate and authorize
+untrusted input at the edge before it reaches behavior.
 
-**`[TRUST-2]` `[guide]`** — Authentication, authorization, secret handling, and tenant isolation are
-first-class for networked app types (web/backend) and are specified in those appendices. A local CLI
-or pure library may have a minimal trust boundary; it is still named, not ignored.
+**`[TRUST-2]` `[review]`** — Every app **states its trust boundary explicitly**, including the apps that
+barely have one.
+
+Authentication, authorization, secret handling, and tenant isolation are first-class for networked app
+types and are specified in those appendices (`[BE-6]`, `[WEB-7]`, `[AGENTIC-10]`). A local CLI or pure
+library may have a minimal trust boundary — the invoking user or caller is trusted — but "minimal" must
+be *written down*, because an unstated trust assumption is the one an agent will silently widen. Secrets
+always come from the config horizontal (`[CONFIG-4]`).
 
 ---
 
-## 18. Testing Philosophy  `[TEST-*]`
+## 19. Testing Philosophy  `[TEST-*]`
 
-**`[TEST-1]` `[review]`** — Testing is **behavior-first**: exercise the slice's entry point, assert
-its **observable contract** (`[BOUND-1]`), use real or realistic temporary infrastructure, and
-minimize mocking.
+**`[TEST-1]` `[review]`** — Testing is **behavior-first**: exercise the slice's entry point, assert its
+observable contract (`[BOUND-1]`), use real or realistic temporary infrastructure, and minimize mocking.
 
-**`[TEST-2]` `[review]`** — Prefer integration/end-to-end tests over isolated unit tests. Behavior
+"Realistic temporary infrastructure" means a temp database, a test container, an in-memory
+implementation of the *real* interface — not a mock that asserts on calls. The distinction that matters
+is whether the test would still pass if the behavior broke.
+
+**`[TEST-2]` `[review]`** — Prefer integration and end-to-end tests over isolated unit tests; behavior
 tests verify what the slice actually does and survive refactors that unit tests often do not.
 
 **`[TEST-3]` `[review]` — Unit tests are a scalpel, not a default.** Write one only when behavior is
-genuinely hard or expensive to reach at the integration boundary (complex branching, pure
-calculations with many input combinations, impractical-to-set-up edge cases). Do not write unit tests
-that duplicate integration coverage, and do not extract code only to make unit testing easier.
+genuinely hard or expensive to reach at the integration boundary: complex branching, pure calculations
+with many input combinations, impractical-to-set-up edge cases.
 
-**`[TEST-4]` `[review]`** — Behavior tests should validate, where relevant: the observable contract,
-error rendering and codes, idempotency semantics, transactional behavior, and diagnostic behavior.
+Do not write unit tests that duplicate integration coverage, and do not extract code only to make unit
+testing easier (`[EFFECT-4]`).
+
+**`[TEST-4]` `[review]`** — Behavior tests validate, where relevant: the observable contract, error
+rendering and codes, idempotency semantics, transactional behavior, authorization at the boundary, and
+diagnostic behavior.
 
 ---
 
-## 19. File Growth & Split Signals  `[GROW-*]`
+## 20. File Growth & Split Signals  `[GROW-*]`
 
 **`[GROW-1]` `[guide]`** — Start small: prefer one file per slice initially.
 
-**`[GROW-2]` `[review]`** — When a slice grows hard to navigate, **split inside the slice first**
-(e.g. `expense/add/` → `cli`, `behavior`, `sql`, `add_test`). Never answer file growth with a global
+**`[GROW-2]` `[review]`** — When a slice grows hard to navigate, **split inside the slice first** (e.g.
+`expense/add/` → `cli`, `behavior`, `sql`, `add_test`); never answer file growth with a global
 abstraction.
 
-**`[GROW-3]` `[review]`** — Distinguish *file* growth from *domain densification*. If features stop
-being independent and all reach into one large central concept, that is a `[SCOPE-3]` **split
-signal** — spin out another app/harness; do not grow a shared core. Concrete trip-wires (any one is a
-prompt to flag per `[AGENT-2]`): a single slice needs the *read* state of three or more other slices
-at once; a new feature cannot be described without naming several existing capabilities; or one rule
-must change in lockstep across many slices. The threshold is a judgment call, not a hard metric —
-when it is unclear, prefer the reversible move (a composition slice, `[COMPOSE-4]`) and flag for
-review.
+**`[GROW-3]` `[review]`** — Distinguish *file* growth from *domain densification*: if features stop being
+independent and all reach into one large central concept, that is a `[SCOPE-3]` split signal.
+
+Concrete trip-wires — any one is a prompt to flag per `[AGENT-2]`: a single slice needs the *read* state
+of three or more other slices at once; a new feature cannot be described without naming several existing
+capabilities; two slices write the same table (`[STATE-5]`); or one rule must change in lockstep across
+many slices.
+
+The threshold is a judgment call, not a hard metric. When it is unclear, prefer the reversible move (a
+composition slice, `[COMPOSE-4]`) and flag for review.
 
 ---
 
-## 20. Worked Example
+## 21. Variations on the canonical slice
 
-A single canonical slice, language-neutral. New slices should look like this.
+The [canonical slice](./CONVENTIONS.md#the-canonical-slice) lives in `CONVENTIONS.md` — read it there,
+once. [`examples/go-api-slice.md`](./examples/go-api-slice.md) is the same shape in real Go, including
+how the bands fall out under a real language's constraints. Three variations come up often enough to
+name:
 
-**Capability:** `expense add` — record a non-idempotent expense.
+**Lookup-then-mutate (`edit`/`update`, `not_found`).** A slice that changes an existing record validates
+input purely, then performs the lookup-and-write as **one** effect; if the write affects zero rows it
+raises `not_found` (`[ERR-1]`). Existence is knowable only via state, so the `not_found` check lives
+*inside* the write step — it is an effect, not a pure pre-validation. The verb that *sets* a field to a
+supplied value is idempotent: name it `edit`/`update`/`set`, not `add` (`[IDEM-1]`, `[IDEM-6]`).
 
-```
-expense/add                                   # the slice (a vertical)
+**A first slice, with no horizontals yet.** The canonical slice consumes `money`/`db`/`errors` as
+*pre-existing* horizontals. A lone first slice keeps that logic inline and waits for a second consumer
+to trigger `[XCUT-1]`. Standing up a horizontal for a single slice is the `[DUP-4]` failure, not
+diligence.
 
-  # ── injected horizontals (constructed at the root, passed in) ──
-  #   money   : parse/format invariant  [XCUT]
-  #   db      : connection + tx          [XCUT]
-  #   errors  : taxonomy {category,code,message}  [XCUT]
-
-  function run(rawArgs, deps):                 # deps = injected horizontals
-    # 1. parse  (pure)  ───────────────────────────────────  [EFFECT-1]
-    input = parse(rawArgs)                     # -> {amountText, category, dateText}
-
-    # 2. validate  (pure, fail fast)  ─────────────────────  [ERR-3] [TRUST-1]
-    amount = deps.money.parse(input.amountText)   # raises validation/invalid_amount
-    date   = parsePeriod(input.dateText)          # raises validation/invalid_date
-    if category is empty:
-        raise deps.errors.of("validation", "missing_category", "category is required")
-
-    # 3. compute  (pure)  ─────────────────────────────────  [EFFECT-3]
-    record = { amount, category: input.category, date }
-
-    # 4. persist  (effect, at the edge)  ──────────────────  [STATE-1] [IDEM-4]
-    deps.db.tx(conn => insertExpense(conn, record))   # 'add' is non-idempotent: no auto-retry
-
-    # 5. render  (effect, root decides channel)  ──────────  [OBS-3] [CONTRACT-1]
-    return Result.ok({ id: record.id, amount, category, date })  # root renders text or --json
-
-  # ── colocated behavior test ──────────────────────────────  [STRUCT-1] [TEST-1]
-  test "expense add records and is observable":
-    out = run(["--amount","12.50","--category","food","--date","2026-06"], realTempDeps())
-    assert out.exitCode == 0
-    assert out.json == { id: any, amount: "12.50", category: "food", date: "2026-06" }
-    assert stderr is empty                         # diagnostics off the contract  [OBS-3]
-    assert queryExpenses().contains(food, 12.50)   # real storage, behavior-first  [TEST-1]
-```
-
-What makes this canonical: parsing/validation/compute are pure; effects sit at the edge; horizontals
-are injected, not reached into; the slice raises taxonomy errors and lets the root render; the test
-asserts the observable contract against real storage; the verb `add` truthfully signals
-non-idempotency. It violates none of its own rules.
-
-**Variation — lookup-then-mutate (`edit`/`update`, `not_found`):** a slice that changes an existing
-record validates input (pure), then performs the lookup-and-write as one effect; if the write affects
-zero rows it raises `not_found` (`[ERR-1]`). The verb that *sets* a field to a supplied value is
-idempotent, so name it `edit`/`update`/`set`, not `add` (`[IDEM-1]`, `[IDEM-6]`). Existence is
-knowable only via state, so the `not_found` check lives *inside* the write step — it is an effect, not
-a pure pre-validation.
-
-**Note:** the injected `money`/`db`/`errors` above are *pre-existing* horizontals this slice consumes
-— they are presupposed siblings, not a requirement to stand up a horizontal for a *first* slice. A
-lone first slice keeps such logic inline until a second consumer triggers `[XCUT-1]`.
+**A read that fans in (`summary`, a dashboard).** Compose other slices' published read capabilities
+(`[COMPOSE-4]`), keep the composition in this slice, and do not create a shared query layer to serve it.
+If the fan-in starts owning its own cross-domain rules, that is `[GROW-3]`.
 
 ---
 
 ## Agent Execution Contract
 
-The normative checklist. Load this as your working contract; the sections above are the *why*.
+The **complete** normative checklist: every `[auto]` and `[review]` rule in this document, in one place.
+Load this as your working contract; sections 1–21 are the *why*, and `[guide]` rules live only there.
+Reviewers walk this same list and cite the same IDs.
 
-### Placement
-- `[PLACE-1]` Place new code by capability, never by layer. → `[MODEL-2]`
-- `[PLACE-2]` Keep definition, validation, behavior, state access, output, and tests in the same
-  slice whenever feasible. → `[MODEL-1]` `[BOUND-2]`
-- `[PLACE-3]` Keep the root thin and free of business logic. → `[ROOT-1]` `[ROOT-2]`
-- `[PLACE-4]` Keep state-access logic local to the slice that owns it. → `[STATE-1]`
-- `[PLACE-5]` Colocate tests, or mirror package structure where colocation is impossible. → `[STRUCT-1]`
+<!-- coral:contract:start -->
+
+### Placement & naming
+- `[MODEL-1]` Every unit of code is a slice, a horizontal, the composition root, or a published contract.
+- `[MODEL-2]` Name every package for the capability or concern it owns, never for its technical role.
+- `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages.
+- `[STRUCT-3]` Keep root-level horizontals rare and precisely named.
+- `[STRUCT-1]` Colocate tests, or mirror the package structure where colocation is impossible.
+- `[BOUND-2]` One request/trigger — or a very tight pair — per slice, owned end to end.
+- `[BOUND-3]` Use the boundary form the appendix fixes; do not invent a new one.
+- `[ROOT-1]` Keep the root thin: register, construct, inject, bootstrap. No business logic.
+- `[ROOT-2]` The root imports no persistence or domain-internal module.
 
 ### Forbidden moves
-- `[FORBID-1]` Do not create or expand `shared`/`common`/`utils`/`helpers`/`services`/`repository`/
-  generic `models`. → `[BUCKET-1]`
-- `[FORBID-2]` Do not introduce a global abstraction to reduce trivial duplication. → `[DUP-2]`
-- `[FORBID-3]` Do not reach into another slice's internals; depend on its published capability. → `[COMPOSE-1]`
+- `[BUCKET-1]` Do not create or expand `shared`/`common`/`utils`/`helpers`/`services`/`repository`/generic `models`.
+- `[DUP-2]` Do not extract on similarity alone; similarity is not a shared concept.
+- `[COMPOSE-1]` Do not reach into another slice's internals; depend on its published capability.
+- `[CONFIG-2]` No slice reads the environment, a config file, or a global settings object directly.
 
-### Sharing decision
-- `[SHARE-1]` Duplicate incidental similarity inside slices. → `[DUP-1]` `[DUP-2]`
-- `[SHARE-2]` Promote to a named, injected horizontal only when it is genuinely cross-cutting AND
-  enforces an invariant/convention that must not diverge. → `[XCUT-1]`
-- `[SHARE-3]` Apply the Extraction Test before extracting. → `[DUP-4]`
+### The sharing decision
+- `[XCUT-1]` Promote to a horizontal only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant.
+- `[XCUT-2]` Give every horizontal a precise domain or infrastructure name.
+- `[XCUT-3]` Inject horizontals; consume their published surface, never their internals.
+- `[XCUT-5]` A domain entity may be a horizontal only as type + invariants — never its queries or storage.
+- `[DUP-3]` Extract only to enforce an invariant or convention, provide named infrastructure, or clarify a real calculation.
+- `[DUP-4]` Apply the Extraction Test before extracting.
+- `[COMPOSE-2]` Prefer injecting a capability through the root over a slice-to-slice import.
+- `[COMPOSE-3]` A shared multi-step workflow is a candidate horizontal, not a `services` bucket.
+- `[COMPOSE-4]` Read fan-in is a legitimate slice, provided it uses published capabilities only.
 
 ### Semantics & effects
-- `[SEM-1]` Name signals effect; read-named operations never mutate. → `[IDEM-1]` `[IDEM-2]`
-- `[SEM-2]` Do not auto-retry non-idempotent mutations; make handlers idempotent on at-least-once
-  platforms. → `[IDEM-4]` `[IDEM-5]`
-- `[SEM-3]` Pure parse/validate/compute; effects at the edge. → `[EFFECT-1]` `[EFFECT-2]`
+- `[IDEM-1]` The name signals the effect; the implementation matches it.
+- `[IDEM-2]` A read-named slice contains no write or mutation call, including a cache write.
+- `[IDEM-3]` Do not make a non-idempotent operation idempotent without renaming it.
+- `[IDEM-4]` Never auto-retry a non-idempotent mutation.
+- `[IDEM-5]` On an at-least-once platform, a mutating handler must be idempotent.
+- `[IDEM-6]` Classify an unlisted verb by its effect and name it truthfully; flag an unclear effect.
+- `[EFFECT-1]` Keep parsing, validation, normalization, calculation, and output shaping pure.
+- `[EFFECT-2]` Keep side effects at the edges.
+- `[EFFECT-4]` Do not extract a function only to make it pure or testable.
 
-### Errors, observability, contracts
-- `[EO-1]` Use the global error taxonomy; slices raise, root renders. → `[ERR-1]` `[ERR-3]`
-- `[EO-2]` Do not invent slice-local error rendering or logging conventions. → `[OBS-2]`
-- `[EO-3]` Diagnostics are global, opt-in, and never pollute the machine contract. → `[OBS-1]` `[OBS-3]`
-- `[EO-4]` Validate/authorize untrusted input at the boundary. → `[TRUST-1]`
+### State & configuration
+- `[STATE-1]` Keep state-access logic local to the slice that owns it.
+- `[STATE-2]` Do not create a shared repository or data-access layer.
+- `[STATE-4]` The slice that computes derived state owns it; write it from a set-/event-named handler.
+- `[STATE-5]` One owning slice per table/file/bucket; its schema changes live with it.
+- `[CONFIG-1]` Resolve, validate, and inject configuration at the root as a horizontal.
+- `[CONFIG-3]` Validate every required setting at construction; fail startup, not first use.
+- `[CONFIG-4]` Read secrets only through the config horizontal; never inline, log, or publish them.
+
+### Errors, observability, contracts, trust
+- `[ERR-1]` Use the six-category taxonomy, defined once as a horizontal.
+- `[ERR-2]` Raise `{category, code, message}` using the enum; slices own their `code` strings.
+- `[ERR-3]` Slices raise; the root renders; nothing else renders.
+- `[ERR-4]` Batch operations are all-or-nothing unless partial outcomes are reported explicitly.
+- `[OBS-2]` Configure observability at the root; emit through the injected horizontal.
+- `[OBS-3]` Keep diagnostics off the machine-readable contract channel.
+- `[CONTRACT-1]` Keep the public contract stable, explicit, fully typed, and undecorated.
+- `[CONTRACT-2]` Version public-contract changes per the app type's discipline.
+- `[TRUST-1]` Validate and authorize untrusted input at the boundary.
+- `[TRUST-2]` State the app's trust boundary explicitly, however minimal.
 
 ### Testing
-- `[T-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra,
-  minimal mocking. → `[TEST-1]`
-- `[T-2]` Unit tests as a scalpel; never duplicate integration coverage; never extract just to test. → `[TEST-3]`
+- `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.
+- `[TEST-2]` Prefer integration and end-to-end tests over isolated unit tests.
+- `[TEST-3]` Unit tests are a scalpel; never duplicate integration coverage; never extract just to test.
+- `[TEST-4]` Assert contract, errors, idempotency, transactions, authorization, and diagnostics where relevant.
+
+### Scope & growth
+- `[SCOPE-3]` When features converge on one dense concept, give it its own app behind a published contract.
+- `[GROW-2]` Answer file growth by splitting inside the slice, never with a global abstraction.
+- `[GROW-3]` Treat domain densification as a split signal, not a refactor-into-a-shared-core signal.
+
+<!-- coral:contract:end -->
 
 ### Change algorithm
-1. Identify the owning capability (the request/trigger). → `[BOUND-1]`
+
+1. Identify the owning capability — the request or trigger. → `[BOUND-1]`
 2. Locate the existing feature package; if none, create a concrete one. → `[STRUCT-2]`
-3. Place new code inside that slice. → `[PLACE-1]`
+3. Place new code inside that slice. → `[MODEL-2]`
 4. Keep logic local unless `[XCUT-1]` justifies a horizontal.
-5. Add/update colocated behavior tests. → `[TEST-1]`
-6. Verify the observable contract (exit code/status, channels, `--json`/body). → `[CONTRACT-1]`
+5. Add or update colocated behavior tests. → `[TEST-1]`
+6. Verify the observable contract — exit code/status, channels, `--json`/body. → `[CONTRACT-1]`
 7. At genuine ambiguity, take the reversible option and flag it. → `[AGENT-2]`
-
----
-
-## Review Checklist
-
-Cite rule IDs in findings.
-
-1. Placed by capability, not layer? (`[MODEL-2]`)
-2. Root still thin? (`[ROOT-1]`)
-3. Slice owns its behavior end to end? (`[BOUND-2]`)
-4. State access local to the slice? (`[STATE-1]`)
-5. Tests colocated or structure-mirrored? (`[STRUCT-1]`)
-6. No generic buckets introduced? (`[BUCKET-1]`)
-7. No trivial duplication extracted; any extraction passes `[XCUT-1]`/`[DUP-4]`?
-8. Slice-to-slice deps go through published capabilities? (`[COMPOSE-1]`)
-9. Name matches effect semantics; idempotency correct for the platform? (`[IDEM-1]` `[IDEM-5]`)
-10. Effects isolated at the edge? (`[EFFECT-2]`)
-11. Errors use the taxonomy and render at the root? (`[ERR-3]`)
-12. Diagnostics off the machine contract? (`[OBS-3]`)
-13. Untrusted input validated/authorized at the boundary? (`[TRUST-1]`)
-14. Behavior tests preferred over unit tests? (`[TEST-2]`)
-15. Any genuine ambiguity flagged for review, not silently resolved? (`[AGENT-2]`)
 
 ---
 
 ## Enforcement & Drift Control
 
-The rule IDs and enforcement classes exist so the architecture can be **checked**, not just read.
-The first line of drift control is structural: a genuine horizontal (`[XCUT]`) has structurally one
-copy and nothing to drift. The tiers below are the backstop for what slips past it.
+The rule IDs and enforcement classes exist so the architecture can be **checked**, not just read. The
+first line of drift control is structural: a genuine horizontal (`[XCUT]`) has one copy and nothing to
+drift. The tiers below are the backstop for what slips past it.
 
-**Tier 1 — static checks (deterministic, blocking).** Everything `[auto]`; each check cites the rule
+> **Status — read this before trusting the list.** This repository enforces its **own** consistency at
+> build time: every rule carries exactly one enforcement class, every rule-ID citation resolves to a
+> definition, and every `[auto]`/`[review]` rule appears in its document's Agent Execution Contract. The
+> Tier 1 checks below are a **specification for a consuming repository to implement**; they do not ship
+> here. Treat them as a target, not an installed gate.
+
+**Tier 1 — static checks (deterministic, blocking).** One per `[auto]` rule; each check cites the rule
 ID it enforces so a failure points back here.
-- `[BUCKET-1]` → grep for `utils/`/`services/`/`helpers/`/`common/`/generic `models/` directories.
-- `[IDEM-2]` → a read-named slice that imports or calls a mutation path.
-- `[ERR-2]` → raised errors use the taxonomy enum, not ad-hoc strings.
-- `[STRUCT-1]`/`[ROOT-2]` → every feature dir ships its tests; the root imports no
-  persistence/domain internals.
 
-**Tier 2 — LLM reviewer (advisory first, graduated to blocking per-check once low-false-positive).**
-Reserved for `[review]` rules that static checks cannot decide:
-- cross-slice drift smells (date/money/error formats that diverged);
-- "this is the Nth copy — promote to a horizontal per `[XCUT-1]`?" classification calls.
+| Rule | Check |
+|---|---|
+| `[BUCKET-1]` | no `utils/`, `services/`, `helpers/`, `common/`, or generic `models/` directory |
+| `[STRUCT-1]` | every feature directory ships its tests (or its mirror exists) |
+| `[STRUCT-3]` / `[XCUT-2]` | root-level modules match an allowlist of precise names |
+| `[ROOT-2]` | the root module imports no persistence or domain-internal module |
+| `[STATE-2]` | no shared repository/data-access package |
+| `[CONFIG-2]` | no slice module references the environment or config-file API |
+| `[CONFIG-4]` | no literal secret in source; no secret on a logged or published field |
+| `[IDEM-2]` | a read-named slice makes no one-hop write/mutation call |
+| `[ERR-2]` | raised errors use the taxonomy enum, not ad-hoc strings |
 
-**Constraints that keep enforcement from fighting the architecture:**
-1. Static-first — a gate that flakily passes a forbidden bucket loses all credibility.
-2. **Flag drift as a question, never force convergence** — suggest "A and B diverged — intended, or
-   a missed `[XCUT]` promotion?" for a human to adjudicate. A "make everything consistent" reviewer
-   would pressure agents back into premature shared abstractions, an anti-`[DUP]` engine.
-3. The reviewer gets this contract as input, cites IDs, and reviews one slice at a time (slices are
-   context-sized, so review stays tractable).
-4. The human is the final gate on anything irreversible; the reviewer multiplies human attention,
-   it does not replace the "humans review" half of the operating model.
+**Tier 2 — LLM reviewer (advisory first, graduated to blocking per check once low-false-positive).**
+Reserved for `[review]` rules a static check cannot decide: cross-slice drift smells (date, money, or
+error formats that diverged); "this is the Nth copy — promote per `[XCUT-1]`?" classification calls;
+`[XCUT-5]` horizontal-vs-bucket judgments; `[STATE-5]` ownership disputes.
+
+**Tier 3 — behavior tests.** Some `[review]` rules are cheap to assert and expensive to lint: `[OBS-3]`,
+`[ERR-3]`, `[ERR-4]`, `[IDEM-5]`, and the authorization half of `[TEST-4]`. Cover them in the slice's
+own tests rather than pretending a linter can decide them.
+
+**Four constraints that keep enforcement from fighting the architecture:**
+
+1. **Static-first.** A gate that flakily passes a forbidden bucket loses all credibility.
+2. **Flag drift as a question, never force convergence.** Suggest "A and B diverged — intended, or a
+   missed `[XCUT]` promotion?" for a human to adjudicate. A "make everything consistent" reviewer would
+   pressure agents back into premature shared abstractions — an anti-`[DUP]` engine.
+3. **One slice at a time.** The reviewer gets this contract as input, cites IDs, and reviews one slice
+   per pass; slices are context-sized, so review stays tractable.
+4. **The human is the final gate on anything irreversible.** The reviewer multiplies human attention; it
+   does not replace the "humans review" half of the operating model.
 
 New convention → new rule ID → new `[auto]` check (or `[review]` note) → enforced going forward.
 
@@ -641,22 +775,29 @@ New convention → new rule ID → new `[auto]` check (or `[review]` note) → e
 
 ## Document Set
 
-This architecture is split the way it tells code to split — app (colony) and system (reef) are
-separate bounded contexts, with shared conventions as a horizontal:
-
-- **`CONVENTIONS.md`** — horizontal: the Coral model, rule-ID format, enforcement classes, operating model. The front door; injected by reference into both spines.
-- **`ARCHITECTURE.md`** (this doc) + **`appendix/*.md`** — the app/colony spine and its species of polyp.
-- **`SYSTEM.md`** — the system/reef spine: how colonies compose over the water/bus (`[BUS-*]`, `[ORCH-*]`, `[SYS-TEST-*]`). Builds on this doc; this doc never cites a system rule.
+- **[`CONVENTIONS.md`](./CONVENTIONS.md)** — the shared horizontal: vocabulary, rule-ID scheme,
+  enforcement classes, operating model, and the canonical slice. The front door.
+- **`ARCHITECTURE.md`** (this doc) + **[`appendix/*.md`](#appendix-index)** — the app spine and its
+  per-app-type instantiations.
+- **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a bus (`[BUS-*]`, `[ORCH-*]`,
+  `[SYS-TEST-*]`). Builds on this doc; this doc never cites a system rule.
+- **Worked examples** — [`examples/go-api-slice.md`](./examples/go-api-slice.md) (a complete slice in
+  Go) and [`examples/backend-review.md`](./examples/backend-review.md) (the rules applied to a real
+  service, including where they'd be overkill).
 
 ## Appendix Index
 
-Each appendix (under `appendix/`) instantiates the abstract slots for one app type: boundary,
-observable contract, composition root, state/effects, idempotency form, error rendering,
-observability mechanism, trust/security, contract versioning, and testing mechanics.
+Each appendix instantiates the abstract slots for one app type: boundary, observable contract,
+composition root, state/effects, idempotency form, error rendering, observability mechanism,
+trust/security, contract versioning, and testing mechanics.
 
-- **`appendix/cli.md`** — CLI tools. (Written.)
-- **`appendix/backend.md`** — backends/services; heaviest use of horizontals + `[COMPOSE]`. (Partial.)
-- **`appendix/web.md`** — web apps; trust boundary is first-class. (Partial.)
-- **`appendix/agentic-app.md`** — apps built around an LLM/agent at runtime; the model is an injected effect, the agent runs in a harness. (Partial.)
-- **`appendix/library.md`** — libraries/packages; the consumer is the root; contract = semver. (Scaffold.)
-- **`appendix/gh-action.md`** — Actions/tools; at-least-once reruns ⇒ mandatory idempotency. (Scaffold.)
+- **[`appendix/cli.md`](./appendix/cli.md)** — CLI tools. (Written.)
+- **[`appendix/backend.md`](./appendix/backend.md)** — backends and services; heaviest use of
+  horizontals and `[COMPOSE]`. (Partial.)
+- **[`appendix/web.md`](./appendix/web.md)** — web apps; the trust boundary is first-class. (Partial.)
+- **[`appendix/agentic-app.md`](./appendix/agentic-app.md)** — apps built around an LLM at runtime; the
+  model is an injected effect and the agent runs in a harness. (Partial.)
+- **[`appendix/library.md`](./appendix/library.md)** — libraries and packages; the consumer is the root;
+  the contract is semver. (Scaffold.)
+- **[`appendix/gh-action.md`](./appendix/gh-action.md)** — Actions and tools; at-least-once reruns make
+  idempotency mandatory. (Scaffold.)

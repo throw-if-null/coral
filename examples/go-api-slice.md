@@ -287,10 +287,18 @@ func main() {
 }
 ```
 
-## The test — and why the split pays off
+## The tests — and why the split pays off
 
-Because the body knows nothing about HTTP or a database, you test the *domain logic* with a fake store —
-no server, no Postgres, no fixtures (`[TEST-1]`):
+Two tests, and it matters which rule each one satisfies.
+
+The **behavior test** is the one at the edge: it exercises the slice's entry point and asserts the
+observable contract — status code and body (`[TEST-1]`). That is the test that must exist. The **body
+test** below it is a scalpel (`[TEST-3]`): the error-translation branch is cheap to reach directly and
+tedious to provoke through HTTP, so it earns a direct test.
+
+Start with the scalpel, because it shows what the split buys you. The body knows nothing about HTTP or a
+database, so it takes an in-memory `Store` — an implementation of the *real* interface, not a mock that
+asserts on calls:
 
 ```go
 // internal/module/document/document_test.go
@@ -307,10 +315,12 @@ import (
 	"example.com/app/internal/module/document"
 )
 
-// fakeStore is the whole reason the body is its own package.
-type fakeStore struct{ docs map[uuid.UUID]document.Document }
+// memStore is the whole reason the body is its own package: a real implementation
+// of document.Store, in memory. Not a mock — it has behavior, and a broken body
+// still fails against it.
+type memStore struct{ docs map[uuid.UUID]document.Document }
 
-func (f fakeStore) GetByID(_ context.Context, tenantID, id uuid.UUID) (document.Document, error) {
+func (f memStore) GetByID(_ context.Context, tenantID, id uuid.UUID) (document.Document, error) {
 	d, ok := f.docs[id]
 	if !ok || d.TenantID != tenantID { // tenant isolation, enforced here too
 		return document.Document{}, document.ErrNoRows
@@ -320,7 +330,7 @@ func (f fakeStore) GetByID(_ context.Context, tenantID, id uuid.UUID) (document.
 
 func TestGet_returnsDocument(t *testing.T) {
 	tenant, id := uuid.New(), uuid.New()
-	s := fakeStore{docs: map[uuid.UUID]document.Document{
+	s := memStore{docs: map[uuid.UUID]document.Document{
 		id: {ID: id, TenantID: tenant, Title: "Hello"},
 	}}
 
@@ -331,7 +341,7 @@ func TestGet_returnsDocument(t *testing.T) {
 }
 
 func TestGet_missingIsNotFound(t *testing.T) {
-	_, err := document.Get(context.Background(), fakeStore{}, uuid.New(), uuid.New())
+	_, err := document.Get(context.Background(), memStore{}, uuid.New(), uuid.New())
 
 	var e *errs.Error
 	if !errors.As(err, &e) || e.Kind != errs.NotFound {
@@ -340,8 +350,8 @@ func TestGet_missingIsNotFound(t *testing.T) {
 }
 ```
 
-And the edge wiring — the `errs` horizontal really does produce a 404 — verified with `httptest` and the
-same fake, still no real database:
+And the behavior test — the slice's actual entry point, asserting the observable contract, verified with
+`httptest` and the same in-memory store:
 
 ```go
 // internal/api/document_test.go (abridged)
@@ -351,7 +361,7 @@ func TestGetDocument_404(t *testing.T) {
 		c.SetUserContext(reqctx.WithTenant(c.UserContext(), uuid.New()))
 		return c.Next()
 	})
-	api.New(fakeStore{}).Register(app)
+	api.New(memStore{}).Register(app)
 
 	resp, _ := app.Test(httptest.NewRequest("GET", "/documents/"+uuid.NewString(), nil))
 	if resp.StatusCode != 404 {
@@ -359,6 +369,14 @@ func TestGetDocument_404(t *testing.T) {
 	}
 }
 ```
+
+**One thing these two tests do not cover**, and the omission is deliberate rather than hidden: the SQL in
+`store/postgres.go` — including the `tenant_id = $1` clause that *is* the tenant isolation. An in-memory
+store cannot verify a WHERE clause. `[TEST-1]`'s "real or realistic temporary infrastructure" means that
+query needs a test against a real Postgres (a test container, or a temp schema), and `[BE-6]`/`[TEST-4]`
+make the authorization case mandatory, not optional: a test that another tenant's id returns 404. Keep the
+in-memory tests for branch coverage and speed; do not let them stand in for the one test that proves rows
+don't leak across tenants.
 
 ## How it fits together — the request's journey
 
@@ -374,32 +392,56 @@ edge renders `404` (transport). Each band only speaks to the one below it — th
 
 ## Why it's split this way in Go (not a layer cake)
 
-The strict Coral ideal co-locates a capability's whole vertical. Three facts about Go make the
-edge / body / persistence split the *faithful* adaptation, not a compromise:
+One capability here spans three packages, which looks like the layering `[MODEL-2]` warns about. It isn't,
+and the rule says so explicitly: **banding within a capability is permitted where the language forces it,
+provided every band is still named for the capability or concern it owns and the dependency arrow points
+one way.** Three facts about Go force it:
 
 - **Co-locating the HTTP edge would couple the web framework into the domain.** Keeping `module/document`
   free of `fiber` is what lets the same body serve an HTTP edge, a gRPC edge, a CLI, or a test. The body
   is transport-agnostic on purpose.
-- **sqlc generates one persistence package.** Per-slice persistence packages fight the tool, so `store`/
-  `db` is a single *generated horizontal* the slices share — a symbiont, not a layer the slices live
-  inside.
+- **sqlc generates one persistence package.** Per-slice persistence packages fight the tool, so `store`
+  is a single generated adapter package the slices share.
 - **Go forbids import cycles.** This keeps slice-to-slice composition honest: dependencies must point one
   way (`[COMPOSE-1]`). When two slices would need each other, Go forces you to extract the shared piece
   rather than tangle them.
 
-What keeps it Coral rather than a layer cake is the **direction of ownership**: the middle band is named
-and bounded *by capability* (`module/document`, not `services/` or `repositories/`), it owns its types and
-its errors, and it composes siblings through their published functions — never their internals.
+### The test that separates this from a `repositories/` layer
 
-## Mapping to the Coral model
+A shared `store` package is exactly what `[STATE-2]` forbids — unless the **interface ownership points the
+other way**, which is the whole trick here:
 
-- **Polyp body** → `module/document`: the capability's domain logic.
-- **Skeleton** (its published contract) → the exported `Get`, the `Document` type, the `Store` interface,
-  and the typed `errs` it raises. That's all another slice (or the edge) may depend on.
-- **Symbionts** (injected horizontals) → `errs`, `reqctx`, the persistence `Store`. The body *receives*
-  them; it does not reach out and locate them.
-- **Edge / membrane** → `api/document.go`: the transport adapter. Thin by design.
-- **Composition root** → `cmd/api/main.go`: wires the colony, holds no logic (`[ROOT-1]`).
+- `document.Store` is declared **by the slice**, in the slice's package, listing only the two arguments
+  and one method *this* capability needs.
+- `store.PG` **implements** the slice's interface. The dependency arrow runs `store → module/document`.
+  The slice imports nothing from `store`.
+
+That inversion is what makes it an adapter rather than a data-access layer. In a `repositories/` layer the
+arrow runs the other way: the repository package defines the API and every slice consumes whatever it
+offers, so the repository accumulates every caller's needs and no slice can be understood alone. Apply
+`[XCUT-5]`'s test — *would removing it break an invariant, or only break access to data?* — and you get the
+right answer for both: `errs` and `reqctx` are horizontals (they carry invariants), `store` is neither a
+horizontal nor a bucket but an **injected implementation of a slice-owned interface**.
+
+Two more things keep it honest: the middle band is named *by capability* (`module/document`, not
+`services/` or `repositories/`) and owns its own types and errors; and the `documents` table has exactly
+one owning slice, so its schema changes live with `module/document` (`[STATE-5]`).
+
+Per `[MODEL-2]`, introducing banding is a decision to **flag** (`[AGENT-2]`), not to assume — this section
+is that flag, written down.
+
+## Mapping to the four categories  → `[MODEL-1]`
+
+| Category | Here |
+|---|---|
+| **slice** | `module/document` (the body) + `api/document.go` (its edge) — one capability, two bands |
+| **published contract** | the exported `Get`, the `Document` type, the `Store` interface, and the typed `errs` it raises. That is all another slice may depend on |
+| **horizontals** | `errs` (the error taxonomy) and `reqctx` (caller identity) — injected, carrying invariants |
+| **composition root** | `cmd/api/main.go`: wires and runs, holds no logic (`[ROOT-1]`) |
+
+`store` is the fourth thing in the tree and deliberately not in this table: it is an *implementation* of
+the slice-owned `Store` interface, injected at the root. See
+[the test above](#the-test-that-separates-this-from-a-repositories-layer).
 
 ## Scaling up (what a write adds)
 

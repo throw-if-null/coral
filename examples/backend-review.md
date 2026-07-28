@@ -21,7 +21,8 @@ A well-built service on a good framework is already half-Coral before anyone say
 
 - **Thin composition root** — `main` only wires dependencies and runs. `[ROOT-1]`
 - **Injected horizontals** — the framework hands the app its router, logger, tracer, DB pool, config,
-  and event bus; the DB module is the `db` horizontal. These are textbook symbionts. `[XCUT-3]` `[STATE-2]`
+  and event bus; the DB module is the `db` horizontal. These are textbook horizontals — defined once,
+  injected, never reached for. `[XCUT-3]` `[STATE-2]`
 - **A published bus contract** — a `client` package (typed events + subjects) that *other* services
   import to emit audit events. That is a published capability. `[BUS-1]` `[CONTRACT-1]`
 - **Trust at the edge** — middleware resolves identity and validates tenant/user/board + a permission
@@ -91,5 +92,6 @@ is the one people actually act on.
 ## What this also proves
 
 Beyond the findings, the exercise is a dry-run of the architecture's *vocabulary*: every part of a real
-service mapped cleanly onto a Coral term — polyp/slice, symbiont/horizontal, skeleton/contract, the
-water/bus. When the words fit a system you didn't design, the model is doing real work.
+service landed in one of the four categories (`[MODEL-1]`) without strain — slices, horizontals, a
+composition root, published contracts, and the bus between services. When the words fit a system you
+didn't design, the model is doing real work.

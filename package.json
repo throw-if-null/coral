@@ -4,11 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run docs:build",
     "docs:dev": "vitepress dev",
-    "docs:build": "vitepress build",
+    "docs:build": "vitepress build && npm run check:anchors",
     "docs:preview": "vitepress preview",
-    "build": "vitepress build"
+    "check:anchors": "node scripts/check-anchors.mjs",
+    "build": "npm run docs:build"
   },
   "repository": {
     "type": "git",
