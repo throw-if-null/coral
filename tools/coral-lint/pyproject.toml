@@ -1,0 +1,16 @@
+[project]
+name = "coral-lint"
+version = "0.1.0"
+description = "Tier-1 static checks for Coral Architecture's [auto] rules"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+coral-lint = "coral_lint.app:main"
+
+[tool.pytest.ini_options]
+python_files = ["*_test.py"]
+testpaths = ["coral_lint"]
+
+[tool.setuptools.packages.find]
+include = ["coral_lint*"]

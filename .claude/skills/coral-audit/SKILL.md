@@ -89,6 +89,15 @@ List the capabilities/slices, the horizontals, the published contracts (the bus 
 composition root. Note where the Coral model fits and where it strains.
 
 ### 3. Walk the rule families (depth) — line-cited
+
+**Run `coral-lint` first if it is available** (`tools/coral-lint` in the coral-architecture repo):
+`python3 -m coral_lint <repo> --json`. It decides the `[auto]` rules deterministically, so its findings are
+settled facts you can cite rather than judgments you have to make — which frees your attention for the
+`[review]` rules, where it is worthless. Read its `checks[].skipped` and `coverage` fields: a check that
+skipped for missing configuration has told you nothing, and you must still judge that rule by hand. Do not
+treat a clean `coral-lint` run as a clean conformance verdict; it covers seven of the twenty-five `[auto]`
+rules and none of the `[review]` ones.
+
 For each family, cite `file:line` and tag *earns-its-keep* vs *overkill*. The first two and the last
 two carry the verdict — they are capability slicing, placement/naming, and thin composition, the
 dimensions the conformance answer rests on. Do not treat them as warm-up:

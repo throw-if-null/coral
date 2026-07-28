@@ -4,11 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npm run docs:build",
+    "test": "npm run docs:build && npm run check:lint",
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build && npm run check:anchors",
     "docs:preview": "vitepress preview",
     "check:anchors": "node scripts/check-anchors.mjs",
+    "check:lint": "cd tools/coral-lint && python3 -m pytest -q && python3 -m coral_lint .",
     "build": "npm run docs:build"
   },
   "repository": {

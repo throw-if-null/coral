@@ -1,0 +1,7 @@
+# coral-lint checks itself. If the tool cannot pass its own gates, the gates are wrong.
+[coral]
+app_dirs     = ["coral_lint"]
+feature_dirs = ["coral_lint/checks"]
+roots        = ["coral_lint/app.py", "coral_lint/__main__.py"]
+horizontals  = ["errors", "findings", "config", "layout", "pysource", "coverage"]
+error_types  = ["errors.usage", "errors.validation", "errors.infrastructure", "errors.CoralError"]

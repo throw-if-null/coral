@@ -27,8 +27,12 @@ const SPINE = ['CONVENTIONS.md', 'ARCHITECTURE.md', 'SYSTEM.md']
 // existing. This list used to be hand-maintained, and appendix/agentic-app.md was
 // never added to it — its eleven [AGENTIC-*] rules silently got no anchors and every
 // citation of them rendered as inert code. Scanning a file that defines no rules
-// costs nothing, so there is no reason to curate. README.md is skipped at any depth:
-// it is srcExclude'd, so a definition there would point at a page that isn't built.
+// costs nothing, so there is no reason to curate.
+//
+// Only the ROOT README.md is skipped — it is srcExclude'd, so a definition there
+// would point at a page that isn't built. A nested README (tools/coral-lint/) IS
+// built and IS scanned, so its rule citations link and get checked like any other
+// page's. Skipping it by filename at every depth used to silently exclude those.
 const SKIP = new Set(['node_modules', 'public'])
 function findDocs(dir) {
   const out = []
@@ -36,12 +40,13 @@ function findDocs(dir) {
     if (e.name.startsWith('.') || SKIP.has(e.name)) continue
     const abs = path.join(dir, e.name)
     if (e.isDirectory()) out.push(...findDocs(abs))
-    else if (e.name.endsWith('.md') && e.name !== 'README.md') out.push(path.relative(SRC, abs))
+    else if (e.name.endsWith('.md')) out.push(path.relative(SRC, abs))
   }
   return out
 }
 // Set preserves insertion order, so the spine keeps precedence over the sorted rest.
 const DOC_FILES = [...new Set([...SPINE, ...findDocs(SRC).sort()])]
+  .filter((rel) => rel !== 'README.md')
 
 // id grammar, anchored for inline-token matching and reused (unanchored) for scanning
 const ID_CORE = '[A-Z][A-Z-]*-\\d+'
@@ -288,6 +293,13 @@ export default withMermaid(defineConfig({
           { text: 'CLI (Python) — two slices', link: '/examples/cli-slice' },
           { text: 'Go API — a capability slice', link: '/examples/go-api-slice' },
           { text: 'Backend microservice review', link: '/examples/backend-review' },
+        ],
+      },
+      {
+        text: 'Enforcement',
+        collapsed: false,
+        items: [
+          { text: 'coral-lint — Tier 1 checks', link: '/tools/coral-lint/README' },
         ],
       },
     ],

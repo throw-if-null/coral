@@ -51,6 +51,23 @@ docs' own drift control is structural, not goodwill.
 The name is explained in one paragraph at the end of `CONVENTIONS.md`. It is a naming scheme, not a
 reasoning tool; no rule requires the metaphor to apply it.
 
+## The linter
+
+[`tools/coral-lint/`](./tools/coral-lint/) is the Tier 1 gate: it fails the build on the `[auto]` rules a
+static check can decide. Seven today — `[BUCKET-1]`, `[XCUT-2]`, `[STRUCT-1]`, `[CONFIG-2]`, `[CONC-1]`,
+`[IDEM-2]`, `[ERR-2]` — with every other `[auto]` rule listed under `--coverage` alongside a stated reason
+it isn't checked yet, so nothing is silently uncovered.
+
+```bash
+cd tools/coral-lint
+python3 -m coral_lint /path/to/repo     # exit 1 on findings; --json for a stable machine contract
+python3 -m coral_lint --coverage        # what runs, and why the rest doesn't
+```
+
+No dependencies, Python 3.11+. `[BUCKET-1]` needs no configuration, so it is useful immediately; the rest
+read a `coral.toml` in the audited repo declaring where its slices live, because guessing is how a linter
+earns false positives. It is itself a Coral CLI — one slice per check — and it passes its own gates.
+
 ## The audit skill
 
 [`.claude/skills/coral-audit/`](./.claude/skills/coral-audit) is the operational counterpart to the

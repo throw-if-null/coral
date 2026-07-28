@@ -839,20 +839,21 @@ The rule IDs and enforcement classes exist so the architecture can be **checked*
 first line of drift control is structural: a genuine horizontal (`[XCUT]`) has one copy and nothing to
 drift. The tiers below are the backstop for what slips past it.
 
-> **Status — read this before trusting the list.** This repository enforces its **own** consistency at
-> build time: every rule carries exactly one enforcement class, every rule-ID citation resolves to a
-> definition, and every `[auto]`/`[review]` rule appears in its document's Agent Execution Contract. The
-> Tier 1 checks below are a **specification for a consuming repository to implement**; they do not ship
-> here. Treat them as a target, not an installed gate.
+Two things are checked today. This repository enforces its **own** consistency at build time — every rule
+carries exactly one enforcement class, every rule-ID citation resolves to a definition, every
+`[auto]`/`[review]` rule appears in its document's Agent Execution Contract, and every link fragment
+resolves. And [`tools/coral-lint`](./tools/coral-lint/README.md) enforces a growing subset of Tier 1 against a
+target repository.
 
-**Tier 1 — static checks (deterministic, blocking).** One per `[auto]` rule; each check cites the rule
-ID it enforces so a failure points back here.
+**Tier 1 — static checks (deterministic, blocking).** One per `[auto]` rule; each check cites the rule ID
+it enforces so a failure points back here. Some of these ship as
+[`tools/coral-lint`](./tools/coral-lint/README.md) and some do not yet.
 
 | Rule | Check |
 |---|---|
 | `[BUCKET-1]` | no `utils/`, `services/`, `helpers/`, `common/`, or generic `models/` directory |
-| `[STRUCT-1]` | every feature directory ships its tests (or its mirror exists) |
-| `[STRUCT-3]` / `[XCUT-2]` | root-level modules match an allowlist of precise names |
+| `[STRUCT-1]` | every slice ships its tests (colocated, or a mirror exists) |
+| `[STRUCT-3]` / `[XCUT-2]` | top-level modules match an allowlist of precise names |
 | `[ROOT-2]` | the root module imports no persistence or domain-internal module |
 | `[STATE-2]` | no shared repository/data-access package |
 | `[CONC-1]` | no mutable module-level or static state in a slice module |
@@ -860,6 +861,14 @@ ID it enforces so a failure points back here.
 | `[CONFIG-4]` | no literal secret in source; no secret on a logged or published field |
 | `[IDEM-2]` | a read-named slice makes no one-hop write/mutation call |
 | `[ERR-2]` | raised errors use the taxonomy enum, not ad-hoc strings |
+
+> **Which of these actually run is the tool's answer, not this table's.** These documents own the *rules*;
+> `coral-lint` owns the *implementation status*, reports it on every run, and prints the full map under
+> `coral-lint --coverage` — including a stated reason for each rule it does not check. Keeping the status
+> in one place is `[XCUT-4]` applied to this page: a status column here would be a second copy, and it
+> would be wrong within a month. A test in the tool reads the `[auto]` rules straight out of these docs
+> and fails if any rule is neither implemented nor explicitly excused, so the two cannot drift apart
+> silently.
 
 **Tier 2 — LLM reviewer (advisory first, graduated to blocking per check once low-false-positive).**
 Reserved for `[review]` rules a static check cannot decide: cross-slice drift smells (date, money, or
