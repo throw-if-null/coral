@@ -168,6 +168,112 @@ def write_evidence(tree: ast.Module) -> list[Hit]:
     return sorted(unique.values(), key=lambda h: (h.line, h.label))
 
 
+_IO_CALLS = frozenset({"open", "input"})
+_IO_PREFIXES = (
+    "subprocess.", "socket.", "requests.", "urllib.", "http.client.",
+    "os.system", "os.popen", "shutil.copy", "shutil.rmtree", "pathlib.Path.write",
+)
+
+_CONSOLE_CALLS = frozenset({
+    "print",
+    "sys.stdout.write", "sys.stderr.write",
+    "sys.stdout.writelines", "sys.stderr.writelines",
+    "sys.stdout.flush", "sys.stderr.flush",
+})
+_CONSOLE_STREAMS = frozenset({"sys.stdout", "sys.stderr"})
+_GLOBAL_HANDLER_CALLS = frozenset({
+    "logging.basicConfig", "logging.disable", "logging.captureWarnings",
+    "signal.signal", "signal.setitimer", "signal.alarm",
+    "sys.settrace", "sys.setprofile", "sys.setrecursionlimit",
+    "atexit.register", "faulthandler.enable",
+    "warnings.filterwarnings", "warnings.simplefilter", "warnings.resetwarnings",
+    "locale.setlocale",
+})
+_GLOBAL_HANDLER_TARGETS = frozenset({
+    "sys.excepthook", "sys.unraisablehook", "sys.displayhook", "logging.root",
+})
+
+
+def _is_guard(node: ast.stmt) -> bool:
+    """`if __name__ == "__main__":` and `if TYPE_CHECKING:` do not run on a plain import."""
+    if not isinstance(node, ast.If):
+        return False
+    test = node.test
+    if isinstance(test, ast.Compare) and isinstance(test.left, ast.Name):
+        return test.left.id == "__name__"
+    if isinstance(test, ast.Name):
+        return test.id == "TYPE_CHECKING"
+    if isinstance(test, ast.Attribute):
+        return test.attr == "TYPE_CHECKING"
+    return False
+
+
+def _io_label(name: str) -> str | None:
+    if name in _IO_CALLS:
+        return f"{name}()"
+    if any(name.startswith(prefix) for prefix in _IO_PREFIXES):
+        return f"{name}()"
+    return None
+
+
+def import_time_effects(tree: ast.Module) -> list[Hit]:
+    """Work a plain `import` would perform.  [LIB-3]
+
+    Two exact signals. A **discarded call** at module level — `logging.basicConfig()`,
+    `register(...)` — was evaluated for its effect by definition, since its value goes
+    nowhere. And an **I/O call** outside any function body runs when the module is
+    imported rather than when the consumer asks for it.
+
+    Function and class bodies are skipped: code there runs on call, not on import.
+    """
+    hits: list[Hit] = []
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        if _is_guard(node):
+            continue
+
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+            name = _dotted(node.value.func) or "<call>"
+            hits.append(Hit(f"{name}() at import time", node.lineno))
+            continue
+
+        for inner in ast.walk(node):
+            if not isinstance(inner, ast.Call):
+                continue
+            label = _io_label(_dotted(inner.func) or "")
+            if label:
+                hits.append(Hit(f"{label} at import time", inner.lineno))
+
+    unique: dict[tuple[str, int], Hit] = {(h.label, h.line): h for h in hits}
+    return sorted(unique.values(), key=lambda h: (h.line, h.label))
+
+
+def console_and_global_handlers(tree: ast.Module) -> list[Hit]:
+    """Console writes and process-wide handler installs.  [LIB-5]"""
+    hits: list[Hit] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            name = _dotted(node.func) or ""
+            if name in _CONSOLE_CALLS:
+                hits.append(Hit(name, node.lineno))
+            elif name in _GLOBAL_HANDLER_CALLS:
+                hits.append(Hit(name, node.lineno))
+            elif node.func is not None and isinstance(node.func, ast.Attribute):
+                receiver = _dotted(node.func.value) or ""
+                if node.func.attr in {"addHandler", "removeHandler"} and receiver.startswith("logging"):
+                    hits.append(Hit(f"logging {node.func.attr}", node.lineno))
+        elif isinstance(node, ast.Attribute):
+            name = _dotted(node)
+            if name in _CONSOLE_STREAMS:
+                hits.append(Hit(name, node.lineno))
+            elif name in _GLOBAL_HANDLER_TARGETS:
+                hits.append(Hit(name, node.lineno))
+
+    unique: dict[tuple[str, int], Hit] = {(h.label, h.line): h for h in hits}
+    return sorted(unique.values(), key=lambda h: (h.line, h.label))
+
+
 def raised_types(tree: ast.Module) -> list[Hit]:
     """Every `raise <Something>(...)`, as a dotted name.  [ERR-2]
 

@@ -28,8 +28,6 @@ UNIMPLEMENTED: dict[str, str] = {
     "WEB-4": "app-type check: needs the panel/bundle graph",
     "WEB-8": "app-type check: framework-specific routing table",
     "WEB-9": "app-type check: framework-specific response API",
-    "LIB-3": "planned — import-time side effects are AST-detectable, and this is the next one to add",
-    "LIB-5": "planned — stdout/stderr writes and global handler installs are AST-detectable",
     "GHA-3": "needs action.yml parsing alongside the source",
     "GHA-10": "needs the platform's annotation/output APIs",
     "STRUCT-3": "covered in practice by XCUT-2, which uses the same allowlist",

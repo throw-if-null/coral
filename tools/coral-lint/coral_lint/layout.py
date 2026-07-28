@@ -64,6 +64,7 @@ class Layout:
     slices: tuple[Unit, ...]
     top_level: tuple[Unit, ...]  # candidate horizontals
     roots: tuple[Path, ...]
+    library_files: tuple[Path, ...]  # published-library sources, roots excluded
 
     def rel(self, path: Path) -> str:
         return path.relative_to(self.repo).as_posix()
@@ -118,6 +119,18 @@ def discover(repo: Path, config: Config) -> Layout:
                 continue
             top_level.append(Unit(child, child.relative_to(repo).as_posix(), child.stem))
 
+    # A library that also ships a CLI declares that entry point as a root, and the
+    # root is exempt: [ERR-3] puts rendering there on purpose, so [LIB-5] must not
+    # punish it for printing.
+    library_files = tuple(
+        path for library_dir in config.library_dirs
+        for path in sorted((repo / library_dir).rglob("*"))
+        if path.is_file()
+        and path.suffix in SOURCE_SUFFIXES
+        and not _is_test(path.name)
+        and path.resolve() not in root_paths
+    )
+
     return Layout(
         repo=repo,
         config=config,
@@ -125,4 +138,5 @@ def discover(repo: Path, config: Config) -> Layout:
         slices=tuple(slices),
         top_level=tuple(top_level),
         roots=root_paths,
+        library_files=library_files,
     )

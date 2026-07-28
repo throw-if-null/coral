@@ -23,6 +23,8 @@ No dependencies, Python 3.11+, nothing to install.
 | `[CONC-1]` | module-level mutable state in a slice that something actually mutates |
 | `[IDEM-2]` | a read-named slice containing a SQL write or a `.commit()` / `.save()` |
 | `[ERR-2]` | a slice raising an exception type outside the declared taxonomy |
+| `[LIB-3]` | a library with a hidden singleton, or that performs work on `import` |
+| `[LIB-5]` | a library that writes to the console or installs a process-wide handler |
 
 `--coverage` prints the rest of the `[auto]` rules with a stated reason for each. **Nothing is silently
 uncovered:** a test reads the `[auto]` rules straight out of the Coral docs and fails if any rule is
@@ -41,6 +43,7 @@ linter earns false positives, and one false positive on a blocking gate teaches 
 [coral]
 app_dirs     = ["expenses"]              # dirs whose children are top-level modules
 feature_dirs = ["expenses/expense"]      # dirs whose children are slices
+library_dirs = []                        # dirs that ARE a published library — enables [LIB-*]
 roots        = ["expenses/app.py"]        # composition roots — not slices, not horizontals
 horizontals  = ["errors", "money", "period", "db"]
 error_types  = ["errors.validation", "errors.not_found"]
@@ -48,6 +51,10 @@ grandfathered = []                        # paths exempt from [BUCKET-1]
 read_verbs   = ["show", "list", "get", "find", "summary", "report", "search", "read"]
 ignore       = []                         # added to the built-in vendor/build list
 ```
+
+`library_dirs` is never inferred, and that is deliberate: a CLI legitimately prints to `stdout` and a
+service legitimately configures logging at boot, so running `[LIB-5]` against anything that had not
+declared itself a library would be pure noise. Set it only for a published package.
 
 A check with no configuration **skips and says why**, on `stderr`, on every run. It never reports zero
 findings for a check that did not run — that would turn absence of evidence into a passing gate.
@@ -78,13 +85,15 @@ coral_lint/
   pysource.py      horizontal: exact Python facts via the AST
   coverage.py      horizontal: what is and is not checked, with reasons
   checks/
-    buckets.py            [BUCKET-1]   + buckets_test.py
-    root_names.py         [XCUT-2]     + root_names_test.py
-    colocation.py         [STRUCT-1]   + colocation_test.py
-    ambient_config.py     [CONFIG-2]   + ambient_config_test.py
-    slice_state.py        [CONC-1]     + slice_state_test.py
-    read_only.py          [IDEM-2]     + read_only_test.py
-    ad_hoc_errors.py      [ERR-2]      + ad_hoc_errors_test.py
+    buckets.py               [BUCKET-1]   + buckets_test.py
+    root_names.py            [XCUT-2]     + root_names_test.py
+    colocation.py            [STRUCT-1]   + colocation_test.py
+    ambient_config.py        [CONFIG-2]   + ambient_config_test.py
+    slice_state.py           [CONC-1]     + slice_state_test.py
+    read_only.py             [IDEM-2]     + read_only_test.py
+    ad_hoc_errors.py         [ERR-2]      + ad_hoc_errors_test.py
+    ambient_library_state.py [LIB-3]      + ambient_library_state_test.py
+    library_console.py       [LIB-5]      + library_console_test.py
 ```
 
 It ships a `coral.toml` for itself and passes its own gates. Adding a check is one module and one line in
@@ -92,9 +101,12 @@ the registry — which is the property the structure exists to buy.
 
 ```bash
 cd tools/coral-lint
-python3 -m pytest -q        # 59 tests
+python3 -m pytest -q        # 81 tests
 python3 -m coral_lint .     # the tool, checked by itself
 ```
+
+It is a CLI rather than a library, so it sets no `library_dirs` and `[LIB-3]`/`[LIB-5]` skip on it —
+reported on every run rather than quietly counted as passing.
 
 Self-checking found a real bug during development: the check implementing `[STRUCT-1]` was originally
 named `colocated_tests.py`, whose stem ends in `_tests`, so the tool classified its own slice as a test

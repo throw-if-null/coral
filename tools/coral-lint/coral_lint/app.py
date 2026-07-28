@@ -16,8 +16,10 @@ from . import config as config_module, coverage, errors, layout as layout_module
 from .checks import (
     ad_hoc_errors,
     ambient_config,
+    ambient_library_state,
     buckets,
     colocation,
+    library_console,
     read_only,
     root_names,
     slice_state,
@@ -35,6 +37,8 @@ CHECKS = (
     slice_state,
     read_only,
     ad_hoc_errors,
+    ambient_library_state,
+    library_console,
 )
 IMPLEMENTED = tuple(check.RULE for check in CHECKS)
 

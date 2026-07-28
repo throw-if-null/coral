@@ -24,7 +24,7 @@ DEFAULT_IGNORE = (
 DEFAULT_READ_VERBS = ("show", "list", "get", "find", "summary", "report", "search", "read")
 
 _KNOWN_KEYS = {
-    "ignore", "app_dirs", "feature_dirs", "roots", "horizontals",
+    "ignore", "app_dirs", "feature_dirs", "library_dirs", "roots", "horizontals",
     "grandfathered", "read_verbs", "error_types",
 }
 
@@ -36,6 +36,7 @@ class Config:
     ignore: tuple[str, ...] = DEFAULT_IGNORE
     app_dirs: tuple[str, ...] = ()       # dirs whose direct children are top-level modules
     feature_dirs: tuple[str, ...] = ()   # dirs whose direct children are slices
+    library_dirs: tuple[str, ...] = ()   # dirs that ARE a published library ([LIB-*])
     roots: tuple[str, ...] = ()          # composition-root files
     horizontals: frozenset[str] = field(default_factory=frozenset)
     grandfathered: frozenset[str] = field(default_factory=frozenset)
@@ -46,6 +47,16 @@ class Config:
     @property
     def declares_slices(self) -> bool:
         return bool(self.feature_dirs)
+
+    @property
+    def declares_library(self) -> bool:
+        """[LIB-*] apply only where the repo says it publishes a library.
+
+        Never inferred. A CLI legitimately prints to stdout and a service
+        legitimately configures logging at boot, so running [LIB-5] against
+        anything that did not declare itself a library would be pure noise.
+        """
+        return bool(self.library_dirs)
 
     @property
     def declares_horizontals(self) -> bool:
@@ -91,6 +102,7 @@ def load(repo: Path) -> Config:
         ignore=DEFAULT_IGNORE + _strs(section.get("ignore", []), "ignore"),
         app_dirs=_strs(section.get("app_dirs", []), "app_dirs"),
         feature_dirs=_strs(section.get("feature_dirs", []), "feature_dirs"),
+        library_dirs=_strs(section.get("library_dirs", []), "library_dirs"),
         roots=_strs(section.get("roots", []), "roots"),
         horizontals=frozenset(_strs(section.get("horizontals", []), "horizontals")),
         grandfathered=frozenset(_strs(section.get("grandfathered", []), "grandfathered")),
@@ -99,7 +111,8 @@ def load(repo: Path) -> Config:
         source=CONFIG_NAME,
     )
 
-    for key, values in (("app_dirs", cfg.app_dirs), ("feature_dirs", cfg.feature_dirs)):
+    for key, values in (("app_dirs", cfg.app_dirs), ("feature_dirs", cfg.feature_dirs),
+                        ("library_dirs", cfg.library_dirs)):
         for value in values:
             if not (repo / value).is_dir():
                 raise errors.validation(
