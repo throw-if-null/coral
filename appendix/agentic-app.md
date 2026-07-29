@@ -1,7 +1,14 @@
-# Appendix: Agentic App
+# Appendix: Agentic App  (PARTIAL)
 
-> Status: **two slots open** — *composition root* and *observability* still need `AGENTIC-` rules;
-> everything else carries a rule. Read the spine first.
+> Status: **two slots open pending a decision**, not pending prose — *composition root* (where tool
+> definitions live) and *observability* (how prompt capture reconciles with `[CONFIG-4]`). Both are real
+> design choices with defensible answers either way, and neither is settled. Everything else carries a
+> rule. Read the spine first.
+>
+> **Until they are settled, do not invent an answer.** Pick the reversible option for your app, flag the
+> choice per `[AGENT-2]`, and record it in your project's `CORAL.md` as an **Extension** — that is exactly
+> what extensions are for. If the same answer keeps recurring across projects, it is the signal for an
+> amendment that closes this slot for everyone.
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for **agentic apps** — apps built
 around an LLM or an LLM agent *at runtime*. (This is a different axis from the operating model in

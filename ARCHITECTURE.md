@@ -929,5 +929,6 @@ listed under "slots still to fill" on the appendix itself, so the gap is named r
 - **[`appendix/web.md`](./appendix/web.md)** — web apps; the trust boundary is first-class. *Two slots
   open: state/effects, testing.*
 - **[`appendix/agentic-app.md`](./appendix/agentic-app.md)** — apps built around an LLM at runtime; the
-  model is an injected effect and the agent runs in a harness. *Two slots open: composition root,
-  observability.*
+  model is an injected effect and the agent runs in a harness. **PARTIAL** — *composition root* and
+  *observability* are open pending a design decision, not pending prose; until then, take the reversible
+  option and record it as a project Extension rather than inventing a rule.

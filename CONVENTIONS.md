@@ -272,6 +272,12 @@ app-type rule or an explicit "spine-sufficient" note. That is a checkable condit
 `1.0.0` makes is a real one: from there, an added rule costs a major and a project can pin with
 confidence.
 
+**A version marks a release, not a commit.** Bumping per commit would put a version number on every typo
+and make the changelog unreadable, which defeats its one purpose — telling a consuming project what it
+must newly satisfy. Changes accumulate under **Unreleased** in
+[`CHANGELOG.md`](./CHANGELOG.md) and the bump happens when the batch is cut. `rules.lock` still moves with
+the commit that changes a rule, because its job is to catch an ID vanishing, not to track releases.
+
 **`[VER-3]` `[review]`** — A project states the Coral version it targets, and an audit is performed
 against that version.
 

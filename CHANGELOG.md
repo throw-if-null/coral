@@ -30,6 +30,19 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ---
 
+## Unreleased
+
+A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
+the batch is cut.
+
+- `appendix/agentic-app.md` is labelled **PARTIAL** again, and its status line now says the two open slots
+  are open *pending a decision* rather than pending prose. "Two slots open" read as unwritten text; the
+  real state is that where tool definitions live and how prompt capture reconciles with `[CONFIG-4]` are
+  unsettled design choices. The page now also tells an agent what to do meanwhile: take the reversible
+  option, flag it (`[AGENT-2]`), and record it as an **Extension** in the project's `CORAL.md` rather than
+  inventing a rule.
+- `[VER-2]` gained the release-versus-commit clause above.
+
 ## 0.2.0 — 2026-07-29
 
 **Contract versioning, filled in for the three appendices that lacked it.** Three rules — and they are
