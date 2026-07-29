@@ -1,7 +1,7 @@
-# Appendix: Web App  (PARTIAL — core slots filled)
+# Appendix: Web App
 
-> Status: partial. The web-specific slots — especially the microfrontend shape and the trust boundary —
-> are written as `WEB-` rules; the rest remain slot notes. Read the spine first.
+> Status: **two slots open** — *state/effects* and *testing* still need `WEB-` rules; everything else
+> carries a rule or is explicitly deferred to the spine. Read the spine first.
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for web applications
 (server-rendered or SPA + API). Where it serves an API, defer to [`backend.md`](./backend.md) for the API
@@ -86,23 +86,41 @@ status (per `[BE-5]`) **and** to the right surface: a user-facing error view or 
 structured `{category, code, message}` body for API and fetch calls. Slices never render their own HTTP
 response; `code` strings stay slice-owned (`[ERR-2]`).
 
-## Remaining slot notes (flesh out per concrete web app)
+## Contract versioning  → `[CONTRACT-2]`
+
+**`[WEB-10]`** `[review]` The UI's stable contract is its **route/URL structure**: never break a route, and
+never silently repurpose one.
+
+This is the slot where web differs most from every other app type, and it is worth being precise about why.
+A route has **no version prefix and no deprecation channel**. Users bookmark it, other sites link it,
+search engines index it, and a customer's runbook cites it — and you cannot ask a bookmark to migrate. So
+there is no `/v2` move available: the old path either works or breaks somebody you cannot contact.
+
+Repurposing is the worse failure. Changing what a path *means* while keeping the path is `[BUS-4]`'s
+never-repurpose rule at the URL layer, and it is nastier here because nothing errors — every old link keeps
+resolving and quietly shows the wrong thing.
+
+Moving a route therefore requires a **redirect from the old path, kept indefinitely** unless you can
+demonstrate nothing references it. Query parameters that change behaviour are part of the same contract.
+Where the app also exposes an API, that half follows `[BE-7]`.
+
+## Slots deferred to the spine
 
 - **Observability** → `[OBS-1..3]`: structured logs + traces + correlation IDs via the injected logging
-  horizontal; never leaked into the rendered page or API body. *(Spine-sufficient.)*
-- **Configuration** → `[CONFIG-1..4]`: server-side config resolved at the root; anything shipped to the
-  browser is public by definition, so no secret may reach client config. *(Spine-sufficient, with that
-  one addition.)*
-- **Contract versioning** → `[CONTRACT-2]`: for an exposed API, follow `backend.md` (`/v1` or header). For
-  the UI itself, the **stable surface is the route/URL structure** users and links depend on — treat URL
-  shape as a contract; don't break or silently repurpose routes.
+  horizontal; never leaked into the rendered page or API body.
+- **Configuration** → `[CONFIG-1..4]`, with one addition: anything shipped to the browser is public by
+  definition, so no secret may reach client config.
+
+## Slots still to fill
+
 - **State / effects** → `[STATE-1]` `[STATE-5]`: slice-owned data access; session and cookie handling at
   the edge. Client-side state stays local to its slice; cross-panel shared state goes over the bus
-  (`[WEB-4]`), not a global store reached into by every panel.
+  (`[WEB-4]`), not a global store reached into by every panel. *Needs a `WEB-` rule on where client cache
+  and server state may disagree, and who owns invalidation.*
 - **Testing** → `[TEST-1]` `[TEST-4]`: request- and interaction-level tests asserting status + rendered or
   JSON output + side effects, **plus authorization tests at the boundary**; for microfrontends,
   **contract-test the panel-to-panel bus** (`[SYS-TEST-1]`) so panels are verified independently, never by
-  raising the whole shell.
+  raising the whole shell. *Needs a `WEB-` rule fixing what "interaction-level" means concretely.*
 
 ## Open questions
 
@@ -123,4 +141,5 @@ response; `code` strings stay slice-owned (`[ERR-2]`).
 | trust / security    | client hostile; authz at the edge; tenant in the data model; deny by default |
 | idempotency         | HTTP method semantics; client owns retry                                 |
 | error rendering     | root maps category → status + error view/JSON                           |
+| contract versioning | the route/URL structure; redirect, never repurpose (`[BE-7]` for the API half) |
 | testing             | request-level + authz + contract-test the panel bus                      |

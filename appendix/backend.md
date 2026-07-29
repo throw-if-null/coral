@@ -1,7 +1,7 @@
-# Appendix: Backend / Service  (PARTIAL — core slots filled)
+# Appendix: Backend / Service
 
-> Status: partial. The core slots are written as `BE-` rules; the rest remain slot notes to flesh out
-> against a concrete backend. Read the spine first.
+> Status: **complete** — every slot either carries a `BE-` rule or is explicitly deferred to the spine.
+> Read the spine first.
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for backends and services.
 
@@ -75,19 +75,40 @@ tests — it is the one slot in this appendix that is expensive to retrofit. Sec
 horizontal, never inline (`[CONFIG-4]`). **Default to deny:** a slice with no explicit authorization rule
 is not shippable.
 
-## Remaining slot notes (flesh out per concrete backend)
+## Contract versioning  → `[CONTRACT-2]`
+
+**`[BE-7]`** `[review]` Version the HTTP API with a **URL prefix** (`/v1`), and advance it **only** for a
+breaking change.
+
+**Nothing additive bumps it.** A new endpoint, a new response field, a new optional parameter — no bump,
+ever. Two things are breaking: **repurposing** a field, which is breaking even under the same name (turning
+`amount: 1250` into `amount: {value, currency}` is a repurpose, so add a new field instead), and
+**removing** a field or an endpoint. Those need `/v2`, with `/v1` kept for a stated window and its fields
+marked deprecated first.
+
+**The spelling is a default, not architecture.** Header and media-type versioning are equally valid, and a
+gateway or a client ecosystem may dictate one. Deviating is an **Exception** recorded in the project's
+`CORAL.md` — not a violation — and an agent never writes that record itself (`[AGENT-4]`); it flags the
+choice and a human decides. What is *not* acceptable is leaving the discipline undecided, or letting it vary
+between services in one system: an agent adding an endpoint should never have to survey the repo to
+discover the convention (`[AGENT-1]`).
+
+**Decide the support window before the first external consumer**, and write it down. "We serve the current
+and previous major, for six months" is a decision; discovering you serve four is not.
+
+## Slots deferred to the spine
+
+These need no backend-specific rule — the spine's answer is the answer.
 
 - **State / effects** → `[STATE-1]` `[STATE-2]` `[STATE-5]`: slice-owned queries; transaction scoped to
   the request; the `db` horizontal owns the pool and runs migrations, while each table's schema is defined
-  by its owning slice. *(Spine-sufficient.)*
+  by its owning slice.
 - **Configuration** → `[CONFIG-1..4]`: one config horizontal constructed and validated at boot; no slice
-  reads the environment. *(Spine-sufficient.)*
+  reads the environment.
 - **Observability** → `[OBS-1..3]`: structured logs + metrics + correlation/trace IDs via the injected
-  logging horizontal; never on the response body. *(Spine-sufficient.)*
-- **Contract versioning** → `[CONTRACT-2]`: pick a discipline (URL prefix `/v1` or a version header) and
-  additive-change rules; document it before the first external consumer.
+  logging horizontal; never on the response body.
 - **Testing** → `[TEST-1]` `[TEST-4]`: HTTP-level in-process tests against real or test-container infra;
-  assert status + body + side effects + authorization. *(Spine-sufficient.)*
+  assert status + body + side effects + authorization.
 
 ## Open questions
 

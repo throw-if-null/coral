@@ -17,6 +17,7 @@ AGENT-5	review	CONVENTIONS.md
 AGENTIC-1	guide	appendix/agentic-app.md
 AGENTIC-10	review	appendix/agentic-app.md
 AGENTIC-11	review	appendix/agentic-app.md
+AGENTIC-12	review	CHANGELOG.md
 AGENTIC-2	guide	appendix/agentic-app.md
 AGENTIC-3	review	appendix/agentic-app.md
 AGENTIC-4	review	appendix/agentic-app.md
@@ -31,6 +32,7 @@ BE-3	review	appendix/backend.md
 BE-4	review	appendix/backend.md
 BE-5	auto	appendix/backend.md
 BE-6	review	appendix/backend.md
+BE-7	review	CHANGELOG.md
 BOUND-1	guide	ARCHITECTURE.md
 BOUND-2	review	ARCHITECTURE.md
 BOUND-3	review	ARCHITECTURE.md
@@ -165,6 +167,7 @@ VER-2	review	CONVENTIONS.md
 VER-3	review	CONVENTIONS.md
 VER-4	auto	CONVENTIONS.md
 WEB-1	review	appendix/web.md
+WEB-10	review	CHANGELOG.md
 WEB-2	guide	appendix/web.md
 WEB-3	review	appendix/web.md
 WEB-4	auto	appendix/web.md

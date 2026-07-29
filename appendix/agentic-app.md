@@ -1,7 +1,7 @@
-# Appendix: Agentic App  (PARTIAL — core slots filled)
+# Appendix: Agentic App
 
-> Status: partial. The agentic-specific slots — model-as-horizontal, the harness, and eval-based testing —
-> are written as `AGENTIC-` rules; the rest are slot notes. Read the spine first.
+> Status: **two slots open** — *composition root* and *observability* still need `AGENTIC-` rules;
+> everything else carries a rule. Read the spine first.
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for **agentic apps** — apps built
 around an LLM or an LLM agent *at runtime*. (This is a different axis from the operating model in
@@ -107,14 +107,33 @@ category. Never silently accept malformed output.
 - **Tool-call authorization and data governance** — default-deny dangerous tools; keep secrets and PII out
   of prompts and logs (`[CONFIG-4]`); gate irreversible actions (`[AGENTIC-5]`).
 
-## Remaining slot notes
+## Contract versioning  → `[CONTRACT-2]`
+
+**`[AGENTIC-12]`** `[review]` The **model identifier and the prompt version are part of the contract**.
+Changing either is a contract change, and requires re-running the evals before it ships.
+
+A model upgrade is not a dependency bump. The observable contract is "output conforms to the schema, plus
+the observed tool calls" (`[AGENTIC-4]`), and a new model can satisfy the schema perfectly while changing
+behaviour in ways only evals detect (`[AGENTIC-11]`) — the type checks still pass and the answers get
+worse.
+
+**Pin the model identifier explicitly; never let it float to an alias like "latest".** A floating model
+means the contract can change with no commit, no review, and no eval run — the exact opposite of what a
+published contract is for.
+
+Version prompts alongside the code that builds them, and **record the model identifier and prompt version
+with each stored result** (`[AGENTIC-8]` already stores the result for dedupe — store the provenance with
+it). Without that, an output nobody can explain has no forensic trail, and in an agent-first codebase the
+next agent cannot ask what the prompt used to say.
+
+## Slots still to fill
 
 - **Composition root** → wires the model client, tools, and memory/retrieval as injected horizontals and
-  constructs the harness; no business logic.
+  constructs the harness; no business logic. *Needs an `AGENTIC-` rule on where tool definitions live —
+  with the harness, or with the slice each tool fronts.*
 - **Observability** → token, cost, and latency on top of `[OBS-1..3]`; capture prompts, responses, and tool
-  calls (PII-aware) so the agent's decisions are auditable.
-- **Contract versioning** → the **model and prompt version are part of the contract** (`[CONTRACT-2]`); a
-  model upgrade is a contract change — re-run evals before shipping.
+  calls (PII-aware) so the agent's decisions are auditable. *Needs an `AGENTIC-` rule reconciling "capture
+  every prompt" with `[CONFIG-4]` — prompts routinely contain the data you are forbidden to log.*
 
 ## Testing  → `[TEST-1]`
 

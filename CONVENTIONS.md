@@ -260,8 +260,17 @@ change that **loosens or clarifies** a rule, adds an appendix, or adds a `[guide
 prose that leaves conformance unchanged is **patch**.
 
 Adding a rule is a breaking change, because a rule is a **constraint** — it is closer to adding a
-required field than to adding an API endpoint. Code that conformed yesterday can fail today. That means
-Coral majors move faster than software majors, which is accurate rather than a problem.
+required field than to adding an API endpoint. Code that conformed yesterday can fail today.
+
+**While the version is `0.y.z`, the rule set is not yet stable** and a change that would be major bumps
+the **minor** instead (`0.1.0` → `0.2.0`), per semver's major-version-zero clause. That is the honest state
+while appendices are still being filled: rules are still arriving in batches, and burning a major per batch
+would put Coral at version 6 with nothing stable to show for it.
+
+**`1.0.0` is cut when every appendix is complete** — every app type's every slot either carries an
+app-type rule or an explicit "spine-sufficient" note. That is a checkable condition, so the promise
+`1.0.0` makes is a real one: from there, an added rule costs a major and a project can pin with
+confidence.
 
 **`[VER-3]` `[review]`** — A project states the Coral version it targets, and an audit is performed
 against that version.
@@ -305,7 +314,7 @@ answer. An agent that read only half would have a wrong picture of what is permi
 
 ```markdown
 # Coral adherence
-Targets: Coral 1.0.0
+Targets: Coral 0.2.0
 
 ## Extensions — local rules Coral does not have
 [ACME-1]  <the rule, stated as a rule>

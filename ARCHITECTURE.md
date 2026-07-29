@@ -910,16 +910,24 @@ New convention → new rule ID → new `[auto]` check (or `[review]` note) → e
 ## Appendix Index
 
 Each appendix instantiates the abstract slots for one app type: boundary, observable contract,
-composition root, state/effects, idempotency form, error rendering, observability mechanism,
-trust/security, contract versioning, and testing mechanics.
+composition root, state/effects, configuration, idempotency form, error rendering, observability
+mechanism, trust/security, contract versioning, and testing mechanics.
 
-- **[`appendix/cli.md`](./appendix/cli.md)** — CLI tools. (Written.)
+**An appendix is *complete* when every slot either carries an app-type rule or is explicitly deferred to
+the spine.** "Deferred to the spine" is an answer, not a gap — it means the spine's rule needs no
+app-type-specific form here, and saying so is what lets a reader stop looking. A slot that is neither is
+listed under "slots still to fill" on the appendix itself, so the gap is named rather than implied.
+`[VER-2]` ties `1.0.0` to all six appendices being complete by this definition.
+
+- **[`appendix/cli.md`](./appendix/cli.md)** — CLI tools. **Complete.**
 - **[`appendix/backend.md`](./appendix/backend.md)** — backends and services; heaviest use of
-  horizontals and `[COMPOSE]`. (Partial.)
-- **[`appendix/web.md`](./appendix/web.md)** — web apps; the trust boundary is first-class. (Partial.)
-- **[`appendix/agentic-app.md`](./appendix/agentic-app.md)** — apps built around an LLM at runtime; the
-  model is an injected effect and the agent runs in a harness. (Partial.)
+  horizontals and `[COMPOSE]`. **Complete.**
 - **[`appendix/library.md`](./appendix/library.md)** — libraries and packages; the consumer is the root;
-  the contract is semver. (Written.)
+  the contract is semver. **Complete.**
 - **[`appendix/gh-action.md`](./appendix/gh-action.md)** — Actions and tools; at-least-once reruns make
-  idempotency mandatory. (Written.)
+  idempotency mandatory. **Complete.**
+- **[`appendix/web.md`](./appendix/web.md)** — web apps; the trust boundary is first-class. *Two slots
+  open: state/effects, testing.*
+- **[`appendix/agentic-app.md`](./appendix/agentic-app.md)** — apps built around an LLM at runtime; the
+  model is an injected effect and the agent runs in a harness. *Two slots open: composition root,
+  observability.*

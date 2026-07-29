@@ -13,7 +13,13 @@ Versioning is governed by `[VER-2]`:
 | prose that leaves conformance unchanged | patch |
 
 Adding a rule is breaking because a rule is a **constraint** — closer to adding a required field than to
-adding an API endpoint. Coral majors therefore move faster than software majors.
+adding an API endpoint.
+
+**Coral is currently in `0.y.z`**, semver's major-version-zero phase: the rule set is not yet stable, so a
+change that *would* be major bumps the **minor** instead. Rules are still arriving in batches while the
+appendices are filled, and burning a major per batch would put Coral at version 6 with nothing stable to
+show for it. `1.0.0` is cut when **every appendix is complete** — every slot carrying either an app-type
+rule or an explicit "spine-sufficient" note — which is a checkable condition rather than a feeling.
 
 Rule IDs are append-only (`[VER-1]`): never renumbered, never recycled, never removed. `rules.lock` is the
 checked-in record of every published ID and its enforcement class, and the build fails on any drift
@@ -24,13 +30,50 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ---
 
-## 1.0.0 — 2026-07-29
+## 0.2.0 — 2026-07-29
+
+**Contract versioning, filled in for the three appendices that lacked it.** Three rules — and they are
+three genuinely different answers, not one answer repeated:
+
+- **`[BE-7]`** `[review]` — version the HTTP API with a **URL prefix** (`/v1`), advanced only for a
+  breaking change. Nothing additive bumps it; repurposing a field is breaking even under the same name;
+  removal needs a version step with deprecation first. The *spelling* is a stated default, not
+  architecture — header or media-type versioning is equally valid, and deviating is an **Exception** in the
+  project's `CORAL.md` rather than a violation. What is not acceptable is leaving it undecided or varying
+  it between services in one system.
+- **`[WEB-10]`** `[review]` — the UI's stable contract is its **route/URL structure**. This slot differs
+  from every other app type because a route has no version prefix and no deprecation channel: you cannot
+  ask a bookmark to migrate. Repurposing a path is the worse failure, because nothing errors — old links
+  keep resolving and quietly show the wrong thing. Moving a route requires a redirect kept indefinitely.
+- **`[AGENTIC-12]`** `[review]` — the **model identifier and prompt version are part of the contract**;
+  changing either requires re-running evals before ship. Pin the model; never float to "latest", or the
+  contract can change with no commit and no review. Record model + prompt version with each stored result.
+
+**Appendix status is now named rather than blanket-labelled.** "PARTIAL" told a reader not to trust a page
+without saying which part, so an agent either over-trusted it or re-derived everything. An appendix is now
+**complete** when every slot carries either an app-type rule or an explicit "spine-sufficient" note —
+"deferred to the spine" being an answer, not a gap — and any slot that is neither is listed under *slots
+still to fill* on the appendix itself.
+
+- `backend.md` is now **complete** (contract versioning was its last open slot)
+- `cli.md`, `library.md`, `gh-action.md` were already complete
+- `web.md` — two slots open: state/effects, testing
+- `agentic-app.md` — two slots open: composition root, observability
+
+`[VER-2]` gained the major-version-zero clause described above, and now ties `1.0.0` to all six appendices
+being complete.
+
+**Rules: 169 → 172.**
+
+---
+
+## 0.1.0 — 2026-07-29
 
 First versioned release. Everything before this point was unversioned drafting, so this is a baseline
 rather than a list of changes.
 
 **Baseline: 169 rules across 31 families.** The full inventory with enforcement classes is
-`rules.lock`; from the next release onward, entries below name the affected rule IDs individually.
+`rules.lock`; from 0.2.0 onward, entries name the affected rule IDs individually.
 
 Families, by document:
 
