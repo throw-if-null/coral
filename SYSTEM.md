@@ -156,8 +156,14 @@ deterministic and contract-tested; only the choice of which capability to call i
 **`[ORCH-4]` `[review]`** — An agent may orchestrate the system **only from inside a harness** — a
 deterministic, observable app that employs the agent within walls.
 
-See [`appendix/agentic-app.md`](./appendix/agentic-app.md), `[AGENTIC-5]`. Never a bare model with direct
-authority over your apps.
+Stated here in full, so this rule needs nothing outside the core spine to be actionable: the harness gives
+the agent **typed tools and nothing else**, **authorizes every call**, **gates irreversible or
+outward-facing actions behind a human**, **observes every prompt, decision and result**, and **bounds the
+agent's context and authority to one scoped task**. Never a bare model with direct authority over your
+apps.
+
+[`appendix/agentic-app.md`](./appendix/agentic-app.md) elaborates this as `[AGENTIC-5]`, but that page is
+an **addendum** — provisional by construction — so the guardrail lives here rather than depending on it.
 
 **`[ORCH-5]` `[review]`** — The harness's tools **are** the apps' published bus capabilities (`[BUS-1]`);
 the agent calls them and never reaches into internals.

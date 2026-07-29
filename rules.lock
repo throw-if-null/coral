@@ -168,6 +168,8 @@ VER-3	review	CONVENTIONS.md
 VER-4	auto	CONVENTIONS.md
 WEB-1	review	appendix/web.md
 WEB-10	review	CHANGELOG.md
+WEB-11	review	appendix/web.md
+WEB-12	review	appendix/web.md
 WEB-2	guide	appendix/web.md
 WEB-3	review	appendix/web.md
 WEB-4	auto	appendix/web.md

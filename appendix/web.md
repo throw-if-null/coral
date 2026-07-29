@@ -1,7 +1,7 @@
 # Appendix: Web App
 
-> Status: **two slots open** — *state/effects* and *testing* still need `WEB-` rules; everything else
-> carries a rule or is explicitly deferred to the spine. Read the spine first.
+> Status: **complete** — every slot either carries a `WEB-` rule or is explicitly deferred to the spine.
+> Read the spine first.
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for web applications
 (server-rendered or SPA + API). Where it serves an API, defer to [`backend.md`](./backend.md) for the API
@@ -111,16 +111,55 @@ Where the app also exposes an API, that half follows `[BE-7]`.
 - **Configuration** → `[CONFIG-1..4]`, with one addition: anything shipped to the browser is public by
   definition, so no secret may reach client config.
 
-## Slots still to fill
+## State / effects  → `[STATE-1]` `[STATE-6]`
 
-- **State / effects** → `[STATE-1]` `[STATE-5]`: slice-owned data access; session and cookie handling at
-  the edge. Client-side state stays local to its slice; cross-panel shared state goes over the bus
-  (`[WEB-4]`), not a global store reached into by every panel. *Needs a `WEB-` rule on where client cache
-  and server state may disagree, and who owns invalidation.*
-- **Testing** → `[TEST-1]` `[TEST-4]`: request- and interaction-level tests asserting status + rendered or
-  JSON output + side effects, **plus authorization tests at the boundary**; for microfrontends,
-  **contract-test the panel-to-panel bus** (`[SYS-TEST-1]`) so panels are verified independently, never by
-  raising the whole shell. *Needs a `WEB-` rule fixing what "interaction-level" means concretely.*
+**`[WEB-11]`** `[review]` Server state is the source of truth. Client state is a **cache of it**, owned by
+the slice that fetched it, and never the only place a fact exists.
+
+This is `[STATE-6]` in the browser, and the browser makes it sharper: a hard refresh, a new tab, and a cold
+load *are* the empty-cache case, and users generate them constantly. So every render path must be correct
+with client state empty — that is not an edge case to handle later, it is the second-most-common way your
+page loads.
+
+**Invalidation is owned by the slice that caused the change.** A slice that mutates invalidates what it
+changed, then publishes on the bus (`[WEB-4]`); other panels react and decide for themselves. No panel
+reaches into another's cache, and the shell stays logic-free (`[WEB-3]`). That is what keeps you out of a
+global store that every panel reads and writes — the `[BUCKET-1]` failure in frontend clothes, arrived at
+one convenience at a time.
+
+**Optimistic updates are a display concession, not a state change.** They are allowed, and the slice must
+reconcile against the server's response and must surface the failure. An optimistic update that silently
+diverges from the server is `[XCUT-4]` drift rendered directly into the user's face, which is worse than a
+spinner.
+
+**The one genuinely client-owned state is what has never been sent**: form drafts, scroll position,
+expand/collapse, an in-progress selection. That belongs to its slice, needs no server round trip, and
+should not be pushed through the bus.
+
+## Testing mechanics  → `[TEST-1]` `[TEST-4]`
+
+**`[WEB-12]`** `[review]` A web slice's behavior test drives it **through the surface a user or a caller
+actually touches** — a route with a request, or a mounted panel with an interaction — and asserts the
+observable contract: the status or rendered output, the capability call it made, and the side effect.
+
+That rules three things out, and they are the three that web test suites are usually made of:
+
+- **Component-internal state.** Asserting a hook's value or a store's contents tests the implementation,
+  and it breaks on every refactor while passing on every logic bug.
+- **Markup snapshots.** A snapshot asserts *shape*, not *behavior*: it fails on every redesign and succeeds
+  on every wrong-total. It is not a behavior test and should not be counted as one.
+- **Mocking the capability call the slice exists to make.** Stub at the **bus contract** (`[WEB-4]`) or the
+  HTTP boundary, never the function the slice calls — otherwise the test passes when the contract changes.
+
+Two additions are mandatory rather than optional. An **authorization test at the boundary**, because
+`[WEB-7]` is this app type's heaviest slot and the one that regresses silently — nothing visibly breaks
+when an authz check stops firing. And for microfrontends, a **contract test on the panel bus**
+(`[SYS-TEST-1]`), so each panel is verified alone and you never need the whole shell up to know a panel
+works.
+
+Browser-driving end-to-end tests are the `[SYS-TEST-5]` backstop: a handful of critical journeys, kept
+deliberately tiny. They are the most expensive tests you own and the first to become flaky, so they must
+not be where your coverage lives.
 
 ## Open questions
 
@@ -142,4 +181,5 @@ Where the app also exposes an API, that half follows `[BE-7]`.
 | idempotency         | HTTP method semantics; client owns retry                                 |
 | error rendering     | root maps category → status + error view/JSON                           |
 | contract versioning | the route/URL structure; redirect, never repurpose (`[BE-7]` for the API half) |
-| testing             | request-level + authz + contract-test the panel bus                      |
+| state / effects     | server is truth; client state is a slice-owned cache; the mutator invalidates |
+| testing             | drive the real surface; no snapshots; authz test + contract-test the panel bus |

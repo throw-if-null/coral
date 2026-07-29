@@ -1,14 +1,26 @@
-# Appendix: Agentic App  (PARTIAL)
+# Appendix: Agentic App  (ADDENDUM)
 
-> Status: **two slots open pending a decision**, not pending prose — *composition root* (where tool
-> definitions live) and *observability* (how prompt capture reconciles with `[CONFIG-4]`). Both are real
-> design choices with defensible answers either way, and neither is settled. Everything else carries a
-> rule. Read the spine first.
+> **Status: ADDENDUM — not part of the core appendix set, and not part of the `1.0.0` condition.**
 >
-> **Until they are settled, do not invent an answer.** Pick the reversible option for your app, flag the
-> choice per `[AGENT-2]`, and record it in your project's `CORAL.md` as an **Extension** — that is exactly
-> what extensions are for. If the same answer keeps recurring across projects, it is the signal for an
-> amendment that closes this slot for everyone.
+> Nobody here has built an agentic app yet. This page is written from reading and from principle, not from
+> experience, so it is a **starting point rather than a blueprint**: expect parts of it to be wrong, and
+> expect it to change substantially without a major version bump (`[VER-2]`). Its rule IDs are permanent
+> (`[VER-1]`), so citing one stays safe — but its content carries no stability promise.
+>
+> Two slots are open, and they are open **pending a decision, not pending prose**: *composition root*
+> (where tool definitions live) and *observability* (how prompt capture reconciles with `[CONFIG-4]`).
+> Both have defensible answers either way and neither is settled anywhere in the industry.
+>
+> **Do not invent an answer to those two.** Pick the reversible option for your app, flag it
+> (`[AGENT-2]`), and record it in your project's `CORAL.md` as an **Extension** — that is precisely what
+> extensions are for. A recurring answer across projects is the signal for an amendment that closes the
+> slot for everyone.
+>
+> What this page is good for meanwhile: the `[AGENTIC-*]` rules that are **safety guardrails** rather than
+> construction advice — the harness (`[AGENTIC-5]`), untrusted model output and prompt injection
+> (`[AGENTIC-10]`), never exact-matching model text (`[AGENTIC-11]`), and never floating the model
+> identifier (`[AGENTIC-12]`). Those hold whether or not the rest of the page survives contact with a real
+> build. Read the spine first.
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for **agentic apps** — apps built
 around an LLM or an LLM agent *at runtime*. (This is a different axis from the operating model in

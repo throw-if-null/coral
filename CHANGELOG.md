@@ -33,15 +33,45 @@ the entries between your target and the new version, satisfy the added rules, an
 ## Unreleased
 
 A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut.
+the batch is cut. **This batch completes every core appendix, which is the `1.0.0` condition** — see the
+note at the end.
 
-- `appendix/agentic-app.md` is labelled **PARTIAL** again, and its status line now says the two open slots
-  are open *pending a decision* rather than pending prose. "Two slots open" read as unwritten text; the
-  real state is that where tool definitions live and how prompt capture reconciles with `[CONFIG-4]` are
-  unsettled design choices. The page now also tells an agent what to do meanwhile: take the reversible
-  option, flag it (`[AGENT-2]`), and record it as an **Extension** in the project's `CORAL.md` rather than
-  inventing a rule.
-- `[VER-2]` gained the release-versus-commit clause above.
+**`web.md` is complete.** Its last two slots are filled:
+
+- **`[WEB-11]`** `[review]` — server state is the source of truth; client state is a **cache of it**, owned
+  by the slice that fetched it, and never the only place a fact exists. This is `[STATE-6]` in the browser,
+  where a hard refresh, a new tab and a cold load *are* the empty-cache case — so the empty case is the
+  second-most-common way a page loads, not an edge case. Invalidation is owned by the slice that caused the
+  change, which then publishes on the bus (`[WEB-4]`); no panel reaches into another's cache, which is what
+  keeps a global read-write store from arriving one convenience at a time. Optimistic updates are a
+  *display* concession and must reconcile and surface failure. Never-sent state — form drafts, scroll,
+  expand/collapse — is the one genuinely client-owned kind.
+- **`[WEB-12]`** `[review]` — a behavior test drives the slice **through the surface a user or caller
+  actually touches** and asserts the observable contract. Rules out component-internal state, markup
+  snapshots (which assert *shape*, so they fail on every redesign and pass on every wrong total), and
+  mocking the capability call the slice exists to make. Mandatory additions: an authorization test at the
+  boundary, because `[WEB-7]` regresses silently, and for microfrontends a contract test on the panel bus.
+
+**`agentic-app.md` is now an ADDENDUM, not a PARTIAL appendix.** The distinction is honesty about
+provenance rather than about completeness: nobody here has built an agentic app, so the page is written
+from reading and from principle. Writing a blueprint for something you have not built is speculation
+dressed as guidance, and an agent cannot tell the difference from the page — the label is how it tells.
+
+An addendum sits **outside the `1.0.0` condition and outside the version discipline**: it may change
+substantially without a major bump, though its rule IDs remain permanent (`[VER-1]`) so citations stay
+valid. It graduates to a core appendix when someone has built the thing and the rules survived contact
+with it. Its **safety guardrails** — the harness, untrusted model output and prompt injection, never
+exact-matching model text, never floating the model identifier — hold regardless; only the construction
+advice is provisional.
+
+`[ORCH-4]` in `SYSTEM.md` now states the harness's five duties **in full**, so a core-spine rule no longer
+depends on an addendum for its meaning. It still points at `[AGENTIC-5]` for elaboration.
+
+**Also:** `[VER-2]` gained the release-versus-commit clause, and the definition of the `1.0.0` condition
+narrowed from "every appendix" to "every **core** appendix" as a consequence of the addendum category.
+
+**Rules: 172 → 174.** Every core appendix is now complete, so `1.0.0` is available to cut whenever the
+batch is deemed ready.
 
 ## 0.2.0 — 2026-07-29
 

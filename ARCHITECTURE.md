@@ -917,18 +917,27 @@ mechanism, trust/security, contract versioning, and testing mechanics.
 the spine.** "Deferred to the spine" is an answer, not a gap — it means the spine's rule needs no
 app-type-specific form here, and saying so is what lets a reader stop looking. A slot that is neither is
 listed under "slots still to fill" on the appendix itself, so the gap is named rather than implied.
-`[VER-2]` ties `1.0.0` to all six appendices being complete by this definition.
+`[VER-2]` ties `1.0.0` to every **core** appendix being complete by this definition.
+
+### Core appendices
 
 - **[`appendix/cli.md`](./appendix/cli.md)** — CLI tools. **Complete.**
 - **[`appendix/backend.md`](./appendix/backend.md)** — backends and services; heaviest use of
   horizontals and `[COMPOSE]`. **Complete.**
+- **[`appendix/web.md`](./appendix/web.md)** — web apps; the trust boundary is first-class. **Complete.**
 - **[`appendix/library.md`](./appendix/library.md)** — libraries and packages; the consumer is the root;
   the contract is semver. **Complete.**
 - **[`appendix/gh-action.md`](./appendix/gh-action.md)** — Actions and tools; at-least-once reruns make
   idempotency mandatory. **Complete.**
-- **[`appendix/web.md`](./appendix/web.md)** — web apps; the trust boundary is first-class. *Two slots
-  open: state/effects, testing.*
+
+### Addenda
+
+An **addendum** covers an app type nobody here has built yet. It is written from reading rather than from
+experience, sits outside the `1.0.0` condition, and may change substantially without a major bump — see
+[`CONVENTIONS.md`](./CONVENTIONS.md#versioning-and-local-deviations). It graduates to a core appendix once
+someone has built the thing and the rules survived contact with it.
+
 - **[`appendix/agentic-app.md`](./appendix/agentic-app.md)** — apps built around an LLM at runtime; the
-  model is an injected effect and the agent runs in a harness. **PARTIAL** — *composition root* and
-  *observability* are open pending a design decision, not pending prose; until then, take the reversible
-  option and record it as a project Extension rather than inventing a rule.
+  model is an injected effect and the agent runs in a harness. **ADDENDUM.** Its safety guardrails
+  (harness, untrusted model output, never exact-match, never float the model identifier) hold regardless;
+  its construction advice is provisional, and two slots are open pending a decision.

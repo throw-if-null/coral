@@ -267,10 +267,19 @@ the **minor** instead (`0.1.0` → `0.2.0`), per semver's major-version-zero cla
 while appendices are still being filled: rules are still arriving in batches, and burning a major per batch
 would put Coral at version 6 with nothing stable to show for it.
 
-**`1.0.0` is cut when every appendix is complete** — every app type's every slot either carries an
-app-type rule or an explicit "spine-sufficient" note. That is a checkable condition, so the promise
-`1.0.0` makes is a real one: from there, an added rule costs a major and a project can pin with
-confidence.
+**`1.0.0` is cut when every *core* appendix is complete** — every slot either carries an app-type rule or
+an explicit "spine-sufficient" note. That is a checkable condition, so the promise `1.0.0` makes is a real
+one: from there, an added rule costs a major and a project can pin with confidence.
+
+**An appendix marked ADDENDUM is outside that condition, and outside the version discipline.** An addendum
+covers an app type nobody here has built yet: it is written from reading rather than from experience, it is
+expected to be wrong in places, and it may change substantially without a major bump. Rule IDs in an
+addendum are still permanent (`[VER-1]`), so a citation of one stays valid — but its *content* carries no
+stability promise, and a project adopting it should say so in its `CORAL.md`.
+
+Writing a blueprint for something you have not built is speculation dressed as guidance, and an agent
+cannot tell the difference from the page. The ADDENDUM label is how it tells the difference. An addendum
+graduates to a core appendix when someone has built the thing and the rules survived contact with it.
 
 **A version marks a release, not a commit.** Bumping per commit would put a version number on every typo
 and make the changelog unreadable, which defeats its one purpose — telling a consuming project what it
