@@ -1,5 +1,7 @@
 # Worked example: a Go API capability slice (one endpoint, end to end)
 
+> Written against **Coral 1.0.0**.
+
 The [CLI example](./cli-slice) shows a slice in a language that imposes nothing, so each slice is one file.
 This one is the harder case: **a complete Coral slice in Go, where the language forces one capability
 across three packages** — a single read endpoint wired all the way through, with its tests and its

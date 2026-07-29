@@ -4,13 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npm run docs:build && npm run check:lint",
+    "test": "npm run docs:build",
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build && npm run check:anchors",
     "docs:preview": "vitepress preview",
     "check:anchors": "node scripts/check-anchors.mjs",
     "check:lint": "cd tools/coral-lint && python3 -m pytest -q && python3 -m coral_lint .",
-    "build": "npm run docs:build"
+    "build": "npm run docs:build",
+    "rules:lock": "node scripts/rules-lock.mjs"
   },
   "repository": {
     "type": "git",

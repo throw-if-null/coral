@@ -3,15 +3,32 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import {
+  CONTRACT_END,
+  CONTRACT_START,
+  INLINE_ID_RE,
+  LOCK_FILE,
+  parseLock,
+  parseRules,
+  useRe,
+} from '../scripts/rules.mjs'
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Rule-ID registry + anchor plugin.
+// Rule-ID registry, deep-link plugin, and the doc-integrity gates.
 //
 // The docs cite stable rule IDs like [SCOPE-3], [BUS-1]. This makes every rule
 // *definition* a deep-link target (#SCOPE-3) and turns every *reference* into a
 // link to the page that defines it — operationalizing the citation system on the
-// web. The whole thing keys off the doc's own formatting:
-//   definition  →  line starts with  **`[ID]` ...   or   - `[ID]` ...
-//   id grammar  →  FAMILY(-SUBFAMILY)*-N   e.g. SCOPE-3, SYS-TEST-1, WEB-6
+// web. Parsing lives in ../scripts/rules.mjs so the lockfile writer shares it.
+//
+// Four gates run here, each guarding a claim the documents make about themselves:
+//   1. every rule definition carries exactly one enforcement class
+//   2. every rule-ID citation resolves to a definition
+//   3. every [auto]/[review] rule appears in its document's Agent Execution
+//      Contract, so the contract really is the complete normative surface
+//   4. no rule ID is ever removed, renumbered, or silently reclassified — [VER-1]
+// A fifth (link fragments) runs post-build in scripts/check-anchors.mjs, because
+// heading ids only exist once markdown-it has rendered them.
 // ─────────────────────────────────────────────────────────────────────────────
 const SRC = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 // Base path: '/' locally; the deploy workflow sets DOCS_BASE (e.g. '/coral/' for
@@ -20,89 +37,10 @@ const BASE = process.env.DOCS_BASE || '/'
 // VitePress does NOT apply `base` to `head` entries — prefix public assets by hand.
 const asset = (file) => `${BASE}${file}`
 
-// The spine docs are pinned first because the registry is first-definition-wins:
-// precedence has to be stable and must not depend on directory order.
-const SPINE = ['CONVENTIONS.md', 'ARCHITECTURE.md', 'SYSTEM.md']
-// Everything else is discovered, so a new appendix or example is registered just by
-// existing. This list used to be hand-maintained, and appendix/agentic-app.md was
-// never added to it — its eleven [AGENTIC-*] rules silently got no anchors and every
-// citation of them rendered as inert code. Scanning a file that defines no rules
-// costs nothing, so there is no reason to curate.
-//
-// Only the ROOT README.md is skipped — it is srcExclude'd, so a definition there
-// would point at a page that isn't built. A nested README (tools/coral-lint/) IS
-// built and IS scanned, so its rule citations link and get checked like any other
-// page's. Skipping it by filename at every depth used to silently exclude those.
-const SKIP = new Set(['node_modules', 'public'])
-function findDocs(dir) {
-  const out = []
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.name.startsWith('.') || SKIP.has(e.name)) continue
-    const abs = path.join(dir, e.name)
-    if (e.isDirectory()) out.push(...findDocs(abs))
-    else if (e.name.endsWith('.md')) out.push(path.relative(SRC, abs))
-  }
-  return out
-}
-// Set preserves insertion order, so the spine keeps precedence over the sorted rest.
-const DOC_FILES = [...new Set([...SPINE, ...findDocs(SRC).sort()])]
-  .filter((rel) => rel !== 'README.md')
-
-// id grammar, anchored for inline-token matching and reused (unanchored) for scanning
-const ID_CORE = '[A-Z][A-Z-]*-\\d+'
-const INLINE_ID_RE = new RegExp(`^\\[(${ID_CORE})\\]$`)
-// A definition line opens with a bullet, bold, or both, then the ID code-span. All three
-// combinations occur: **`[SCOPE-1]`** (spine), - `[PLACE-1]` (bulleted), - **`[CLI-1]`**
-// (cli.md). Missing the third silently cost appendix/cli.md all eleven of its anchors.
-// The leading `- **` / `**` / `- ` is required, not optional: a wrapped paragraph line can
-// begin with a bare `[ID]` code-span, and those are citations, not definitions.
-// Line-based (not whole-text) so the *rest* of a definition line is available to the
-// enforcement-class check below — the class always sits on the same line as the ID.
-const DEF_LINE_RE = new RegExp(String.raw`^(?:- \*\*|\*\*|- )\`\[(${ID_CORE})\]\`(.*)$`)
-const USE_RE = new RegExp(String.raw`\`\[(${ID_CORE})\]\``, 'g')
-const CLASS_RE = /`\[(auto|review|guide)\]`/g
-
-// Delimiters around each spine's Agent Execution Contract. HTML comments, so they
-// don't render; explicit, so the check doesn't have to guess where the section ends
-// from heading structure.
-const CONTRACT_START = '<!-- coral:contract:start -->'
-const CONTRACT_END = '<!-- coral:contract:end -->'
-
-// registry:   ID -> defining page (relative path, matches VitePress env.relativePath)
-// defsByFile: page -> [{ id, cls }] in document order, first-definition only
-const registry = new Map()
-const defsByFile = new Map()
-const problems = []
-
-for (const rel of DOC_FILES) {
-  const abs = path.join(SRC, rel)
-  if (!fs.existsSync(abs)) continue
-  const lines = fs.readFileSync(abs, 'utf8').split('\n')
-  lines.forEach((line, i) => {
-    const m = DEF_LINE_RE.exec(line)
-    if (!m) return
-    const [, id, rest] = m
-    // First definition wins. Later leading occurrences (a contract bullet, an
-    // enforcement-table row) are citations of an already-defined rule, and are
-    // deliberately exempt from the class check — only the definition carries it.
-    if (registry.has(id)) return
-    registry.set(id, rel)
-
-    const classes = [...rest.matchAll(CLASS_RE)].map((c) => c[1])
-    if (classes.length !== 1) {
-      problems.push(
-        `[${id}] ${rel}:${i + 1} carries ${classes.length === 0 ? 'no' : classes.length}` +
-          ' enforcement class; CONVENTIONS.md requires exactly one of `[auto]` / `[review]` / `[guide]`' +
-          ' on the definition line.'
-      )
-    }
-    if (!defsByFile.has(rel)) defsByFile.set(rel, [])
-    defsByFile.get(rel).push({ id, cls: classes[0] })
-  })
-}
+const { registry, rules, defsByFile, problems, files: DOC_FILES } = parseRules(SRC)
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Check 1 — referential integrity: every rule ID that appears anywhere must be
+// Gate 2 — referential integrity: every rule ID that appears anywhere must be
 // registered.
 //
 // This is the guard for the failure this file has already had twice — eleven
@@ -121,7 +59,7 @@ const orphans = new Map() // ID -> Set of files it appears in
 for (const rel of DOC_FILES) {
   const abs = path.join(SRC, rel)
   if (!fs.existsSync(abs)) continue
-  for (const m of fs.readFileSync(abs, 'utf8').matchAll(USE_RE)) {
+  for (const m of fs.readFileSync(abs, 'utf8').matchAll(useRe())) {
     if (registry.has(m[1])) continue
     if (!orphans.has(m[1])) orphans.set(m[1], new Set())
     orphans.get(m[1]).add(rel)
@@ -136,7 +74,7 @@ for (const id of [...orphans.keys()].sort()) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Check 2 — contract completeness.
+// Gate 3 — contract completeness.
 //
 // Each spine claims its Agent Execution Contract is the COMPLETE normative
 // surface: an agent that loads only the contract should miss nothing. That claim
@@ -156,15 +94,54 @@ for (const [rel, defs] of defsByFile) {
     problems.push(`${rel} opens ${CONTRACT_START} but never closes it with ${CONTRACT_END}.`)
     continue
   }
-  const cited = new Set([...text.slice(start, end).matchAll(USE_RE)].map((m) => m[1]))
-  const missing = defs.filter((d) => d.cls && d.cls !== 'guide' && !cited.has(d.id))
-  for (const d of missing) {
+  const cited = new Set([...text.slice(start, end).matchAll(useRe())].map((m) => m[1]))
+  for (const d of defs.filter((d) => d.cls && d.cls !== 'guide' && !cited.has(d.id))) {
     problems.push(
       `[${d.id}] (\`[${d.cls}]\`, defined in ${rel}) is missing from that document's Agent` +
         ' Execution Contract. Every [auto]/[review] rule must appear there, so the contract stays' +
         ' the complete normative surface.'
     )
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gate 4 — [VER-1]: rule IDs are append-only.
+//
+// A project's CORAL.md cites [STATE-5] to record an exception, and that citation
+// has to mean the same thing years later. So every published ID and its class are
+// recorded in rules.lock, and a rule that disappears or is quietly reclassified
+// fails the build. Adding a rule fails too, until the lock is regenerated — that
+// forced step is where CHANGELOG.md and the version bump get remembered.
+// ─────────────────────────────────────────────────────────────────────────────
+const lockPath = path.join(SRC, LOCK_FILE)
+if (fs.existsSync(lockPath)) {
+  const locked = parseLock(fs.readFileSync(lockPath, 'utf8'))
+  for (const [id, entry] of [...locked].sort()) {
+    if (!rules.has(id)) {
+      problems.push(
+        `[${id}] is in ${LOCK_FILE} but no longer defined in the docs. [VER-1] makes rule IDs` +
+          ' append-only: a withdrawn rule keeps its ID and is marked retired in place. Restore it,' +
+          ' or if the retirement is deliberate, say so in the docs and regenerate the lock.'
+      )
+    } else if (rules.get(id).cls !== entry.cls) {
+      problems.push(
+        `[${id}] changed class \`[${entry.cls}]\` → \`[${rules.get(id).cls}]\`. That is a` +
+          ` version-relevant change ([VER-2]): record it in CHANGELOG.md and run` +
+          ' `npm run rules:lock`.'
+      )
+    }
+  }
+  for (const id of [...rules.keys()].sort()) {
+    if (!locked.has(id)) {
+      problems.push(
+        `[${id}] is defined in the docs but absent from ${LOCK_FILE}. Run` +
+          ' `npm run rules:lock` and record the addition in CHANGELOG.md against the version it' +
+          ' ships in ([VER-2]).'
+      )
+    }
+  }
+} else {
+  console.warn(`\n[coral] ${LOCK_FILE} is missing — run \`npm run rules:lock\` to create it.\n`)
 }
 
 if (problems.length) {
@@ -295,6 +272,7 @@ export default withMermaid(defineConfig({
           { text: 'Backend microservice review', link: '/examples/backend-review' },
         ],
       },
+      { text: 'Versioning & changelog', link: '/CHANGELOG' },
       {
         text: 'Enforcement',
         collapsed: false,

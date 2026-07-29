@@ -1,5 +1,7 @@
 # Worked example: reviewing a real backend microservice
 
+> Written against **Coral 1.0.0**.
+
 The fastest way to understand Coral is to watch it applied to a *real* service rather than a toy. This
 is a condensed review of a production-shaped Go microservice — an **audit-log service** (an HTTP read
 API plus event-driven ingestion, on a NATS/JetStream + Postgres stack) — through the Coral rules. It

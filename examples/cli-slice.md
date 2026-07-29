@@ -1,5 +1,7 @@
 # Worked example: a CLI capability slice (two commands, end to end)
 
+> Written against **Coral 1.0.0**.
+
 The [Go example](./go-api-slice) shows a slice in a language that *forces* a capability across several
 packages. This one shows the opposite: **a CLI in Python, where nothing forces banding, so a slice is one
 file.** Same architecture, different shape — which is the point of `[MODEL-2]`.

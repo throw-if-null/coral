@@ -13,14 +13,19 @@ from ..layout import Layout, SOURCE_SUFFIXES
 RULE = "BUCKET-1"
 TITLE = "no generic catch-all packages"
 
-# Unambiguous: these names carry no information about what the code owns.
-_FORBIDDEN = ("utils", "util", "helpers", "helper", "shared", "common",
-              "services", "repository", "repositories", "misc", "stuff")
+# Exactly the names [BUCKET-1] lists, and nothing else. The docs are the only
+# authority on rule content: an earlier version of this file also forbade `util`,
+# `helper`, `misc`, `base` and `lib`, none of which appear in the rule. They were
+# plausible, which is what made them dangerous — a tool that quietly widens a rule
+# becomes a second, unversioned source of architecture. To forbid more names,
+# amend [BUCKET-1] (or declare a project extension); do not edit this tuple.
+_FORBIDDEN = ("shared", "common", "utils", "helpers", "services", "repository")
 
-# Judgment calls the rule itself hedges on. `models` may be two cohesive domain
-# types rather than a grab-bag, and a pre-existing `core` that denotes one
-# bounded concept is explicitly grandfathered — so these warn rather than fail.
-_SUSPECT = ("models", "core", "base", "lib")
+# Judgment calls the rule itself hedges on: `models` may be two cohesive domain
+# types rather than a grab-bag ([BUCKET-1] says "generic `models`"), and a
+# pre-existing `core` denoting one bounded concept is explicitly grandfathered.
+# So these warn rather than fail.
+_SUSPECT = ("models", "core")
 
 
 def _remedy(name: str) -> str:

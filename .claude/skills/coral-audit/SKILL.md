@@ -13,6 +13,9 @@ description: >
 
 # Coral repo audit
 
+> Written against **Coral 1.0.0**. Audit a project against the version its
+> `CORAL.md` declares, not against this one (`[VER-3]`).
+
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not
 this audit, decides the refactor approach, sequencing, and tasks.
@@ -65,6 +68,22 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
 A path to the repo (from the user's prompt or `args`). If none is given, ask which repo. You have access
 to dependency repos too — use them (boundary rule 3).
 
+**Read the repo's `CORAL.md` first, if it has one.** It is the project's adherence record and it changes
+what counts as a finding:
+
+- **Targets: Coral `<version>`** — audit against *that* version, not the latest (`[VER-3]`). A rule added
+  after the declared target is not yet binding on this project; note it as an upgrade consideration, not a
+  divergence.
+- **Extensions** — project-local rules Coral has no rule for. Treat them as binding: code that breaks a
+  declared extension is a finding, cited by its project ID.
+- **Exceptions** — Coral rules the project knowingly breaks. These are **accepted deviations**, not
+  findings. Report them in their own short section so the reader sees the standing debt, and flag any whose
+  stated `revisit when` condition now appears to be met.
+
+If the repo has no `CORAL.md`, say so once: audit against the current version, and note that the project
+has no declared target or exception register. **Never write or edit `CORAL.md` yourself** (`[AGENT-4]`) —
+recommend the entry and let a human commit it.
+
 ## Procedure
 
 ### 1. Frame (altitude) — before any line-by-line reading
@@ -90,13 +109,11 @@ composition root. Note where the Coral model fits and where it strains.
 
 ### 3. Walk the rule families (depth) — line-cited
 
-**Run `coral-lint` first if it is available** (`tools/coral-lint` in the coral-architecture repo):
-`python3 -m coral_lint <repo> --json`. It decides the `[auto]` rules deterministically, so its findings are
-settled facts you can cite rather than judgments you have to make — which frees your attention for the
-`[review]` rules, where it is worthless. Read its `checks[].skipped` and `coverage` fields: a check that
-skipped for missing configuration has told you nothing, and you must still judge that rule by hand. Do not
-treat a clean `coral-lint` run as a clean conformance verdict; it covers eleven of the twenty-five `[auto]`
-rules and none of the `[review]` ones.
+Read the code and the docs; judge for yourself. **Do not run a linter or any other tool as a source of
+findings.** The Coral documents are the only authority on what a rule means, and a tool's implementation
+of a rule is one interpretation of it — trusting that interpretation would quietly substitute the tool's
+opinions for the architecture's. Whether to adopt a linter is a human's decision, made after reading an
+audit, not an input to producing one.
 
 For each family, cite `file:line` and tag *earns-its-keep* vs *overkill*. The first two and the last
 two carry the verdict — they are capability slicing, placement/naming, and thin composition, the
@@ -159,6 +176,16 @@ session; heaviness is intentional — the planner needs full context. Include:
   the audit cannot adjudicate (e.g. delivery semantics, effect ordering). For each: what the choice is,
   why it's consequential, and whether an explanatory comment already exists. These ask a human to confirm
   the choice and, if it stands, document it — they are neither conformance findings nor bugs.
+- An **Accepted deviations** section listing every exception declared in the project's `CORAL.md`, with the
+  rule it breaks and its stated trade-off. These are **not findings** — a documented, deliberate decision
+  has already been adjudicated. Two things to add value here: mark any whose `revisit when` condition now
+  looks met, and mark any that appear in several places or several projects, because a recurring exception
+  is the signal for an **amendment** to Coral itself rather than a permanent local carve-out.
+- A **Deliberate-looking but undocumented** section: deviations that read as somebody's decision rather
+  than as drift, but which no `CORAL.md` entry covers. For each, say what the choice appears to be and ask
+  a human to either record it (as an exception or an extension) or reverse it. This is the section that
+  makes the loop converge — an undocumented decision gets re-litigated by every agent that meets it. Do
+  not write the record yourself (`[AGENT-4]`); propose the wording.
 - A separate **Notes for human awareness (not conformance)** section: bugs / security / correctness /
   reliability found in passing, recorded so the team knows. Flag any that warrant escalation — but keep
   them out of the conformance verdict, and keep them shorter than the conformance findings.

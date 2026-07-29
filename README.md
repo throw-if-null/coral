@@ -45,8 +45,32 @@ Read them in this order:
 
 Rules carry stable IDs like `[DUP-2]` with an enforcement class (`[auto]` / `[review]` / `[guide]`);
 on the live site every citation links to its definition. The build fails if a rule has no class, if a
-citation has no definition, or if a rule is missing from its document's Agent Execution Contract — the
-docs' own drift control is structural, not goodwill.
+citation has no definition, if a rule is missing from its document's Agent Execution Contract, if a
+published rule ID has disappeared or been reclassified, or if a link fragment doesn't resolve — the docs'
+own drift control is structural, not goodwill.
+
+## Versioning, and how a project records where it differs
+
+Coral is versioned because it will be **incomplete**: rules get missed, patterns need covering, and some
+rules turn out to be wrong. The current version is in `VERSION`; what changed is in
+[`CHANGELOG.md`](./CHANGELOG.md), recorded per rule ID. Rule IDs are append-only — never renumbered,
+recycled, or removed — and `rules.lock` is the checked-in record the build enforces that against.
+
+A consuming project keeps a **`CORAL.md`** in its root declaring the version it targets and two kinds of
+local divergence:
+
+- an **Exception** — Coral has a rule; this project knowingly breaks it for a trade-off
+- an **Extension** — Coral has no rule; this project needs one; it stays local, under its own ID prefix
+
+A third kind isn't recorded locally at all: an **Amendment** is when a Coral rule is *wrong or too
+narrow*, and it goes upstream as an issue or PR on this repo. An exception that recurs across projects is
+the signal for one — and when the amendment lands, the local entries are deleted and the project bumps its
+target. **The register shrinks when Coral improves.**
+
+An agent never authors an exception or an extension (`[AGENT-4]`); it flags the ambiguity and a human
+decides and records it. And it reads `CORAL.md` before escalating (`[AGENT-5]`), so a settled decision
+isn't re-litigated by every agent that meets it. The full convention is in
+[`CONVENTIONS.md`](./CONVENTIONS.md#versioning-and-local-deviations).
 
 The name is explained in one paragraph at the end of `CONVENTIONS.md`. It is a naming scheme, not a
 reasoning tool; no rule requires the metaphor to apply it.

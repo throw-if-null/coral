@@ -28,6 +28,10 @@ UNIMPLEMENTED: dict[str, str] = {
     "GHA-3": "needs action.yml parsing alongside the source",
     "GHA-10": "needs the platform's annotation/output APIs",
     "STRUCT-3": "covered in practice by XCUT-2, which uses the same allowlist",
+    "VER-1": "not applicable to an audited application repo — it governs the Coral documents "
+             "themselves, and the Coral repo's own build enforces it against rules.lock",
+    "VER-4": "candidate: would mean parsing the audited repo's CORAL.md and checking its extension "
+             "IDs against Coral's family names. Worth doing once CORAL.md files exist in the wild",
 }
 
 

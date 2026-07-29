@@ -21,7 +21,11 @@ DEFAULT_IGNORE = (
     "__pycache__", ".vitepress", ".mypy_cache", ".pytest_cache", ".ruff_cache",
 )
 
-DEFAULT_READ_VERBS = ("show", "list", "get", "find", "summary", "report", "search", "read")
+# Exactly the read-only verbs [IDEM-1] names, across its CLI and library columns.
+# `report`, `search` and `read` were invented here and have been removed: widening
+# a rule inside a tool makes the tool an unversioned authority. Extend the list per
+# project via [coral].read_verbs, or amend [IDEM-1].
+DEFAULT_READ_VERBS = ("show", "list", "summary", "get", "find")
 
 _KNOWN_KEYS = {
     "ignore", "app_dirs", "feature_dirs", "library_dirs", "roots", "horizontals",

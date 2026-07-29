@@ -145,6 +145,9 @@ live site every citation links to its definition.
 alias IDs — no second family that restates an existing rule under a new name — because two IDs for one
 rule make findings unsearchable and let the two copies drift.
 
+**IDs are permanent.** They are never renumbered, never recycled, and never removed — see `[VER-1]`. That
+is why `[IDEM-6]` sits out of numeric order: it was appended rather than inserted.
+
 **The spines use separate families.** App families live in `ARCHITECTURE.md` and its appendices
 (`CLI-`, `BE-`, …); system families live in `SYSTEM.md` (`BUS-`, `ORCH-`, `SYS-TEST-`). The dependency
 points **one way**: the app spine **never** cites a system rule, so the core app model stays
@@ -181,7 +184,7 @@ Each spine has two layers, and the build enforces the relationship between them:
 
 Completeness is checked at build time, so a new rule cannot be added without wiring it into the
 contract. Reviewers walk the same contract and cite the same IDs; there is no separate review
-checklist to drift against.
+checklist to drift against. This file carries a contract too, for its `[AGENT-*]` and `[VER-*]` rules.
 
 ---
 
@@ -219,6 +222,132 @@ mean contorting code to avoid a legitimate horizontal; a rule that tolerates dup
 license copying a large invariant-bearing block. When the letter and the intent diverge, follow the
 intent and apply `[AGENT-2]`.
 
+**`[AGENT-4]` `[review]`** — An agent never authors an exception or an extension. It flags per
+`[AGENT-2]`; a **human** decides and records the decision.
+
+This is the guard that keeps the loop honest, and it is the one a helpful agent is most likely to
+violate. Writing "we deviate here because X" is legislating, and an agent that can legislate has removed
+the humans-review half of the operating model. Propose the wording if asked; never commit it.
+
+**`[AGENT-5]` `[review]`** — Read the project's `CORAL.md` before escalating. A documented exception or
+extension is a settled decision and is not raised again.
+
+Without this the loop never converges: the same ambiguity bubbles up every time a new agent meets it, the
+human answers it again, and the accumulated decisions buy nothing. Escalate what is genuinely unsettled.
+
+---
+
+## Versioning and local deviations
+
+Coral is versioned because it will be **incomplete**. Rules will be missed, new patterns will need
+covering, and some rules will turn out to be wrong. A project therefore needs to say which Coral it
+follows, and to record where it knowingly differs — otherwise "conforms to Coral" is not a checkable
+claim.
+
+The version lives in `VERSION`; what changed lives in [`CHANGELOG.md`](./CHANGELOG.md), recorded per rule
+ID.
+
+**`[VER-1]` `[auto]`** — Rule IDs are append-only: never renumbered, never recycled, never removed. A
+withdrawn rule keeps its ID and is marked retired in place.
+
+A project's `CORAL.md` records "breaks `[STATE-5]`", and that citation has to mean the same thing in five
+years. `rules.lock` is the checked-in record of every published ID and its class; the build fails if one
+disappears, gets reclassified, or is added without the lock being regenerated. That forced step is where
+the changelog entry and the version bump get remembered.
+
+**`[VER-2]` `[review]`** — A change that **adds, tightens, or retires** a rule is a **major** version; a
+change that **loosens or clarifies** a rule, adds an appendix, or adds a `[guide]` rule is **minor**;
+prose that leaves conformance unchanged is **patch**.
+
+Adding a rule is a breaking change, because a rule is a **constraint** — it is closer to adding a
+required field than to adding an API endpoint. Code that conformed yesterday can fail today. That means
+Coral majors move faster than software majors, which is accurate rather than a problem.
+
+**`[VER-3]` `[review]`** — A project states the Coral version it targets, and an audit is performed
+against that version.
+
+Without a declared target, every Coral change silently invalidates every project's audit and "we're
+Coral-conformant" decays into a feeling. Upgrading is then a deliberate act with a readable diff: *4.0
+added `[CONC-1..5]`; here is what that means for us.*
+
+**`[VER-4]` `[auto]`** — A project's own rule IDs are namespaced by a project prefix and never reuse a
+Coral family name.
+
+`ACME-1`, not `XCUT-9`. A project that invents an ID in a Coral family collides the day Coral adds that
+number, and the collision is silent — two documents, same citation, different rule.
+
+Note the typography above: an **illustrative** ID is written bare (`ACME-1`), while a **citation** is
+bracketed (`[VER-4]`). Only the bracketed form is a reference the build resolves, so a hypothetical ID
+written as a citation fails the build — which is how this paragraph got caught while being written.
+
+### Three kinds of divergence
+
+| | What it is | Where it is recorded | Who decides |
+|---|---|---|---|
+| **Exception** | Coral has a rule; this project knowingly breaks it for a trade-off | the project's `CORAL.md` | a human on the project |
+| **Extension** | Coral has no rule; this project needs one; it stays local | the project's `CORAL.md` | a human on the project |
+| **Amendment** | Coral has a rule and **the rule is wrong or too narrow** | an issue or PR on the Coral repo | Coral's maintainers |
+
+An **amendment is not recorded in the project** — it is an outbound proposal, referenced from the entry
+that motivated it. `[MODEL-2]` was an amendment: it forbade layering outright, the correct Go shape
+violated it, and the rule — not the code — was wrong. Had that been filed as a per-project exception,
+every Go project would have carried the same exception forever and the defect in the rule would never
+have surfaced.
+
+**Drift is not an exception.** A deviation nobody chose is a finding to fix. Only a deliberate decision
+qualifies, or the register becomes a laundry for violations and the architecture becomes advisory.
+
+### `CORAL.md` — the project's adherence record
+
+One file, in the consuming project's root, holding both record types. One file rather than two because of
+`[AGENT-1]`: the agent's question is *"what rules apply here?"*, and that should be one load with one
+answer. An agent that read only half would have a wrong picture of what is permitted.
+
+```markdown
+# Coral adherence
+Targets: Coral 1.0.0
+
+## Extensions — local rules Coral does not have
+[ACME-1]  <the rule, stated as a rule>
+          why Coral does not cover it · how it composes (which families it touches)
+          upstream: not a candidate | candidate | proposed coral#123 | landed in 2.0.0
+
+## Exceptions — Coral rules this project knowingly breaks
+Breaks [STATE-5]  what we do instead · the trade-off
+          decided by <name>, <date> · revisit when: <condition>
+          upstream: candidate
+```
+
+Two details carry weight. The **`upstream` disposition** is what makes the loop run: the same exception
+appearing across several projects, all marked `candidate`, is the signal for an amendment — and when the
+amendment lands, the entries are deleted and the projects bump their target. **The register shrinks when
+Coral improves**, which is what stops it becoming a forty-entry graveyard.
+
+And **`revisit when` is a condition, not a date.** Dates are theatre; everyone renews them. *"When a third
+slice needs this"* or *"when we split the shared datastore"* is a trigger someone will actually hit.
+
+Coral itself targets the version in `VERSION`; the worked examples and the audit skill each state the
+version they were written against, which is the cheapest available test that this convention is usable.
+
+---
+
+## Agent Execution Contract (conventions)
+
+The complete normative checklist for this document: every `[auto]` and `[review]` rule defined above.
+`[guide]` rules are rationale and live only in the prose.
+
+<!-- coral:contract:start -->
+
+- `[AGENT-2]` Flag, don't guess: take the reversible option, mark it, surface it for human review.
+- `[AGENT-4]` Never author an exception or an extension; a human decides and records.
+- `[AGENT-5]` Read the project's `CORAL.md` before escalating; a documented decision is settled.
+- `[VER-1]` Rule IDs are append-only: never renumbered, recycled, or removed.
+- `[VER-2]` Adding, tightening, or retiring a rule is a major version; loosening or clarifying is minor.
+- `[VER-3]` State the Coral version a project targets; audit against that version.
+- `[VER-4]` Namespace a project's own rule IDs by project prefix; never reuse a Coral family name.
+
+<!-- coral:contract:end -->
+
 ---
 
 ## Document set
@@ -237,6 +366,9 @@ Read in this order:
    the language forces a capability across packages), and
    [`examples/backend-review.md`](./examples/backend-review.md) (the rules applied to a real service,
    including where they'd be overkill).
+
+Supporting files: `VERSION` (what this is), [`CHANGELOG.md`](./CHANGELOG.md) (what changed, per rule ID),
+and `rules.lock` (every published rule ID and class, checked in so `[VER-1]` can be enforced).
 
 ---
 
