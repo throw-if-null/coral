@@ -329,7 +329,7 @@ answer. An agent that read only half would have a wrong picture of what is permi
 
 ```markdown
 # Coral adherence
-Targets: Coral 0.2.0
+Targets: Coral 0.3.0
 
 ## Extensions — local rules Coral does not have
 [ACME-1]  <the rule, stated as a rule>

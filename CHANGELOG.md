@@ -32,9 +32,15 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ## Unreleased
 
-A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **This batch completes every core appendix, which is the `1.0.0` condition** — see the
-note at the end.
+*Nothing yet.* A version marks a release, not a commit (`[VER-2]`), so changes land here first and the
+bump happens when the batch is cut.
+
+---
+
+## 0.3.0 — 2026-07-30
+
+**Every core appendix is now complete, which is the `1.0.0` condition** — see the note at the end for why
+`1.0.0` was not cut here.
 
 **`web.md` is complete.** Its last two slots are filled:
 
@@ -70,8 +76,21 @@ depends on an addendum for its meaning. It still points at `[AGENTIC-5]` for ela
 **Also:** `[VER-2]` gained the release-versus-commit clause, and the definition of the `1.0.0` condition
 narrowed from "every appendix" to "every **core** appendix" as a consequence of the addendum category.
 
-**Rules: 172 → 174.** Every core appendix is now complete, so `1.0.0` is available to cut whenever the
-batch is deemed ready.
+**Rules: 172 → 174.**
+
+### Why this is 0.3.0 and not 1.0.0
+
+The `1.0.0` condition is met, and `1.0.0` is deliberately being held back anyway.
+
+`1.0.0` is a stability promise, and **50 of these 174 rules were authored by an agent across a single
+session** — including two appendices in full (`[LIB-1..13]`, `[GHA-1..12]`) and two new families
+(`[CONC-1..5]`, `[CONFIG-1..4]`). Most of the rest were reviewed in conversation as they were written, but
+the two appendices have not yet been read line by line by a human. Coral's own operating model says agents
+write and humans review; making a stability promise before the review half has happened would contradict
+the document set at exactly the point it claims to be trustworthy.
+
+Expect several more `0.x` iterations. `1.0.0` is cut when the rule set has been read, not merely when it is
+structurally complete.
 
 ## 0.2.0 — 2026-07-29
 
@@ -117,6 +136,12 @@ rather than a list of changes.
 
 **Baseline: 169 rules across 31 families.** The full inventory with enforcement classes is
 `rules.lock`; from 0.2.0 onward, entries name the affected rule IDs individually.
+
+**`[VER-1]`'s append-only guarantee starts here.** During pre-versioned drafting, 27 alias rule IDs were
+deleted — `[PLACE-*]`, `[FORBID-*]`, `[SHARE-*]`, `[SEM-*]`, `[EO-*]`, `[T-*]`, `[SYS-*]` — each of which
+had restated an existing rule under a second name. They predate `rules.lock`, so if you find one cited in
+an old commit or review comment it is a real ID that legitimately no longer exists. The promise that an ID
+never disappears applies from `0.1.0` forward, not across the whole of git history.
 
 Families, by document:
 
