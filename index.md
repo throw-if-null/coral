@@ -4,7 +4,10 @@ layout: home
 hero:
   name: Coral Architecture
   text: Capability-first, and built to be checked
-  tagline: One capability per slice. Sharing only through a named, injected horizontal. Every rule carries a stable ID and an enforcement class — so the architecture can be verified, not just admired.
+  tagline: An architecture for codebases where agents write and humans review.
+    One capability per slice; shared code only where it is named and injected.
+    Every rule carries a stable ID and an enforcement class — so conformance is
+    a build step, not a code-review argument.
   image:
     src: /logo.png
     alt: Coral Architecture
@@ -22,7 +25,7 @@ hero:
 features:
   - icon: 🧭
     title: Placement stops being a decision
-    details: A slice owns one trigger end to end — its parsing, validation, behavior, state access, output, and tests. "Where does this go?" collapses to "find or make the feature package."
+    details: A slice owns one capability end to end — its trigger, parsing, validation, behavior, state access, output, and tests. "Where does this go?" collapses to "find or make the feature package."
     link: /ARCHITECTURE#_3-the-four-categories-of-code-model
   - icon: 🚧
     title: Sharing has a gate, not a habit
