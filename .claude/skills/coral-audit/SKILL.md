@@ -13,7 +13,7 @@ description: >
 
 # Coral repo audit
 
-> Written against **Coral 0.3.0**. Audit a project against the version its
+> Written against **Coral 0.4.0**. Audit a project against the version its
 > `CORAL.md` declares, not against this one (`[VER-3]`).
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a

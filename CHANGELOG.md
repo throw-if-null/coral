@@ -32,9 +32,16 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ## Unreleased
 
+*Nothing yet.* A version marks a release, not a commit (`[VER-2]`), so changes land here first and the
+bump happens when the batch is cut.
+
+---
+
+## 0.4.0 — 2026-08-05
+
 **A vocabulary pass. No rule's *substance* changed — three nouns were renamed, one family was renumbered,
-and one clarification was added.** Cuts as a **minor** bump under the `0.y.z` clause: renaming a family
-retires ten IDs and publishes ten, which is major after `1.0.0`.
+and one clarification was added.** A **minor** bump under the `0.y.z` clause: renaming a family retires ten
+IDs and publishes ten, which is major after `1.0.0`.
 
 **`horizontal` → `crosscut`.** The old name collided with an anti-pattern Coral forbids: in general usage a
 *horizontal slice* **is** a layer, and `[MODEL-2]`/`[STATE-2]`/`[BUCKET-1]` exist to forbid exactly that. So
