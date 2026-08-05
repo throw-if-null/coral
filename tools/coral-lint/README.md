@@ -172,5 +172,10 @@ Three places where that shows:
 3. Add the module to `CHECKS` in `app.py` and remove its rule from `coverage.UNIMPLEMENTED`.
 4. Run `python3 -m pytest -q`. `coverage_test.py` will fail if the rule is now claimed twice or not at all.
 
+If the rule is **new to the docs**, run `npm run rules:lock` from the repo root first. `coverage_test.py`
+reads `rules.lock`, not the markdown — deliberately, so this tool holds no second copy of the definition
+grammar to drift against `scripts/rules.mjs` — which means a rule that isn't in the lock yet is invisible
+to it. The site build fails until the lock is regenerated, so this can only mislead you locally.
+
 If a check cannot be exact, return `CheckResult(rule=RULE, skipped="<why>")` instead of guessing. A stated
 gap is worth more than a silent guess.

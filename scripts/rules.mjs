@@ -30,6 +30,20 @@ const classRe = () => /`\[(auto|review|guide)\]`/g
 const SPINE = ['CONVENTIONS.md', 'ARCHITECTURE.md', 'SYSTEM.md']
 const SKIP = new Set(['node_modules', 'public'])
 
+// A changelog RECORDS rules; it does not define them. But it quotes each new rule
+// in the very shape a definition uses — `- **`[WEB-11]`** `[review]` — server
+// state is…` — and the registry is first-definition-wins with CHANGELOG.md sorting
+// before appendix/*. So the quotes were winning: [WEB-10], [WEB-11], [WEB-12],
+// [BE-7] and [AGENTIC-12] resolved to the changelog instead of their own page, and
+// [VER-1] read as *classless* because the prose mention `**`[VER-1]`'s append-only
+// guarantee starts here.**` matched first and carries no `[auto]` marker. All of it
+// was silent — a rule still had *a* definition, just the wrong one.
+//
+// Rewording every future entry would be a discipline that eventually lapses, so the
+// exclusion is structural. DEFINITIONS only: the file stays in docFiles(), so Gate 2
+// still requires every ID the changelog cites to resolve somewhere.
+const DEFINES_NOTHING = new Set(['CHANGELOG.md'])
+
 export const CONTRACT_START = '<!-- coral:contract:start -->'
 export const CONTRACT_END = '<!-- coral:contract:end -->'
 
@@ -66,6 +80,7 @@ export function parseRules(srcDir) {
   const problems = []
 
   for (const rel of files) {
+    if (DEFINES_NOTHING.has(rel)) continue
     const abs = path.join(srcDir, rel)
     if (!fs.existsSync(abs)) continue
     const lines = fs.readFileSync(abs, 'utf8').split('\n')
