@@ -87,7 +87,7 @@ def run(layout: Layout) -> CheckResult:
                     "working. If this must stay shared, invert the interface: let each slice "
                     "declare the operations it needs and have this module implement them, so the "
                     "dependency runs adapter → slice and no slice imports it. Connection and "
-                    "transaction management may stay here as a `db` horizontal, but without "
+                    "transaction management may stay here as a `db` crosscut, but without "
                     "queries."
                 ),
             )

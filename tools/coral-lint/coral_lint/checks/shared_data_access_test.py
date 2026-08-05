@@ -59,7 +59,7 @@ def test_an_adapter_that_imports_slices_passes(make_layout):
     assert check.run(lay).findings == ()
 
 
-def test_a_db_horizontal_without_queries_passes(make_layout):
+def test_a_db_crosscut_without_queries_passes(make_layout):
     lay = make_layout(
         {
             "app/db.py": "import sqlite3\n\n\nclass Db:\n    def tx(self):\n        return sqlite3.connect(':memory:')\n",

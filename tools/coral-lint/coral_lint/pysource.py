@@ -1,4 +1,4 @@
-"""Horizontal: exact Python facts, via the AST.
+"""Crosscut: exact Python facts, via the AST.
 
 Every check that inspects code content goes through here. The point is
 precision: a regex for "reads the environment" also matches the word `environ`

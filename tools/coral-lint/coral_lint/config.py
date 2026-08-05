@@ -1,4 +1,4 @@
-"""Horizontal: configuration. Resolved once, validated here, injected.  [CONFIG-1] [CONFIG-3]
+"""Crosscut: configuration. Resolved once, validated here, injected.  [CONFIG-1] [CONFIG-3]
 
 Every layout-dependent check reads its inputs from here, so "this repo's slices
 live in X" is stated once, in the audited repo, rather than guessed per check.
@@ -28,7 +28,7 @@ DEFAULT_IGNORE = (
 DEFAULT_READ_VERBS = ("show", "list", "summary", "get", "find")
 
 _KNOWN_KEYS = {
-    "ignore", "app_dirs", "feature_dirs", "library_dirs", "roots", "horizontals",
+    "ignore", "app_dirs", "feature_dirs", "library_dirs", "roots", "crosscuts",
     "grandfathered", "read_verbs", "error_types",
 }
 
@@ -42,7 +42,7 @@ class Config:
     feature_dirs: tuple[str, ...] = ()   # dirs whose direct children are slices
     library_dirs: tuple[str, ...] = ()   # dirs that ARE a published library ([LIB-*])
     roots: tuple[str, ...] = ()          # composition-root files
-    horizontals: frozenset[str] = field(default_factory=frozenset)
+    crosscuts: frozenset[str] = field(default_factory=frozenset)
     grandfathered: frozenset[str] = field(default_factory=frozenset)
     read_verbs: tuple[str, ...] = DEFAULT_READ_VERBS
     error_types: frozenset[str] = field(default_factory=frozenset)
@@ -63,8 +63,8 @@ class Config:
         return bool(self.library_dirs)
 
     @property
-    def declares_horizontals(self) -> bool:
-        return bool(self.app_dirs) and bool(self.horizontals)
+    def declares_crosscuts(self) -> bool:
+        return bool(self.app_dirs) and bool(self.crosscuts)
 
 
 def _strs(raw: object, key: str) -> tuple[str, ...]:
@@ -108,7 +108,7 @@ def load(repo: Path) -> Config:
         feature_dirs=_strs(section.get("feature_dirs", []), "feature_dirs"),
         library_dirs=_strs(section.get("library_dirs", []), "library_dirs"),
         roots=_strs(section.get("roots", []), "roots"),
-        horizontals=frozenset(_strs(section.get("horizontals", []), "horizontals")),
+        crosscuts=frozenset(_strs(section.get("crosscuts", []), "crosscuts")),
         grandfathered=frozenset(_strs(section.get("grandfathered", []), "grandfathered")),
         read_verbs=_strs(section.get("read_verbs", list(DEFAULT_READ_VERBS)), "read_verbs"),
         error_types=frozenset(_strs(section.get("error_types", []), "error_types")),

@@ -11,7 +11,7 @@ doubles as a method you can reuse: **audit any app by walking the rule families 
 ## The service in one paragraph
 
 Three read endpoints (audit logs by entity, by a batch of entities, and last-edited), all `Get`-shaped
-and tenant-scoped; an event consumer that ingests audit entries off the bus; Postgres via an ORM; a
+and tenant-scoped; an event consumer that ingests audit entries off the channel; Postgres via an ORM; a
 thin `main` that only wires and runs. It is organized **by technical layer** (`api` / `events` /
 `store` / `models` / `utils`) — the conventional Go layout, and the *opposite* of Coral's
 organize-by-capability (`[MODEL-2]`). So this isn't a compliance check; it's "what would Coral change,
@@ -22,11 +22,11 @@ and is the change worth it?"
 A well-built service on a good framework is already half-Coral before anyone says the word:
 
 - **Thin composition root** — `main` only wires dependencies and runs. `[ROOT-1]`
-- **Injected horizontals** — the framework hands the app its router, logger, tracer, DB pool, config,
-  and event bus; the DB module is the `db` horizontal. These are textbook horizontals — defined once,
+- **Injected crosscuts** — the framework hands the app its router, logger, tracer, DB pool, config,
+  and event bus; the DB module is the `db` crosscut. These are textbook crosscuts — defined once,
   injected, never reached for. `[XCUT-3]` `[STATE-2]`
-- **A published bus contract** — a `client` package (typed events + subjects) that *other* services
-  import to emit audit events. That is a published capability. `[BUS-1]` `[CONTRACT-1]`
+- **A published channel contract** — a `client` package (typed events + subjects) that *other* services
+  import to emit audit events. That is a published capability. `[CHAN-1]` `[CONTRACT-1]`
 - **Trust at the edge** — middleware resolves identity and validates tenant/user/board + a permission
   *before* the handler runs; every query is tenant-scoped. `[BE-6]` `[TRUST-1]`
 - **Read-only verbs** and **behavior-first tests** against a real database. `[IDEM-2]` `[TEST-1]`
@@ -37,7 +37,7 @@ The lesson: Coral mostly *names* what a good framework already enforces.
 
 Two findings the rules surfaced — both independent of the folder layout.
 
-### 1. The delivery guarantee was the opposite of what it looked like — `[BUS-5]`
+### 1. The delivery guarantee was the opposite of what it looked like — `[CHAN-5]`
 
 The service consumes events through the framework's high-level pub/sub handler, and JetStream is
 enabled on the connection — so it *looks* durable. Reading the dependency revealed the handler path is
@@ -50,7 +50,7 @@ lost**, never redelivered.
 > the difference is invisible from the call site.
 
 The fix is a durable consumer with explicit ack (ack only *after* the write), making ingestion
-at-least-once. And that, in turn, triggers `[BUS-5]`: an at-least-once mutating consumer **must be
+at-least-once. And that, in turn, triggers `[CHAN-5]`: an at-least-once mutating consumer **must be
 idempotent** — so the write becomes a dedupe/upsert keyed on the source event id. (Tellingly, a sibling
 handler in the same service already did the idempotent upsert; the right pattern existed, just unevenly
 applied — which is exactly the kind of drift a named rule prevents.)
@@ -80,11 +80,11 @@ Equally important — Coral is not a mandate to rewrite:
 To audit any app against Coral, walk the families and, for each, ask **"earns its keep, or overkill?"**:
 
 - boundary & verbs — `[BOUND-1]` / `[IDEM-1]`
-- horizontals vs buckets — `[XCUT-1]` / `[BUCKET-1]`
+- crosscuts vs buckets — `[XCUT-1]` / `[BUCKET-1]`
 - effects & state — `[EFFECT-2]` / `[STATE-1]`
 - errors — `[ERR-1]`
 - trust — `[TRUST-1]`
-- delivery & contracts across the bus — `[BUS-5]` / `[CONTRACT-1]`
+- delivery & contracts across the channel — `[CHAN-5]` / `[CONTRACT-1]`
 - testing — `[TEST-1]`
 
 Then separate **substance** (delivery, errors, trust — true under any architecture) from **cosmetics**
@@ -94,6 +94,6 @@ is the one people actually act on.
 ## What this also proves
 
 Beyond the findings, the exercise is a dry-run of the architecture's *vocabulary*: every part of a real
-service landed in one of the four categories (`[MODEL-1]`) without strain — slices, horizontals, a
-composition root, published contracts, and the bus between services. When the words fit a system you
+service landed in one of the four categories (`[MODEL-1]`) without strain — slices, crosscuts, a
+composition root, published contracts, and the channel between services. When the words fit a system you
 didn't design, the model is doing real work.

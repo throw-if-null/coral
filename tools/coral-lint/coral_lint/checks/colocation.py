@@ -2,7 +2,7 @@
 
 Accepts either arrangement, because the rule does: colocation where the language
 allows it, an exact mirror where it does not. The check owns its own matching
-logic rather than pushing it into the layout horizontal — that logic is needed by
+logic rather than pushing it into the layout crosscut — that logic is needed by
 exactly one check, so `[STATE-1]` says keep it here.
 """
 

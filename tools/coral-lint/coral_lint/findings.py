@@ -1,4 +1,4 @@
-"""Horizontal: what every check produces.
+"""Crosscut: what every check produces.
 
 A Finding is *data*, not output. It carries no formatting and no colour: the
 composition root decides whether it becomes a text line or a JSON object, which

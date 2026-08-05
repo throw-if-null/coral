@@ -8,7 +8,7 @@ file.** Same architecture, different shape — which is the point of `[MODEL-2]`
 
 It also walks two commands rather than one, because the second is what makes three rules concrete: the
 mandatory `--json` read contract (`[CLI-3]`), read-never-mutates (`[IDEM-2]`), and the moment a second
-consumer promotes inline logic to a horizontal (`[XCUT-1]`).
+consumer promotes inline logic to a crosscut (`[XCUT-1]`).
 
 The capability: **record an expense, and list a month's expenses.** `expenses add` and `expenses list`.
 
@@ -18,10 +18,10 @@ The capability: **record an expense, and list a month's expenses.** `expenses ad
 expenses/
   __main__.py        entry point — argv in, exit code out
   app.py             the composition root: registers commands, injects, renders errors
-  errors.py          horizontal: the error taxonomy
-  money.py           horizontal: the money parse/format invariant
-  period.py          horizontal: the YYYY-MM format invariant
-  db.py              horizontal: connection, transaction, migration execution
+  errors.py          crosscut: the error taxonomy
+  money.py           crosscut: the money parse/format invariant
+  period.py          crosscut: the YYYY-MM format invariant
+  db.py              crosscut: connection, transaction, migration execution
   expense/
     add.py           the slice — definition + validation + behavior + its schema
     add_test.py      colocated behavior test
@@ -45,7 +45,7 @@ separate tests directory:
 python_files = ["*_test.py"]   # so a test can sit beside the code it verifies  [STRUCT-1]
 ```
 
-## The horizontals
+## The crosscuts
 
 Four of them, each precisely named, each carrying an invariant that would be a bug if it drifted
 (`[XCUT-1]`). None is called `utils`.
@@ -71,7 +71,7 @@ class CoralError(Exception):
         self.message = message
 
 
-# The category enum and the type are this horizontal's published surface.
+# The category enum and the type are this crosscut's published surface.
 # The `code` strings are owned by the slice that raises them.  [ERR-2]
 def validation(code: str, message: str) -> CoralError:
     return CoralError("validation", code, message)
@@ -81,7 +81,7 @@ def not_found(code: str, message: str) -> CoralError:
     return CoralError("not_found", code, message)
 ```
 
-Money is the classic invariant-bearing horizontal — one place where a string becomes an amount, so two
+Money is the classic invariant-bearing crosscut — one place where a string becomes an amount, so two
 slices cannot disagree about what `"12.5"` means:
 
 ```python
@@ -135,7 +135,7 @@ def parse_month(text: str) -> str:
 ```
 
 And `db` — connection, transaction, and migration *execution*. Note what it does **not** do: it holds no
-queries and knows what no table means. That is the line between a `db` horizontal and the shared
+queries and knows what no table means. That is the line between a `db` crosscut and the shared
 data-access layer `[STATE-2]` forbids:
 
 ```python
@@ -173,10 +173,10 @@ class Db:
 `add.py` below imports `money`, `period`, and `errors` directly, but receives `db` as a parameter. That is
 deliberate, and it is the practical reading of `[XCUT-3]`:
 
-- **Import a horizontal that is pure and stateless.** `money.parse` has no configuration, no connection,
+- **Import a crosscut that is pure and stateless.** `money.parse` has no configuration, no connection,
   and no per-trigger state. Importing it *is* consuming its published surface — the thing `[XCUT-3]`
-  forbids is reaching past a horizontal's surface into its internals, not the `import` statement.
-- **Inject a horizontal that holds configuration, a connection, or per-trigger state.** `db` knows a file
+  forbids is reaching past a crosscut's surface into its internals, not the `import` statement.
+- **Inject a crosscut that holds configuration, a connection, or per-trigger state.** `db` knows a file
   path that comes from config. If `add.py` constructed its own `Db`, the slice could not be tested without
   ambient setup and `[CONFIG-2]` would be violated.
 
@@ -196,7 +196,7 @@ from typing import Any
 from .. import errors, money, period
 
 # This slice owns the `expenses` table, so its schema lives here. The db
-# horizontal runs it; nobody else defines it.  [STATE-5]
+# crosscut runs it; nobody else defines it.  [STATE-5]
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS expenses (
   id       INTEGER PRIMARY KEY,
@@ -218,7 +218,7 @@ def register(sub, db) -> None:
 
 
 def run(args, db) -> dict[str, Any]:
-    # 1. validate — pure, fail fast, invariants owned by horizontals  [EFFECT-1] [TRUST-1]
+    # 1. validate — pure, fail fast, invariants owned by crosscuts  [EFFECT-1] [TRUST-1]
     amount = money.parse(args.amount)
     spent_on = period.parse_month(args.date)
     category = args.category.strip()
@@ -286,7 +286,7 @@ need them, and neither slice reaches into the other.
 
 ## The composition root
 
-The only place that knows about exit codes, output channels, and rendering. It registers, injects, and
+The only place that knows about exit codes, output streams, and rendering. It registers, injects, and
 renders — and holds no business logic (`[ROOT-1]`):
 
 ```python
@@ -367,7 +367,7 @@ Behavior-first: exercise the real entry point, assert the observable contract �
 
 One fixture does the whole setup, and it is the *only* shared test code. Note what it shares: not a
 factory of pre-built objects, but the convention "call the real entry point and capture the real
-channels." That convention must not diverge between slices, which is exactly `[XCUT-1]`, and pytest
+streams." That convention must not diverge between slices, which is exactly `[XCUT-1]`, and pytest
 already gives it a precise, framework-mandated name:
 
 ```python
@@ -424,7 +424,7 @@ def test_add_rejects_a_bad_amount_without_polluting_stdout(run_cli):
 
 
 def test_add_normalizes_the_stored_amount(run_cli):
-    # The money horizontal is the reason "12.5" and "12.50" cannot diverge.  [XCUT-1]
+    # The money crosscut is the reason "12.5" and "12.50" cannot diverge.  [XCUT-1]
     _, out, _ = run_cli(
         ["--json", "add", "--amount", "12.5", "--category", "food", "--date", "2026-06"]
     )
@@ -463,7 +463,7 @@ def test_list_reads_back_what_add_wrote(run_cli):
 def test_list_rejects_a_malformed_month(run_cli):
     code, _, err = run_cli(["list", "--month", "June 2026"])
     assert code == 1
-    assert "invalid_month" in err  # the period horizontal, raising once for both commands
+    assert "invalid_month" in err  # the period crosscut, raising once for both commands
 
 
 def test_list_of_an_empty_month_is_zero_not_an_error(run_cli):
@@ -485,7 +485,7 @@ is an addition, not the foundation.
 | Category | Here |
 |---|---|
 | **slices** | `expense/add.py`, `expense/list.py` — one command each, definition through behavior |
-| **horizontals** | `errors`, `money`, `period` (pure, imported), `db` (stateful, injected) |
+| **crosscuts** | `errors`, `money`, `period` (pure, imported), `db` (stateful, injected) |
 | **composition root** | `app.py` + `__main__.py` — register, inject, render, exit; no logic |
 | **published contract** | exit code + `stdout`/`stderr` separation + the `--json` payload shape |
 

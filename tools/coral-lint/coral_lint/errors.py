@@ -1,4 +1,4 @@
-"""Horizontal: the error taxonomy. Checks raise; the root renders.  [ERR-1] [ERR-3]"""
+"""Crosscut: the error taxonomy. Checks raise; the root renders.  [ERR-1] [ERR-3]"""
 
 from typing import Literal
 

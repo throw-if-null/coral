@@ -4,7 +4,7 @@
 orchestrate**.*
 
 > **Read [`CONVENTIONS.md`](./CONVENTIONS.md) first.** It defines the seven nouns this document uses
-> (slice, horizontal, composition root, published contract, app, system, bus), the rule-ID scheme, the
+> (slice, crosscut, composition root, published contract, app, system, channel), the rule-ID scheme, the
 > enforcement classes, and the [canonical slice](./CONVENTIONS.md#the-canonical-slice) every rule here
 > exists to produce.
 
@@ -72,8 +72,8 @@ so and choose differently, not to force a boundary that will leak. A slice getti
 signal*, not a refactor-into-a-shared-core signal; see `[GROW-3]`.
 
 **`[SCOPE-4]` `[guide]`** — What happens *after* the split is not in this document. How the resulting
-apps relate — the bus between them, orchestration, cross-app contract testing — is the system
-architecture, defined in [`SYSTEM.md`](./SYSTEM.md) (`[BUS-*]`, `[ORCH-*]`, `[SYS-TEST-*]`). This
+apps relate — the channel between them, orchestration, cross-app contract testing — is the system
+architecture, defined in [`SYSTEM.md`](./SYSTEM.md) (`[CHAN-*]`, `[ORCH-*]`, `[SYS-TEST-*]`). This
 document publishes the split *signal*; `SYSTEM.md` consumes it. The dependency points one way.
 
 ---
@@ -92,7 +92,7 @@ and self-verifiable contracts exist because **agents write and humans review**.
 
 Knowing which category you are writing answers most placement questions.
 
-**`[MODEL-1]` `[review]`** — Every unit of code is a **slice**, a **horizontal**, the **composition
+**`[MODEL-1]` `[review]`** — Every unit of code is a **slice**, a **crosscut**, the **composition
 root**, or a **published contract**.
 
 There is no fifth category. Something that is none of these is a [forbidden
@@ -100,8 +100,8 @@ bucket](#_7-forbidden-buckets-bucket) (`[BUCKET-1]`). The four are not peers in 
 
 | Category | What it owns | Volume |
 |---|---|---|
-| **slice** (vertical) | one capability end to end — definition, parsing, validation, behavior, state access, output, tests | most of the code |
-| **horizontal** | one cross-cutting concern, defined once and injected | few, precisely named |
+| **slice** | one capability end to end — definition, parsing, validation, behavior, state access, output, tests | most of the code |
+| **crosscut** | one cross-cutting concern, defined once and injected | few, precisely named |
 | **composition root** | registration, construction, injection, bootstrap | exactly one, thin |
 | **published contract** | the surface others may depend on | one per slice/app that exposes anything |
 
@@ -123,16 +123,16 @@ The test is ownership, not file count: *could you delete this package and lose e
 or exactly one concern?* If yes, it is named right. When you introduce banding, flag it (`[AGENT-2]`) so
 the choice is visible rather than assumed.
 
-**`[MODEL-3]` `[guide]`** — A horizontal's decisive property is **defined once, injected many**.
+**`[MODEL-3]` `[guide]`** — A crosscut's decisive property is **defined once, injected many**.
 
-A horizontal is not "a helper each slice copies" — that is the forbidden-bucket failure. It is one
-definition, injected. Three things distinguish a horizontal from a bucket: a precise name, a real
-invariant or convention, and an injection discipline. A horizontal that slices reach into, or
+A crosscut is not "a helper each slice copies" — that is the forbidden-bucket failure. It is one
+definition, injected. Three things distinguish a crosscut from a bucket: a precise name, a real
+invariant or convention, and an injection discipline. A crosscut that slices reach into, or
 re-implement locally, has lost the property that made it worth having, and its copies will drift
 (`[XCUT-4]`).
 
 **Anatomy of one slice.** A pure core (parse → validate → compute), effects at the edge (persist /
-render), a stable published contract, and injected horizontals:
+render), a stable published contract, and injected crosscuts:
 
 ```mermaid
 flowchart LR
@@ -144,7 +144,7 @@ flowchart LR
   CORE --> E[/"effect<br/>persist · call out"/]
   E --> R[render]
   R --> SK[("published contract")]
-  SYM["injected horizontals:<br/>config · errors · db · logging"]
+  SYM["injected crosscuts:<br/>config · errors · db · logging"]
   SYM -. injected .-> CORE
 ```
 
@@ -196,7 +196,7 @@ status) is what makes the job testable at its entry point like every other slice
 ## 5. Composition Root  `[ROOT-*]`
 
 **`[ROOT-1]` `[review]`** — The root is **thin**: it registers slices, composes sub-capabilities,
-constructs horizontals and injects them, configures bootstrap, and contains no business logic, no
+constructs crosscuts and injects them, configures bootstrap, and contains no business logic, no
 state-access calls, and no slice-specific validation.
 
 **`[ROOT-2]` `[auto]`** — The root module imports no persistence or domain-internal module.
@@ -220,7 +220,7 @@ whether a slice is a file or a directory, and whether tests colocate or mirror (
 <app>/
   main              entry point
   app               bootstrap and composition root
-  <horizontals>     precisely named: db, config, errors, logging, <domain>
+  <crosscuts>     precisely named: db, config, errors, logging, <domain>
   category/
     add             definition + behavior
     list
@@ -240,7 +240,7 @@ they mirror the package/namespace structure exactly.
 **`[STRUCT-2]` `[review]`** — Slices live in feature packages whose names are concrete and
 domain-oriented (`expense`, `summary`), never technical layers.
 
-**`[STRUCT-3]` `[auto]`** — Root-level horizontal modules are rare and precisely named (`db`, `errors`,
+**`[STRUCT-3]` `[auto]`** — Root-level crosscut modules are rare and precisely named (`db`, `errors`,
 `config`), never generic.
 
 ---
@@ -256,19 +256,19 @@ one specific bounded concept is grandfathered, but never grow it as a catch-all.
 
 **`[BUCKET-2]` `[guide]`** — These names destroy locality and predictability.
 
-A forbidden bucket is simply a would-be horizontal with **no precise name and no injection
+A forbidden bucket is simply a would-be crosscut with **no precise name and no injection
 discipline** — a pile. The cure is not "ban all sharing"; it is to make the shared thing a real
-horizontal ([`[XCUT-*]`](#_8-cross-cutting-concerns-horizontals-xcut)) or to leave it duplicated
+crosscut ([`[XCUT-*]`](#_8-cross-cutting-concerns-crosscuts-xcut)) or to leave it duplicated
 ([`[DUP-*]`](#_9-duplication-policy-extraction-test-dup)).
 
 ---
 
-## 8. Cross-Cutting Concerns (Horizontals)  `[XCUT-*]`
+## 8. Cross-Cutting Concerns (Crosscuts)  `[XCUT-*]`
 
-A horizontal is the *legitimate* form of sharing — not an exception to "no shared buckets" but a
+A crosscut is the *legitimate* form of sharing — not an exception to "no shared buckets" but a
 different category with its own discipline.
 
-**`[XCUT-1]` `[review]`** — Promote something to a horizontal only if it is **both** genuinely
+**`[XCUT-1]` `[review]`** — Promote something to a crosscut only if it is **both** genuinely
 cross-cutting (consumed by two or more slices) **and** enforcing an invariant or convention that must
 not diverge.
 
@@ -280,15 +280,15 @@ trigger; a thing consumed by twenty slices that carries no invariant is still a 
 The normal moment to promote is when a *second* consumer appears for logic currently inline in one
 slice. Extracting then, and touching the first slice, is expected — flag the change per `[AGENT-2]`.
 
-**`[XCUT-2]` `[auto]`** — A horizontal has a precise, domain- or infrastructure-oriented name (`money`,
+**`[XCUT-2]` `[auto]`** — A crosscut has a precise, domain- or infrastructure-oriented name (`money`,
 `period`, `errors`, `db`), never a generic bucket name (`[BUCKET-1]`).
 
-**`[XCUT-3]` `[review]`** — A horizontal is consumed through its published surface, never reached into,
+**`[XCUT-3]` `[review]`** — A crosscut is consumed through its published surface, never reached into,
 and anything holding configuration, a connection, or per-trigger state is **injected**.
 
-Injection is about testability, not ceremony. A horizontal that is **pure and stateless** — a formatter, a
+Injection is about testability, not ceremony. A crosscut that is **pure and stateless** — a formatter, a
 validator, a parse invariant — may be consumed by direct import; that *is* consuming its published
-surface, and wrapping it in a container buys nothing. A horizontal that holds **configuration, a
+surface, and wrapping it in a container buys nothing. A crosscut that holds **configuration, a
 connection, or per-trigger state** must be injected, or the slice cannot be exercised without ambient
 setup and `[CONFIG-2]` is violated.
 
@@ -298,24 +298,24 @@ should be injected is being reached for. Both examples show the split concretely
 ([Python](./examples/cli-slice.md#what-gets-injected-and-what-gets-imported),
 [Go](./examples/go-api-slice.md)).
 
-**`[XCUT-4]` `[guide]`** — A horizontal is the *first line* of drift control.
+**`[XCUT-4]` `[guide]`** — A crosscut is the *first line* of drift control.
 
-If money formatting is a horizontal, there is structurally one copy and nothing to drift. Static and
+If money formatting is a crosscut, there is structurally one copy and nothing to drift. Static and
 LLM drift checks are the backstop for what slips past this, not a substitute for it. Beware making
 `[XCUT]` the new escape hatch — `[XCUT-1]` is a gate, not a license.
 
-**`[XCUT-5]` `[review]`** — A domain entity may be a horizontal, but only its **type and invariants** —
+**`[XCUT-5]` `[review]`** — A domain entity may be a crosscut, but only its **type and invariants** —
 never its persistence, its queries, or a multi-slice workflow.
 
-This is the loophole that lets a layered domain model walk back in wearing a horizontal's badge, so the
-line is drawn explicitly. A horizontal named for the domain (`money`, `pricing`, `booking`) may own the
+This is the loophole that lets a layered domain model walk back in wearing a crosscut's badge, so the
+line is drawn explicitly. A crosscut named for the domain (`money`, `pricing`, `booking`) may own the
 entity's type, its validation, and the rules that must hold everywhere. It must not own the entity's
 storage or its queries — that is a `repository` layer (`[BUCKET-1]`), and slices keep their own queries
 (`[STATE-1]`).
 
-The test: **if removing the horizontal would break an *invariant*, it is a horizontal; if it would only
+The test: **if removing the crosscut would break an *invariant*, it is a crosscut; if it would only
 break *access to data*, it is a bucket.** A slice constructs and validates entities through the
-horizontal, then queries its own state itself.
+crosscut, then queries its own state itself.
 
 ---
 
@@ -328,7 +328,7 @@ extract merely to save lines.
 
 Two slices with similar-looking code today live in different contexts and may diverge under different
 pressures. Extracting on similarity alone couples them permanently to an abstraction one may later need
-to escape. Duplicate *incidental* similarity inside each slice; promote to a horizontal only when
+to escape. Duplicate *incidental* similarity inside each slice; promote to a crosscut only when
 `[XCUT-1]` is met.
 
 **`[DUP-3]` `[review]`** — Extract only when the extraction does at least one of: enforces a business
@@ -357,7 +357,7 @@ its internals — not its parsing, its queries, or its private helpers.
 **`[COMPOSE-2]` `[review]`** — Prefer inverting composition through the composition root (inject the
 needed capability) over slice-to-slice imports, so the dependency is visible at the edge.
 
-**`[COMPOSE-3]` `[review]`** — A multi-step workflow two slices both need is a candidate horizontal
+**`[COMPOSE-3]` `[review]`** — A multi-step workflow two slices both need is a candidate crosscut
 (`[XCUT-1]`), not a reason to create a generic `services` bucket.
 
 **`[COMPOSE-4]` `[review]`** — Read fan-in is legitimate composition: a slice that aggregates several
@@ -400,7 +400,7 @@ consistently.
 **`[STATE-2]` `[auto]`** — Do not create a shared repository or data-access layer.
 
 Connection management, pooling, and migration *execution* may be a small, precisely-named `db`
-horizontal; it must not grow into a generic data-access layer (`[BUCKET-1]`).
+crosscut; it must not grow into a generic data-access layer (`[BUCKET-1]`).
 
 **The direction of interface ownership is the test**, and it is what distinguishes a forbidden repository
 from a legitimate adapter. If a shared package **defines** the data-access API and slices consume whatever
@@ -428,11 +428,11 @@ schema changes belong to that slice.
 
 Queries are slice-local (`[STATE-1]`), so schema must be owned too — otherwise two slices silently
 co-own a shape and every change becomes a cross-slice negotiation. Split the mechanism from the content:
-the `db` horizontal **runs** migrations; the owning slice **defines** them, and the migration lives with
+the `db` crosscut **runs** migrations; the owning slice **defines** them, and the migration lives with
 the slice.
 
 A second slice that needs the data reads it through the owner's published capability (`[COMPOSE-1]`); if
-it genuinely shares the entity's invariant, the invariant — not the storage — becomes a horizontal
+it genuinely shares the entity's invariant, the invariant — not the storage — becomes a crosscut
 (`[XCUT-5]`). Two slices writing one table is a `[GROW-3]` split signal, not a reason for a shared
 data-access layer.
 
@@ -466,17 +466,17 @@ trigger's own scope, never in a module-level or static variable.
 
 This is the rule that makes every other concurrency question tractable. A slice with no cross-trigger
 state cannot race with a copy of itself, so the only concurrency left to reason about is the *shared* kind
-— horizontals (`[CONC-2]`) and state (`[CONC-3]`). Statically decidable: mutable module-level state in a
+— crosscuts (`[CONC-2]`) and state (`[CONC-3]`). Statically decidable: mutable module-level state in a
 slice module is a violation. Immutable constants and lookup tables are fine.
 
-**`[CONC-2]` `[review]`** — Every horizontal is explicitly either **shared and concurrency-safe** or
+**`[CONC-2]` `[review]`** — Every crosscut is explicitly either **shared and concurrency-safe** or
 **constructed per trigger**, and the root constructs it accordingly.
 
 There is no third option and no default to fall back on. A connection pool, a logger, a config object, and
 a pure invariant helper (`money`) are shared and must be safe for simultaneous use. A transaction handle,
-the authenticated principal, and the correlation id are per-trigger. The failure mode is a horizontal that
+the authenticated principal, and the correlation id are per-trigger. The failure mode is a crosscut that
 *looks* shareable and holds one trigger's state — a client object caching the last response, a builder
-reused across calls. State which kind each horizontal is where it is constructed.
+reused across calls. State which kind each crosscut is where it is constructed.
 
 **`[CONC-3]` `[review]`** — When two triggers can write the same state, the slice names its strategy at the
 write: **serialize** on the affected key, use **optimistic concurrency** (compare-and-set on a
@@ -499,7 +499,7 @@ idempotent (`[IDEM-5]`) and reconcile rather than holding the lock.
 no shared mutable state*.
 
 That default is what lets a reviewer, or an agent, reason about a slice in isolation. Every escape from it
-— a shared mutable horizontal, a background worker, an in-process queue — removes that property for the
+— a shared mutable crosscut, a background worker, an in-process queue — removes that property for the
 whole app, not just for the code that uses it. Treat introducing one as a `[AGENT-2]` decision to flag,
 not a local implementation detail. Async work is a trigger, not an ambient loop (`[BOUND-4]`, `[BOUND-5]`).
 
@@ -507,17 +507,17 @@ not a local implementation detail. Async work is a trigger, not an ambient loop 
 
 ## 14. Configuration  `[CONFIG-*]`
 
-Configuration is the horizontal every app has and most architectures forget to govern. Ambient config
+Configuration is the crosscut every app has and most architectures forget to govern. Ambient config
 reads are the most common way a slice stops being self-contained.
 
-**`[CONFIG-1]` `[review]`** — Configuration is a horizontal: resolved once at the composition root,
+**`[CONFIG-1]` `[review]`** — Configuration is a crosscut: resolved once at the composition root,
 validated there, and injected into the slices that need it.
 
 A **feature flag is configuration**, and the same rule applies: resolve it at the root and inject the
 decision, rather than having a slice reach for a flag client mid-behavior. A slice that queries a flag
 service inline is untestable without that service and has a hidden dependency the reviewer cannot see in
 its signature. Where a flag must be evaluated per request (a per-user rollout), inject the *evaluator* as a
-horizontal and treat its result as request-bound state (`[CONC-2]`).
+crosscut and treat its result as request-bound state (`[CONC-2]`).
 
 **`[CONFIG-2]` `[auto]`** — No slice reads the process environment, a config file, or a global settings
 object directly.
@@ -525,14 +525,14 @@ object directly.
 Statically decidable, and worth gating: a single `os.Getenv` inside a slice defeats `[AGENT-1]` (the
 slice's world is no longer in one place) and makes the slice untestable without ambient setup.
 
-**`[CONFIG-3]` `[review]`** — Validate every required setting when the config horizontal is constructed,
+**`[CONFIG-3]` `[review]`** — Validate every required setting when the config crosscut is constructed,
 not at first use.
 
 A missing or malformed setting is a **startup failure** raising `infrastructure` (`[ERR-1]`), never an
 empty value that surfaces hours later as a mystery. Document the precedence order once — typically
-explicit argument → environment → file → default — and apply it in the horizontal, not per slice.
+explicit argument → environment → file → default — and apply it in the crosscut, not per slice.
 
-**`[CONFIG-4]` `[auto]`** — Secrets are read through the config horizontal only: never inlined, never
+**`[CONFIG-4]` `[auto]`** — Secrets are read through the config crosscut only: never inlined, never
 logged, never placed on a published contract.
 
 See `[TRUST-2]` and `[OBS-3]`. This is the one `[CONFIG]` rule whose violation is a security incident
@@ -586,7 +586,7 @@ Do not invent a name whose effect is ambiguous. If the *effect itself* is unclea
 
 ## 16. Error Model  `[ERR-*]`
 
-**`[ERR-1]` `[review]`** — Use one small, stable error taxonomy, defined once as a horizontal:
+**`[ERR-1]` `[review]`** — Use one small, stable error taxonomy, defined once as a crosscut:
 
 1. `usage` — invalid invocation, malformed arguments, bad flag/parameter combinations
 2. `validation` — syntactically valid input that fails business rules
@@ -599,7 +599,7 @@ Do not invent a name whose effect is ambiguous. If the *effect itself* is unclea
 errors use the taxonomy enum, not ad-hoc strings.
 
 `category` is one of the six; `code` is a stable string id (`"invalid_month"`); `message` is
-human-readable. The `category` enum and the error type are the `errors` horizontal's published surface.
+human-readable. The `category` enum and the error type are the `errors` crosscut's published surface.
 The `code` strings are **owned by the slice that raises them** — minted locally, kept stable — so a
 slice stays self-contained and adding a code never edits a shared registry.
 
@@ -624,7 +624,7 @@ contract**. The principle is universal; the mechanism is per-appendix (a `--debu
 CLIs; structured logs, metrics, and trace IDs for backends).
 
 **`[OBS-2]` `[review]`** — Observability is configured globally at the root, not reinvented per slice;
-slices emit through the injected logging/tracing horizontal.
+slices emit through the injected logging/tracing crosscut.
 
 **`[OBS-3]` `[review]`** — Diagnostic output must not appear on the machine-readable contract channel —
 not on `--json` on `stdout`, not in a response body.
@@ -657,7 +657,7 @@ Authentication, authorization, secret handling, and tenant isolation are first-c
 types and are specified in those appendices (`[BE-6]`, `[WEB-7]`, `[AGENTIC-10]`). A local CLI or pure
 library may have a minimal trust boundary — the invoking user or caller is trusted — but "minimal" must
 be *written down*, because an unstated trust assumption is the one an agent will silently widen. Secrets
-always come from the config horizontal (`[CONFIG-4]`).
+always come from the config crosscut (`[CONFIG-4]`).
 
 ---
 
@@ -720,9 +720,9 @@ raises `not_found` (`[ERR-1]`). Existence is knowable only via state, so the `no
 *inside* the write step — it is an effect, not a pure pre-validation. The verb that *sets* a field to a
 supplied value is idempotent: name it `edit`/`update`/`set`, not `add` (`[IDEM-1]`, `[IDEM-6]`).
 
-**A first slice, with no horizontals yet.** The canonical slice consumes `money`/`db`/`errors` as
-*pre-existing* horizontals. A lone first slice keeps that logic inline and waits for a second consumer
-to trigger `[XCUT-1]`. Standing up a horizontal for a single slice is the `[DUP-4]` failure, not
+**A first slice, with no crosscuts yet.** The canonical slice consumes `money`/`db`/`errors` as
+*pre-existing* crosscuts. A lone first slice keeps that logic inline and waits for a second consumer
+to trigger `[XCUT-1]`. Standing up a crosscut for a single slice is the `[DUP-4]` failure, not
 diligence.
 
 **A read that fans in (`summary`, a dashboard).** Compose other slices' published read capabilities
@@ -740,10 +740,10 @@ Reviewers walk this same list and cite the same IDs.
 <!-- coral:contract:start -->
 
 ### Placement & naming
-- `[MODEL-1]` Every unit of code is a slice, a horizontal, the composition root, or a published contract.
+- `[MODEL-1]` Every unit of code is a slice, a crosscut, the composition root, or a published contract.
 - `[MODEL-2]` Name every package for the capability or concern it owns, never for its technical role.
 - `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages.
-- `[STRUCT-3]` Keep root-level horizontals rare and precisely named.
+- `[STRUCT-3]` Keep root-level crosscuts rare and precisely named.
 - `[STRUCT-1]` Colocate tests, or mirror the package structure where colocation is impossible.
 - `[BOUND-2]` One request/trigger — or a very tight pair — per slice, owned end to end.
 - `[BOUND-3]` Use the boundary form the appendix fixes; do not invent a new one.
@@ -758,14 +758,14 @@ Reviewers walk this same list and cite the same IDs.
 - `[CONFIG-2]` No slice reads the environment, a config file, or a global settings object directly.
 
 ### The sharing decision
-- `[XCUT-1]` Promote to a horizontal only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant.
-- `[XCUT-2]` Give every horizontal a precise domain or infrastructure name.
-- `[XCUT-3]` Inject horizontals; consume their published surface, never their internals.
-- `[XCUT-5]` A domain entity may be a horizontal only as type + invariants — never its queries or storage.
+- `[XCUT-1]` Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant.
+- `[XCUT-2]` Give every crosscut a precise domain or infrastructure name.
+- `[XCUT-3]` Inject crosscuts; consume their published surface, never their internals.
+- `[XCUT-5]` A domain entity may be a crosscut only as type + invariants — never its queries or storage.
 - `[DUP-3]` Extract only to enforce an invariant or convention, provide named infrastructure, or clarify a real calculation.
 - `[DUP-4]` Apply the Extraction Test before extracting.
 - `[COMPOSE-2]` Prefer injecting a capability through the root over a slice-to-slice import.
-- `[COMPOSE-3]` A shared multi-step workflow is a candidate horizontal, not a `services` bucket.
+- `[COMPOSE-3]` A shared multi-step workflow is a candidate crosscut, not a `services` bucket.
 - `[COMPOSE-4]` Read fan-in is a legitimate slice, provided it uses published capabilities only.
 
 ### Semantics & effects
@@ -786,22 +786,22 @@ Reviewers walk this same list and cite the same IDs.
 - `[STATE-5]` One owning slice per table/file/bucket; its schema changes live with it.
 - `[STATE-6]` A cache is never a source of truth; every read path must be correct with it empty.
 - `[STATE-7]` Name the cache's invalidation strategy — TTL, write-through, or event-driven.
-- `[CONFIG-1]` Resolve, validate, and inject configuration at the root as a horizontal.
+- `[CONFIG-1]` Resolve, validate, and inject configuration at the root as a crosscut.
 - `[CONFIG-3]` Validate every required setting at construction; fail startup, not first use.
-- `[CONFIG-4]` Read secrets only through the config horizontal; never inline, log, or publish them.
+- `[CONFIG-4]` Read secrets only through the config crosscut; never inline, log, or publish them.
 
 ### Concurrency
 - `[CONC-1]` A slice holds no mutable state between triggers.
-- `[CONC-2]` Every horizontal is explicitly shared-and-concurrency-safe or constructed per trigger.
+- `[CONC-2]` Every crosscut is explicitly shared-and-concurrency-safe or constructed per trigger.
 - `[CONC-3]` Name the strategy where two triggers can write the same state: serialize, compare-and-set, or commute.
 - `[CONC-4]` Scope a transaction to one trigger; never hold it across an external call.
 
 ### Errors, observability, contracts, trust
-- `[ERR-1]` Use the six-category taxonomy, defined once as a horizontal.
+- `[ERR-1]` Use the six-category taxonomy, defined once as a crosscut.
 - `[ERR-2]` Raise `{category, code, message}` using the enum; slices own their `code` strings.
 - `[ERR-3]` Slices raise; the root renders; nothing else renders.
 - `[ERR-4]` Batch operations are all-or-nothing unless partial outcomes are reported explicitly.
-- `[OBS-2]` Configure observability at the root; emit through the injected horizontal.
+- `[OBS-2]` Configure observability at the root; emit through the injected crosscut.
 - `[OBS-3]` Keep diagnostics off the machine-readable contract channel.
 - `[CONTRACT-1]` Keep the public contract stable, explicit, fully typed, and undecorated.
 - `[CONTRACT-2]` Version public-contract changes per the app type's discipline.
@@ -826,7 +826,7 @@ Reviewers walk this same list and cite the same IDs.
 1. Identify the owning capability — the request or trigger. → `[BOUND-1]`
 2. Locate the existing feature package; if none, create a concrete one. → `[STRUCT-2]`
 3. Place new code inside that slice. → `[MODEL-2]`
-4. Keep logic local unless `[XCUT-1]` justifies a horizontal.
+4. Keep logic local unless `[XCUT-1]` justifies a crosscut.
 5. Add or update colocated behavior tests. → `[TEST-1]`
 6. Verify the observable contract — exit code/status, channels, `--json`/body. → `[CONTRACT-1]`
 7. At genuine ambiguity, take the reversible option and flag it. → `[AGENT-2]`
@@ -836,7 +836,7 @@ Reviewers walk this same list and cite the same IDs.
 ## Enforcement & Drift Control
 
 The rule IDs and enforcement classes exist so the architecture can be **checked**, not just read. The
-first line of drift control is structural: a genuine horizontal (`[XCUT]`) has one copy and nothing to
+first line of drift control is structural: a genuine crosscut (`[XCUT]`) has one copy and nothing to
 drift. The tiers below are the backstop for what slips past it.
 
 Two things are checked today. This repository enforces its **own** consistency at build time — every rule
@@ -873,7 +873,7 @@ it enforces so a failure points back here. Some of these ship as
 **Tier 2 — LLM reviewer (advisory first, graduated to blocking per check once low-false-positive).**
 Reserved for `[review]` rules a static check cannot decide: cross-slice drift smells (date, money, or
 error formats that diverged); "this is the Nth copy — promote per `[XCUT-1]`?" classification calls;
-`[XCUT-5]` horizontal-vs-bucket judgments; `[STATE-5]` ownership disputes.
+`[XCUT-5]` crosscut-vs-bucket judgments; `[STATE-5]` ownership disputes.
 
 **Tier 3 — behavior tests.** Some `[review]` rules are cheap to assert and expensive to lint: `[OBS-3]`,
 `[ERR-3]`, `[ERR-4]`, `[IDEM-5]`, and the authorization half of `[TEST-4]`. Cover them in the slice's
@@ -896,11 +896,11 @@ New convention → new rule ID → new `[auto]` check (or `[review]` note) → e
 
 ## Document Set
 
-- **[`CONVENTIONS.md`](./CONVENTIONS.md)** — the shared horizontal: vocabulary, rule-ID scheme,
+- **[`CONVENTIONS.md`](./CONVENTIONS.md)** — the shared crosscut: vocabulary, rule-ID scheme,
   enforcement classes, operating model, and the canonical slice. The front door.
 - **`ARCHITECTURE.md`** (this doc) + **[`appendix/*.md`](#appendix-index)** — the app spine and its
   per-app-type instantiations.
-- **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a bus (`[BUS-*]`, `[ORCH-*]`,
+- **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a channel (`[CHAN-*]`, `[ORCH-*]`,
   `[SYS-TEST-*]`). Builds on this doc; this doc never cites a system rule.
 - **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python, one
   file each), [`examples/go-api-slice.md`](./examples/go-api-slice.md) (an HTTP slice in Go, where the
@@ -923,7 +923,7 @@ listed under "slots still to fill" on the appendix itself, so the gap is named r
 
 - **[`appendix/cli.md`](./appendix/cli.md)** — CLI tools. **Complete.**
 - **[`appendix/backend.md`](./appendix/backend.md)** — backends and services; heaviest use of
-  horizontals and `[COMPOSE]`. **Complete.**
+  crosscuts and `[COMPOSE]`. **Complete.**
 - **[`appendix/web.md`](./appendix/web.md)** — web apps; the trust boundary is first-class. **Complete.**
 - **[`appendix/library.md`](./appendix/library.md)** — libraries and packages; the consumer is the root;
   the contract is semver. **Complete.**

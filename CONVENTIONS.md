@@ -28,19 +28,19 @@ Seven nouns. Every document uses exactly these; there are no synonyms.
 
 | Noun | What it is | Governed by |
 |---|---|---|
-| **slice** (a *vertical*) | one capability, owned end to end: its trigger, parsing, validation, behavior, state access, output, and tests | `[BOUND-*]` `[MODEL-1]` |
-| **horizontal** | a cross-cutting concern — defined **once**, precisely named, and **injected** into the slices that use it (`config`, `errors`, `db`, `money`) | `[XCUT-*]` |
-| **composition root** | the thin entry point that registers slices, constructs horizontals, and injects them. Holds no business logic | `[ROOT-*]` |
+| **slice** | one capability, owned end to end: its trigger, parsing, validation, behavior, state access, output, and tests | `[BOUND-*]` `[MODEL-1]` |
+| **crosscut** | a cross-cutting concern — defined **once**, precisely named, and **injected** into the slices that use it (`config`, `errors`, `db`, `money`) | `[XCUT-*]` |
+| **composition root** | the thin entry point that registers slices, constructs crosscuts, and injects them. Holds no business logic | `[ROOT-*]` |
 | **published contract** | the surface others are allowed to depend on: a slice's public capability, a machine-readable output, an HTTP shape, a library API | `[CONTRACT-*]` |
-| **app** | one deployable unit: many slices, one composition root, one set of horizontals | all of `ARCHITECTURE.md` |
+| **app** | one deployable unit: many slices, one composition root, one set of crosscuts | all of `ARCHITECTURE.md` |
 | **system** | several apps composed together | all of `SYSTEM.md` |
-| **bus** | the only coupling between apps: a published, versioned contract — sync API, event, or message queue | `[BUS-*]` |
+| **channel** | the only coupling between apps — a published, versioned contract in one of three forms: sync API, event, or message bus | `[CHAN-*]` |
 
 Two things are named for what they are *not*:
 
-- A **forbidden bucket** is a would-be horizontal with no precise name and no injection discipline —
+- A **forbidden bucket** is a would-be crosscut with no precise name and no injection discipline —
   `utils`, `shared`, `common`, `services`, `helpers`, generic `models`. `[BUCKET-1]`
-- **Drift** is what happens when a horizontal is re-implemented per slice instead of injected: the
+- **Drift** is what happens when a crosscut is re-implemented per slice instead of injected: the
   copies diverge, and the divergence is a bug. `[XCUT-4]`
 
 ### "Capability" is scale-relative — always say which scale
@@ -52,10 +52,24 @@ conflating them is how an agent ends up publishing internals. Qualify it:
 |---|---|---|
 | *a slice owns a capability* | one user-facing behavior | the app's users |
 | *a slice's **published** capability* | one exported function/entry point of that slice | sibling slices, via `[COMPOSE-1]` |
-| *an app's **published** capability* | one endpoint/event on the bus | other apps, via `[BUS-1]` |
+| *an app's **published** capability* | one endpoint/event on the channel | other apps, via `[CHAN-1]` |
 
 A slice's published capability is **not** automatically an app's published capability. Crossing a
-process boundary requires a bus contract (`[BUS-1]`), not a re-export.
+process boundary requires a channel contract (`[CHAN-1]`), not a re-export.
+
+### A channel is a published contract at app scale
+
+Two of the seven nouns are the same idea at different ranks, and it is worth saying so rather than letting
+a reader guess. A **published contract** is the surface a slice or an app *exposes*. A **channel** is the
+pathway *between* two apps, and the contract that governs it.
+
+Both exist because a channel carries something a contract cannot: **delivery semantics**. A contract states
+the shape; the channel states whether that shape arrives once or twice, in order or not, consistently or
+eventually (`[CHAN-5]`, `[CHAN-9]`, `[CHAN-10]`). That half of the noun has no meaning at slice scale, where
+a call either returns or raises.
+
+A message bus is one of a channel's three forms, **not** its definition (`[CHAN-2]`) — two apps talking over
+plain HTTP are using a channel.
 
 ---
 
@@ -68,7 +82,7 @@ in real Python in [`examples/cli-slice.md`](./examples/cli-slice.md).
 ```
 expense/add                                    # one slice = one capability
 
-  # injected horizontals, constructed at the root and passed in
+  # injected crosscuts, constructed at the root and passed in
   #   money  · parse/format invariant
   #   db     · connection + transaction
   #   errors · taxonomy {category, code, message}
@@ -92,7 +106,7 @@ expense/add                                    # one slice = one capability
 ```
 
 Five properties make it canonical: parse/validate/compute are **pure**; the single effect sits at the
-**edge**; horizontals are **injected**, never reached for; the slice **raises** taxonomy errors and
+**edge**; crosscuts are **injected**, never reached for; the slice **raises** taxonomy errors and
 lets the root render them; the test asserts the **observable contract** against real storage. The verb
 `add` truthfully signals a non-idempotent operation.
 
@@ -107,7 +121,7 @@ Almost every placement question is one of five outcomes. Four are legitimate cat
 flowchart TD
   Q{"new code —<br/>what is it?"}
   Q -->|"owns one capability<br/>end to end"| SLICE["<b>SLICE</b><br/>a feature package"]
-  Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| HZ["<b>HORIZONTAL</b><br/>defined once, injected"]
+  Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| XC["<b>CROSSCUT</b><br/>defined once, injected"]
   Q -->|"registers, constructs,<br/>injects — no logic"| ROOT["<b>COMPOSITION ROOT</b><br/>the entry point"]
   Q -->|"a surface others<br/>depend on"| CT["<b>PUBLISHED CONTRACT</b><br/>the stable shape"]
   Q -->|"none of these —<br/>just 'shared stuff'"| BAD["⛔ <b>FORBIDDEN BUCKET</b><br/>utils / services / … — don't"]
@@ -120,15 +134,15 @@ When more than one fits, or none cleanly does, **flag it** (`[AGENT-2]`) rather 
 The same three rules hold at every scale — slice, app, and system alike:
 
 1. **Own your trigger end to end** — the one request, command, or event you answer.
-2. **Share only through a named horizontal or a published contract** — never a bucket, never a reach
+2. **Share only through a named crosscut or a published contract** — never a bucket, never a reach
    into internals.
-3. **Cross a boundary only over the bus** — apps never fuse and never share a datastore.
+3. **Cross a boundary only over a channel** — apps never fuse and never share a datastore.
 
 ```mermaid
 flowchart LR
   P["<b>slice</b><br/>one capability"]
   C["<b>app</b><br/>many slices, one root"]
-  R["<b>system</b><br/>apps over a bus"]
+  R["<b>system</b><br/>apps over a channel"]
   P -->|"many slices form an"| C
   C -->|"apps compose into a"| R
 ```
@@ -137,7 +151,7 @@ flowchart LR
 
 ## Rule IDs
 
-Rules carry stable IDs like `[DUP-2]`, namespaced by family (`SCOPE`, `BOUND`, `DUP`, `BUS`, …). Cite
+Rules carry stable IDs like `[DUP-2]`, namespaced by family (`SCOPE`, `BOUND`, `DUP`, `CHAN`, …). Cite
 them in reviews and commit messages so feedback is unambiguous ("this violates `[BUCKET-1]`"). On the
 live site every citation links to its definition.
 
@@ -149,11 +163,11 @@ rule make findings unsearchable and let the two copies drift.
 is why `[IDEM-6]` sits out of numeric order: it was appended rather than inserted.
 
 **The spines use separate families.** App families live in `ARCHITECTURE.md` and its appendices
-(`CLI-`, `BE-`, …); system families live in `SYSTEM.md` (`BUS-`, `ORCH-`, `SYS-TEST-`). The dependency
+(`CLI-`, `BE-`, …); system families live in `SYSTEM.md` (`CHAN-`, `ORCH-`, `SYS-TEST-`). The dependency
 points **one way**: the app spine **never** cites a system rule, so the core app model stays
 independent of system concerns. `SYSTEM.md` may cite app rules — it builds on them. An **appendix** may
 cite system rules where its app type reproduces the system pattern internally: a microfrontend web app
-is a browser-scale system of panels over a bus, so `web.md` legitimately references `[BUS-*]` /
+is a browser-scale system of panels over a channel, so `web.md` legitimately references `[CHAN-*]` /
 `[SYS-TEST-*]`.
 
 ## Enforcement classes
@@ -206,19 +220,19 @@ by serving one of four properties:
   surface is bounded and the diff stays legible.
 - **Deterministic placement** — "where does this go?" collapses to "find or make the feature package."
   Fewer degrees of freedom means fewer wrong guesses.
-- **Self-verification** — every slice, and every app across the bus, exposes an observable contract the
+- **Self-verification** — every slice, and every app across the channel, exposes an observable contract the
   agent can assert against by running it, closing the loop without trusting internal state.
 
 **`[AGENT-1]` `[guide]`** — Prefer the structure that minimizes an agent's placement and
 cross-file-reasoning decisions, even at the cost of some duplication.
 
 **`[AGENT-2]` `[review]`** — **Flag, don't guess.** When a decision is genuinely ambiguous (new slice
-vs. extend existing; duplicate vs. promote to a horizontal; slice vs. split into another app), take the
+vs. extend existing; duplicate vs. promote to a crosscut; slice vs. split into another app), take the
 **reversible** option, leave a clearly marked note (e.g. a `REVIEW:` comment citing the relevant rule
 ID), and surface it for human review. Do not silently pick and bury the decision.
 
 **`[AGENT-3]` `[guide]`** — Do not over-comply literally. A rule that forbids generic buckets does not
-mean contorting code to avoid a legitimate horizontal; a rule that tolerates duplication does not
+mean contorting code to avoid a legitimate crosscut; a rule that tolerates duplication does not
 license copying a large invariant-bearing block. When the letter and the intent diverge, follow the
 intent and apply `[AGENT-2]`.
 
@@ -383,7 +397,7 @@ Read in this order:
 2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the **app** spine: how to build one app. Its
    [appendices](./ARCHITECTURE.md#appendix-index) instantiate it per app type (CLI, backend, web,
    agentic/LLM, library, GitHub Action).
-3. **[`SYSTEM.md`](./SYSTEM.md)** — the **system** spine: how apps compose over a bus. Builds on the
+3. **[`SYSTEM.md`](./SYSTEM.md)** — the **system** spine: how apps compose over a channel. Builds on the
    app spine; the app spine never cites it.
 4. **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python,
    one file each), [`examples/go-api-slice.md`](./examples/go-api-slice.md) (an HTTP slice in Go, where
@@ -411,10 +425,10 @@ primary, the way "hexagonal architecture" keeps "ports and adapters."
 
 | Coral | Architecture |
 |---|---|
-| **polyp** — a self-contained animal that hosts the partners it doesn't build | a **slice**, hosting **injected horizontals** |
+| **polyp** — a self-contained animal that hosts the partners it doesn't build | a **slice**, hosting **injected crosscuts** |
 | **skeleton** — the hard structure it secretes, which outlives it and gets built on | a **published contract** |
 | **colony** — many polyps, one genome | an **app**, many slices under one set of conventions |
-| **reef** — many colonies, coupled only by signals in the water | a **system**, many apps coupled only by the bus |
+| **reef** — many colonies, coupled only by signals in the water | a **system**, many apps coupled only by channels |
 
 You will occasionally see these words in a heading or an aside. They are decoration. **No rule
 requires the metaphor to apply it**, and if a rule ever seems to follow from the biology rather than

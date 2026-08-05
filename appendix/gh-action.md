@@ -26,7 +26,7 @@ at the entry point and keep one slice per mode — the same shape as a CLI's sub
 contract.
 
 This is the rule with the most day-to-day consequence: a downstream step must consume your **outputs**,
-never parse your log lines. Log format is a diagnostic channel you need to stay free to change
+never parse your log lines. Log format is a diagnostic surface you need to stay free to change
 (`[OBS-1]`), and the moment a workflow greps it you have acquired an undeclared contract you will break by
 improving a message.
 
@@ -40,7 +40,7 @@ is never written is a contract you are silently failing to honor.
 ## Composition root  → `[ROOT-1]`
 
 **`[GHA-4]`** `[review]` The entry point is the root: it reads and validates inputs and environment,
-constructs and injects horizontals, dispatches to the slice, and renders the result. It holds no business
+constructs and injects crosscuts, dispatches to the slice, and renders the result. It holds no business
 logic.
 
 Inputs and environment are configuration (`[CONFIG-1]`, `[CONFIG-3]`): resolve and validate every required
@@ -78,7 +78,7 @@ read-only.
 
 The token's default scope is far wider than most actions require, and an action that never states its
 permissions inherits whatever the repository default happens to be — which is not a decision anyone made
-for this action. Secrets come from the config horizontal (`[CONFIG-4]`), are never echoed, and are never
+for this action. Secrets come from the config crosscut (`[CONFIG-4]`), are never echoed, and are never
 written to an output; an output is readable by every downstream step.
 
 **`[GHA-8]`** `[guide]` Pin third-party actions you call by commit SHA, not by a moving tag.
@@ -100,7 +100,7 @@ allows (`[ERR-3]`).
 
 ## Observability  → `[OBS-1]`
 
-**`[GHA-10]`** `[auto]` Diagnostics use log groups and annotations only, never the outputs channel
+**`[GHA-10]`** `[auto]` Diagnostics use log groups and annotations only, never the outputs surface
 (`[OBS-3]`).
 
 Because a run has no caller to return to, say what it *did* — counts, ids touched, whether it was a no-op
@@ -114,7 +114,7 @@ deprecate before removing.
 
 Follow the ecosystem's moving-major-tag discipline (`v1` advancing to each compatible release, with
 immutable `v1.2.3` tags underneath). Removing or renaming an input breaks every workflow that sets it, and
-those workflows live in repositories you cannot see or fix — which makes the `[BUS-4]` prohibition on
+those workflows live in repositories you cannot see or fix — which makes the `[CHAN-4]` prohibition on
 repurposing a name stricter here than almost anywhere else.
 
 ## Testing mechanics  → `[TEST-1]`

@@ -1,7 +1,7 @@
-"""Horizontal: the audited repo's structure, resolved once.
+"""Crosscut: the audited repo's structure, resolved once.
 
 Turns a Config plus a filesystem into the four categories `[MODEL-1]` names —
-slices, top-level modules (candidate horizontals), composition roots, and
+slices, top-level modules (candidate crosscuts), composition roots, and
 everything else — so no check has to re-derive them.
 """
 
@@ -62,7 +62,7 @@ class Layout:
     config: Config
     paths: tuple[Path, ...]      # every non-ignored path, files and dirs
     slices: tuple[Unit, ...]
-    top_level: tuple[Unit, ...]  # candidate horizontals
+    top_level: tuple[Unit, ...]  # candidate crosscuts
     roots: tuple[Path, ...]
     library_files: tuple[Path, ...]  # published-library sources, roots excluded
 

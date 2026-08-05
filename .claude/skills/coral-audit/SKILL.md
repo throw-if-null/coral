@@ -3,7 +3,7 @@ name: coral-audit
 description: >
   Audit a code repository against Coral Architecture to answer ONE question: is this a Coral app, and
   where does it diverge? The verdict is architectural CONFORMANCE — capability slicing, cross-cutting
-  concerns placed as named horizontals, no bucket packages, role-revealing names, published contracts,
+  concerns placed as named crosscuts, no bucket packages, role-revealing names, published contracts,
   thin composition. Structural / naming / cross-cutting-placement divergences ARE the findings;
   security / correctness / reliability bugs are recorded as awareness notes for the team, never the
   headline and never the answer. Use when asked to audit, review, or scrutinize a repo / service /
@@ -40,8 +40,8 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
    several). Finding the pieces is not enough — connect them.
 5. **The verdict is conformance — and bugs are not the verdict.** The audit answers *is this a Coral
    app?* Substance = conformance to Coral: capability slicing, cross-cutting concerns placed as named
-   horizontals, no bucket packages, role-revealing names, published contracts, thin composition. A
-   misplaced horizontal (e.g. error rendering living in `utils`) or a meaningless name (`pkg`, `utils`,
+   crosscuts, no bucket packages, role-revealing names, published contracts, thin composition. A
+   misplaced crosscut (e.g. error rendering living in `utils`) or a meaningless name (`pkg`, `utils`,
    `middleware.go` — a name that tells you nothing but "it's a middleware") is a **real conformance
    finding** — never file it as a throwaway LOW and move on. Only a genuinely cohesive unit's exact name
    is cosmetic; say which is which, but don't use "don't flag every folder" as an excuse to wave off a
@@ -88,7 +88,7 @@ recommend the entry and let a human commit it.
 
 ### 1. Frame (altitude) — before any line-by-line reading
 Produce a **structural thesis** by answering:
-- What is this repo — an app (and which app-type appendix applies?) or a horizontal / framework /
+- What is this repo — an app (and which app-type appendix applies?) or a crosscut / framework /
   base layer?
 - What is its *shape*? A thin composition root that composes concerns, or god-files mixing orchestration
   with subsystem implementation?
@@ -96,15 +96,15 @@ Produce a **structural thesis** by answering:
   consumer test against it without booting the whole thing? Does a change here ripple into many repos?
 - If it's a framework: is standardization achieved by *composition* or by *containment*?
 - Dependency surface: does every consumer link things it does not use?
-- Do the four categories map cleanly (slice / horizontal / composition root / published contract —
+- Do the four categories map cleanly (slice / crosscut / composition root / published contract —
   `[MODEL-1]`)? Where they don't, is that a smell in the code or a gap in the architecture?
 
 Map the surface to support this: manifest/`go.mod`, file sizes, the public API, and the critical
-subsystems — lifecycle/init, shutdown, persistence, transport/bus, HTTP, config, globals, health. For
+subsystems — lifecycle/init, shutdown, persistence, transport/channel, HTTP, config, globals, health. For
 large repos, prioritize the critical paths; you may read in parallel.
 
 ### 2. Map the units
-List the capabilities/slices, the horizontals, the published contracts (the bus surface), and the
+List the capabilities/slices, the crosscuts, the published contracts (the channel surface), and the
 composition root. Note where the Coral model fits and where it strains.
 
 ### 3. Walk the rule families (depth) — line-cited
@@ -121,10 +121,10 @@ dimensions the conformance answer rests on. Do not treat them as warm-up:
 - fit: is this a command/request-shaped app the model actually covers, or a dense coupled domain it
   is weak for? does everything converge on one god-slice? — `[SCOPE-*]`
 - capability slicing, placement & role-revealing names: packages named for the capability or concern
-  they own and never for a technical role, horizontals rare and precisely named — `[MODEL-*]` /
+  they own and never for a technical role, crosscuts rare and precisely named — `[MODEL-*]` /
   `[STRUCT-*]`
 - boundary & verbs — `[BOUND-*]` / `[IDEM-*]`
-- horizontals vs forbidden buckets, including the entity loophole (invariants may be a horizontal;
+- crosscuts vs forbidden buckets, including the entity loophole (invariants may be a crosscut;
   queries and storage may not) — `[XCUT-*]` / `[BUCKET-*]`
 - effects, state & schema ownership (one owning slice per table; interface ownership points
   adapter → slice) — `[EFFECT-*]` / `[STATE-*]`
@@ -132,7 +132,7 @@ dimensions the conformance answer rests on. Do not treat them as warm-up:
   `[CONFIG-*]`
 - errors: taxonomy, raise-vs-render, swallowing — `[ERR-*]`
 - trust boundary, secrets, authz — `[TRUST-*]`
-- delivery guarantees & contracts (events/bus, versioning) — `[BUS-*]` / `[CONTRACT-*]`
+- delivery guarantees & contracts (events/channel, versioning) — `[CHAN-*]` / `[CONTRACT-*]`
 - testing: is it injectable, or a boot-the-world coupling magnet? — `[TEST-*]` / `[SYS-TEST-*]`
 - slice-to-slice dependency: published capability only, never another slice's internals; a shared
   multi-step workflow becomes its own slice — `[COMPOSE-*]`
@@ -201,7 +201,7 @@ session; heaviness is intentional — the planner needs full context. Include:
 - Assert a guarantee you did not verify in the dependency source.
 - Lead with a bug (security / correctness / reliability) or let one become the verdict — the verdict is
   Coral conformance; bugs are awareness notes. Never skip the conformance thesis.
-- File a misplaced horizontal or a bucket / meaningless name as a throwaway LOW — those ARE the findings.
+- File a misplaced crosscut or a bucket / meaningless name as a throwaway LOW — those ARE the findings.
 - Rule a behavioral / contract trade-off (delivery semantics, effect ordering) "wrong" when you cannot
   see the reasons — flag it for a human and check for an explanatory comment instead.
 - Publish a candid audit of an internal repo to a public or shared site.

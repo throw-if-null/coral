@@ -32,8 +32,49 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ## Unreleased
 
-*Nothing yet.* A version marks a release, not a commit (`[VER-2]`), so changes land here first and the
-bump happens when the batch is cut.
+**A vocabulary pass. No rule's *substance* changed — three nouns were renamed, one family was renumbered,
+and one clarification was added.** Cuts as a **minor** bump under the `0.y.z` clause: renaming a family
+retires ten IDs and publishes ten, which is major after `1.0.0`.
+
+**`horizontal` → `crosscut`.** The old name collided with an anti-pattern Coral forbids: in general usage a
+*horizontal slice* **is** a layer, and `[MODEL-2]`/`[STATE-2]`/`[BUCKET-1]` exist to forbid exactly that. So
+the word named both the sanctioned thing and the banned thing, and a reader's prior knowledge worked against
+them. `crosscut` cannot be misread as a layer, and it makes the governing family self-documenting — `XCUT`
+already abbreviated *crosscutting*, so **no rule ID changed**. `tools/coral-lint` renames its config key to
+match: `[coral].horizontals` → `[coral].crosscuts`.
+
+**`vertical` dropped as a term.** It only ever appeared as a gloss on `slice`, and naming an axis invited the
+question it could not answer — *is there a horizontal slice too?* A slice is a slice.
+
+**`bus` → `channel`, and `[BUS-1..10]` → `[CHAN-1..10]`.** `bus` was correct as a *form* and wrong as the
+*genus*: a bus means broker middleware, while a Coral bus was also a plain synchronous HTTP call. The old
+`BUS-2` had to say "an **actual** message bus" to recover the ordinary meaning, and the system diagram
+showed a bus containing a bus. `channel` is the genus; a message bus is one of its three forms, restored to
+its specific sense. The ID mapping, one-to-one and in order:
+
+| Retired | Replaced by | | Retired | Replaced by |
+|---|---|---|---|---|
+| `BUS-1` | `[CHAN-1]` | | `BUS-6` | `[CHAN-6]` |
+| `BUS-2` | `[CHAN-2]` | | `BUS-7` | `[CHAN-7]` |
+| `BUS-3` | `[CHAN-3]` | | `BUS-8` | `[CHAN-8]` |
+| `BUS-4` | `[CHAN-4]` | | `BUS-9` | `[CHAN-9]` |
+| `BUS-5` | `[CHAN-5]` | | `BUS-10` | `[CHAN-10]` |
+
+**This is a deliberate break of `[VER-1]`, and the second and last one.** Append-only means a family is never
+renumbered, so renaming `BUS` is precisely what that rule forbids. It is taken anyway, on the same grounds as
+the `0.1.0` alias deletion recorded below: Coral is pre-`1.0.0`, the rule set is declared unstable, and no
+project targets `0.3.0`. After `1.0.0` the answer would have been to live with the name. If you find `BUS-4`
+cited in an old commit or review comment, the table above is the translation.
+
+**New: `[CHAN-2]` gains a "not middleware" clarification**, and `CONVENTIONS.md` gains a short section stating
+that a channel **is** a published contract at app scale — the same idea at a different rank, distinguished by
+carrying delivery semantics (`[CHAN-5]`, `[CHAN-9]`, `[CHAN-10]`) that have no meaning at slice scale. Both
+close the same gap: nothing in Coral requires a broker.
+
+**Unchanged, after review:** `composition root` (the established term from the dependency-injection
+literature — `root` alone collides with DDD's *aggregate root*), `published contract` (`interface` names the
+*consumer*-side dependency a slice declares, which is the opposite direction, and is the distinction
+`[STATE-2]` turns on), `app`, and `system`.
 
 ---
 
@@ -48,15 +89,16 @@ bump happens when the batch is cut.
   by the slice that fetched it, and never the only place a fact exists. This is `[STATE-6]` in the browser,
   where a hard refresh, a new tab and a cold load *are* the empty-cache case — so the empty case is the
   second-most-common way a page loads, not an edge case. Invalidation is owned by the slice that caused the
-  change, which then publishes on the bus (`[WEB-4]`); no panel reaches into another's cache, which is what
-  keeps a global read-write store from arriving one convenience at a time. Optimistic updates are a
+  change, which then publishes on the channel (`[WEB-4]`); no panel reaches into another's cache, which is
+  what keeps a global read-write store from arriving one convenience at a time. Optimistic updates are a
   *display* concession and must reconcile and surface failure. Never-sent state — form drafts, scroll,
   expand/collapse — is the one genuinely client-owned kind.
 - **`[WEB-12]`** `[review]` — a behavior test drives the slice **through the surface a user or caller
   actually touches** and asserts the observable contract. Rules out component-internal state, markup
   snapshots (which assert *shape*, so they fail on every redesign and pass on every wrong total), and
   mocking the capability call the slice exists to make. Mandatory additions: an authorization test at the
-  boundary, because `[WEB-7]` regresses silently, and for microfrontends a contract test on the panel bus.
+  boundary, because `[WEB-7]` regresses silently, and for microfrontends a contract test on the panel
+  channel.
 
 **`agentic-app.md` is now an ADDENDUM, not a PARTIAL appendix.** The distinction is honesty about
 provenance rather than about completeness: nobody here has built an agentic app, so the page is written
@@ -104,7 +146,7 @@ three genuinely different answers, not one answer repeated:
   project's `CORAL.md` rather than a violation. What is not acceptable is leaving it undecided or varying
   it between services in one system.
 - **`[WEB-10]`** `[review]` — the UI's stable contract is its **route/URL structure**. This slot differs
-  from every other app type because a route has no version prefix and no deprecation channel: you cannot
+  from every other app type because a route has no version prefix and no deprecation path: you cannot
   ask a bookmark to migrate. Repurposing a path is the worse failure, because nothing errors — old links
   keep resolving and quietly show the wrong thing. Moving a route requires a redirect kept indefinitely.
 - **`[AGENTIC-12]`** `[review]` — the **model identifier and prompt version are part of the contract**;
@@ -149,7 +191,7 @@ Families, by document:
 |---|---|
 | `CONVENTIONS.md` | `AGENT`, `VER` |
 | `ARCHITECTURE.md` | `SCOPE`, `MODEL`, `BOUND`, `ROOT`, `STRUCT`, `BUCKET`, `XCUT`, `DUP`, `COMPOSE`, `EFFECT`, `STATE`, `CONC`, `CONFIG`, `IDEM`, `ERR`, `OBS`, `CONTRACT`, `TRUST`, `TEST`, `GROW` |
-| `SYSTEM.md` | `BUS`, `ORCH`, `SYS-TEST` |
+| `SYSTEM.md` | `CHAN`, `ORCH`, `SYS-TEST` |
 | `appendix/*` | `CLI`, `BE`, `WEB`, `AGENTIC`, `LIB`, `GHA` |
 
 `appendix/library.md` and `appendix/gh-action.md` are written; `appendix/backend.md`, `appendix/web.md`

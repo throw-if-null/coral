@@ -29,7 +29,7 @@ here it is a **runtime component** of the app itself.)
 
 **Defining tension:** Coral is built on determinism, typed contracts, and exact-match behavior tests — and
 an LLM is none of those. Two moves resolve it. **(1)** Treat the model as a *non-deterministic effect,
-injected as a horizontal* (a `model` client, like `db`), so the pure parts stay pure and the fuzz is
+injected as a crosscut* (a `model` client, like `db`), so the pure parts stay pure and the fuzz is
 quarantined to one edge call. **(2)** For an autonomous agent, put it inside a **harness** — a
 deterministic, observable shell that turns judgment into safe, bounded, gated action. The agent is the
 non-deterministic core; the harness is the deterministic slice around it.
@@ -40,17 +40,17 @@ non-deterministic core; the harness is the deterministic slice around it.
 goal handed to the agent. One inbound trigger, handled end to end.
 
 **`[AGENTIC-2]`** `[guide]` Distinguish two intensities. A **one-shot call** (build prompt → call model →
-parse output; no loop) needs only the model-as-horizontal discipline below. An **agentic loop** (the model
+parse output; no loop) needs only the model-as-crosscut discipline below. An **agentic loop** (the model
 iteratively chooses tools and acts) needs the full **Harness**. Don't reach for a loop when one call
 suffices.
 
-## Model as a horizontal; pure core, fuzzy edge  → `[EFFECT-2]` `[XCUT-1]`
+## Model as a crosscut; pure core, fuzzy edge  → `[EFFECT-2]` `[XCUT-1]`
 
 **`[AGENTIC-3]`** `[review]` The model is an **injected effect**, not pure compute. The slice flow is
 parse → validate → *build prompt/context* (pure) → **call the model** (an edge effect, non-deterministic
 like any network call) → *parse and validate output* (pure) → effect/tool calls → render.
 
-The model client, the tools, and memory/retrieval are **injected horizontals** (`[XCUT-1]`) — defined once,
+The model client, the tools, and memory/retrieval are **injected crosscuts** (`[XCUT-1]`) — defined once,
 passed in, never reached for as globals. Keep prompt-building and output-parsing pure and testable; only
 the call itself is fuzzy.
 
@@ -72,8 +72,8 @@ authority.
 The harness owns five duties:
 
 1. **Tools are typed published contracts.** The agent acts only through tools, and each tool is a
-   deterministic, contract-tested capability (`[BUS-1]` / `[COMPOSE-1]`) — never a reach into internals. The
-   non-determinism is confined to *which tool, with what arguments*.
+   deterministic, contract-tested capability (`[CHAN-1]` / `[COMPOSE-1]`) — never a reach into internals.
+   The non-determinism is confined to *which tool, with what arguments*.
 2. **Authorize every tool call** (`[TRUST-1]`) — default-deny the dangerous ones; scope what this agent may
    touch.
 3. **Gate irreversible and outward-facing actions behind a human.** Reversible → the agent proceeds;
@@ -91,7 +91,7 @@ purpose," not "a model loose on your systems."
 ## State & memory  → `[STATE-1]`
 
 **`[AGENTIC-7]`** `[review]` Conversation history, agent memory, and RAG/vector retrieval are state:
-slice-owned where local, or a precisely-named **retrieval/memory horizontal** when shared (`[XCUT-1]`,
+slice-owned where local, or a precisely-named **retrieval/memory crosscut** when shared (`[XCUT-1]`,
 `[STATE-2]`). Don't smear them into a generic store reached into from everywhere, and give each store one
 owning slice (`[STATE-5]`).
 
@@ -147,7 +147,7 @@ next agent cannot ask what the prompt used to say.
 
 ## Slots still to fill
 
-- **Composition root** → wires the model client, tools, and memory/retrieval as injected horizontals and
+- **Composition root** → wires the model client, tools, and memory/retrieval as injected crosscuts and
   constructs the harness; no business logic. *Needs an `AGENTIC-` rule on where tool definitions live —
   with the harness, or with the slice each tool fronts.*
 - **Observability** → token, cost, and latency on top of `[OBS-1..3]`; capture prompts, responses, and tool
@@ -171,10 +171,10 @@ next agent cannot ask what the prompt used to say.
 | ------------------- | -------------------------------------------------------------- |
 | boundary            | one turn / task / agent-invocation                             |
 | shape               | one-shot call vs agentic loop (loop ⇒ full harness)            |
-| model               | injected non-deterministic effect, a horizontal                |
+| model               | injected non-deterministic effect, a crosscut                |
 | observable contract | schema-conformant output + observed tool calls                 |
 | harness             | tools = typed contracts · authz · gate irreversible · observe · bound |
-| state               | conversation / memory / RAG (local or a retrieval horizontal)   |
+| state               | conversation / memory / RAG (local or a retrieval crosscut)   |
 | idempotency         | non-reproducible; dedupe-by-stored-result on at-least-once     |
 | error model         | model → infrastructure; bad output → validation (bounded repair) |
 | trust               | prompt injection · untrusted output · tool authz · data governance |
@@ -184,5 +184,5 @@ next agent cannot ask what the prompt used to say.
 ## Open questions
 
 - **Multi-agent** (agents calling agents): each sub-agent is its own harnessed app; cross-agent calls
-  follow `[BUS-1]` and the orchestrating harness in [`SYSTEM.md`](../SYSTEM.md).
+  follow `[CHAN-1]` and the orchestrating harness in [`SYSTEM.md`](../SYSTEM.md).
 - **Streaming output**: how the observable contract is asserted incrementally vs. on completion.

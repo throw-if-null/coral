@@ -1,4 +1,4 @@
-"""Horizontal: what this tool does and does not check.
+"""Crosscut: what this tool does and does not check.
 
 The architecture's own rule is "no silent caps": if a gate bounds its coverage,
 it must say what it dropped. A linter that reports "0 findings" for 25 `[auto]`
@@ -15,12 +15,12 @@ from __future__ import annotations
 UNIMPLEMENTED: dict[str, str] = {
     "CONFIG-4": "secret detection is better served by a dedicated scanner (gitleaks, trufflehog) "
                 "than by a second-rate regex here",
-    "BUS-3": "system-scale: needs each app's connection config, not one repo's tree",
+    "CHAN-3": "system-scale: needs each app's connection config, not one repo's tree",
     "CLI-3": "app-type check: needs the CLI's command registry, which is framework-specific",
     "CLI-6": "app-type check: framework-specific prompt APIs",
     "CLI-8": "app-type check: needs the root's exit-code map",
     "CLI-10": "app-type check: framework-specific flag registry",
-    "CLI-11": "app-type check: needs channel analysis of the logging horizontal",
+    "CLI-11": "app-type check: needs stream analysis of the logging crosscut",
     "BE-5": "app-type check: framework-specific response API",
     "WEB-4": "app-type check: needs the panel/bundle graph",
     "WEB-8": "app-type check: framework-specific routing table",

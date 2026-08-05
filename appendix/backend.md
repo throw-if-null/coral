@@ -5,10 +5,10 @@
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for backends and services.
 
-**Defining tension:** backends have the richest domain model, so this is where **horizontals
+**Defining tension:** backends have the richest domain model, so this is where **crosscuts
 (`[XCUT-*]`)** and **slice-to-slice composition (`[COMPOSE-*]`)** carry the most weight. The trap is
 re-growing a `services`/`repository` layer (`[BUCKET-1]`) under the guise of a domain core — keep the
-`[XCUT-1]` gate strict, keep `[XCUT-5]` in mind (an entity's invariants may be a horizontal; its queries
+`[XCUT-1]` gate strict, keep `[XCUT-5]` in mind (an entity's invariants may be a crosscut; its queries
 may not), and inject domain invariants rather than reaching into them.
 
 ---
@@ -29,7 +29,7 @@ with no body. The returned `id` and body shape are part of the stable contract (
 
 ## Composition root & scope  → `[ROOT-1]`
 
-**`[BE-3]`** `[review]` Wiring is router + middleware + dependency injection. **Horizontals are singletons
+**`[BE-3]`** `[review]` Wiring is router + middleware + dependency injection. **Crosscuts are singletons
 by default** (connection pool, config, logger, error type, domain-invariant helpers). Only
 **request-bound** state is per-request: the transaction/connection handle, the authenticated principal,
 and the correlation/trace id. Inject request-scoped values into the slice; never let a slice reach for
@@ -72,7 +72,7 @@ tenant-scoped**, the owner/tenant id is **part of the record and part of every q
 
 Decide this *before* writing the slice, because it changes the schema, the slice signature, and the
 tests — it is the one slot in this appendix that is expensive to retrofit. Secrets come from the config
-horizontal, never inline (`[CONFIG-4]`). **Default to deny:** a slice with no explicit authorization rule
+crosscut, never inline (`[CONFIG-4]`). **Default to deny:** a slice with no explicit authorization rule
 is not shippable.
 
 ## Contract versioning  → `[CONTRACT-2]`
@@ -101,12 +101,12 @@ and previous major, for six months" is a decision; discovering you serve four is
 These need no backend-specific rule — the spine's answer is the answer.
 
 - **State / effects** → `[STATE-1]` `[STATE-2]` `[STATE-5]`: slice-owned queries; transaction scoped to
-  the request; the `db` horizontal owns the pool and runs migrations, while each table's schema is defined
+  the request; the `db` crosscut owns the pool and runs migrations, while each table's schema is defined
   by its owning slice.
-- **Configuration** → `[CONFIG-1..4]`: one config horizontal constructed and validated at boot; no slice
+- **Configuration** → `[CONFIG-1..4]`: one config crosscut constructed and validated at boot; no slice
   reads the environment.
 - **Observability** → `[OBS-1..3]`: structured logs + metrics + correlation/trace IDs via the injected
-  logging horizontal; never on the response body.
+  logging crosscut; never on the response body.
 - **Testing** → `[TEST-1]` `[TEST-4]`: HTTP-level in-process tests against real or test-container infra;
   assert status + body + side effects + authorization.
 
@@ -114,4 +114,4 @@ These need no backend-specific rule — the spine's answer is the answer.
 
 - Cross-service composition is governed by `[SCOPE-4]` — published capabilities over an explicit
   boundary, never a shared datastore. Confirm the transport (sync API vs. event stream) per system, per
-  `[BUS-2]`.
+  `[CHAN-2]`.

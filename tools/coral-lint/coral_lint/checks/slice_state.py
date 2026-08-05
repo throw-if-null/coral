@@ -40,7 +40,7 @@ def run(layout: Layout) -> CheckResult:
                         message=f"module-level mutable state {hit.label!r} survives between triggers",
                         remedy=(
                             "Move it into the trigger's own scope. If it is genuinely shared, it is a "
-                            "horizontal — construct it at the root, declare whether it is "
+                            "crosscut — construct it at the root, declare whether it is "
                             "concurrency-safe or per-trigger, and inject it ([CONC-2], [XCUT-1]). "
                             "If it is a cache, it needs an owner and an invalidation strategy "
                             "([STATE-6], [STATE-7])."

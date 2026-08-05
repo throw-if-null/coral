@@ -33,12 +33,12 @@ def _remedy(name: str) -> str:
         return (
             f"If {name!r} holds one cohesive concept, rename it for that concept "
             f"(`pricing`, `scoring`) or grandfather it via [coral].grandfathered. "
-            f"If it is a grab-bag, split it: a real horizontal per [XCUT-1], or "
+            f"If it is a grab-bag, split it: a real crosscut per [XCUT-1], or "
             f"leave the code duplicated per [DUP-1]."
         )
     return (
         f"Give it a precise name for the capability or concern it owns ([MODEL-2]), "
-        f"promote its contents to a named horizontal if they carry a must-not-diverge "
+        f"promote its contents to a named crosscut if they carry a must-not-diverge "
         f"invariant ([XCUT-1]), or leave them duplicated in the slices that use them ([DUP-1])."
     )
 

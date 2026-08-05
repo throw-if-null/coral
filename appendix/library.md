@@ -5,7 +5,7 @@ spine first; this appendix fills the app-type-specific slots and adds library-on
 family.
 
 **Defining tension:** a library has **no composition root of its own — the consumer is the root**
-(`[ROOT-3]`). Everything the spine assigns to the root (constructing horizontals, rendering errors,
+(`[ROOT-3]`). Everything the spine assigns to the root (constructing crosscuts, rendering errors,
 configuring observability, resolving config) belongs to somebody you will never meet. So the discipline
 inverts: the library's job is to *accept* what it needs and *raise* what goes wrong, never to reach or
 render. And because the public API **is** the observable contract under semver, backward compatibility is
@@ -103,7 +103,7 @@ change, a removed or renamed export, a new error type where one was not raised b
 category, and a documented-behavior change.
 
 Deprecate before removing, with a stated window and a compile-time-visible marker where the language
-offers one. The rule from `[BUS-4]` applies at the API surface too: **add freely, never repurpose.**
+offers one. The rule from `[CHAN-4]` applies at the API surface too: **add freely, never repurpose.**
 Changing what an existing parameter or field *means* while keeping its name is a breaking change that no
 version number communicates and no consumer will notice until it's in production.
 
@@ -146,8 +146,8 @@ actually enforces `[LIB-3]`.
 
 ## Open questions
 
-- Internal (non-public) helpers shared across slices: a documented internal horizontal, or duplicated
+- Internal (non-public) helpers shared across slices: a documented internal crosscut, or duplicated
   per slice? `[XCUT-1]` decides it, but a language with no internal-visibility mechanism forces the
   question earlier.
-- How to expose horizontals to consumers: constructor injection vs. functional options vs. a builder —
+- How to expose crosscuts to consumers: constructor injection vs. functional options vs. a builder —
   largely a language-idiom call, worth fixing per ecosystem.

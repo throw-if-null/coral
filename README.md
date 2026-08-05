@@ -13,16 +13,16 @@ questions:
 
 - A **slice** owns one capability end to end — its trigger, parsing, validation, behavior, state
   access, output, and tests.
-- A **horizontal** is a cross-cutting concern — logging, config, the error taxonomy, a domain
+- A **crosscut** is a cross-cutting concern — logging, config, the error taxonomy, a domain
   invariant — defined **once**, precisely named, and **injected**. Never re-built per slice.
-- The **composition root** registers slices, constructs horizontals, and injects them. No logic.
+- The **composition root** registers slices, constructs crosscuts, and injects them. No logic.
 - A **published contract** is the only surface anyone else may depend on.
 
 Anything that is none of these is a `utils`/`services`/`shared` pile, and the answer is a real
-horizontal or honest duplication — not a bucket.
+crosscut or honest duplication — not a bucket.
 
 Three rules hold at every scale (slice, app, system): own your trigger end to end; share only through
-a named horizontal or a published contract; cross a boundary only over the bus.
+a named crosscut or a published contract; cross a boundary only over a channel.
 
 **Where it doesn't fit:** dense, deeply-coupled domains where every feature reaches into one central
 concept — a tax engine, a scheduler, a solver. Slicing fights those domains. Use something else and
@@ -35,7 +35,7 @@ Read them in this order:
 1. **[`CONVENTIONS.md`](./CONVENTIONS.md)** — start here. The vocabulary, the canonical slice, the
    rule-ID scheme, the enforcement classes, and the agents-write / humans-review operating model.
 2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the app spine: how to build one app.
-3. **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a bus.
+3. **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a channel.
 4. **[`appendix/`](./appendix)** — one file per app type (CLI, backend, web, agentic/LLM, library,
    GitHub Action).
 5. **[`examples/`](./examples)** — [two CLI slices in Python](./examples/cli-slice.md) (one file each),

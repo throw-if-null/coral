@@ -2,7 +2,7 @@
 
 Implemented as an allowlist over the root's first-party imports, because the root
 has exactly three legitimate reasons to import anything local: to construct a
-horizontal, to register a slice, or to reach another root. Anything else it
+crosscut, to register a slice, or to reach another root. Anything else it
 imports is something it operates *on*, and business logic in the root almost
 always announces itself that way.
 
@@ -22,9 +22,9 @@ TITLE = "the root imports no persistence or domain internals"
 
 
 def _allowed(layout: Layout) -> set[Path]:
-    """Horizontals it constructs, slices it registers, roots it composes with."""
+    """Crosscuts it constructs, slices it registers, roots it composes with."""
     allowed = {
-        unit.path for unit in layout.top_level if unit.name in layout.config.horizontals
+        unit.path for unit in layout.top_level if unit.name in layout.config.crosscuts
     }
     allowed |= {unit.path for unit in layout.slices}
     allowed |= set(layout.roots)
@@ -39,10 +39,10 @@ def run(layout: Layout) -> CheckResult:
     config = layout.config
     if not config.roots:
         return CheckResult(rule=RULE, skipped="needs [coral].roots in coral.toml")
-    if not (config.declares_slices and config.declares_horizontals):
+    if not (config.declares_slices and config.declares_crosscuts):
         return CheckResult(
             rule=RULE,
-            skipped="needs [coral].feature_dirs plus app_dirs/horizontals to classify what the "
+            skipped="needs [coral].feature_dirs plus app_dirs/crosscuts to classify what the "
                     "root may import",
         )
 
@@ -70,7 +70,7 @@ def run(layout: Layout) -> CheckResult:
                     message=f"root performs state access ({hit.label})",
                     remedy=(
                         "Move the query into the slice that owns the capability ([STATE-1]); the "
-                        "root only constructs the connection horizontal and injects it ([ROOT-1])."
+                        "root only constructs the connection crosscut and injects it ([ROOT-1])."
                     ),
                 )
             )
@@ -92,12 +92,12 @@ def run(layout: Layout) -> CheckResult:
                 else:
                     message = (
                         f"root imports {layout.rel(target)}, which is neither a declared "
-                        f"horizontal nor a slice"
+                        f"crosscut nor a slice"
                     )
                     remedy = (
-                        "The root may import a horizontal (to construct it), a slice (to register "
-                        "it), or another root. If this is a horizontal, declare it in "
-                        "[coral].horizontals; if it is persistence or domain logic, the root has "
+                        "The root may import a crosscut (to construct it), a slice (to register "
+                        "it), or another root. If this is a crosscut, declare it in "
+                        "[coral].crosscuts; if it is persistence or domain logic, the root has "
                         "no business importing it ([ROOT-1], [ROOT-2])."
                     )
                 findings.append(

@@ -5,7 +5,7 @@ CFG = (
     'app_dirs = ["app"]\n'
     'feature_dirs = ["app/feat"]\n'
     'roots = ["app/main.py"]\n'
-    'horizontals = ["db", "errors"]\n'
+    'crosscuts = ["db", "errors"]\n'
 )
 
 
@@ -46,7 +46,7 @@ def test_flags_an_undeclared_first_party_import(make_layout):
     src = "from . import queries\n"
     findings = check.run(_lay(make_layout, {"app/main.py": src, "app/queries.py": ""})).findings
     assert len(findings) == 1
-    assert "neither a declared horizontal nor a slice" in findings[0].message
+    assert "neither a declared crosscut nor a slice" in findings[0].message
 
 
 def _dir_slice_lay(make_layout, main_src):

@@ -27,7 +27,7 @@ A command's contract is **exit code + `stdout`/`stderr` separation + `--json`**:
 ## Composition root  → `[ROOT-1]`
 
 The CLI entry point registers commands, composes subcommands, defines top-level configuration, and
-constructs and injects horizontals (`db`, `config`, `errors`, `logging`). It contains no business logic.
+constructs and injects crosscuts (`db`, `config`, `errors`, `logging`). It contains no business logic.
 
 ## Unix-style command rules
 
@@ -73,7 +73,7 @@ Debug may include: resolved command and arguments, resolved config and paths, tr
 
 ## State / effects  → `[STATE-1]`
 
-Prefer direct queries owned by the slice. A small, precisely-named `db` horizontal handles connection
+Prefer direct queries owned by the slice. A small, precisely-named `db` crosscut handles connection
 management and migration *execution* only — never a generic data-access layer (`[STATE-2]`). Schema
 definitions live with the owning slice (`[STATE-5]`).
 
@@ -106,7 +106,7 @@ merely implied. A CLI that reads untrusted files or network input does not quali
 | boundary            | a command (`expense add`)                               |
 | observable contract | exit code + stdout/stderr + `--json`                    |
 | composition root    | thin CLI entry registering commands                     |
-| state / effects     | slice-owned queries + `db` horizontal for connection    |
+| state / effects     | slice-owned queries + `db` crosscut for connection    |
 | configuration       | flag → env → file → default, validated at the root      |
 | idempotency form    | verb → semantics mapping                                |
 | error rendering     | root maps `category` → exit code (`0`/`2`/`1`)          |

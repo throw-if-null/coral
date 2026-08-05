@@ -16,7 +16,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // Rule-ID registry, deep-link plugin, and the doc-integrity gates.
 //
-// The docs cite stable rule IDs like [SCOPE-3], [BUS-1]. This makes every rule
+// The docs cite stable rule IDs like [SCOPE-3], [CHAN-1]. This makes every rule
 // *definition* a deep-link target (#SCOPE-3) and turns every *reference* into a
 // link to the page that defines it — operationalizing the citation system on the
 // web. Parsing lives in ../scripts/rules.mjs so the lockfile writer shares it.

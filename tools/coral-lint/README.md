@@ -17,13 +17,13 @@ No dependencies, Python 3.11+, nothing to install.
 | Rule | What fails |
 |---|---|
 | `[BUCKET-1]` | a package or module named `utils`, `helpers`, `shared`, `common`, `services`, `repository`, `misc` (error) or `models`, `core`, `base`, `lib` (warning) |
-| `[XCUT-2]` | a top-level module that is not a declared horizontal |
+| `[XCUT-2]` | a top-level module that is not a declared crosscut |
 | `[STRUCT-1]` | a slice with no test file, colocated or mirrored |
 | `[CONFIG-2]` | a slice reading `os.environ` / `os.getenv` / `dotenv` / `configparser` directly |
 | `[CONC-1]` | module-level mutable state in a slice that something actually mutates |
 | `[IDEM-2]` | a read-named slice containing a SQL write or a `.commit()` / `.save()` |
 | `[ERR-2]` | a slice raising an exception type outside the declared taxonomy |
-| `[ROOT-2]` | a root importing something that is neither a horizontal nor a slice, reaching into slice internals, or holding SQL |
+| `[ROOT-2]` | a root importing something that is neither a crosscut nor a slice, reaching into slice internals, or holding SQL |
 | `[STATE-2]` | a module holding SQL that two or more slices import — a shared data-access layer |
 | `[LIB-3]` | a library with a hidden singleton, or that performs work on `import` |
 | `[LIB-5]` | a library that writes to the console or installs a process-wide handler |
@@ -46,8 +46,8 @@ linter earns false positives, and one false positive on a blocking gate teaches 
 app_dirs     = ["expenses"]              # dirs whose children are top-level modules
 feature_dirs = ["expenses/expense"]      # dirs whose children are slices
 library_dirs = []                        # dirs that ARE a published library — enables [LIB-*]
-roots        = ["expenses/app.py"]        # composition roots — not slices, not horizontals
-horizontals  = ["errors", "money", "period", "db"]
+roots        = ["expenses/app.py"]        # composition roots — not slices, not crosscuts
+crosscuts  = ["errors", "money", "period", "db"]
 error_types  = ["errors.validation", "errors.not_found"]
 grandfathered = []                        # paths exempt from [BUCKET-1]
 read_verbs   = ["show", "list", "get", "find", "summary", "report", "search", "read"]
@@ -80,12 +80,12 @@ One slice per check, one file each, with a colocated test:
 coral_lint/
   app.py           composition root: registry, argv, rendering, exit codes — no check logic
   __main__.py      the only module that touches the real process
-  errors.py        horizontal: the taxonomy. Checks raise; the root renders
-  findings.py      horizontal: the Finding type. Data, with no formatting on it
-  config.py        horizontal: resolve + validate coral.toml, once
-  layout.py        horizontal: the repo's slices, top-level modules, roots
-  pysource.py      horizontal: exact Python facts via the AST
-  coverage.py      horizontal: what is and is not checked, with reasons
+  errors.py        crosscut: the taxonomy. Checks raise; the root renders
+  findings.py      crosscut: the Finding type. Data, with no formatting on it
+  config.py        crosscut: resolve + validate coral.toml, once
+  layout.py        crosscut: the repo's slices, top-level modules, roots
+  pysource.py      crosscut: exact Python facts via the AST
+  coverage.py      crosscut: what is and is not checked, with reasons
   checks/
     buckets.py               [BUCKET-1]   + buckets_test.py
     root_names.py            [XCUT-2]     + root_names_test.py

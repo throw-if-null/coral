@@ -34,12 +34,12 @@ browser): it owns **layout and routing — where panels sit — and contains no 
 slices; it does not reach inside them. Adding or moving a panel is a shell change, not an edit to another
 panel.
 
-**`[WEB-4]`** `[auto]` Panel-to-panel communication follows the **bus** (`[BUS-*]` in
-[`SYSTEM.md`](../SYSTEM.md)): a published contract — a shared event channel, a typed props/contract
+**`[WEB-4]`** `[auto]` Panel-to-panel communication follows the **channel** (`[CHAN-*]` in
+[`SYSTEM.md`](../SYSTEM.md)): a published contract — a shared event stream, a typed props/contract
 surface, or a thin client-side bus — **never one panel importing or reaching into another's internals**
 (`[COMPOSE-1]`). Statically: no import edge between two panel directories.
 
-**`[WEB-5]`** `[review]` Shared design tokens, primitives, and interaction patterns are a **horizontal**:
+**`[WEB-5]`** `[review]` Shared design tokens, primitives, and interaction patterns are a **crosscut**:
 defined once as a design-system package, injected into every slice, never re-implemented or forked per
 panel.
 
@@ -50,7 +50,7 @@ language) that is a defect when it diverges.
 
 **`[WEB-6]`** `[guide]` A **single integrated frontend is acceptable** where true microfrontends are
 uneconomical, provided it still organizes internally by capability slice and consumes the design-system
-horizontal.
+crosscut.
 
 This is the honest fallback, not a loophole: visual cohesion, bundle size, and performance make
 microfrontends genuinely uneconomical often enough that pretending otherwise would make the appendix
@@ -92,11 +92,11 @@ response; `code` strings stay slice-owned (`[ERR-2]`).
 never silently repurpose one.
 
 This is the slot where web differs most from every other app type, and it is worth being precise about why.
-A route has **no version prefix and no deprecation channel**. Users bookmark it, other sites link it,
+A route has **no version prefix and no deprecation path**. Users bookmark it, other sites link it,
 search engines index it, and a customer's runbook cites it — and you cannot ask a bookmark to migrate. So
 there is no `/v2` move available: the old path either works or breaks somebody you cannot contact.
 
-Repurposing is the worse failure. Changing what a path *means* while keeping the path is `[BUS-4]`'s
+Repurposing is the worse failure. Changing what a path *means* while keeping the path is `[CHAN-4]`'s
 never-repurpose rule at the URL layer, and it is nastier here because nothing errors — every old link keeps
 resolving and quietly shows the wrong thing.
 
@@ -107,7 +107,7 @@ Where the app also exposes an API, that half follows `[BE-7]`.
 ## Slots deferred to the spine
 
 - **Observability** → `[OBS-1..3]`: structured logs + traces + correlation IDs via the injected logging
-  horizontal; never leaked into the rendered page or API body.
+  crosscut; never leaked into the rendered page or API body.
 - **Configuration** → `[CONFIG-1..4]`, with one addition: anything shipped to the browser is public by
   definition, so no secret may reach client config.
 
@@ -122,7 +122,7 @@ with client state empty — that is not an edge case to handle later, it is the 
 page loads.
 
 **Invalidation is owned by the slice that caused the change.** A slice that mutates invalidates what it
-changed, then publishes on the bus (`[WEB-4]`); other panels react and decide for themselves. No panel
+changed, then publishes on the channel (`[WEB-4]`); other panels react and decide for themselves. No panel
 reaches into another's cache, and the shell stays logic-free (`[WEB-3]`). That is what keeps you out of a
 global store that every panel reads and writes — the `[BUCKET-1]` failure in frontend clothes, arrived at
 one convenience at a time.
@@ -134,7 +134,7 @@ spinner.
 
 **The one genuinely client-owned state is what has never been sent**: form drafts, scroll position,
 expand/collapse, an in-progress selection. That belongs to its slice, needs no server round trip, and
-should not be pushed through the bus.
+should not be pushed through the channel.
 
 ## Testing mechanics  → `[TEST-1]` `[TEST-4]`
 
@@ -148,12 +148,12 @@ That rules three things out, and they are the three that web test suites are usu
   and it breaks on every refactor while passing on every logic bug.
 - **Markup snapshots.** A snapshot asserts *shape*, not *behavior*: it fails on every redesign and succeeds
   on every wrong-total. It is not a behavior test and should not be counted as one.
-- **Mocking the capability call the slice exists to make.** Stub at the **bus contract** (`[WEB-4]`) or the
-  HTTP boundary, never the function the slice calls — otherwise the test passes when the contract changes.
+- **Mocking the capability call the slice exists to make.** Stub at the **channel contract** (`[WEB-4]`) or
+  the HTTP boundary, never the function the slice calls — otherwise the test passes when the contract changes.
 
 Two additions are mandatory rather than optional. An **authorization test at the boundary**, because
 `[WEB-7]` is this app type's heaviest slot and the one that regresses silently — nothing visibly breaks
-when an authz check stops firing. And for microfrontends, a **contract test on the panel bus**
+when an authz check stops firing. And for microfrontends, a **contract test on the panel channel**
 (`[SYS-TEST-1]`), so each panel is verified alone and you never need the whole shell up to know a panel
 works.
 
@@ -174,12 +174,12 @@ not be where your coverage lives.
 | boundary            | a route/page-action/endpoint; UI + handler in one slice                  |
 | preferred shape     | microfrontends; panels = slices; dashboard = UI read fan-in              |
 | composition root    | the shell — owns layout/routing, no business logic                       |
-| panel ↔ panel       | over the bus (`[BUS-*]`), never internal reach                           |
-| visual cohesion     | design-system horizontal, injected                                       |
+| panel ↔ panel       | over the channel (`[CHAN-*]`), never internal reach                           |
+| visual cohesion     | design-system crosscut, injected                                       |
 | fallback            | one integrated frontend, still organized by capability slice; flag it    |
 | trust / security    | client hostile; authz at the edge; tenant in the data model; deny by default |
 | idempotency         | HTTP method semantics; client owns retry                                 |
 | error rendering     | root maps category → status + error view/JSON                           |
 | contract versioning | the route/URL structure; redirect, never repurpose (`[BE-7]` for the API half) |
 | state / effects     | server is truth; client state is a slice-owned cache; the mutator invalidates |
-| testing             | drive the real surface; no snapshots; authz test + contract-test the panel bus |
+| testing             | drive the real surface; no snapshots; authz test + contract-test the panel channel |
