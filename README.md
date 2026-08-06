@@ -104,3 +104,4 @@ npm run docs:preview  # serve the built site
 Pushing to `main` triggers the Azure Static Web Apps workflow
 (`.github/workflows/azure-static-web-apps-*.yml`), which builds with `npm run build` and publishes
 `.vitepress/dist`.
+
