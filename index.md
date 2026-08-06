@@ -9,16 +9,6 @@ hero:
   image:
     src: /logo.png
     alt: Coral Architecture
-  actions:
-    - theme: brand
-      text: Start with the conventions
-      link: /CONVENTIONS
-    - theme: alt
-      text: The app spine
-      link: /ARCHITECTURE
-    - theme: alt
-      text: A real service, reviewed
-      link: /examples/backend-review
 ---
 
 ## What this is
