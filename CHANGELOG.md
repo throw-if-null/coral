@@ -32,8 +32,36 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ## Unreleased
 
-*Nothing yet.* A version marks a release, not a commit (`[VER-2]`), so changes land here first and the
-bump happens when the batch is cut.
+A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
+the batch is cut.
+
+**An on-ramp for human readers, on `index.md` and `README.md`. A patch: no rule was added, tightened,
+loosened, or retired, and nothing about conformance changed.**
+
+The document set was written for agents, which load whole files and do not care what order the ideas arrive
+in. For a person reading top to bottom, that produced a set where every definition precedes its example:
+the seven-noun vocabulary table opens `CONVENTIONS.md`, while the first directory layout is four documents
+away in `examples/`. The landing page and the README both opened with the same taxonomy.
+
+So the site's landing page now carries the explanation the spines deliberately do not: a worked directory
+layout first, then the four kinds of code named against it, then the three scales, then the four properties
+that every rule traces back to — which until now were stated only in `CONVENTIONS.md`'s operating-model
+section, roughly halfway into the file. The four properties are *paraphrased* there, not moved; the precise
+statement stays where `[AGENT-1]` needs it. Where a rule already says something, the on-ramp cites it
+(`[BUCKET-1]`, `[SCOPE-2]`, `[DUP-2]`) so the build resolves the link rather than a second copy drifting.
+
+The landing page's four-card feature grid is gone with it. The cards predated the on-ramp, when they were
+the only content on the page; once the prose existed, each card was a shorter and worse-voiced preview of
+a section directly beneath it. The two facts they carried that the prose did not — the promotion gate for
+a crosscut, and the names of the three enforcement classes — moved into the prose.
+
+`README.md` loses its copy of the taxonomy and its numbered reading list — the reading order existed in
+three places, and `CONVENTIONS.md` is the one an agent loads. What is left is what only a repository README
+can answer: what is in here, how to run the linter, how to install the audit skill, how to build the docs.
+
+The spines are unchanged. Prose tuned for a human reader would cost them the density that makes them work
+as agent input, and the split between explanation and Agent Execution Contract already handles that
+tension one layer down.
 
 ---
 

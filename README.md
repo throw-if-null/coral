@@ -1,53 +1,35 @@
 # Coral Architecture
 
-A capability-first software architecture for a world where **agents write the code and humans review
-and orchestrate**. It applies to CLIs, backends, web apps, libraries, and tools — and composes the
-same way from a single slice up to a whole system.
+A set of rules for organising code in a repository, written to be followed by coding agents as well as by
+people. The organising principle is one sentence: **one capability, owned end to end, in one place.**
+Everything one command or one endpoint needs sits together, its tests included, rather than being spread
+across a `handlers/`, a `services/` and a `repositories/` directory. Shared code exists only where it is
+named and passed in. The same shape applies to a CLI, a backend, a web app, a library, or a tool, and it
+composes from a single capability up to a whole system.
 
-**📖 Live docs:** https://gray-hill-09bb08b03.7.azurestaticapps.net
+**📖 Live docs:** https://gray-hill-09bb08b03.7.azurestaticapps.net — the guided version, with a worked
+directory layout, the four kinds of code, and where the architecture does not fit.
 
-## The idea in one breath
-
-Code falls into exactly four categories, and knowing which you are writing answers most placement
-questions:
-
-- A **slice** owns one capability end to end — its trigger, parsing, validation, behavior, state
-  access, output, and tests.
-- A **crosscut** is a cross-cutting concern — logging, config, the error taxonomy, a domain
-  invariant — defined **once**, precisely named, and **injected**. Never re-built per slice.
-- The **composition root** registers slices, constructs crosscuts, and injects them. No logic.
-- A **published contract** is the only surface anyone else may depend on.
-
-Anything that is none of these is a `utils`/`services`/`shared` pile, and the answer is a real
-crosscut or honest duplication — not a bucket.
-
-Three rules hold at every scale (slice, app, system): own your trigger end to end; share only through
-a named crosscut or a published contract; cross a boundary only over a channel.
-
-**Where it doesn't fit:** dense, deeply-coupled domains where every feature reaches into one central
-concept — a tax engine, a scheduler, a solver. Slicing fights those domains. Use something else and
-say so.
+Coral is a poor fit for dense domains where every feature reaches into one central concept — a tax engine,
+a scheduler, a solver. That limit is stated as a rule (`[SCOPE-2]`), not as a footnote.
 
 ## The documents
 
-Read them in this order:
+Start with [`CONVENTIONS.md`](./CONVENTIONS.md). It defines the seven nouns every other document uses, the
+rule-ID scheme, the enforcement classes, and the agents-write / humans-review operating model; the rest
+refer back to it instead of restating any of it.
 
-1. **[`CONVENTIONS.md`](./CONVENTIONS.md)** — start here. The vocabulary, the canonical slice, the
-   rule-ID scheme, the enforcement classes, and the agents-write / humans-review operating model.
-2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the app spine: how to build one app.
-3. **[`SYSTEM.md`](./SYSTEM.md)** — the system spine: how apps compose over a channel.
-4. **[`appendix/`](./appendix)** — one file per app type (CLI, backend, web, agentic/LLM, library,
-   GitHub Action).
-5. **[`examples/`](./examples)** — [two CLI slices in Python](./examples/cli-slice.md) (one file each),
-   [an HTTP slice in Go](./examples/go-api-slice.md) (where the language forces a capability across
-   packages), and [the rules applied to a real service](./examples/backend-review.md) including where
-   they'd be overkill.
+From there: [`ARCHITECTURE.md`](./ARCHITECTURE.md) is how to build one app,
+[`SYSTEM.md`](./SYSTEM.md) is how separately-built apps compose over a channel, [`appendix/`](./appendix)
+holds one file per app type, and [`examples/`](./examples) holds worked code — including
+[a real service reviewed against the rules](./examples/backend-review.md), which states where they would
+have been overkill.
 
-Rules carry stable IDs like `[DUP-2]` with an enforcement class (`[auto]` / `[review]` / `[guide]`);
-on the live site every citation links to its definition. The build fails if a rule has no class, if a
-citation has no definition, if a rule is missing from its document's Agent Execution Contract, if a
-published rule ID has disappeared or been reclassified, or if a link fragment doesn't resolve — the docs'
-own drift control is structural, not goodwill.
+Rules carry stable IDs like `[DUP-2]` with an enforcement class (`[auto]` / `[review]` / `[guide]`); on the
+live site every citation links to its definition. The build fails if a rule has no class, if a citation has
+no definition, if a rule is missing from its document's Agent Execution Contract, if a published rule ID
+has disappeared or been reclassified, or if a link fragment doesn't resolve — the docs' own drift control
+is structural, not goodwill.
 
 ## Versioning, and how a project records where it differs
 
@@ -71,9 +53,6 @@ An agent never authors an exception or an extension (`[AGENT-4]`); it flags the 
 decides and records it. And it reads `CORAL.md` before escalating (`[AGENT-5]`), so a settled decision
 isn't re-litigated by every agent that meets it. The full convention is in
 [`CONVENTIONS.md`](./CONVENTIONS.md#versioning-and-local-deviations).
-
-The name is explained in one paragraph at the end of `CONVENTIONS.md`. It is a naming scheme, not a
-reasoning tool; no rule requires the metaphor to apply it.
 
 ## The linter
 
