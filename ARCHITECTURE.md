@@ -31,6 +31,48 @@ it is part of the rule, not commentary.
 
 ---
 
+## The shape of an app
+
+Twenty-two sections of rules describe one thing, so here is the thing first. An expense tracker with four
+capabilities, written without file extensions or a fixed language — the language binding fixes whether a
+slice is a file or a directory, and whether tests colocate or mirror (`[STRUCT-1]`):
+
+```
+expenses/
+  main              entry point
+  app               bootstrap and composition root
+  db                crosscut: connections and transactions
+  config            crosscut: settings, resolved once at startup
+  errors            crosscut: the error taxonomy
+  category/
+    add             definition + behavior
+    add_test        tests for add (colocated, or mirrored if the language forbids colocation)
+    list
+    list_test
+  expense/
+    add
+    add_test
+  summary/
+    month
+    month_test
+```
+
+Everything in it is one of four things, which section 3 states as a rule (`[MODEL-1]`):
+
+- `category/add`, `expense/add` and `summary/month` are **slices** — one capability each, owned from
+  trigger through to output, tests included.
+- `db`, `config` and `errors` are **crosscuts** — defined once, constructed at the root, and injected
+  into the slices that need them.
+- `app` is the **composition root**. It registers slices, constructs crosscuts, injects them, and holds
+  no behavior of its own.
+- What the app exposes to anything outside it — its command contract, HTTP shape, or library API — is
+  its **published contract**.
+
+There is no `handlers`, no `services`, no `repositories`, no `utils`. The sections below are the rules
+that keep it that way, each with the reasoning that produced it.
+
+---
+
 ## 1. Purpose, Scope & Breakage Boundary  `[SCOPE-*]`
 
 This architecture optimizes for:
@@ -213,26 +255,8 @@ capabilities and lets the consumer wire them. Each appendix names its root form.
 
 ## 6. Directory Structure & Naming  `[STRUCT-*]`
 
-Names below carry no file extensions and no fixed language **by design** — the language binding fixes
-whether a slice is a file or a directory, and whether tests colocate or mirror (`[STRUCT-1]`).
-
-```
-<app>/
-  main              entry point
-  app               bootstrap and composition root
-  <crosscuts>     precisely named: db, config, errors, logging, <domain>
-  category/
-    add             definition + behavior
-    list
-    add_test        tests for add (colocated, or mirrored if the language forbids colocation)
-    list_test
-  expense/
-    add
-    add_test
-  summary/
-    month
-    month_test
-```
+The layout is [the one at the top of this document](#the-shape-of-an-app). Three rules fix how it is
+named; a fourth thing it shows — that a crosscut is rare and lives at the root — is `[XCUT-2]`.
 
 **`[STRUCT-1]` `[auto]`** — Tests live beside the code they verify where the language allows; otherwise
 they mirror the package/namespace structure exactly.

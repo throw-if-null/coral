@@ -59,9 +59,20 @@ a crosscut, and the names of the three enforcement classes — moved into the pr
 three places, and `CONVENTIONS.md` is the one an agent loads. What is left is what only a repository README
 can answer: what is in here, how to run the linter, how to install the audit skill, how to build the docs.
 
-The spines are unchanged. Prose tuned for a human reader would cost them the density that makes them work
-as agent input, and the split between explanation and Agent Execution Contract already handles that
-tension one layer down.
+The spines keep their density — prose tuned for a human reader would cost them the property that makes
+them work as agent input, and the split between explanation and Agent Execution Contract already handles
+that tension one layer down. Two *orderings* changed, though, for the same reason the on-ramp exists: both
+put an abstraction ahead of the concrete thing that makes it legible.
+
+`CONVENTIONS.md` now defines **forbidden bucket** and **drift** after the canonical slice instead of
+immediately under the vocabulary table. Both are named for what a crosscut is *not*, so they were being
+defined by contrast with something the reader had not yet seen — and they made the file's first movement
+two prohibitions.
+
+`ARCHITECTURE.md` now opens with the app layout that was previously in §6, 219 lines in, so its
+twenty-two rule sections have a concrete thing to attach to. The tree is named rather than
+parameterised (`expenses/`, `db`, `config`, `errors` in place of `<app>/` and `<crosscuts>`), and §6 links
+up to it rather than carrying a second copy. No rule text moved in either file.
 
 ---
 
