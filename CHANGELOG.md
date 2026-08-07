@@ -74,6 +74,14 @@ twenty-two rule sections have a concrete thing to attach to. The tree is named r
 parameterised (`expenses/`, `db`, `config`, `errors` in place of `<app>/` and `<crosscuts>`), and §6 links
 up to it rather than carrying a second copy. No rule text moved in either file.
 
+`CONVENTIONS.md` also loses its **Why "Coral"?** section. It spent a figure, a paragraph and a four-row
+table teaching a biology vocabulary — polyp, skeleton, colony, reef — and then told the reader the
+vocabulary was decoration. It was: those four words appear nowhere else in the document set, so the
+section's own claim that they turn up "in a heading or an aside" was never true. The one engineering idea
+inside it — the same shape repeating at every scale — is not a metaphor and does not need one; it is the
+three-scale invariant, and the landing page now states it plainly. The architecture is called Coral; that
+is all the section established that survives it.
+
 ---
 
 ## 0.4.0 — 2026-08-05

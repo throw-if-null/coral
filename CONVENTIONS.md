@@ -17,9 +17,6 @@ The two spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how to build one app)
 of it. That is the architecture practicing what it preaches: a concern used in many places is defined
 once and pointed to.
 
-The name is explained in one paragraph at the end ([Why "Coral"?](#why-coral)). It is a naming
-scheme, not a reasoning tool — you never need it to apply a rule.
-
 ---
 
 ## The vocabulary
@@ -412,29 +409,3 @@ Read in this order:
 
 Supporting files: `VERSION` (what this is), [`CHANGELOG.md`](./CHANGELOG.md) (what changed, per rule ID),
 and `rules.lock` (every published rule ID and class, checked in so `[VER-1]` can be enforced).
-
----
-
-## Why "Coral"?
-
-<figure class="coral-fig">
-  <img src="/polyp.png" alt="A coral polyp, with the same coral form branching behind it at larger scale" />
-  <figcaption>Coral: one simple unit, repeating at every scale.</figcaption>
-</figure>
-
-Coral is a **living fractal** — the same simple unit repeats and accretes from the smallest scale to
-the largest, and a few rules that hold for one unit hold for the whole structure. That is the property
-this architecture is named for: a slice, an app, and a system are the same shape under the same three
-rules. The biology supplies five useful nicknames and nothing more — the technical nouns above are
-primary, the way "hexagonal architecture" keeps "ports and adapters."
-
-| Coral | Architecture |
-|---|---|
-| **polyp** — a self-contained animal that hosts the partners it doesn't build | a **slice**, hosting **injected crosscuts** |
-| **skeleton** — the hard structure it secretes, which outlives it and gets built on | a **published contract** |
-| **colony** — many polyps, one genome | an **app**, many slices under one set of conventions |
-| **reef** — many colonies, coupled only by signals in the water | a **system**, many apps coupled only by channels |
-
-You will occasionally see these words in a heading or an aside. They are decoration. **No rule
-requires the metaphor to apply it**, and if a rule ever seems to follow from the biology rather than
-from the engineering, treat that as a defect in the rule and flag it (`[AGENT-2]`).
