@@ -1,6 +1,6 @@
 {
   "name": "coral-architecture",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,8 @@
     "check:anchors": "node scripts/check-anchors.mjs",
     "check:lint": "cd tools/coral-lint && python3 -m pytest -q && python3 -m coral_lint .",
     "build": "npm run docs:build",
-    "rules:lock": "node scripts/rules-lock.mjs"
+    "rules:lock": "node scripts/rules-lock.mjs",
+    "rules:index": "node scripts/rules-index.mjs"
   },
   "repository": {
     "type": "git",

@@ -183,3 +183,27 @@ not be where your coverage lives.
 | contract versioning | the route/URL structure; redirect, never repurpose (`[BE-7]` for the API half) |
 | state / effects     | server is truth; client state is a slice-owned cache; the mutator invalidates |
 | testing             | drive the real surface; no snapshots; authz test + contract-test the panel channel |
+
+---
+
+## Agent Execution Contract (web)
+
+The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
+**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
+load both. Where the app also serves an API, [`backend.md`](./backend.md)'s contract applies to that half.
+`[guide]` rules are rationale and live only in the prose.
+
+<!-- coral:contract:start -->
+
+- `[WEB-1]` A slice is one route/page-action/endpoint, with its UI and its handler in the same slice.
+- `[WEB-3]` Keep the composition shell to layout and routing; it mounts slices and holds no business logic.
+- `[WEB-4]` Panel-to-panel communication goes over a published channel; no import edge between panel directories.
+- `[WEB-5]` Define design tokens, primitives, and interaction patterns once as an injected crosscut.
+- `[WEB-7]` Treat the client as hostile: authorize at the server boundary, validate every payload, keep secrets server-side.
+- `[WEB-8]` Follow HTTP method semantics: `GET`/`HEAD` safe and read-only, `POST` non-idempotent, `PUT`/`DELETE` idempotent.
+- `[WEB-9]` Slices raise the taxonomy; a root middleware renders to the right surface — error view or structured body.
+- `[WEB-10]` Treat the route/URL structure as the stable contract: never break a route, never silently repurpose one.
+- `[WEB-11]` Server state is the source of truth; client state is a slice-owned cache, and the mutating slice invalidates it.
+- `[WEB-12]` Drive a web slice's behavior test through the real surface: no internals, no snapshots, no mocking its capability call.
+
+<!-- coral:contract:end -->

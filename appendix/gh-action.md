@@ -151,3 +151,31 @@ the payload fields, so `[GHA-6]` is covered by a test rather than by care.
   whether a composite action can satisfy `[ROOT-1]` thinness at all.
 - Reusable workflows vs. actions: a reusable workflow is closer to an orchestration layer (`[ORCH-1]`) than
   to a slice — worth deciding which rules follow it.
+
+---
+
+## Agent Execution Contract (GitHub Action)
+
+The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
+**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
+load both. `[guide]` rules are rationale and live only in the prose.
+
+Two entries carry more weight than the rest, because both defend against a platform fact you do not
+control: `[GHA-5]` (delivery is at-least-once) and `[GHA-6]` (the run is privileged and the payload is
+often hostile).
+
+<!-- coral:contract:start -->
+
+- `[GHA-1]` One action run is one slice: one trigger, handled end to end.
+- `[GHA-2]` The contract is declared outputs + exit status + annotations; log text is not a contract.
+- `[GHA-3]` Declare every output the action writes in `action.yml`, and rely on no undeclared output.
+- `[GHA-4]` The entry point is the root: validate inputs and environment there, inject, dispatch, render. No business logic.
+- `[GHA-5]` Make every mutating run safe under redelivery, via an idempotency key, a natural key, or check-before-write.
+- `[GHA-6]` Treat the event payload as attacker-controlled; pass untrusted values through `env:`, never into a `run:` body.
+- `[GHA-7]` Declare `permissions:` explicitly and scope them to the run, default to read-only, and never write a secret to an output.
+- `[GHA-9]` Map `category` → exit status and annotation at the entry point, distinguish recoverable from not, never exit `0` on failure.
+- `[GHA-10]` Keep diagnostics in log groups and annotations, never on the outputs surface; report no-ops explicitly.
+- `[GHA-11]` Treat input and output names as the versioned contract: add freely, never repurpose, deprecate before removing.
+- `[GHA-12]` Exercise the entry point with simulated inputs and hostile payload fixtures, and assert a repeated run is a no-op.
+
+<!-- coral:contract:end -->

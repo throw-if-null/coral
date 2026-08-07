@@ -115,3 +115,23 @@ These need no backend-specific rule — the spine's answer is the answer.
 - Cross-service composition is governed by `[SCOPE-4]` — published capabilities over an explicit
   boundary, never a shared datastore. Confirm the transport (sync API vs. event stream) per system, per
   `[CHAN-2]`.
+
+---
+
+## Agent Execution Contract (backend)
+
+The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
+**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
+load both. `[guide]` rules are rationale and live only in the prose.
+
+<!-- coral:contract:start -->
+
+- `[BE-1]` One slice per HTTP route or use-case, named for the singular capability plus its effect verb.
+- `[BE-2]` The contract is status code + response body + observable side effects: `201` create, `200` read, `204` no body.
+- `[BE-3]` Wire router, middleware, and injection at the root; crosscuts are singletons, only request-bound state is per-request.
+- `[BE-4]` A synchronous `POST` may offer an idempotency key; any platform-redelivered handler must be idempotent.
+- `[BE-5]` Slices raise the taxonomy; one root middleware renders the body and maps `category` → HTTP status.
+- `[BE-6]` Authenticate and authorize at the boundary before the slice, scope every query by owner/tenant id, default to deny.
+- `[BE-7]` Version the HTTP API with a URL prefix and advance it only for a breaking change; nothing additive bumps it.
+
+<!-- coral:contract:end -->

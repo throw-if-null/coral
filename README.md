@@ -25,11 +25,16 @@ holds one file per app type, and [`examples/`](./examples) holds worked code —
 [a real service reviewed against the rules](./examples/backend-review.md), which states where they would
 have been overkill.
 
+To look a rule up rather than read for it, [`rules.md`](./rules.md) lists all of them on one page with
+their class and a one-line statement, grouped by document. It is generated from the documents
+(`npm run rules:index`) and the build fails if it falls behind them, because an index that can drift from
+what it indexes is worse than no index.
+
 Rules carry stable IDs like `[DUP-2]` with an enforcement class (`[auto]` / `[review]` / `[guide]`); on the
 live site every citation links to its definition. The build fails if a rule has no class, if a citation has
 no definition, if a rule is missing from its document's Agent Execution Contract, if a published rule ID
-has disappeared or been reclassified, or if a link fragment doesn't resolve — the docs' own drift control
-is structural, not goodwill.
+has disappeared or been reclassified, if the rule index is stale, or if a link fragment doesn't resolve —
+the docs' own drift control is structural, not goodwill.
 
 ## Versioning, and how a project records where it differs
 

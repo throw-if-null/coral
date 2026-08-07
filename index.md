@@ -140,3 +140,6 @@ it, `[review]` if it needs a person's judgment, `[guide]` if it is rationale rat
 On this site each citation links to its definition, and the build fails if a citation has no definition, if
 a rule has no class, or if a published ID disappears — so the documents' internal consistency is checked
 rather than trusted.
+
+If you are looking for one rule rather than reading through, the [rule index](/rules) has every one of
+them on a single page — ID, class, and a one-line statement, generated from the documents themselves.

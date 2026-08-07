@@ -42,7 +42,11 @@ const SKIP = new Set(['node_modules', 'public'])
 // Rewording every future entry would be a discipline that eventually lapses, so the
 // exclusion is structural. DEFINITIONS only: the file stays in docFiles(), so Gate 2
 // still requires every ID the changelog cites to resolve somewhere.
-const DEFINES_NOTHING = new Set(['CHANGELOG.md'])
+// rules.md is generated FROM this registry (scripts/rules-index.mjs), so letting it
+// define anything would be circular as well as wrong. Its rows are table cells, which
+// DEF_LINE_RE cannot match today — but that is an accident of the row syntax, not a
+// guarantee, and the changelog taught us what a silent registry hijack costs. Say it.
+const DEFINES_NOTHING = new Set(['CHANGELOG.md', 'rules.md'])
 
 export const CONTRACT_START = '<!-- coral:contract:start -->'
 export const CONTRACT_END = '<!-- coral:contract:end -->'
@@ -142,4 +146,154 @@ export function parseLock(text) {
     out.set(id, { cls, page })
   }
   return out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The rule index — rules.md, a generated view of the registry.
+//
+// The docs define each rule once and point at it, which is right for reading and
+// useless for looking one up: there is no page that answers "what rules exist?"
+// or "show me every [auto] rule". This builds one. It is GENERATED for the same
+// reason rules.lock is: a hand-written index is a second copy of 174 rules, and
+// the second copy is always the one that goes stale.
+//
+// The statement column comes from the Agent Execution Contract wherever there is
+// one — those lines are already curated one-line imperatives, and sourcing from
+// them means the index inherits Gate 3's completeness guarantee instead of
+// inventing a parallel summary nobody maintains. [guide] rules are not in any
+// contract, so they fall back to the opening sentence of the definition.
+// ─────────────────────────────────────────────────────────────────────────────
+export const INDEX_FILE = 'rules.md'
+
+const CONTRACT_LINE_RE = new RegExp(String.raw`^- \`\[(${ID_CORE})\]\`\s+(.*)$`)
+
+/** Drop bold markers and collapse whitespace, so a statement sits in one table cell. */
+const flatten = (s) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\s+/g, ' ').trim()
+
+/** Greedy wrap for generated prose, matching the documents' ~107-column convention. */
+function wrap(text, width = 107) {
+  const out = []
+  let line = ''
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line && line.length + 1 + word.length > width) {
+      out.push(line)
+      line = word
+    } else line = line ? `${line} ${word}` : word
+  }
+  if (line) out.push(line)
+  return out
+}
+
+/** First sentence, ignoring the periods inside `code spans` and common abbreviations. */
+function firstSentence(text) {
+  let tick = false
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '`') tick = !tick
+    if (tick || !'.!?'.includes(text[i])) continue
+    const next = text.slice(i + 1)
+    if (!next || /^\s+[A-Z“"(]/.test(next)) return text.slice(0, i + 1)
+  }
+  return text
+}
+
+/**
+ * One-line statement per rule: the contract line where a document has one, else the
+ * definition's opening sentence.
+ *
+ * @returns {Map<string,string>} ID -> statement
+ */
+export function extractStatements(srcDir, rules) {
+  const out = new Map()
+  const byPage = new Map()
+  for (const [id, { page }] of rules) {
+    if (!byPage.has(page)) byPage.set(page, [])
+    byPage.get(page).push(id)
+  }
+
+  for (const [rel, ids] of byPage) {
+    const text = fs.readFileSync(path.join(srcDir, rel), 'utf8')
+
+    // Preferred source: the document's own contract.
+    const start = text.indexOf(CONTRACT_START)
+    if (start !== -1) {
+      const end = text.indexOf(CONTRACT_END, start)
+      for (const line of text.slice(start, end === -1 ? undefined : end).split('\n')) {
+        const m = CONTRACT_LINE_RE.exec(line)
+        if (m) out.set(m[1], flatten(m[2]))
+      }
+    }
+
+    // Fallback: the definition itself, read to the end of its paragraph so a wrapped
+    // opening sentence is not truncated at the line break.
+    const lines = text.split('\n')
+    for (const id of ids) {
+      if (out.has(id)) continue
+      const i = lines.findIndex((l) => DEF_LINE_RE.exec(l)?.[1] === id)
+      if (i === -1) continue
+      let body = DEF_LINE_RE.exec(lines[i])[2]
+      for (let j = i + 1; j < lines.length && lines[j].trim() && !DEF_LINE_RE.test(lines[j]); j++) {
+        body += ` ${lines[j].trim()}`
+      }
+      // Order matters. The `**` that closes a bolded ID has to go BEFORE flatten pairs
+      // it with the next opening `**` in the sentence — otherwise `**[SCOPE-1]** — This
+      // covers **command-shaped apps**` loses "This covers" instead of the emphasis.
+      body = body
+        .replace(classRe(), '')     // the enforcement class is its own column
+        .trimStart()
+        .replace(/^\*\*/, '')       // closing marker of a bolded ID
+        .replace(/^[\s—–:-]+/, '')  // the dash or colon that opens most definitions
+      out.set(id, firstSentence(flatten(body)))
+    }
+  }
+  return out
+}
+
+/** Render the registry as the rules.md page. Owns the whole file — prose included. */
+export function serializeIndex(srcDir, rules, defsByFile) {
+  const statements = extractStatements(srcDir, rules)
+  const count = (c) => [...rules.values()].filter((r) => r.cls === c).length
+  const title = (rel) =>
+    (fs.readFileSync(path.join(srcDir, rel), 'utf8').match(/^# (.+)$/m)?.[1] || rel).trim()
+
+  const out = [
+    '# Rule index',
+    '',
+    ...wrap(
+      `Every rule Coral publishes, in one place: **${rules.size} rules** across ${defsByFile.size} ` +
+        `documents — ${count('auto')} \`[auto]\`, ${count('review')} \`[review]\`, ` +
+        `${count('guide')} \`[guide]\`. Each ID links to its definition, where the reasoning lives; ` +
+        'the statement here is only the one-line form.'
+    ),
+    '',
+    ...wrap(
+      'This page is **generated from the documents** (`npm run rules:index`), and the build fails if ' +
+        'it drifts, so it cannot disagree with them. A hand-maintained index would be a second copy ' +
+        'of every rule — the failure the `[DUP-*]` rules exist to prevent, committed by the rule set ' +
+        'itself.'
+    ),
+    '',
+    ...wrap(
+      "Statements come from each document's Agent Execution Contract, which is why they read as " +
+        'instructions. `[guide]` rules are rationale rather than instruction and appear in no ' +
+        'contract, so theirs is the opening sentence of the definition instead.'
+    ),
+    '',
+  ]
+
+  for (const [rel, defs] of defsByFile) {
+    out.push(
+      `## ${title(rel)}`,
+      '',
+      `${defs.length} rule${defs.length === 1 ? '' : 's'} — [\`${rel}\`](./${rel})`,
+      '',
+      '| Rule | Class | Statement |',
+      '| --- | --- | --- |',
+      ...defs.map(({ id, cls }) => {
+        const s = (statements.get(id) || '').replace(/\|/g, '\\|')
+        return `| \`[${id}]\` | \`[${cls}]\` | ${s} |`
+      }),
+      ''
+    )
+  }
+  return out.join('\n')
 }

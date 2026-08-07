@@ -189,7 +189,7 @@ enforced going forward.
 
 ## Prose vs. contract
 
-Each spine has two layers, and the build enforces the relationship between them:
+Each document has two layers, and the build enforces the relationship between them:
 
 - The **prose sections** define each rule and explain *why* it exists. Every rule is defined here,
   once. The first sentence of a rule is the rule — complete and quotable on its own; qualifications,
@@ -200,7 +200,12 @@ Each spine has two layers, and the build enforces the relationship between them:
 
 Completeness is checked at build time, so a new rule cannot be added without wiring it into the
 contract. Reviewers walk the same contract and cite the same IDs; there is no separate review
-checklist to drift against. This file carries a contract too, for its `[AGENT-*]` and `[VER-*]` rules.
+checklist to drift against. Every document carries one — the spines, this file for its `[AGENT-*]`
+and `[VER-*]` rules, and each appendix. An appendix contract **adds to** the app spine's rather than
+replacing it: building a CLI means loading `ARCHITECTURE.md`'s contract and `appendix/cli.md`'s.
+
+[`rules.md`](./rules.md) is the cross-document view — every rule, its class, and its one-line
+statement on one page. It is generated from these contracts, so it cannot drift from them.
 
 ---
 
@@ -406,6 +411,9 @@ Read in this order:
    the language forces a capability across packages), and
    [`examples/backend-review.md`](./examples/backend-review.md) (the rules applied to a real service,
    including where they'd be overkill).
+
+Looking a rule up rather than reading through: [`rules.md`](./rules.md) lists all of them on one page,
+grouped by document, each ID linking to its definition.
 
 Supporting files: `VERSION` (what this is), [`CHANGELOG.md`](./CHANGELOG.md) (what changed, per rule ID),
 and `rules.lock` (every published rule ID and class, checked in so `[VER-1]` can be enforced).

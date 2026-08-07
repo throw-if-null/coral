@@ -32,10 +32,46 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ## Unreleased
 
-A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut.
+*Nothing yet.* A version marks a release, not a commit (`[VER-2]`), so changes land here first and the
+bump happens when the batch is cut.
 
-**An on-ramp for human readers, on `index.md` and `README.md`. A patch: no rule was added, tightened,
+---
+
+## 0.5.0 — 2026-08-08
+
+**Every rule is now findable in one place, and every appendix now carries a contract.** No rule was added,
+tightened, or retired. Two `[guide]` rules were reworded for clarity, which under `[VER-2]` is what makes
+this a **minor** bump rather than a patch.
+
+**The six appendices gain an Agent Execution Contract.** Only the three spines carried one before. The
+build's contract-completeness check is opt-in by marker — it verifies that every `[auto]` and `[review]`
+rule defined in a document appears in that document's contract — so it had been skipping the appendices
+entirely. That left 58 rules with no condensed form and nothing noticing: an agent building a CLI could
+load `ARCHITECTURE.md`'s contract in full and still be missing all nine normative `CLI-` rules. Each
+appendix now ends with its own contract and the check covers it. An appendix contract **adds to** the app
+spine's rather than replacing it, so building a CLI means loading both.
+
+**`rules.md` — every rule on one page.** 174 rules across nine documents, grouped by document, each with
+its enforcement class and a one-line statement, each ID linking to its definition. The documents define a
+rule once and point at it, which is right for reading and useless for looking one up: nothing answered
+*what rules exist?* or *show me every `[auto]` rule*, and the appendices were the worst of it — 67 rules
+discoverable only by reading the file that holds them.
+
+The page is generated (`npm run rules:index`) and the build fails if it falls behind the documents, which
+is the only version of this worth having: a hand-maintained index is a second copy of 174 rules, and the
+second copy is the one that goes stale. Statements come from the Agent Execution Contracts, so the index
+inherits their completeness guarantee instead of carrying a parallel set of summaries nobody maintains —
+which is the other reason the appendices needed contracts first.
+
+**`[BUCKET-2]` and `[SYS-TEST-4]` reworded** — the two clarifications. `CONVENTIONS.md` requires a rule's
+first sentence to be the rule, *complete and quotable on its own*, and generating an index that quotes
+exactly that sentence is what exposed these two failing it. `[BUCKET-2]` opened with *"These names destroy
+locality and predictability"* — *these names* being `[BUCKET-1]`'s list one rule earlier, so the sentence
+carried nothing on its own; it now reads *"Generic catch-all names"*. `[SYS-TEST-4]` opened with a fragment
+ending in a colon that ran straight into its list of tools; it is now a sentence. Neither change alters
+what either rule requires.
+
+**An on-ramp for human readers, on `index.md` and `README.md`. Patch-level: no rule was added, tightened,
 loosened, or retired, and nothing about conformance changed.**
 
 The document set was written for agents, which load whole files and do not care what order the ideas arrive

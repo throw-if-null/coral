@@ -186,3 +186,29 @@ next agent cannot ask what the prompt used to say.
 - **Multi-agent** (agents calling agents): each sub-agent is its own harnessed app; cross-agent calls
   follow `[CHAN-1]` and the orchestrating harness in [`SYSTEM.md`](../SYSTEM.md).
 - **Streaming output**: how the observable contract is asserted incrementally vs. on completion.
+
+---
+
+## Agent Execution Contract (agentic app)
+
+The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
+**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
+load both. `[guide]` rules are rationale and live only in the prose.
+
+This appendix is an **ADDENDUM**: its rule IDs are permanent, but its content may change substantially
+without a major bump. The four entries that hold regardless are `[AGENTIC-5]`, `[AGENTIC-10]`,
+`[AGENTIC-11]` and `[AGENTIC-12]` — they are safety guardrails, not construction advice.
+
+<!-- coral:contract:start -->
+
+- `[AGENTIC-3]` Treat the model as an injected effect; keep prompt-building and output-parsing pure.
+- `[AGENTIC-4]` Force a schema on model output; the contract is schema conformance plus observed tool calls, never the text.
+- `[AGENTIC-5]` Run an autonomous or looping agent only inside a harness: typed tools, authorization, human gate, observation, bounds.
+- `[AGENTIC-7]` Treat history, memory, and retrieval as state: slice-owned, or a precisely-named retrieval crosscut.
+- `[AGENTIC-8]` Dedupe a mutating agent by storing the first result keyed to the request; never re-run to recover.
+- `[AGENTIC-9]` Map model failures to the taxonomy, bound schema repair then fail, and never accept malformed output.
+- `[AGENTIC-10]` Treat prompt input and model output as untrusted, default-deny dangerous tools, keep secrets and PII out of prompts.
+- `[AGENTIC-11]` Test the deterministic parts normally, agent behavior by conformance and evals, and harness safety; never exact-match model text.
+- `[AGENTIC-12]` Pin the model identifier and the prompt version; changing either is a contract change and requires re-running evals.
+
+<!-- coral:contract:end -->

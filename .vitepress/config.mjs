@@ -6,10 +6,12 @@ import path from 'node:path'
 import {
   CONTRACT_END,
   CONTRACT_START,
+  INDEX_FILE,
   INLINE_ID_RE,
   LOCK_FILE,
   parseLock,
   parseRules,
+  serializeIndex,
   useRe,
 } from '../scripts/rules.mjs'
 
@@ -21,13 +23,14 @@ import {
 // link to the page that defines it — operationalizing the citation system on the
 // web. Parsing lives in ../scripts/rules.mjs so the lockfile writer shares it.
 //
-// Four gates run here, each guarding a claim the documents make about themselves:
+// Five gates run here, each guarding a claim the documents make about themselves:
 //   1. every rule definition carries exactly one enforcement class
 //   2. every rule-ID citation resolves to a definition
 //   3. every [auto]/[review] rule appears in its document's Agent Execution
 //      Contract, so the contract really is the complete normative surface
 //   4. no rule ID is ever removed, renumbered, or silently reclassified — [VER-1]
-// A fifth (link fragments) runs post-build in scripts/check-anchors.mjs, because
+//   5. rules.md, the generated index, matches the registry it claims to index
+// A sixth (link fragments) runs post-build in scripts/check-anchors.mjs, because
 // heading ids only exist once markdown-it has rendered them.
 // ─────────────────────────────────────────────────────────────────────────────
 const SRC = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
@@ -144,6 +147,29 @@ if (fs.existsSync(lockPath)) {
   console.warn(`\n[coral] ${LOCK_FILE} is missing — run \`npm run rules:lock\` to create it.\n`)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Gate 5 — the rule index is current.
+//
+// rules.md is a generated view of this registry (scripts/rules-index.mjs), and an
+// unchecked generated file rots in the worst way available: it keeps rendering, keeps
+// looking authoritative, and quietly describes last month's rule set. So the build
+// re-renders it and fails on any difference — the same posture as rules.lock, and for
+// the same reason the file is checked in at all, which is that a diff is reviewable.
+//
+// Only runs on clean docs. Rendering an index from a registry that already failed
+// Gate 1 or 3 produces a wrong file and a second error about the file being wrong.
+// ─────────────────────────────────────────────────────────────────────────────
+if (!problems.length) {
+  const indexPath = path.join(SRC, INDEX_FILE)
+  const current = fs.existsSync(indexPath) ? fs.readFileSync(indexPath, 'utf8') : null
+  if (current !== serializeIndex(SRC, rules, defsByFile)) {
+    problems.push(
+      `${INDEX_FILE} is ${current === null ? 'missing' : 'stale'}. It is generated from the rule` +
+        ' registry, so it cannot be edited by hand — run `npm run rules:index` to re-render it.'
+    )
+  }
+}
+
 if (problems.length) {
   const msg = [`${problems.length} rule-registry problem(s):`, ...problems.map((p) => `    ${p}`)].join('\n')
   // Same posture as VitePress's own dead-link checking: fail the build, warn in dev
@@ -245,12 +271,14 @@ export default withMermaid(defineConfig({
       { text: 'Conventions', link: '/CONVENTIONS' },
       { text: 'App', link: '/ARCHITECTURE' },
       { text: 'System', link: '/SYSTEM' },
+      { text: 'Rule index', link: '/rules' },
       { text: 'Examples', link: '/examples/go-api-slice' },
     ],
     sidebar: [
       { text: 'Conventions & vocabulary', link: '/CONVENTIONS' },
       { text: 'The App', link: '/ARCHITECTURE' },
       { text: 'The System', link: '/SYSTEM' },
+      { text: 'Rule index — all rules, one page', link: '/rules' },
       {
         text: 'Appendices (app types)',
         collapsed: false,

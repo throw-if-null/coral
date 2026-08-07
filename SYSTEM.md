@@ -209,7 +209,8 @@ before release.
 
 Run provider verification in the producer's pipeline against the consumer-published contracts.
 
-**`[SYS-TEST-4]` `[guide]`** — Concrete tooling, tool-agnostic in principle; pick per stack:
+**`[SYS-TEST-4]` `[guide]`** — Contract testing is tool-agnostic in principle; pick concrete tooling per
+stack.
 
 - **Request/response and message buses:** [Pact](https://pact.io) — broad multi-language support (fits
   the language-agnostic stance), covers HTTP *and* message pacts, with a broker for sharing contracts and

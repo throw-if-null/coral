@@ -278,7 +278,7 @@ Do not introduce `core` as a home for "stuff that feels central" — if a module
 engine, name it for the domain (`pricing`, `scoring`). A pre-existing `core` whose name already denotes
 one specific bounded concept is grandfathered, but never grow it as a catch-all.
 
-**`[BUCKET-2]` `[guide]`** — These names destroy locality and predictability.
+**`[BUCKET-2]` `[guide]`** — Generic catch-all names destroy locality and predictability.
 
 A forbidden bucket is simply a would-be crosscut with **no precise name and no injection
 discipline** — a pile. The cure is not "ban all sharing"; it is to make the shared thing a real
@@ -865,9 +865,10 @@ drift. The tiers below are the backstop for what slips past it.
 
 Two things are checked today. This repository enforces its **own** consistency at build time — every rule
 carries exactly one enforcement class, every rule-ID citation resolves to a definition, every
-`[auto]`/`[review]` rule appears in its document's Agent Execution Contract, and every link fragment
-resolves. And [`tools/coral-lint`](./tools/coral-lint/README.md) enforces a growing subset of Tier 1 against a
-target repository.
+`[auto]`/`[review]` rule appears in its document's Agent Execution Contract, the generated
+[rule index](./rules.md) still matches the registry it indexes, and every link fragment resolves. And
+[`tools/coral-lint`](./tools/coral-lint/README.md) enforces a growing subset of Tier 1 against a target
+repository.
 
 **Tier 1 — static checks (deterministic, blocking).** One per `[auto]` rule; each check cites the rule ID
 it enforces so a failure points back here. Some of these ship as

@@ -114,3 +114,25 @@ merely implied. A CLI that reads untrusted files or network input does not quali
 | trust / security    | validate args at the boundary; user trusted, stated     |
 | contract versioning | `--json` stable across patch releases                   |
 | testing             | exercise entry point against realistic temp storage     |
+
+---
+
+## Agent Execution Contract (CLI)
+
+The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
+**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
+load both. `[guide]` rules are rationale and live only in the prose.
+
+<!-- coral:contract:start -->
+
+- `[CLI-1]` Normal output goes to `stdout`; errors and diagnostics go to `stderr`.
+- `[CLI-2]` Failures return non-zero exit codes.
+- `[CLI-3]` Read commands must support `--json` on `stdout`; mutations may, and if they do they follow `[CLI-4]`.
+- `[CLI-4]` Keep `--json` stable across patch releases, fully typed, and free of color, progress, or decoration.
+- `[CLI-6]` No interactive prompts by default.
+- `[CLI-8]` Exit `0` on success, `2` on usage error, `1` on every other failure.
+- `[CLI-9]` Use stable string `code`s on `stderr` for finer scripting precision, not a wider exit-code matrix.
+- `[CLI-10]` Configure debug mode as one global flag at the root; slices never configure tracing themselves.
+- `[CLI-11]` Send trace output to `stderr`, stay quiet by default, and never pollute `--json` on `stdout`.
+
+<!-- coral:contract:end -->

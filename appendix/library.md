@@ -151,3 +151,31 @@ actually enforces `[LIB-3]`.
   question earlier.
 - How to expose crosscuts to consumers: constructor injection vs. functional options vs. a builder —
   largely a language-idiom call, worth fixing per ecosystem.
+
+---
+
+## Agent Execution Contract (library)
+
+The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
+**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
+load both. `[guide]` rules are rationale and live only in the prose.
+
+One asymmetry to carry into the list: the consumer is the composition root (`[ROOT-3]`), so every entry
+that reads like "the root does it" in the spine means **somebody you will never meet does it**.
+
+<!-- coral:contract:start -->
+
+- `[LIB-1]` One public capability is one slice, owned end to end with its validation, behavior, and tests.
+- `[LIB-2]` The contract is the public API surface: exported signatures, return values, raised error types, exported types.
+- `[LIB-3]` No ambient state: no hidden singletons, no package-level mutables, no side effects on import.
+- `[LIB-4]` Accept dependencies; never reach for them. A library never reads the environment or a config file.
+- `[LIB-5]` Never write to `stdout`/`stderr` and never install global handlers; the default diagnostic is silence.
+- `[LIB-6]` Prefer pure functions and push every effect to a consumer-provided interface.
+- `[LIB-7]` Encode effect semantics in the name, and document idempotency and retry stance for anything doing I/O.
+- `[LIB-8]` Raise typed taxonomy errors and never render; the consumer is the root and decides presentation.
+- `[LIB-9]` Accept an injected logger or hook, define its no-op default, and keep the interface minimal.
+- `[LIB-10]` Validate inputs at the public API boundary, and state the trust assumption explicitly.
+- `[LIB-11]` Follow semver; add freely, never repurpose, deprecate before removing.
+- `[LIB-13]` Test as a consumer would: public API only, plus one test constructing the library twice with different configuration.
+
+<!-- coral:contract:end -->
