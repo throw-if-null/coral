@@ -36,12 +36,8 @@ Seven nouns. Every document uses exactly these; there are no synonyms.
 | **system** | several apps composed together | all of `SYSTEM.md` |
 | **channel** | the only coupling between apps — a published, versioned contract in one of three forms: sync API, event, or message bus | `[CHAN-*]` |
 
-Two things are named for what they are *not*:
-
-- A **forbidden bucket** is a would-be crosscut with no precise name and no injection discipline —
-  `utils`, `shared`, `common`, `services`, `helpers`, generic `models`. `[BUCKET-1]`
-- **Drift** is what happens when a crosscut is re-implemented per slice instead of injected: the
-  copies diverge, and the divergence is a bug. `[XCUT-4]`
+Two further terms name what a crosscut is *not*, and they are defined below the canonical slice, where
+there is an injected crosscut to contrast them against: **forbidden bucket** and **drift**.
 
 ### "Capability" is scale-relative — always say which scale
 
@@ -109,6 +105,15 @@ Five properties make it canonical: parse/validate/compute are **pure**; the sing
 **edge**; crosscuts are **injected**, never reached for; the slice **raises** taxonomy errors and
 lets the root render them; the test asserts the **observable contract** against real storage. The verb
 `add` truthfully signals a non-idempotent operation.
+
+`money`, `db` and `errors` above are crosscuts: each has a precise name, is constructed once at the root,
+and arrives as `deps`. That is what makes the two remaining terms legible, because both are named for
+missing exactly those properties:
+
+- A **forbidden bucket** is a would-be crosscut with no precise name and no injection discipline —
+  `utils`, `shared`, `common`, `services`, `helpers`, generic `models`. `[BUCKET-1]`
+- **Drift** is what happens when a crosscut is re-implemented per slice instead of injected: the
+  copies diverge, and the divergence is a bug. `[XCUT-4]`
 
 ---
 
