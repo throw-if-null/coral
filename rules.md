@@ -240,11 +240,11 @@ sentence of the definition instead.
 | Rule | Class | Statement |
 | --- | --- | --- |
 | `[WEB-1]` | `[review]` | A slice is one route/page-action/endpoint, with its UI and its handler in the same slice. |
-| `[WEB-2]` | `[guide]` | Prefer building rich UI as microfrontends: each panel, widget, or view is a frontend slice that owns its UI, its local state, and its single capability call, end to end. |
+| `[WEB-2]` | `[guide]` | Microfrontends are an escalation pattern, not the default. |
 | `[WEB-3]` | `[review]` | Keep the composition shell to layout and routing; it mounts slices and holds no business logic. |
-| `[WEB-4]` | `[auto]` | Panel-to-panel communication goes over a published channel; no import edge between panel directories. |
+| `[WEB-4]` | `[auto]` | Depend only on another slice's published surface: a typed import when integrated, a channel with no import edge when runtime-isolated. |
 | `[WEB-5]` | `[review]` | Define design tokens, primitives, and interaction patterns once as an injected crosscut. |
-| `[WEB-6]` | `[guide]` | A single integrated frontend is acceptable where true microfrontends are uneconomical, provided it still organizes internally by capability slice and consumes the design-system crosscut. |
+| `[WEB-6]` | `[guide]` | The default web architecture is a single integrated frontend organized internally by capability slice, consuming the design-system crosscut. |
 | `[WEB-7]` | `[review]` | Treat the client as hostile: authorize at the server boundary, validate every payload, keep secrets server-side. |
 | `[WEB-8]` | `[auto]` | Follow HTTP method semantics: `GET`/`HEAD` safe and read-only, `POST` non-idempotent, `PUT`/`DELETE` idempotent. |
 | `[WEB-9]` | `[auto]` | Slices raise the taxonomy; a root middleware renders to the right surface — error view or structured body. |

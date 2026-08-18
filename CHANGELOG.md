@@ -69,6 +69,26 @@ two claims that were fused: the rule **is** violated, **and** the correct owner 
 repository. That combination is an escalation (`[AGENT-2]`, `[AGENT-4]`) and then a recorded exception
 (`[VER-5]`) if the team keeps the layout — not a pass.
 
+**`[WEB-2]` / `[WEB-4]` / `[WEB-6]` — the web default is reversed.** `[WEB-2]` preferred microfrontends
+and `[WEB-6]` called an integrated frontend "the honest fallback", while `[WEB-4]` — an **`[auto]`** rule —
+banned import edges between panel directories unconditionally. So the sanctioned fallback was still forced
+to communicate over a runtime channel across a boundary that does not exist at runtime: one bundle, one
+process, one deployment, an untyped bus.
+
+The reasoning behind the old default was sound and the conclusion did not follow. Rich UI is read fan-in
+and a dashboard should be many slices — both **structural** properties, obtained from capability slicing
+alone. Microfrontends are about **deployment**. So `[WEB-6]` is now the default (one integrated frontend,
+organized by capability slice) and `[WEB-2]` is the escalation, adopted for a named requirement:
+independent deployment, independent team ownership, runtime isolation, differing frameworks, or
+independently versioned surfaces. "The frontend is feature-rich" is not one of them. Each rule keeps its
+own subject — `[WEB-2]` is still the microfrontend rule and `[WEB-6]` still the integrated-frontend rule —
+so an existing citation of either still means what it meant.
+
+`[WEB-4]` is **loosened** to match: depend only on another slice's published surface, which is a typed
+import in an integrated frontend and a channel with no import edge where runtime isolation is claimed.
+`[COMPOSE-1]` does not relax — "published surface" means a deliberate export, never a deep path into
+another slice's components, hooks, or store.
+
 **`[STATE-5]` — state ownership moves from the slice to the feature package.** The rule said "every
 table, file, or bucket has **exactly one owning slice**", `[STATE-1]` keeps queries slice-local, and
 `[COMPOSE-1]` sends any second reader through the owner's published capability. Together those made

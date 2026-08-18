@@ -22,7 +22,9 @@ UNIMPLEMENTED: dict[str, str] = {
     "CLI-10": "app-type check: framework-specific flag registry",
     "CLI-11": "app-type check: needs stream analysis of the logging crosscut",
     "BE-5": "app-type check: framework-specific response API",
-    "WEB-4": "app-type check: needs the panel/bundle graph",
+    "WEB-4": "app-type check: needs the import graph, plus the project's own declaration of whether "
+             "runtime isolation is claimed — the no-import-edge half of the rule only binds for "
+             "microfrontends, and a typed import is correct in an integrated frontend",
     "WEB-8": "app-type check: framework-specific routing table",
     "WEB-9": "app-type check: framework-specific response API",
     "GHA-3": "needs action.yml parsing alongside the source",

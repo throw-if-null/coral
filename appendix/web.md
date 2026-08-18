@@ -10,8 +10,9 @@ layer and use this appendix for the UI-facing slices.
 **Defining tension:** two things make web the hardest app type. First, the **trust boundary
 (`[TRUST-*]`)** is first-class — untrusted input arrives over the network from end users, and the browser
 is hostile. Second, **rich UI is inherently fan-in** — a dashboard or control panel composes many domains
-onto one screen, and unlike data fan-in, UI fan-in must also cohere *visually*. The preferred shape
-addresses both by keeping each piece a slice and treating the screen as a small system.
+onto one screen, and unlike data fan-in, UI fan-in must also cohere *visually*. Both are addressed by
+keeping each piece a slice; what does **not** follow is that each piece needs its own deployment
+(`[WEB-6]`, `[WEB-2]`).
 
 ---
 
@@ -22,22 +23,50 @@ live in the same slice**: a frontend slice owns its view, its local state, and t
 makes. Do not split a feature's UI from its logic into global `components/` and `services/` layers — that
 is the `[BUCKET-1]` failure wearing frontend clothes.
 
-## The microfrontend shape (preferred) — a dashboard is a small system  → `[COMPOSE-4]` `[ORCH-1]`
+## The shape of a rich UI — a dashboard is read fan-in  → `[COMPOSE-4]` `[ORCH-1]`
 
-**`[WEB-2]`** `[guide]` Prefer building rich UI as **microfrontends**: each panel, widget, or view is a
-frontend slice that owns its UI, its local state, and its single capability call, end to end. A control
-panel or dashboard is therefore **read fan-in at the UI layer** (`[COMPOSE-4]`) — many slices on one
-screen — not one god-component that knows every domain.
+**`[WEB-2]`** `[guide]` **Microfrontends are an escalation pattern, not the default.** Adopt them when a
+concrete requirement forces runtime independence: independent deployment, independent team ownership,
+runtime isolation, different frameworks or runtimes, or independently versioned product surfaces. A
+feature-rich frontend is **not** one of those reasons.
+
+This rule used to read the other way — "prefer building rich UI as microfrontends" — and that was wrong in
+a way worth naming, because the reasoning that produced it was sound and the conclusion still did not
+follow. Rich UI *is* read fan-in (`[COMPOSE-4]`), and a dashboard *should* be many slices rather than one
+god-component. Both of those are about **structure**, and microfrontends are about **deployment**. Coral
+gets the structural property from capability slicing alone (`[WEB-1]`, `[WEB-6]`); paying an independent
+deployment unit per panel to obtain it buys nothing and costs a bundle boundary, a runtime protocol, and a
+version skew per panel.
+
+Where the requirement is real, everything the earlier wording described applies: each panel is a slice
+owning its UI, its local state, and its capability call, the screen is a small system, and the panel
+channel is contract-tested (`[WEB-4]`, `[SYS-TEST-1]`).
 
 **`[WEB-3]`** `[review]` The **composition shell is the frontend's orchestration layer** (`[ORCH-1]` in the
 browser): it owns **layout and routing — where panels sit — and contains no business logic**. It mounts
 slices; it does not reach inside them. Adding or moving a panel is a shell change, not an edit to another
 panel.
 
-**`[WEB-4]`** `[auto]` Panel-to-panel communication follows the **channel** (`[CHAN-*]` in
-[`SYSTEM.md`](../SYSTEM.md)): a published contract — a shared event stream, a typed props/contract
-surface, or a thin client-side bus — **never one panel importing or reaching into another's internals**
-(`[COMPOSE-1]`). Statically: no import edge between two panel directories.
+**`[WEB-4]`** `[auto]` A frontend slice never reaches into another slice's internals (`[COMPOSE-1]`) —
+it depends only on a published surface. **Where runtime isolation is claimed** (`[WEB-2]`), that surface
+must additionally be a **channel** (`[CHAN-*]` in [`SYSTEM.md`](../SYSTEM.md)) — an event stream, a typed
+contract surface, or a thin client-side bus — and statically there is **no import edge between panel
+directories at all**. In an integrated frontend (`[WEB-6]`), a **typed import of another slice's published
+surface is permitted, and is preferred to a bus**.
+
+The distinction the earlier version of this rule lost: it banned import edges unconditionally, including
+inside the integrated frontend `[WEB-6]` sanctions. So the honest fallback was still forced to communicate
+through a runtime channel across a boundary that does not exist at runtime — one bundle, one process, one
+deployment. That trade is a bad one in both directions. A typed import gives the compiler a chance to
+catch a break, gives the reader a definition to jump to, and shows up in a dependency graph; an event bus
+in a single bundle gives none of those and adds an untyped indirection whose consumers cannot be
+enumerated. Locality and discoverability are the properties this architecture optimizes for
+(`[AGENT-1]`), and here the channel costs both.
+
+What does **not** relax is `[COMPOSE-1]`. "Published surface" means an explicit, deliberate export — a
+slice's index or barrel naming what it offers — never a deep path into another slice's components, hooks,
+or store. Deleting a slice must break only its published surface's consumers, and if a deep import made
+that untrue, the boundary is gone whichever mechanism carried it.
 
 **`[WEB-5]`** `[review]` Shared design tokens, primitives, and interaction patterns are a **crosscut**:
 defined once as a design-system package, injected into every slice, never re-implemented or forked per
@@ -48,16 +77,20 @@ fan-in doesn't have — it is most of what makes UI fan-in genuinely harder than
 `[COMPOSE-4]`. It is also a textbook `[XCUT-1]`: cross-cutting, and carrying an invariant (one visual
 language) that is a defect when it diverges.
 
-**`[WEB-6]`** `[guide]` A **single integrated frontend is acceptable** where true microfrontends are
-uneconomical, provided it still organizes internally by capability slice and consumes the design-system
-crosscut.
+**`[WEB-6]`** `[guide]` **The default web architecture is a single integrated frontend organized
+internally by capability slice**, consuming the design-system crosscut. One deployment unit, one bundle;
+the slice boundaries are structural.
 
-This is the honest fallback, not a loophole: visual cohesion, bundle size, and performance make
-microfrontends genuinely uneconomical often enough that pretending otherwise would make the appendix
-useless, and the industry has no clean answer. Treat it as the reversible default and **flag the choice**
-(`[AGENT-2]`) rather than letting "one big app" happen silently. What matters is that the structure —
-capability slices, each owning its view, state, and one call — survives even when the deployment unit
-collapses to one.
+This is the default because it is the reversible choice and because it keeps every property Coral
+actually asks for. Each slice still owns its view, its local state, and its one capability call
+(`[WEB-1]`); the shell still holds only layout and routing (`[WEB-3]`); the design system is still an
+injected crosscut (`[WEB-5]`). What it does not buy is independent deployment — and independent deployment
+is a requirement to be *shown*, not a property to be assumed (`[WEB-2]`).
+
+Going the other way is the expensive direction. Splitting an integrated frontend into microfrontends later
+is a known refactor with a known cost; collapsing five deployed panels back into one bundle means
+unwinding a runtime protocol, five build pipelines, and whatever version skew they have accumulated. Start
+where the reversal is cheap, and escalate when a named requirement appears.
 
 ## Trust / security — the heaviest slot  → `[TRUST-1]` `[TRUST-2]`
 
@@ -122,7 +155,8 @@ with client state empty — that is not an edge case to handle later, it is the 
 page loads.
 
 **Invalidation is owned by the slice that caused the change.** A slice that mutates invalidates what it
-changed, then publishes on the channel (`[WEB-4]`); other panels react and decide for themselves. No panel
+changed, then notifies — over the channel where panels are runtime-isolated, or by invalidating the shared
+query cache by key in an integrated frontend (`[WEB-4]`); other slices react and decide for themselves. No panel
 reaches into another's cache, and the shell stays logic-free (`[WEB-3]`). That is what keeps you out of a
 global store that every panel reads and writes — the `[BUCKET-1]` failure in frontend clothes, arrived at
 one convenience at a time.
@@ -172,11 +206,11 @@ not be where your coverage lives.
 | Slot                | Web instantiation                                                        |
 | ------------------- | ------------------------------------------------------------------------ |
 | boundary            | a route/page-action/endpoint; UI + handler in one slice                  |
-| preferred shape     | microfrontends; panels = slices; dashboard = UI read fan-in              |
+| default shape       | one integrated frontend, organized by capability slice; dashboard = UI read fan-in |
 | composition root    | the shell — owns layout/routing, no business logic                       |
-| panel ↔ panel       | over the channel (`[CHAN-*]`), never internal reach                           |
+| slice ↔ slice       | typed published surface; a channel where runtime-isolated; never internal reach |
 | visual cohesion     | design-system crosscut, injected                                       |
-| fallback            | one integrated frontend, still organized by capability slice; flag it    |
+| escalation          | microfrontends, when a named requirement forces runtime independence; flag it |
 | trust / security    | client hostile; authz at the edge; tenant in the data model; deny by default |
 | idempotency         | HTTP method semantics; client owns retry                                 |
 | error rendering     | root maps category → status + error view/JSON                           |
@@ -197,7 +231,7 @@ load both. Where the app also serves an API, [`backend.md`](./backend.md)'s cont
 
 - `[WEB-1]` A slice is one route/page-action/endpoint, with its UI and its handler in the same slice.
 - `[WEB-3]` Keep the composition shell to layout and routing; it mounts slices and holds no business logic.
-- `[WEB-4]` Panel-to-panel communication goes over a published channel; no import edge between panel directories.
+- `[WEB-4]` Depend only on another slice's published surface: a typed import when integrated, a channel with no import edge when runtime-isolated.
 - `[WEB-5]` Define design tokens, primitives, and interaction patterns once as an injected crosscut.
 - `[WEB-7]` Treat the client as hostile: authorize at the server boundary, validate every payload, keep secrets server-side.
 - `[WEB-8]` Follow HTTP method semantics: `GET`/`HEAD` safe and read-only, `POST` non-idempotent, `PUT`/`DELETE` idempotent.
