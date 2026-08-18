@@ -112,7 +112,8 @@ it. The new app is allowed to be internally dense — it is precisely the kind o
 this architecture is weak for, and inside it you may use whatever model the domain wants (a rules
 engine, a state machine, a solver). What you gain is that the density is **bounded to one app behind one
 published contract**, so every other app stays slice-shaped and within an agent's context. The
-orchestration layer still carries no business logic (`[ORCH-1]` in `SYSTEM.md`) because the logic lives
+orchestration layer still carries no business logic — a system-scale rule, and `SYSTEM.md` owns it, which
+is why this document does not cite it (see `[SCOPE-4]`) — because the logic lives
 *inside* the dense app, not in the wiring.
 
 The prerequisite is a contract. **If you cannot draw a published contract around the dense concept, you
@@ -933,13 +934,15 @@ drift. The tiers below are the backstop for what slips past it.
 
 Two things are checked today. This repository enforces its **own** consistency at build time — every rule
 carries exactly one enforcement class, every rule-ID citation resolves to a definition, every
-`[auto]`/`[review]` rule appears in its document's Agent Execution Contract, the generated
-[rule index](./rules.md) still matches the registry it indexes, and every link fragment resolves. And
+`[auto]`/`[review]` rule appears in its document's Agent Execution Contract, no rule ID is removed or
+silently reclassified, the generated [rule index](./rules.md) still matches the registry it indexes, this
+document cites no system rule, every worked example declares the current Coral version, and every link
+fragment resolves. And
 [`tools/coral-lint`](./tools/coral-lint/README.md) enforces a growing subset of Tier 1 against a target
 repository.
 
-**Tier 1 — static checks (deterministic, blocking).** One per `[auto]` rule; each check cites the rule ID
-it enforces so a failure points back here. Some of these ship as
+**Tier 1 — static checks (deterministic, blocking).** One per `[auto]` rule **defined in this document**;
+each appendix carries its own, and each check cites the rule ID it enforces so a failure points back here. Some of these ship as
 [`tools/coral-lint`](./tools/coral-lint/README.md) and some do not yet.
 
 | Rule | Check |

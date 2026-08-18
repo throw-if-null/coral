@@ -69,6 +69,20 @@ two claims that were fused: the rule **is** violated, **and** the correct owner 
 repository. That combination is an escalation (`[AGENT-2]`, `[AGENT-4]`) and then a recorded exception
 (`[VER-5]`) if the team keeps the layout — not a pass.
 
+**A sixth build gate: the app spine cites no system rule.** `CONVENTIONS.md` states the one-way dependency
+twice — "the app spine **never** cites a system rule, so the core app model stays independent of system
+concerns" — and nothing verified it, so `ARCHITECTURE.md` had been citing `[ORCH-1]` in its `[SCOPE-3]`
+commentary for as long as that rule has existed. The citation is removed and the claim is now checked. It
+decays exactly the way an unenforced claim does: a cross-reference reads as helpfulness, and the cost only
+appears later, when a reader of the app spine cannot finish a rule without loading the document the spine is
+supposed to be independent of. "System rule" is derived from the registry (defined in `SYSTEM.md`), so a new
+system family is covered automatically, and family wildcards like `[ORCH-*]` still work — pointing at a
+family is how `[SCOPE-4]` intends the spine to refer outward. Appendices stay exempt by design.
+
+Also corrected: the Tier 1 table claimed "one per `[auto]` rule" while listing the eleven defined in
+`ARCHITECTURE.md` — true of this document's rules, misleading about the other seventeen, which live in the
+appendices.
+
 **`[CHAN-10]` — "cross-app reads are eventually consistent" was not true.** A synchronous read from the app
 that *owns* the data may be strongly consistent according to that app's own model, so the blanket claim
 taught agents to bolt reconciliation onto reads that never needed it. What the channel genuinely never

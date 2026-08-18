@@ -23,15 +23,17 @@ import {
 // link to the page that defines it — operationalizing the citation system on the
 // web. Parsing lives in ../scripts/rules.mjs so the lockfile writer shares it.
 //
-// Five gates run here, each guarding a claim the documents make about themselves:
+// Six gates run here, each guarding a claim the documents make about themselves:
 //   1. every rule definition carries exactly one enforcement class
 //   2. every rule-ID citation resolves to a definition
 //   3. every [auto]/[review] rule appears in its document's Agent Execution
 //      Contract, so the contract really is the complete normative surface
 //   4. no rule ID is ever removed, renumbered, or silently reclassified — [VER-1]
 //   5. rules.md, the generated index, matches the registry it claims to index
-// A sixth (link fragments) runs post-build in scripts/check-anchors.mjs, because
-// heading ids only exist once markdown-it has rendered them.
+//   6. the app spine cites no system rule — the dependency points one way
+// Two more run outside this file: link fragments in scripts/check-anchors.mjs
+// (post-build, because heading ids only exist once markdown-it has rendered them),
+// and declared example versions in scripts/check-versions.mjs.
 // ─────────────────────────────────────────────────────────────────────────────
 const SRC = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 // Base path: '/' locally; the deploy workflow sets DOCS_BASE (e.g. '/coral/' for
@@ -145,6 +147,51 @@ if (fs.existsSync(lockPath)) {
   }
 } else {
   console.warn(`\n[coral] ${LOCK_FILE} is missing — run \`npm run rules:lock\` to create it.\n`)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gate 6 — the app spine does not cite a system rule.
+//
+// CONVENTIONS.md states this twice ("the dependency points one way: the app spine
+// never cites a system rule, so the core app model stays independent of system
+// concerns"), and nothing verified it — so ARCHITECTURE.md had been citing [ORCH-1]
+// in its [SCOPE-3] commentary since that rule existed.
+//
+// It is the kind of claim that decays silently: a citation reads as helpful
+// cross-referencing, and the cost only shows up later, when a reader of the app
+// spine cannot finish a rule without loading a document the spine is supposed to be
+// independent of. That is the context-economy property [AGENT-1] exists to protect,
+// spent one convenient parenthesis at a time.
+//
+// Derived rather than hardcoded: "system rule" means one DEFINED in SYSTEM.md, so a
+// new system family is covered automatically. Family wildcards ([CHAN-*]) are not
+// rule IDs and do not match — pointing at a family is how the spine is meant to
+// refer outward, per [SCOPE-4].
+//
+// Appendices are deliberately exempt: CONVENTIONS.md permits them to cite system
+// rules where an app type reproduces the system pattern internally, which is why
+// web.md legitimately references [CHAN-*] and [SYS-TEST-1].
+// ─────────────────────────────────────────────────────────────────────────────
+const APP_SPINE = 'ARCHITECTURE.md'
+const SYSTEM_SPINE = 'SYSTEM.md'
+const spineAbs = path.join(SRC, APP_SPINE)
+if (fs.existsSync(spineAbs)) {
+  const systemRules = new Set(
+    [...rules].filter(([, r]) => r.page === SYSTEM_SPINE).map(([id]) => id)
+  )
+  const leaked = new Set(
+    [...fs.readFileSync(spineAbs, 'utf8').matchAll(useRe())]
+      .map((m) => m[1])
+      .filter((id) => systemRules.has(id))
+  )
+  for (const id of [...leaked].sort()) {
+    problems.push(
+      `${APP_SPINE} cites [${id}], which is defined in ${SYSTEM_SPINE}. The dependency points one` +
+        ' way (CONVENTIONS.md, "Rule IDs"): the app spine never cites a system rule, so the core app' +
+        ' model stays loadable without system concerns. Refer to the family in prose ([ORCH-*]) or' +
+        ' state the point without the citation.'
+    )
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

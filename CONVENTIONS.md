@@ -175,7 +175,8 @@ is why `[IDEM-6]` sits out of numeric order: it was appended rather than inserte
 **The spines use separate families.** App families live in `ARCHITECTURE.md` and its appendices
 (`CLI-`, `BE-`, …); system families live in `SYSTEM.md` (`CHAN-`, `ORCH-`, `SYS-TEST-`). The dependency
 points **one way**: the app spine **never** cites a system rule, so the core app model stays
-independent of system concerns. `SYSTEM.md` may cite app rules — it builds on them. An **appendix** may
+independent of system concerns. The build enforces this rather than trusting it — `ARCHITECTURE.md` had
+been citing `[ORCH-1]` in prose until the gate was added. `SYSTEM.md` may cite app rules — it builds on them. An **appendix** may
 cite system rules where its app type reproduces the system pattern internally: a microfrontend web app
 is a browser-scale system of panels over a channel, so `web.md` legitimately references `[CHAN-*]` /
 `[SYS-TEST-*]`.
