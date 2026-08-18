@@ -1033,4 +1033,4 @@ someone has built the thing and the rules survived contact with it.
 - **[`appendix/agentic-app.md`](./appendix/agentic-app.md)** — apps built around an LLM at runtime; the
   model is an injected effect and the agent runs in a harness. **ADDENDUM.** Its safety guardrails
   (harness, untrusted model output, never exact-match, never float the model identifier) hold regardless;
-  its construction advice is provisional, and two slots are open pending a decision.
+  its construction advice is provisional, and one slot is open pending a decision.

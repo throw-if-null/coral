@@ -162,10 +162,15 @@ deterministic and contract-tested; only the choice of which capability to call i
 deterministic, observable app that employs the agent within walls.
 
 Stated here in full, so this rule needs nothing outside the core spine to be actionable: the harness gives
-the agent **typed tools and nothing else**, **authorizes every call**, **gates irreversible or
-outward-facing actions behind a human**, **observes every prompt, decision and result**, and **bounds the
-agent's context and authority to one scoped task**. Never a bare model with direct authority over your
-apps.
+the agent **typed tools and nothing else**, **authorizes every call**, **gates high-risk, irreversible, or
+outward-facing actions behind a human unless bounded policy pre-authorizes them**, **observes every prompt,
+decision and result**, and **bounds the agent's context and authority to one scoped task**. Never a bare
+model with direct authority over your apps.
+
+The pre-authorization clause is not a softening. A blanket human gate on every irreversible cross-app action
+is routed around rather than obeyed — the actions get reclassified as reversible and the gate becomes
+decoration — so the enforceable form is an explicit bound the harness owns and the agent cannot widen
+(`[AGENTIC-5]`, `[CONFIG-1]`). Anything the policy does not classify escalates.
 
 [`appendix/agentic-app.md`](./appendix/agentic-app.md) elaborates this as `[AGENTIC-5]`, but that page is
 an **addendum** — provisional by construction — so the guardrail lives here rather than depending on it.
@@ -173,8 +178,9 @@ an **addendum** — provisional by construction — so the guardrail lives here 
 **`[ORCH-5]` `[review]`** — The harness's tools **are** the apps' published channel capabilities (`[CHAN-1]`);
 the agent calls them and never reaches into internals.
 
-Every call is authorized, irreversible cross-app actions are gated by a human, and every decision and
-call is observed and trace-correlated (`[CHAN-7]`, `[CHAN-8]`).
+Every call is authorized, irreversible cross-app actions are gated by a human unless bounded policy
+pre-authorizes them (`[ORCH-4]`), and every decision and call is observed and trace-correlated
+(`[CHAN-7]`, `[CHAN-8]`).
 
 **`[ORCH-6]` `[review]`** — The orchestrating harness **is itself an app** — an agentic app
 (`[AGENTIC-6]`) with its own contract, observability, and tests.
@@ -255,7 +261,7 @@ document. Sections 1–3 are the *why*; `[guide]` rules live only there.
 - `[ORCH-1]` Put topology in the orchestration layer; keep business logic out of the wiring.
 - `[ORCH-2]` Keep apps peer-agnostic: publish and consume capabilities, never hard-code peers.
 - `[ORCH-4]` Let an agent orchestrate only from inside a harness, never as a bare model.
-- `[ORCH-5]` Give the harness only published channel capabilities as tools; authorize every call and gate irreversible ones.
+- `[ORCH-5]` Give the harness only published channel capabilities as tools; authorize every call and gate irreversible ones absent bounded pre-authorization.
 - `[ORCH-6]` Treat the orchestrating harness as an app: its own contract, observability, and tests.
 
 ### Contract testing

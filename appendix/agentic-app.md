@@ -7,20 +7,22 @@
 > expect it to change substantially without a major version bump (`[VER-2]`). Its rule IDs are permanent
 > (`[VER-1]`), so citing one stays safe — but its content carries no stability promise.
 >
-> Two slots are open, and they are open **pending a decision, not pending prose**: *composition root*
-> (where tool definitions live) and *observability* (how prompt capture reconciles with `[CONFIG-4]`).
-> Both have defensible answers either way and neither is settled anywhere in the industry.
+> One slot is open, and it is open **pending a decision, not pending prose**: *composition root* — whether
+> tool definitions live with the harness or with the slice each tool fronts. Both answers are defensible and
+> neither is settled anywhere in the industry. (*Observability* was the second; `[AGENTIC-10]`'s
+> data-governance rules now answer the half that was blocking it — capture prompts redacted, and let
+> retention bound the exposure.)
 >
-> **Do not invent an answer to those two.** Pick the reversible option for your app, flag it
+> **Do not invent an answer to that one.** Pick the reversible option for your app, flag it
 > (`[AGENT-2]`), and record it in your project's `CORAL.md` as an **Extension** — that is precisely what
 > extensions are for. A recurring answer across projects is the signal for an amendment that closes the
 > slot for everyone.
 >
 > What this page is good for meanwhile: the `[AGENTIC-*]` rules that are **safety guardrails** rather than
 > construction advice — the harness (`[AGENTIC-5]`), untrusted model output and prompt injection
-> (`[AGENTIC-10]`), never exact-matching model text (`[AGENTIC-11]`), and never floating the model
-> identifier (`[AGENTIC-12]`). Those hold whether or not the rest of the page survives contact with a real
-> build. Read the spine first.
+> (`[AGENTIC-10]`), never exact-matching model text (`[AGENTIC-11]`), never floating the model identifier
+> (`[AGENTIC-12]`), and per-action replay protection (`[AGENTIC-13]`). Those hold whether or not the rest of
+> the page survives contact with a real build. Read the spine first.
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for **agentic apps** — apps built
 around an LLM or an LLM agent *at runtime*. (This is a different axis from the operating model in
@@ -76,9 +78,25 @@ The harness owns five duties:
    The non-determinism is confined to *which tool, with what arguments*.
 2. **Authorize every tool call** (`[TRUST-1]`) — default-deny the dangerous ones; scope what this agent may
    touch.
-3. **Gate irreversible and outward-facing actions behind a human.** Reversible → the agent proceeds;
-   irreversible (writes, sends, deploys, spends) → a human confirms. This is `[AGENT-2]` *enforced by the
-   harness*, not left to the agent's judgment.
+3. **Gate by risk, against an explicit policy.** High-risk, privileged, irreversible, or user-visible
+   actions require human approval **unless the application has pre-authorized them within bounded
+   policy** — a spend ceiling, a recipient allow-list, a blast-radius limit, an expiry. Inside the
+   bounds the agent proceeds; outside them, or for anything the policy does not classify, it escalates.
+   This is `[AGENT-2]` *enforced by the harness*, not left to the agent's judgment.
+
+   The blanket form of this rule — every irreversible action waits for a human — reads stricter and is
+   weaker in practice. An agent that needs a click per write is not autonomous, so a team that needs
+   autonomy responds by reclassifying its writes as reversible, and the gate becomes decoration while
+   still appearing to be a control. Bounded pre-authorization is the version that survives contact with a
+   real deployment: *this agent may refund up to £50 to the customer who is in the conversation, and
+   nothing else*, is enforceable, auditable, and does not require a human in a loop that would defeat the
+   application's purpose.
+
+   Two properties keep it honest. **The bounds are the harness's, not the agent's** — resolved at the root
+   as configuration (`[CONFIG-1]`) and never widenable by the thing they constrain, because a model that
+   can raise its own ceiling has no ceiling. And **the unclassified case denies**: an action the policy
+   does not mention escalates rather than proceeding, or every gap in the policy silently becomes a
+   permission.
 4. **Observe everything** (`[OBS-1]`) — every prompt, decision, tool call, and result is logged and
    traceable.
 5. **Bound context and authority** — a scoped task, not god-mode.
@@ -108,6 +126,30 @@ overwrites the first. The stored result is the only thing that makes the handler
 Caching by exact input is allowed, but as an optimization, not a correctness guarantee: the same prompt is
 not contractually the same output.
 
+**What this rule does not do is make the agent's *actions* happen once** — see `[AGENTIC-13]`. It makes the
+handler *answer* consistently, which is a different property and the easier half.
+
+**`[AGENTIC-13]`** `[review]` Every side-effecting tool carries its **own** replay protection — an
+idempotency key, a natural key with check-before-write, or an action ledger. The stored model result is
+not one.
+
+This is the gap `[AGENTIC-8]` leaves, and it is a correctness bug rather than a matter of rigour. Consider
+the sequence: the agent decides to act, calls `chargeCard()`, the charge succeeds, and the process dies
+before the result is stored. The dedupe key was never written, so redelivery re-runs the turn — and charges
+the card a second time. `[AGENTIC-8]` was satisfied at every instant and the customer was billed twice.
+`chargeCard`, `sendEmail`, `deleteResource`, `createTicket`, `publishChange`: each needs a key of its own,
+because each is the thing that must not happen twice.
+
+**The ordering is the mechanism, not a detail.** Record the *intent* before acting, then act, then record
+the *outcome*. A ledger written only on success cannot distinguish "never happened" from "happened, and we
+died before writing it down" — and that is precisely the case that decides whether replay is safe. An
+entry written first turns the ambiguous case into a reconcilable one: on replay, an intent with no outcome
+is looked up against the downstream system rather than blindly retried.
+
+Model-level and effect-level protection are **two layers and a mutating agent needs both**
+(`[IDEM-5]`, `[GHA-5]`). Conflating them is the failure this rule exists to name: `[AGENTIC-8]` alone
+gives you an agent that answers consistently while double-charging.
+
 ## Error model  → `[ERR-1]`
 
 **`[AGENTIC-9]`** `[review]` Map model failures to the taxonomy: model unavailable or timed out →
@@ -123,18 +165,42 @@ category. Never silently accept malformed output.
   adversarial, and never let it escalate the agent's authority or rewrite its instructions.
 - **Model output is untrusted** — never exec it, render it as HTML, or act on it blindly; validate and
   authorize it downstream exactly as you would user input.
-- **Tool-call authorization and data governance** — default-deny dangerous tools; keep secrets and PII out
-  of prompts and logs (`[CONFIG-4]`); gate irreversible actions (`[AGENTIC-5]`).
+- **Tool-call authorization** — default-deny dangerous tools, scope what this agent may reach, and gate
+  by risk against explicit policy (`[AGENTIC-5]`).
+- **Data governance** — **secrets never enter a prompt** (`[CONFIG-4]`); that half is absolute, because a
+  credential has no legitimate reason to be in one. **Personal data is governed, not banned**: pass only
+  the fields the task needs, authorize the access as you would any read, redact what the model does not
+  need to see, apply a retention policy to stored prompts and traces, and keep personal data out of logs
+  and traces by default.
+
+The earlier form of this rule said "keep secrets and PII out of prompts and logs", and the PII half was
+unsatisfiable by construction: a support-triage agent, a recruiting assistant, a medical-scribe app process
+personal information *as their purpose*. A rule that cannot be followed is not followed selectively — it is
+ignored wholesale, taking the satisfiable secrets half with it. Minimization is enforceable and auditable
+where prohibition was neither, and it is also the answer to the observability slot below: capture prompts,
+capture them redacted, and let retention rather than blanket avoidance bound the exposure.
 
 ## Contract versioning  → `[CONTRACT-2]`
 
-**`[AGENTIC-12]`** `[review]` The **model identifier and the prompt version are part of the contract**.
-Changing either is a contract change, and requires re-running the evals before it ships.
+**`[AGENTIC-12]`** `[review]` **Pin the model identifier and version the prompt**, record both with every
+stored result, and re-run the evals before a change to either ships.
 
 A model upgrade is not a dependency bump. The observable contract is "output conforms to the schema, plus
 the observed tool calls" (`[AGENTIC-4]`), and a new model can satisfy the schema perfectly while changing
 behaviour in ways only evals detect (`[AGENTIC-11]`) — the type checks still pass and the answers get
 worse.
+
+**These are release-gating provenance, not a published contract**, and the distinction is worth drawing
+because the earlier wording ("part of the contract") implied the wrong obligations. Calling them a contract
+pulls in `[CONTRACT-2]`'s versioning discipline and suggests external consumers must be told when the model
+changes — and usually they must not be, because their contract is the *schema* (`[AGENTIC-4]`), and while it
+still holds a model swap is not a breaking change to them. What the pin actually buys is internal and
+substantial: reproducibility, a forensic trail for an output nobody can explain, a rollback target, and an
+eval gate that a floating alias would bypass with no commit and no review.
+
+Where external compatibility genuinely does depend on the exact model — a customer pinned to it by
+agreement, a regulated audit trail — then it *is* a published contract and `[CONTRACT-2]` applies. Decide
+that deliberately and write it down; do not arrive at it by default.
 
 **Pin the model identifier explicitly; never let it float to an alias like "latest".** A floating model
 means the contract can change with no commit, no review, and no eval run — the exact opposite of what a
@@ -151,8 +217,10 @@ next agent cannot ask what the prompt used to say.
   constructs the harness; no business logic. *Needs an `AGENTIC-` rule on where tool definitions live —
   with the harness, or with the slice each tool fronts.*
 - **Observability** → token, cost, and latency on top of `[OBS-1..3]`; capture prompts, responses, and tool
-  calls (PII-aware) so the agent's decisions are auditable. *Needs an `AGENTIC-` rule reconciling "capture
-  every prompt" with `[CONFIG-4]` — prompts routinely contain the data you are forbidden to log.*
+  calls so the agent's decisions are auditable. **Spine-sufficient as of `[AGENTIC-10]`**: the conflict with
+  `[CONFIG-4]` was "capture every prompt" versus "log no personal data", and data governance resolves it —
+  secrets never enter the prompt at all, personal data is minimized before it does, captured redacted, and
+  bounded by retention. The token/cost/latency half needs no `AGENTIC-` rule of its own.
 
 ## Testing  → `[TEST-1]`
 
@@ -173,12 +241,12 @@ next agent cannot ask what the prompt used to say.
 | shape               | one-shot call vs agentic loop (loop ⇒ full harness)            |
 | model               | injected non-deterministic effect, a crosscut                |
 | observable contract | schema-conformant output + observed tool calls                 |
-| harness             | tools = typed contracts · authz · gate irreversible · observe · bound |
+| harness             | tools = typed contracts · authz · risk-gate against policy · observe · bound |
 | state               | conversation / memory / RAG (local or a retrieval crosscut)   |
-| idempotency         | non-reproducible; dedupe-by-stored-result on at-least-once     |
+| idempotency         | two layers: dedupe-by-stored-result, **and** per-action replay protection |
 | error model         | model → infrastructure; bad output → validation (bounded repair) |
 | trust               | prompt injection · untrusted output · tool authz · data governance |
-| contract versioning | model + prompt version is the contract; re-eval on upgrade     |
+| contract versioning | the schema is the contract; model + prompt are pinned provenance, re-eval on change |
 | testing             | deterministic parts normal; behavior via conformance + evals + judge |
 
 ## Open questions
@@ -196,19 +264,20 @@ The complete normative checklist for this appendix: every `[auto]` and `[review]
 load both. `[guide]` rules are rationale and live only in the prose.
 
 This appendix is an **ADDENDUM**: its rule IDs are permanent, but its content may change substantially
-without a major bump. The four entries that hold regardless are `[AGENTIC-5]`, `[AGENTIC-10]`,
-`[AGENTIC-11]` and `[AGENTIC-12]` — they are safety guardrails, not construction advice.
+without a major bump. The five entries that hold regardless are `[AGENTIC-5]`, `[AGENTIC-10]`,
+`[AGENTIC-11]`, `[AGENTIC-12]` and `[AGENTIC-13]` — they are safety guardrails, not construction advice.
 
 <!-- coral:contract:start -->
 
 - `[AGENTIC-3]` Treat the model as an injected effect; keep prompt-building and output-parsing pure.
 - `[AGENTIC-4]` Force a schema on model output; the contract is schema conformance plus observed tool calls, never the text.
-- `[AGENTIC-5]` Run an autonomous or looping agent only inside a harness: typed tools, authorization, human gate, observation, bounds.
+- `[AGENTIC-5]` Run an autonomous or looping agent only inside a harness: typed tools, authorization, risk-based gating against explicit policy, observation, bounds.
 - `[AGENTIC-7]` Treat history, memory, and retrieval as state: slice-owned, or a precisely-named retrieval crosscut.
 - `[AGENTIC-8]` Dedupe a mutating agent by storing the first result keyed to the request; never re-run to recover.
+- `[AGENTIC-13]` Give every side-effecting tool its own replay protection — key, natural key, or ledger; the stored result is not one.
 - `[AGENTIC-9]` Map model failures to the taxonomy, bound schema repair then fail, and never accept malformed output.
-- `[AGENTIC-10]` Treat prompt input and model output as untrusted, default-deny dangerous tools, keep secrets and PII out of prompts.
+- `[AGENTIC-10]` Treat prompt input and model output as untrusted, default-deny dangerous tools, keep secrets out of prompts entirely, and minimize/redact/retain personal data.
 - `[AGENTIC-11]` Test the deterministic parts normally, agent behavior by conformance and evals, and harness safety; never exact-match model text.
-- `[AGENTIC-12]` Pin the model identifier and the prompt version; changing either is a contract change and requires re-running evals.
+- `[AGENTIC-12]` Pin the model identifier and version the prompt; record both with each result and re-run evals before either changes.
 
 <!-- coral:contract:end -->

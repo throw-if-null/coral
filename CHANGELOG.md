@@ -69,6 +69,45 @@ two claims that were fused: the rule **is** violated, **and** the correct owner 
 repository. That combination is an escalation (`[AGENT-2]`, `[AGENT-4]`) and then a recorded exception
 (`[VER-5]`) if the team keeps the layout — not a pass.
 
+**`[AGENTIC-13]` — side-effect replay protection, which `[AGENTIC-8]` did not provide.** `[AGENTIC-8]`
+deduped a mutating agent "by storing the first result keyed to the request." That makes the handler *answer*
+consistently; it does not make the agent's *actions* happen once. The agent calls `chargeCard()`, the charge
+succeeds, the process dies before the result is stored — the dedupe key was never written, redelivery
+re-runs the turn, and the card is charged twice with `[AGENTIC-8]` satisfied at every instant. Every
+side-effecting tool now carries its own key, natural key, or action ledger, and the ledger's ordering is
+part of the rule: record intent, act, record outcome, because a ledger written only on success cannot tell
+"never happened" from "happened and we died before writing it down." **What you must now satisfy:** a
+mutating agentic app needs both layers, not one.
+
+**`[AGENTIC-5]` — gating becomes risk-based and policy-bounded.** The blanket form ("irreversible → a human
+confirms") reads stricter and is weaker: an agent that needs a click per write is not autonomous, so a team
+that needs autonomy reclassifies its writes as reversible and the gate becomes decoration while still
+looking like a control. High-risk, privileged, irreversible, or user-visible actions still require approval
+**unless pre-authorized within bounded policy** — a spend ceiling, a recipient allow-list, a blast-radius
+limit, an expiry. Two guards keep it honest: the bounds are the harness's, resolved at the root
+(`[CONFIG-1]`) and never widenable by the agent they constrain; and an action the policy does not classify
+escalates rather than proceeding. `[ORCH-4]` and `[ORCH-5]` in [`SYSTEM.md`](./SYSTEM.md) carry the same
+clause, so the system spine and the addendum do not disagree.
+
+**`[AGENTIC-10]` — the blanket PII prohibition becomes data governance.** "Keep secrets and PII out of
+prompts and logs" was unsatisfiable by construction for the applications most likely to need this page: a
+support-triage agent, a recruiting assistant, a medical scribe process personal information *as their
+purpose*. An unfollowable rule is not followed selectively, it is ignored wholesale — taking the
+satisfiable secrets half with it. Secrets stay **absolute** (a credential has no reason to be in a prompt);
+personal data is now **minimized, authorized, redacted, retained, and kept off logs and traces by default**.
+This also closes one of the appendix's two open slots: *observability* was blocked on reconciling "capture
+every prompt" with `[CONFIG-4]`, and minimization plus redaction plus retention is that reconciliation. One
+slot remains — where tool definitions live.
+
+**`[AGENTIC-12]` — model and prompt versions are provenance, not a published contract.** The pin and the
+eval gate are unchanged and still guardrails; what was wrong was the framing. "Part of the contract" pulls
+in `[CONTRACT-2]`'s versioning discipline and implies external consumers must be notified of a model swap —
+and usually they must not be, because their contract is the schema (`[AGENTIC-4]`), which a new model can
+satisfy exactly. The pin's value is internal: reproducibility, a forensic trail, a rollback target, and an
+eval gate a floating alias would bypass with no commit and no review. Where external compatibility really
+does depend on the exact model, it *is* a published contract — decide that deliberately rather than by
+default.
+
 **`[WEB-2]` / `[WEB-4]` / `[WEB-6]` — the web default is reversed.** `[WEB-2]` preferred microfrontends
 and `[WEB-6]` called an integrated frontend "the honest fallback", while `[WEB-4]` — an **`[auto]`** rule —
 banned import edges between panel directories unconditionally. So the sanctioned fallback was still forced

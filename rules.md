@@ -1,6 +1,6 @@
 # Rule index
 
-Every rule Coral publishes, in one place: **177 rules** across 9 documents — 28 `[auto]`, 120 `[review]`,
+Every rule Coral publishes, in one place: **178 rules** across 9 documents — 28 `[auto]`, 121 `[review]`,
 29 `[guide]`. Each ID links to its definition, where the reasoning lives; the statement here is only the
 one-line form.
 
@@ -134,7 +134,7 @@ sentence of the definition instead.
 | `[ORCH-2]` | `[review]` | Keep apps peer-agnostic: publish and consume capabilities, never hard-code peers. |
 | `[ORCH-3]` | `[guide]` | Each app is independently deployable and independently observable. |
 | `[ORCH-4]` | `[review]` | Let an agent orchestrate only from inside a harness, never as a bare model. |
-| `[ORCH-5]` | `[review]` | Give the harness only published channel capabilities as tools; authorize every call and gate irreversible ones. |
+| `[ORCH-5]` | `[review]` | Give the harness only published channel capabilities as tools; authorize every call and gate irreversible ones absent bounded pre-authorization. |
 | `[ORCH-6]` | `[review]` | Treat the orchestrating harness as an app: its own contract, observability, and tests. |
 | `[SYS-TEST-1]` | `[review]` | Verify each side independently against the shared contract, not by booting both apps. |
 | `[SYS-TEST-2]` | `[review]` | Use consumer-driven contracts; every consumed dependency has a published contract. |
@@ -144,7 +144,7 @@ sentence of the definition instead.
 
 ## Appendix: Agentic App  (ADDENDUM)
 
-12 rules — [`appendix/agentic-app.md`](./appendix/agentic-app.md)
+13 rules — [`appendix/agentic-app.md`](./appendix/agentic-app.md)
 
 | Rule | Class | Statement |
 | --- | --- | --- |
@@ -152,13 +152,14 @@ sentence of the definition instead.
 | `[AGENTIC-2]` | `[guide]` | Distinguish two intensities. |
 | `[AGENTIC-3]` | `[review]` | Treat the model as an injected effect; keep prompt-building and output-parsing pure. |
 | `[AGENTIC-4]` | `[review]` | Force a schema on model output; the contract is schema conformance plus observed tool calls, never the text. |
-| `[AGENTIC-5]` | `[review]` | Run an autonomous or looping agent only inside a harness: typed tools, authorization, human gate, observation, bounds. |
+| `[AGENTIC-5]` | `[review]` | Run an autonomous or looping agent only inside a harness: typed tools, authorization, risk-based gating against explicit policy, observation, bounds. |
 | `[AGENTIC-6]` | `[guide]` | The agent is the non-deterministic *core*; the harness is the deterministic *shell*. |
 | `[AGENTIC-7]` | `[review]` | Treat history, memory, and retrieval as state: slice-owned, or a precisely-named retrieval crosscut. |
 | `[AGENTIC-8]` | `[review]` | Dedupe a mutating agent by storing the first result keyed to the request; never re-run to recover. |
+| `[AGENTIC-13]` | `[review]` | Give every side-effecting tool its own replay protection — key, natural key, or ledger; the stored result is not one. |
 | `[AGENTIC-9]` | `[review]` | Map model failures to the taxonomy, bound schema repair then fail, and never accept malformed output. |
-| `[AGENTIC-10]` | `[review]` | Treat prompt input and model output as untrusted, default-deny dangerous tools, keep secrets and PII out of prompts. |
-| `[AGENTIC-12]` | `[review]` | Pin the model identifier and the prompt version; changing either is a contract change and requires re-running evals. |
+| `[AGENTIC-10]` | `[review]` | Treat prompt input and model output as untrusted, default-deny dangerous tools, keep secrets out of prompts entirely, and minimize/redact/retain personal data. |
+| `[AGENTIC-12]` | `[review]` | Pin the model identifier and version the prompt; record both with each result and re-run evals before either changes. |
 | `[AGENTIC-11]` | `[review]` | Test the deterministic parts normally, agent behavior by conformance and evals, and harness safety; never exact-match model text. |
 
 ## Appendix: Backend / Service
