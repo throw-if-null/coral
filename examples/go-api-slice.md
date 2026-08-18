@@ -430,7 +430,7 @@ crosscut nor a bucket but an **adapter** — an injected implementation of a sli
 
 Two more things keep it honest: the middle band is named *by capability* (`module/document`, not
 `services/` or `repositories/`) and owns its own types and errors; and the `documents` table has exactly
-one owning slice, so its schema changes live with `module/document` (`[STATE-5]`).
+one owning feature package, so its schema changes live with `module/document` (`[STATE-5]`).
 
 Per `[MODEL-2]`, introducing banding is a decision to **flag** (`[AGENT-2]`), not to assume — this section
 is that flag, written down.

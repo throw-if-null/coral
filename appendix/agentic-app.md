@@ -93,7 +93,7 @@ purpose," not "a model loose on your systems."
 **`[AGENTIC-7]`** `[review]` Conversation history, agent memory, and RAG/vector retrieval are state:
 slice-owned where local, or a precisely-named **retrieval/memory crosscut** when shared (`[XCUT-1]`,
 `[STATE-2]`). Don't smear them into a generic store reached into from everywhere, and give each store one
-owning slice (`[STATE-5]`).
+owning feature package (`[STATE-5]`).
 
 ## Idempotency  → `[IDEM-1]`
 

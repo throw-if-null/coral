@@ -162,7 +162,7 @@ class Db:
             conn.close()
 
     def migrate(self, *schemas: str) -> None:
-        """Runs migrations it did not write: each slice defines its own.  [STATE-5]"""
+        """Runs migrations it did not write: the owning package defines its own.  [STATE-5]"""
         with self.tx() as conn:
             for schema in schemas:
                 conn.executescript(schema)
@@ -186,8 +186,8 @@ buys nothing and costs a layer.
 
 ## The slice
 
-Everything for one capability: the command definition, validation, behavior, and — per `[STATE-5]` — the
-schema of the table it owns.
+Everything for one operation: the command definition, validation, behavior, and — per `[STATE-5]` — the
+schema of the table its `expense` package owns, defined here at its one site.
 
 ```python
 # expense/add.py
@@ -195,8 +195,8 @@ from typing import Any
 
 from .. import errors, money, period
 
-# This slice owns the `expenses` table, so its schema lives here. The db
-# crosscut runs it; nobody else defines it.  [STATE-5]
+# The `expense` package owns the `expenses` table; this is its one schema
+# definition site. The db crosscut runs it; nobody else defines it.  [STATE-5]
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS expenses (
   id       INTEGER PRIMARY KEY,
@@ -280,9 +280,11 @@ def run(args, db) -> dict[str, Any]:
     }
 ```
 
-`list` owns its own query against a table `add` owns. That is `[STATE-1]` working as intended, not a gap
-waiting for a repository: the *schema* has one owner (`[STATE-5]`), the *queries* live with the slices that
-need them, and neither slice reaches into the other.
+`list` owns its own query against a table its sibling `add` defined. That is `[STATE-1]` and `[STATE-5]`
+working together, not a gap waiting for a repository: the `expense` **package** owns the table, its schema
+has one definition site, the *queries* live with the slices that need them, and neither slice reaches into
+the other. A sibling reading the package's table directly is the point of package-level ownership — what
+would need a published capability is a slice in a *different* package (`[COMPOSE-1]`).
 
 ## The composition root
 
@@ -303,7 +305,7 @@ EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2  # [CLI-8]
 
 def build(db_path: str) -> argparse.ArgumentParser:
     db = db_module.Db(db_path)
-    db.migrate(add.SCHEMA)  # each slice ships its own schema  [STATE-5]
+    db.migrate(add.SCHEMA)  # each feature package ships its own schema  [STATE-5]
 
     parser = argparse.ArgumentParser(prog="expenses")
     parser.add_argument("--json", action="store_true", help="machine-readable output on stdout")
@@ -499,7 +501,8 @@ is an addition, not the foundation.
 - `sys.exit()` inside a slice, which is the CLI equivalent of a slice rendering its own HTTP response —
   it steals the root's job (`[ERR-3]`) and makes the slice untestable in-process.
 - A shared `queries.py`, added the first time two commands touch `expenses`. Both slices keep their own
-  SQL; only the *schema* has a single owner (`[STATE-1]`, `[STATE-5]`).
+  SQL; the *package* owns the table and the *schema* has one definition site (`[STATE-1]`, `[STATE-5]`).
+  Package-level ownership is what makes the shared table legitimate, and it is not a licence for this file.
 - Reading `os.environ` inside a command, which is the fastest way to make a slice untestable
   (`[CONFIG-2]`).
 

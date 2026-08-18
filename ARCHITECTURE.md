@@ -61,7 +61,9 @@ expenses/
 Everything in it is one of five things, which section 3 states as a rule (`[MODEL-1]`):
 
 - `category/add`, `expense/add` and `summary/month` are **slices** — one capability each, owned from
-  trigger through to output, tests included.
+  trigger through to output, tests included. `category/`, `expense/` and `summary/` are their **feature
+  packages**: each groups the slices of one capability and owns the state behind them (`[STRUCT-2]`,
+  `[STATE-5]`).
 - `db`, `config` and `errors` are **crosscuts** — defined once, constructed at the root, and injected
   into the slices that need them.
 - `app` is the **composition root**. It registers slices, constructs crosscuts, injects them, and holds
@@ -290,8 +292,15 @@ named; a fourth thing it shows — that a crosscut is rare and lives at the root
 **`[STRUCT-1]` `[auto]`** — Tests live beside the code they verify where the language allows; otherwise
 they mirror the package/namespace structure exactly.
 
-**`[STRUCT-2]` `[review]`** — Slices live in feature packages whose names are concrete and
-domain-oriented (`expense`, `summary`), never technical layers.
+**`[STRUCT-2]` `[review]`** — Slices live in **feature packages** whose names are concrete and
+domain-oriented (`expense`, `summary`), never technical layers. A feature package holds the slices of one
+capability and owns the state behind it (`[STATE-5]`).
+
+A feature package is **not** a sixth category of code: `[MODEL-1]` classifies units of code, and this is a
+container for them. What makes it more than a folder is that it is the **ownership boundary for state** —
+inside it, sibling slices reach the same table directly; outside it, access goes through a published
+capability (`[COMPOSE-1]`). A package holding a single slice is normal and needs no ceremony; the boundary
+matters from the second operation on.
 
 **`[STRUCT-3]` `[auto]`** — Root-level crosscut modules are rare and precisely named (`db`, `errors`,
 `config`), never generic.
@@ -416,9 +425,10 @@ needed capability) over slice-to-slice imports, so the dependency is visible at 
 **`[COMPOSE-4]` `[review]`** — Read fan-in is legitimate composition: a slice that aggregates several
 other slices' published *read* capabilities — a dashboard, a score — is a legitimate slice.
 
-It must depend only on published capabilities (`[COMPOSE-1]`) and add no shared core. If a write-only
-slice exposes no read capability the aggregator needs, the owning slice publishes one; the aggregator
-never reaches into its state. The same idea across a process boundary becomes a system concern
+It must depend only on published capabilities (`[COMPOSE-1]`) and add no shared core. If the owning
+feature package exposes no read capability the aggregator needs, that package publishes one — normally as
+a read slice of its own (`expense/list`), which is why this is rarely the imposition it sounds like; the
+aggregator never reaches into another package's state. The same idea across a process boundary becomes a system concern
 (`[SCOPE-4]`). When the fan-in starts carrying its own growing cross-domain rules, that is the
 `[GROW-3]` split signal.
 
@@ -448,7 +458,9 @@ State may be a database, the filesystem, a remote API, or nothing.
 
 Prefer direct queries for small and medium tools. A slice owning its own queries is the architecture
 working, not a problem to solve; repeated query patterns across slices are cheap to generate
-consistently.
+consistently. This holds *within* a feature package too: siblings sharing a table (`[STATE-5]`) still
+write their own queries against it, and the first shared `queries` module is where the package quietly
+becomes a layer.
 
 **`[STATE-2]` `[auto]`** — Do not create a shared repository or data-access layer.
 
@@ -476,18 +488,32 @@ score) is an idempotent-set effect (`[IDEM-1]`); on a redelivering platform it m
 a `refresh`/`recompute` slice, or an `on_change` handler — **not** a read-named slice. A `show`/`GET`
 reads the cached value and never writes it, which keeps `[IDEM-2]` satisfied.
 
-**`[STATE-5]` `[review]`** — Every table, file, or bucket has **exactly one owning slice**, and its
-schema changes belong to that slice.
+**`[STATE-5]` `[review]`** — Every table, file, or bucket is owned by **exactly one feature package**,
+and its schema is defined **once** inside that package. Slices in the owning package reach it directly;
+any slice outside the package goes through the owner's published capability (`[COMPOSE-1]`).
 
-Queries are slice-local (`[STATE-1]`), so schema must be owned too — otherwise two slices silently
-co-own a shape and every change becomes a cross-slice negotiation. Split the mechanism from the content:
-the `db` crosscut **runs** migrations; the owning slice **defines** them, and the migration lives with
-the slice.
+Ownership sits at the package rather than at a single slice because a capability is normally **several
+operations over one shape**: `expense/add`, `expense/edit`, `expense/delete` and `expense/list` all touch
+the `expenses` table, and that is a well-formed capability rather than a defect. The earlier per-slice
+form of this rule said otherwise — "exactly one owning slice", with two slices writing one table as a
+split signal — so ordinary CRUD tripped a trip-wire, and the only strictly compliant alternative was
+worse: a write slice publishing a read capability for its own siblings, which is the owning slice becoming
+the repository these rules exist to prevent.
 
-A second slice that needs the data reads it through the owner's published capability (`[COMPOSE-1]`); if
-it genuinely shares the entity's invariant, the invariant — not the storage — becomes a crosscut
-(`[XCUT-5]`). Two slices writing one table is a `[GROW-3]` split signal, not a reason for a shared
-data-access layer.
+**Package ownership is not permission for a shared query module.** `[STATE-1]` and `[STATE-2]` still hold
+*inside* the package: each slice writes its own queries against the shared shape, and an `expense/queries`
+module serving all four operations is the `repository` layer at smaller scale (`[BUCKET-1]`). This rule
+moves the **ownership** boundary, not the **locality** one, and the difference is the whole point —
+[`examples/cli-slice.md`](./examples/cli-slice.md) shows it working: `list` writes its own `SELECT`
+against a table `add` defined, and neither slice reaches into the other.
+
+Split the mechanism from the content: the `db` crosscut **runs** migrations; the owning package
+**defines** them, at one site within it, so a schema change has exactly one place to be.
+
+A slice **outside** the package that needs the data reads it through a published capability
+(`[COMPOSE-1]`); if it genuinely shares the entity's invariant, the invariant — not the storage — becomes
+a crosscut (`[XCUT-5]`). **Two feature packages** writing one table is the `[GROW-3]` split signal, not a
+reason for a shared data-access layer.
 
 **`[STATE-6]` `[review]`** — A cache is an optimization, never a source of truth: every read path must be
 correct with the cache empty, and nothing may exist *only* in the cache.
@@ -764,7 +790,7 @@ independent and all reach into one large central concept, that is a `[SCOPE-3]` 
 
 Concrete trip-wires — any one is a prompt to flag per `[AGENT-2]`: a single slice needs the *read* state
 of three or more other slices at once; a new feature cannot be described without naming several existing
-capabilities; two slices write the same table (`[STATE-5]`); or one rule must change in lockstep across
+capabilities; two feature packages write the same table (`[STATE-5]`); or one rule must change in lockstep across
 many slices.
 
 The threshold is a judgment call, not a hard metric. When it is unclear, prefer the reversible move (a
@@ -808,7 +834,7 @@ Reviewers walk this same list and cite the same IDs.
 - `[MODEL-1]` Every unit of code is a slice, a crosscut, the composition root, or a published contract.
 - `[MODEL-2]` Name every package for the capability or concern it owns, never for its technical role.
 - `[MODEL-4]` An adapter implements a slice-declared port: infrastructure only, arrow inward, wired by the root, no behavior.
-- `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages.
+- `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages; the package owns its capability's state.
 - `[STRUCT-3]` Keep root-level crosscuts rare and precisely named.
 - `[STRUCT-1]` Colocate tests, or mirror the package structure where colocation is impossible.
 - `[BOUND-2]` One request/trigger — or a very tight pair — per slice, owned end to end.
@@ -849,7 +875,7 @@ Reviewers walk this same list and cite the same IDs.
 - `[STATE-1]` Keep state-access logic local to the slice that owns it.
 - `[STATE-2]` Do not create a shared repository or data-access layer.
 - `[STATE-4]` The slice that computes derived state owns it; write it from a set-/event-named handler.
-- `[STATE-5]` One owning slice per table/file/bucket; its schema changes live with it.
+- `[STATE-5]` One owning feature package per table/file/bucket, schema defined once inside it; siblings reach it directly, outsiders via a published capability.
 - `[STATE-6]` A cache is never a source of truth; every read path must be correct with it empty.
 - `[STATE-7]` Name the cache's invalidation strategy — TTL, write-through, or event-driven.
 - `[CONFIG-1]` Resolve, validate, and inject configuration at the root as a crosscut.

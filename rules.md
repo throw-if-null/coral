@@ -52,7 +52,7 @@ sentence of the definition instead.
 | `[ROOT-2]` | `[auto]` | The root imports no persistence or domain-internal module. |
 | `[ROOT-3]` | `[guide]` | For a library, the *consumer* is the composition root: the package exposes capabilities and lets the consumer wire them. |
 | `[STRUCT-1]` | `[auto]` | Colocate tests, or mirror the package structure where colocation is impossible. |
-| `[STRUCT-2]` | `[review]` | Put slices in concrete, domain-oriented feature packages. |
+| `[STRUCT-2]` | `[review]` | Put slices in concrete, domain-oriented feature packages; the package owns its capability's state. |
 | `[STRUCT-3]` | `[auto]` | Keep root-level crosscuts rare and precisely named. |
 | `[BUCKET-1]` | `[auto]` | Do not create or expand `shared`/`common`/`utils`/`helpers`/`services`/`repository`/generic `models`. |
 | `[BUCKET-2]` | `[guide]` | Generic catch-all names destroy locality and predictability. |
@@ -77,7 +77,7 @@ sentence of the definition instead.
 | `[STATE-2]` | `[auto]` | Do not create a shared repository or data-access layer. |
 | `[STATE-3]` | `[guide]` | A shared persistence layer accumulates special cases and forces cross-slice reasoning on every change; local ownership keeps each slice independently changeable. |
 | `[STATE-4]` | `[review]` | The slice that computes derived state owns it; write it from a set-/event-named handler. |
-| `[STATE-5]` | `[review]` | One owning slice per table/file/bucket; its schema changes live with it. |
+| `[STATE-5]` | `[review]` | One owning feature package per table/file/bucket, schema defined once inside it; siblings reach it directly, outsiders via a published capability. |
 | `[STATE-6]` | `[review]` | A cache is never a source of truth; every read path must be correct with it empty. |
 | `[STATE-7]` | `[review]` | Name the cache's invalidation strategy — TTL, write-through, or event-driven. |
 | `[CONC-1]` | `[auto]` | A slice holds no mutable state between triggers. |

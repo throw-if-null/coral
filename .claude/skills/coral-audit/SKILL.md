@@ -128,7 +128,7 @@ dimensions the conformance answer rests on. Do not treat them as warm-up:
 - boundary & verbs — `[BOUND-*]` / `[IDEM-*]`
 - crosscuts vs forbidden buckets, including the entity loophole (invariants may be a crosscut;
   queries and storage may not) — `[XCUT-*]` / `[BUCKET-*]`
-- effects, state & schema ownership (one owning slice per table; interface ownership points
+- effects, state & schema ownership (one owning feature package per table; interface ownership points
   adapter → slice) — `[EFFECT-*]` / `[STATE-*]`
 - configuration: resolved and validated at the root, injected, never read ambiently from a slice —
   `[CONFIG-*]`

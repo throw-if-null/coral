@@ -69,6 +69,30 @@ two claims that were fused: the rule **is** violated, **and** the correct owner 
 repository. That combination is an escalation (`[AGENT-2]`, `[AGENT-4]`) and then a recorded exception
 (`[VER-5]`) if the team keeps the layout — not a pass.
 
+**`[STATE-5]` — state ownership moves from the slice to the feature package.** The rule said "every
+table, file, or bucket has **exactly one owning slice**", `[STATE-1]` keeps queries slice-local, and
+`[COMPOSE-1]` sends any second reader through the owner's published capability. Together those made
+ordinary CRUD ill-formed: `expense/add`, `expense/edit`, `expense/delete` and `expense/list` all touch one
+table, and `[GROW-3]` listed "two slices write the same table" as a signal to split the app. The strictly
+compliant alternative was worse — a write slice publishing a read capability for its own siblings, which is
+the owning slice becoming the repository `[STATE-2]` exists to prevent.
+
+Ownership is now the **feature package**, with the schema defined once inside it. Slices in the owning
+package reach the table directly; a slice in another package still goes through a published capability.
+`[GROW-3]`'s trip-wire is rescoped to **two feature packages** writing one table, which is the case that
+was always the real signal. **What you must now satisfy:** nothing new — this is a loosening, and it
+ratifies what [`examples/cli-slice.md`](./examples/cli-slice.md) already did. The guard is explicit,
+though: package ownership is **not** permission for a shared `expense/queries` module. The ownership
+boundary moved; the locality boundary did not, and `[STATE-1]` now says so at package scale.
+
+**`[STRUCT-2]` — the feature package is defined, and stopped being a synonym for "slice".** The two spines
+disagreed: `ARCHITECTURE.md` showed `category/` containing `add` and `list` (a container of slices), while
+`CONVENTIONS.md`'s placement diagram labelled the slice box "a feature package" (the same thing). With
+`[STATE-5]` now hanging ownership on the package, that ambiguity had to go. A feature package holds the
+slices of one capability and owns their state; it is a container, not a sixth category, which is why
+`[MODEL-1]` does not list it. `CONVENTIONS.md` gains a feature-package row in the "capability is
+scale-relative" table, since that is exactly the scale that was missing from it.
+
 **The examples were pinned to a version that no longer existed.** All three, plus the audit skill, said
 "written against Coral 0.4.0" while `VERSION` said `0.5.0` — `[VER-3]`'s own failure mode, committed by the
 reference material, which is worse than committing it downstream because this is what people copy. Fixed,

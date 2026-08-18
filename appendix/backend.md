@@ -135,7 +135,8 @@ These need no backend-specific rule — the spine's answer is the answer.
 
 - **State / effects** → `[STATE-1]` `[STATE-2]` `[STATE-5]`: slice-owned queries; transaction scoped to
   the request; the `db` crosscut owns the pool and runs migrations, while each table's schema is defined
-  by its owning slice.
+  once inside its owning feature package — so `expense/create` and `expense/list` share the table and
+  still write their own queries.
 - **Configuration** → `[CONFIG-1..4]`: one config crosscut constructed and validated at boot; no slice
   reads the environment.
 - **Observability** → `[OBS-1..3]`: structured logs + metrics + correlation/trace IDs via the injected

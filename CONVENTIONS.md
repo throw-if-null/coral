@@ -45,6 +45,7 @@ conflating them is how an agent ends up publishing internals. Qualify it:
 | Phrase | Means | Consumed by |
 |---|---|---|
 | *a slice owns a capability* | one user-facing behavior | the app's users |
+| *a **feature package's** capability* | one domain area, and the state behind it | its own slices directly; anything else via a published capability |
 | *a slice's **published** capability* | one exported function/entry point of that slice | sibling slices, via `[COMPOSE-1]` |
 | *an app's **published** capability* | one endpoint/event on the channel | other apps, via `[CHAN-1]` |
 
@@ -123,7 +124,7 @@ Almost every placement question is one of six outcomes. Five are legitimate cate
 ```mermaid
 flowchart TD
   Q{"new code —<br/>what is it?"}
-  Q -->|"owns one capability<br/>end to end"| SLICE["<b>SLICE</b><br/>a feature package"]
+  Q -->|"owns one capability<br/>end to end"| SLICE["<b>SLICE</b><br/>one trigger, owned end to end"]
   Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| XC["<b>CROSSCUT</b><br/>defined once, injected"]
   Q -->|"infrastructure behind a port<br/>a slice declared"| AD["<b>ADAPTER</b><br/>implements, never defines"]
   Q -->|"registers, constructs,<br/>injects — no logic"| ROOT["<b>COMPOSITION ROOT</b><br/>the entry point"]
@@ -134,6 +135,11 @@ flowchart TD
 ```
 
 When more than one fits, or none cleanly does, **flag it** (`[AGENT-2]`) rather than guess.
+
+A slice lives *in* a **feature package**, and the two are not the same thing — this diagram used to label
+the slice box "a feature package", which is where the confusion started. The package groups the slices of
+one capability and owns the state behind them (`[STRUCT-2]`, `[STATE-5]`); the slice owns one trigger. The
+package is a container, not a category of code, which is why `[MODEL-1]` does not list it.
 
 The same three rules hold at every scale — slice, app, and system alike:
 

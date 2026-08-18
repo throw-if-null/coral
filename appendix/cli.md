@@ -75,7 +75,8 @@ Debug may include: resolved command and arguments, resolved config and paths, tr
 
 Prefer direct queries owned by the slice. A small, precisely-named `db` crosscut handles connection
 management and migration *execution* only — never a generic data-access layer (`[STATE-2]`). Schema
-definitions live with the owning slice (`[STATE-5]`).
+definitions live in the owning feature package, at one site within it (`[STATE-5]`); sibling commands
+share the table and still write their own SQL.
 
 ## Configuration  → `[CONFIG-1]`
 
