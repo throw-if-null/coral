@@ -1,6 +1,6 @@
 # Worked example: reviewing a real backend microservice
 
-> Written against **Coral 0.4.0**.
+> Written against **Coral 0.5.0**.
 
 The fastest way to understand Coral is to watch it applied to a *real* service rather than a toy. This
 is a condensed review of a production-shaped Go microservice — an **audit-log service** (an HTTP read
@@ -68,12 +68,39 @@ success.
 
 Equally important — Coral is not a mandate to rewrite:
 
+- **Whether `store` is an adapter or a repository layer** turns entirely on which side declares the
+  interface (`[MODEL-4]`, `[STATE-2]`): slice-declared port and the arrow runs `store` → slice, or shared
+  package defining the API and it is the layer `[STATE-2]` forbids. This review did not record the
+  direction, so it cannot claim either — it is the first thing to check on a re-audit.
 - **Re-slicing by capability** at ~2.4k LOC and five capabilities would be marginal. The layered layout
   is navigable, and `[SCOPE-1]`/`[GROW-1]` explicitly say *start small* and don't reorganize a working
   small service for purity.
-- **`models` / `utils`** trip `[BUCKET-1]` *by name*, but two cohesive domain types and one helper are
-  not the grab-bag the rule targets. Renaming would be cosmetic.
 - Near-identical mapping in two read handlers is the *tolerable* duplication that `[DUP-1]` sanctions.
+
+## Where the rule is violated and the owner is unclear — `[BUCKET-1]`
+
+`models` and `utils` are a real `[BUCKET-1]` violation, and an earlier version of this review got this
+wrong in a way worth keeping on the page: it said renaming "would be cosmetic" and moved on. `[BUCKET-1]`
+is `[auto]` — a blocking gate — so an official example waving it through taught the opposite of what the
+rule set intends, namely that a deterministic rule is negotiable whenever compliance looks like tidying.
+An agent that reads this page should not learn that.
+
+What is actually true is narrower, and it is two separate claims. The rule **is** violated: the names are
+on the forbidden list and the check fails. And strict compliance has **uncertain architectural value
+here**, because the correct owner cannot be read off the repository — the types in `models` are used by
+more than one capability, so moving them into any single one invents a boundary that the current code does
+not establish.
+
+That combination is the definition of an escalation, not of a pass. The agent reports the rule, the path,
+the compliant alternatives, and why choosing between them would create an architectural boundary — then
+stops (`[AGENT-2]`), because an agent never settles it itself (`[AGENT-4]`). If the team decides the layout
+stays, that decision is an **Exception** in the project's `CORAL.md`, recorded against `BUCKET-1` and
+scoped to those two paths (`[VER-5]`) — which is also the only thing that stops `coral-lint` reporting it
+again on every run.
+
+The distinction to carry away: *"the rule does not apply here"* and *"the rule applies and we are
+knowingly not complying"* are different claims with different costs, and only the second one is available
+for `models` and `utils`.
 
 ## The method (reusable)
 
@@ -87,13 +114,16 @@ To audit any app against Coral, walk the families and, for each, ask **"earns it
 - delivery & contracts across the channel — `[CHAN-5]` / `[CONTRACT-1]`
 - testing — `[TEST-1]`
 
-Then separate **substance** (delivery, errors, trust — true under any architecture) from **cosmetics**
-(folder names, slice boundaries at small scale). An audit that flags substance and waves off cosmetics
-is the one people actually act on.
+Then separate **substance** (delivery, errors, trust — true under any architecture) from **structure you
+are choosing to defer** (folder names, slice boundaries at small scale). The second category still gets
+reported; what changes is the disposition — a recorded exception with a `revisit_when`, not a shrug
+(`[VER-5]`). An audit that ranks substance first and dispositions the rest explicitly is the one people
+act on; an audit that quietly drops the structural findings is the one that gets cited later as proof the
+architecture was optional.
 
 ## What this also proves
 
 Beyond the findings, the exercise is a dry-run of the architecture's *vocabulary*: every part of a real
-service landed in one of the four categories (`[MODEL-1]`) without strain — slices, crosscuts, a
-composition root, published contracts, and the channel between services. When the words fit a system you
+service landed in one of the five categories (`[MODEL-1]`) without strain — slices, crosscuts, adapters,
+a composition root, published contracts, and the channel between services. When the words fit a system you
 didn't design, the model is doing real work.

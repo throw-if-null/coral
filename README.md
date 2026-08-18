@@ -15,7 +15,7 @@ a scheduler, a solver. That limit is stated as a rule (`[SCOPE-2]`), not as a fo
 
 ## The documents
 
-Start with [`CONVENTIONS.md`](./CONVENTIONS.md). It defines the seven nouns every other document uses, the
+Start with [`CONVENTIONS.md`](./CONVENTIONS.md). It defines the eight nouns every other document uses, the
 rule-ID scheme, the enforcement classes, and the agents-write / humans-review operating model; the rest
 refer back to it instead of restating any of it.
 

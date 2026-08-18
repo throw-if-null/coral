@@ -4,7 +4,8 @@
 orchestrate**.*
 
 > **Read [`CONVENTIONS.md`](./CONVENTIONS.md) first.** It defines the seven nouns this document uses
-> (slice, crosscut, composition root, published contract, app, system, channel), the rule-ID scheme, the
+> (slice, crosscut, adapter, composition root, published contract, app, system, channel), the rule-ID
+> scheme, the
 > enforcement classes, and the [canonical slice](./CONVENTIONS.md#the-canonical-slice) every rule here
 > exists to produce.
 
@@ -57,7 +58,7 @@ expenses/
     month_test
 ```
 
-Everything in it is one of four things, which section 3 states as a rule (`[MODEL-1]`):
+Everything in it is one of five things, which section 3 states as a rule (`[MODEL-1]`):
 
 - `category/add`, `expense/add` and `summary/month` are **slices** — one capability each, owned from
   trigger through to output, tests included.
@@ -67,6 +68,10 @@ Everything in it is one of four things, which section 3 states as a rule (`[MODE
   no behavior of its own.
 - What the app exposes to anything outside it — its command contract, HTTP shape, or library API — is
   its **published contract**.
+- There is no **adapter** here, and for an app this size there usually isn't one: each slice writes its
+  own queries through the injected `db` crosscut. An adapter appears when a slice declares a port and
+  something else implements it — a generated persistence package, an external-system client
+  (`[MODEL-4]`).
 
 There is no `handlers`, no `services`, no `repositories`, no `utils`. The sections below are the rules
 that keep it that way, each with the reasoning that produced it.
@@ -130,20 +135,21 @@ and self-verifiable contracts exist because **agents write and humans review**.
 
 ---
 
-## 3. The Four Categories of Code  `[MODEL-*]`
+## 3. The Five Categories of Code  `[MODEL-*]`
 
 Knowing which category you are writing answers most placement questions.
 
-**`[MODEL-1]` `[review]`** — Every unit of code is a **slice**, a **crosscut**, the **composition
-root**, or a **published contract**.
+**`[MODEL-1]` `[review]`** — Every unit of code is a **slice**, a **crosscut**, an **adapter**, the
+**composition root**, or a **published contract**.
 
-There is no fifth category. Something that is none of these is a [forbidden
-bucket](#_7-forbidden-buckets-bucket) (`[BUCKET-1]`). The four are not peers in volume:
+There is no sixth category. Something that is none of these is a [forbidden
+bucket](#_7-forbidden-buckets-bucket) (`[BUCKET-1]`). The five are not peers in volume:
 
 | Category | What it owns | Volume |
 |---|---|---|
 | **slice** | one capability end to end — definition, parsing, validation, behavior, state access, output, tests | most of the code |
 | **crosscut** | one cross-cutting concern, defined once and injected | few, precisely named |
+| **adapter** | the infrastructure mechanics behind a port a slice declared | one per port that needs one; often none |
 | **composition root** | registration, construction, injection, bootstrap | exactly one, thin |
 | **published contract** | the surface others may depend on | one per slice/app that exposes anything |
 
@@ -172,6 +178,29 @@ definition, injected. Three things distinguish a crosscut from a bucket: a preci
 invariant or convention, and an injection discipline. A crosscut that slices reach into, or
 re-implement locally, has lost the property that made it worth having, and its copies will drift
 (`[XCUT-4]`).
+
+**`[MODEL-4]` `[review]`** — An **adapter** implements a port the slice declared: it holds
+infrastructure-specific mechanics, depends inward on the interface it satisfies, is wired by the
+composition root, and owns no application behavior.
+
+This category exists because the alternative was a false claim. A generated persistence package, an
+external-system client, a broker binding: none of them owns a capability, none carries a
+must-not-diverge invariant, and calling them buckets would forbid the one shape that makes
+code-generated persistence work at all. [`examples/go-api-slice.md`](./examples/go-api-slice.md) had to
+describe its `store` package as "deliberately not in this table" — that was the missing category
+announcing itself.
+
+**Direction of interface ownership is the whole test**, and it is the same one `[STATE-2]` states: the
+slice declares the interface, listing only the operations *this* capability uses; the adapter
+implements it; the dependency arrow runs adapter → slice. Reverse the arrow and it is a `repository`
+layer (`[BUCKET-1]`) — the shared package defines the API, every caller consumes whatever it offers,
+and no slice can be read alone.
+
+Two consequences follow. An adapter is **never** a place to put logic: behavior that migrates into one
+has migrated *out* of a slice, and the fix is to move it back rather than to grow the adapter. And one
+adapter may serve several slices — one generated package, many ports — without becoming shared state,
+because each slice still owns its own port. Name it for the infrastructure it speaks to (`store`,
+`s3`, `stripe`), never for a role (`[MODEL-2]`).
 
 **Anatomy of one slice.** A pure core (parse → validate → compute), effects at the edge (persist /
 render), a stable published contract, and injected crosscuts:
@@ -619,6 +648,18 @@ Do not invent a name whose effect is ambiguous. If the *effect itself* is unclea
 5. `infrastructure` — database, filesystem, permissions, environment, or OS failure
 6. `internal` — unexpected bug
 
+**Authentication and authorization outcomes are deliberately not in this list**, and leaving that
+unstated was a gap: nothing said whether `unauthenticated` and `forbidden` were missing on purpose. They
+are. Both are decided at the boundary by the code that holds the principal (`[TRUST-1]`, `[BE-6]`), so a
+slice has nothing to raise — and making them categories would push a security decision into a taxonomy
+slices own, whose first consequence is slices raising `forbidden` about state they should never have
+loaded. What replaces them is a rendering rule per app type; `[BE-8]` fixes the HTTP shape.
+
+One authorization outcome *does* reach the taxonomy, and it is the one that matters most: a scoped query
+that matches nothing raises `not_found`, not a permission error. "Exists but is not yours" and "does not
+exist" must be **indistinguishable** to a caller who is not entitled to know which — so the honest-looking
+answer is the leak, and the taxonomy's existing category is the correct one.
+
 **`[ERR-2]` `[auto]`** — Errors carry the structured shape `{ category, code, message }` and raised
 errors use the taxonomy enum, not ad-hoc strings.
 
@@ -766,6 +807,7 @@ Reviewers walk this same list and cite the same IDs.
 ### Placement & naming
 - `[MODEL-1]` Every unit of code is a slice, a crosscut, the composition root, or a published contract.
 - `[MODEL-2]` Name every package for the capability or concern it owns, never for its technical role.
+- `[MODEL-4]` An adapter implements a slice-declared port: infrastructure only, arrow inward, wired by the root, no behavior.
 - `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages.
 - `[STRUCT-3]` Keep root-level crosscuts rare and precisely named.
 - `[STRUCT-1]` Colocate tests, or mirror the package structure where colocation is impossible.

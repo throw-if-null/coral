@@ -32,6 +32,10 @@ UNIMPLEMENTED: dict[str, str] = {
              "themselves, and the Coral repo's own build enforces it against rules.lock",
     "VER-4": "candidate: would mean parsing the audited repo's CORAL.md and checking its extension "
              "IDs against Coral's family names. Worth doing once CORAL.md files exist in the wild",
+    "VER-5": "candidate, and the highest-value one left: parse the audited repo's CORAL.md machine "
+             "block, resolve each entry's rule ID against rules.lock and each path against the tree, "
+             "then suppress findings the project has an exception for. Until this lands, an approved "
+             "exception is re-reported on every run",
 }
 
 

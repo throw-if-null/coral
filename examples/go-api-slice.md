@@ -1,6 +1,6 @@
 # Worked example: a Go API capability slice (one endpoint, end to end)
 
-> Written against **Coral 0.4.0**.
+> Written against **Coral 0.5.0**.
 
 The [CLI example](./cli-slice) shows a slice in a language that imposes nothing, so each slice is one file.
 This one is the harder case: **a complete Coral slice in Go, where the language forces one capability
@@ -425,7 +425,8 @@ arrow runs the other way: the repository package defines the API and every slice
 offers, so the repository accumulates every caller's needs and no slice can be understood alone. Apply
 `[XCUT-5]`'s test — *would removing it break an invariant, or only break access to data?* — and you get the
 right answer for both: `errs` and `reqctx` are crosscuts (they carry invariants), `store` is neither a
-crosscut nor a bucket but an **injected implementation of a slice-owned interface**.
+crosscut nor a bucket but an **adapter** — an injected implementation of a slice-owned interface
+(`[MODEL-4]`).
 
 Two more things keep it honest: the middle band is named *by capability* (`module/document`, not
 `services/` or `repositories/`) and owns its own types and errors; and the `documents` table has exactly
@@ -434,18 +435,22 @@ one owning slice, so its schema changes live with `module/document` (`[STATE-5]`
 Per `[MODEL-2]`, introducing banding is a decision to **flag** (`[AGENT-2]`), not to assume — this section
 is that flag, written down.
 
-## Mapping to the four categories  → `[MODEL-1]`
+## Mapping to the five categories  → `[MODEL-1]`
 
 | Category | Here |
 |---|---|
 | **slice** | `module/document` (the body) + `api/document.go` (its edge) — one capability, two bands |
+| **adapter** | `store` — implements the slice-declared `Store` interface, injected at the root (`[MODEL-4]`) |
 | **published contract** | the exported `Get`, the `Document` type, the `Store` interface, and the typed `errs` it raises. That is all another slice may depend on |
 | **crosscuts** | `errs` (the error taxonomy) and `reqctx` (caller identity) — injected, carrying invariants |
 | **composition root** | `cmd/api/main.go`: wires and runs, holds no logic (`[ROOT-1]`) |
 
-`store` is the fourth thing in the tree and deliberately not in this table: it is an *implementation* of
-the slice-owned `Store` interface, injected at the root. See
-[the test above](#the-test-that-separates-this-from-a-repositories-layer).
+`store` used to sit outside this table. It is neither a crosscut nor a bucket, and while there were only
+four categories there was nowhere to put it — so this page said it was "deliberately not in this table",
+which was the taxonomy's gap written down rather than an explanation. `[MODEL-4]` names it: an **adapter**,
+defined by the direction of interface ownership.
+[The test above](#the-test-that-separates-this-from-a-repositories-layer) is that definition applied to
+this tree.
 
 ## Scaling up (what a write adds)
 

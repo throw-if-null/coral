@@ -1,6 +1,6 @@
 # Worked example: a CLI capability slice (two commands, end to end)
 
-> Written against **Coral 0.4.0**.
+> Written against **Coral 0.5.0**.
 
 The [Go example](./go-api-slice) shows a slice in a language that *forces* a capability across several
 packages. This one shows the opposite: **a CLI in Python, where nothing forces banding, so a slice is one
@@ -480,7 +480,7 @@ Nothing here is a unit test, and that is `[TEST-2]` working: these tests survive
 has enough branches (non-numeric, NaN, negative, three decimals) to earn a direct table-driven test — but it
 is an addition, not the foundation.
 
-## Mapping to the four categories  → `[MODEL-1]`
+## Mapping to the five categories  → `[MODEL-1]`
 
 | Category | Here |
 |---|---|
@@ -488,6 +488,7 @@ is an addition, not the foundation.
 | **crosscuts** | `errors`, `money`, `period` (pure, imported), `db` (stateful, injected) |
 | **composition root** | `app.py` + `__main__.py` — register, inject, render, exit; no logic |
 | **published contract** | exit code + `stdout`/`stderr` separation + the `--json` payload shape |
+| **adapter** | none — `db` is a crosscut and each slice writes its own SQL. An adapter would appear if a slice declared a port and something else implemented it (`[MODEL-4]`) |
 
 ## What this avoids
 

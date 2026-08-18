@@ -62,18 +62,51 @@ violation.
 | `infrastructure` | `503` (or `500`) |
 | `internal`       | `500`       |
 
-The `code` strings stay slice-owned (`[ERR-2]`).
+The `code` strings stay slice-owned (`[ERR-2]`). **`401` and `403` are absent from this map by
+construction**, not by omission: no slice raises them, so they are not taxonomy categories
+(`[ERR-1]`). They are rendered by the middleware that denies the request — `[BE-8]`.
 
 ## Trust / security  → `[TRUST-1]` `[TRUST-2]`
 
-**`[BE-6]`** `[review]` Authentication and authorization run at the boundary as **root middleware, before
-the slice**; the slice receives an already-authenticated principal. If resources are **user- or
-tenant-scoped**, the owner/tenant id is **part of the record and part of every query's WHERE clause**.
+**`[BE-6]`** `[review]` **Authenticate** at the boundary as root middleware, before the slice, and do
+**coarse capability authorization** there too — may this principal call this endpoint at all; the slice
+receives an already-authenticated principal. **Resource-level authorization lives with the state it
+protects**: if resources are **user- or tenant-scoped**, the owner/tenant id is **part of the record and
+part of every query's WHERE clause**.
+
+Both halves are load-bearing and the split is not a compromise. *May this principal call
+`GET /expenses/{id}`* is answerable from the request alone, so it belongs at the edge where a denial costs
+nothing. *May this principal see expense 947* is answerable only from domain state — the row's owner is in
+the row — so hoisting it to the boundary means the middleware loading the resource, which either duplicates
+the slice's query or hands the slice a pre-loaded entity and dissolves its ownership of its own state
+(`[STATE-1]`). Scoping the query is the same check, done where the answer already is; a `WHERE tenant_id =
+$1` that matches nothing is an authorization denial expressed as `not_found` (`[ERR-1]`, `[BE-8]`).
 
 Decide this *before* writing the slice, because it changes the schema, the slice signature, and the
 tests — it is the one slot in this appendix that is expensive to retrofit. Secrets come from the config
 crosscut, never inline (`[CONFIG-4]`). **Default to deny:** a slice with no explicit authorization rule
 is not shippable.
+
+**`[BE-8]`** `[review]` Render authentication and authorization failures at the boundary that decides
+them, never through the error taxonomy: **`401`** when the caller is unauthenticated, **`403`** when an
+authenticated caller lacks the capability, and **`404`** when a scoped query does not match.
+
+Keep `401` and `403` apart — a client can act on the difference and cannot act on the wrong one. `401`
+means *we do not know who you are*: the credential is absent, malformed, or expired, and retrying with a
+fresh one may work, which is why it carries `WWW-Authenticate` when a scheme is being advertised. `403`
+means *we know who you are and the answer is no*: retrying is pointless. Returning `403` for a missing
+token sends a client into a permission investigation over an expired session; returning `401` for a real
+permission denial sends it into a refresh loop that can never succeed.
+
+`404` for a scoped miss is the deliberate lie, and it is required rather than permitted: the alternative
+tells an unauthorized caller that expense 947 exists, which is exactly the fact they were denied
+(`[ERR-1]`). The slice does not know it is lying — it raises `not_found` because its scoped query found
+nothing, and `[BE-5]` maps it like any other. Do not add a `forbidden` category to make this "more
+honest"; the honesty is the vulnerability.
+
+Neither `401` nor `403` carries a slice-owned `code`, because no slice raised them — keep the body minimal
+and do not explain which rule denied the request. The detail belongs in the log line with the correlation
+id (`[OBS-2]`), where the operator can see it and the caller cannot.
 
 ## Contract versioning  → `[CONTRACT-2]`
 
@@ -131,7 +164,8 @@ load both. `[guide]` rules are rationale and live only in the prose.
 - `[BE-3]` Wire router, middleware, and injection at the root; crosscuts are singletons, only request-bound state is per-request.
 - `[BE-4]` A synchronous `POST` may offer an idempotency key; any platform-redelivered handler must be idempotent.
 - `[BE-5]` Slices raise the taxonomy; one root middleware renders the body and maps `category` → HTTP status.
-- `[BE-6]` Authenticate and authorize at the boundary before the slice, scope every query by owner/tenant id, default to deny.
+- `[BE-6]` Authenticate and coarsely authorize at the boundary; scope every query by owner/tenant id, default to deny.
+- `[BE-8]` Render authn/authz failures at the boundary, not through the taxonomy: `401` unauthenticated, `403` no capability, `404` scoped miss.
 - `[BE-7]` Version the HTTP API with a URL prefix and advance it only for a breaking change; nothing additive bumps it.
 
 <!-- coral:contract:end -->

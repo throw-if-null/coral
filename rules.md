@@ -1,6 +1,6 @@
 # Rule index
 
-Every rule Coral publishes, in one place: **174 rules** across 9 documents — 27 `[auto]`, 118 `[review]`,
+Every rule Coral publishes, in one place: **177 rules** across 9 documents — 28 `[auto]`, 120 `[review]`,
 29 `[guide]`. Each ID links to its definition, where the reasoning lives; the statement here is only the
 one-line form.
 
@@ -14,7 +14,7 @@ sentence of the definition instead.
 
 ## Coral Architecture — Conventions
 
-9 rules — [`CONVENTIONS.md`](./CONVENTIONS.md)
+10 rules — [`CONVENTIONS.md`](./CONVENTIONS.md)
 
 | Rule | Class | Statement |
 | --- | --- | --- |
@@ -27,10 +27,11 @@ sentence of the definition instead.
 | `[VER-2]` | `[review]` | Adding, tightening, or retiring a rule is a major version; loosening or clarifying is minor. |
 | `[VER-3]` | `[review]` | State the Coral version a project targets; audit against that version. |
 | `[VER-4]` | `[auto]` | Namespace a project's own rule IDs by project prefix; never reuse a Coral family name. |
+| `[VER-5]` | `[auto]` | Record exceptions and extensions in `CORAL.md` as machine-readable entries naming a rule ID and a scoped path. |
 
 ## Coral Architecture — the App
 
-77 rules — [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+78 rules — [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 
 | Rule | Class | Statement |
 | --- | --- | --- |
@@ -41,6 +42,7 @@ sentence of the definition instead.
 | `[MODEL-1]` | `[review]` | Every unit of code is a slice, a crosscut, the composition root, or a published contract. |
 | `[MODEL-2]` | `[review]` | Name every package for the capability or concern it owns, never for its technical role. |
 | `[MODEL-3]` | `[guide]` | A crosscut's decisive property is defined once, injected many. |
+| `[MODEL-4]` | `[review]` | An adapter implements a slice-declared port: infrastructure only, arrow inward, wired by the root, no behavior. |
 | `[BOUND-1]` | `[guide]` | A slice handles one inbound request or trigger, end to end. |
 | `[BOUND-2]` | `[review]` | One request/trigger — or a very tight pair — per slice, owned end to end. |
 | `[BOUND-3]` | `[review]` | Use the boundary form the appendix fixes; do not invent a new one. |
@@ -161,7 +163,7 @@ sentence of the definition instead.
 
 ## Appendix: Backend / Service
 
-7 rules — [`appendix/backend.md`](./appendix/backend.md)
+8 rules — [`appendix/backend.md`](./appendix/backend.md)
 
 | Rule | Class | Statement |
 | --- | --- | --- |
@@ -170,7 +172,8 @@ sentence of the definition instead.
 | `[BE-3]` | `[review]` | Wire router, middleware, and injection at the root; crosscuts are singletons, only request-bound state is per-request. |
 | `[BE-4]` | `[review]` | A synchronous `POST` may offer an idempotency key; any platform-redelivered handler must be idempotent. |
 | `[BE-5]` | `[auto]` | Slices raise the taxonomy; one root middleware renders the body and maps `category` → HTTP status. |
-| `[BE-6]` | `[review]` | Authenticate and authorize at the boundary before the slice, scope every query by owner/tenant id, default to deny. |
+| `[BE-6]` | `[review]` | Authenticate and coarsely authorize at the boundary; scope every query by owner/tenant id, default to deny. |
+| `[BE-8]` | `[review]` | Render authn/authz failures at the boundary, not through the taxonomy: `401` unauthenticated, `403` no capability, `404` scoped miss. |
 | `[BE-7]` | `[review]` | Version the HTTP API with a URL prefix and advance it only for a breaking change; nothing additive bumps it. |
 
 ## Appendix: CLI

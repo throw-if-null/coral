@@ -7,7 +7,7 @@ these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
 
 This file holds what every other document builds on, so none of them has to repeat it:
 
-- **The vocabulary** — the seven nouns the whole set uses. ([below](#the-vocabulary))
+- **The vocabulary** — the eight nouns the whole set uses. ([below](#the-vocabulary))
 - **The rule-ID scheme** — how rules are numbered and cited, e.g. `[DUP-2]`. ([below](#rule-ids))
 - **The enforcement classes** — `[auto]` / `[review]` / `[guide]`. ([below](#enforcement-classes))
 - **The operating model** — agents write; humans review and orchestrate. ([below](#the-operating-model-agents-write-humans-review-agent))
@@ -21,12 +21,13 @@ once and pointed to.
 
 ## The vocabulary
 
-Seven nouns. Every document uses exactly these; there are no synonyms.
+Eight nouns. Every document uses exactly these; there are no synonyms.
 
 | Noun | What it is | Governed by |
 |---|---|---|
 | **slice** | one capability, owned end to end: its trigger, parsing, validation, behavior, state access, output, and tests | `[BOUND-*]` `[MODEL-1]` |
 | **crosscut** | a cross-cutting concern — defined **once**, precisely named, and **injected** into the slices that use it (`config`, `errors`, `db`, `money`) | `[XCUT-*]` |
+| **adapter** | the infrastructure mechanics behind a port **a slice declared** — it implements that interface, is wired by the root, and owns no behavior (`store`, `s3`, `stripe`) | `[MODEL-4]` |
 | **composition root** | the thin entry point that registers slices, constructs crosscuts, and injects them. Holds no business logic | `[ROOT-*]` |
 | **published contract** | the surface others are allowed to depend on: a slice's public capability, a machine-readable output, an HTTP shape, a library API | `[CONTRACT-*]` |
 | **app** | one deployable unit: many slices, one composition root, one set of crosscuts | all of `ARCHITECTURE.md` |
@@ -52,7 +53,7 @@ process boundary requires a channel contract (`[CHAN-1]`), not a re-export.
 
 ### A channel is a published contract at app scale
 
-Two of the seven nouns are the same idea at different ranks, and it is worth saying so rather than letting
+Two of the eight nouns are the same idea at different ranks, and it is worth saying so rather than letting
 a reader guess. A **published contract** is the surface a slice or an app *exposes*. A **channel** is the
 pathway *between* two apps, and the contract that governs it.
 
@@ -116,14 +117,15 @@ missing exactly those properties:
 
 ## Placing new code
 
-Almost every placement question is one of five outcomes. Four are legitimate categories of code
-(`[MODEL-1]`); the fifth is the failure mode.
+Almost every placement question is one of six outcomes. Five are legitimate categories of code
+(`[MODEL-1]`); the sixth is the failure mode.
 
 ```mermaid
 flowchart TD
   Q{"new code —<br/>what is it?"}
   Q -->|"owns one capability<br/>end to end"| SLICE["<b>SLICE</b><br/>a feature package"]
   Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| XC["<b>CROSSCUT</b><br/>defined once, injected"]
+  Q -->|"infrastructure behind a port<br/>a slice declared"| AD["<b>ADAPTER</b><br/>implements, never defines"]
   Q -->|"registers, constructs,<br/>injects — no logic"| ROOT["<b>COMPOSITION ROOT</b><br/>the entry point"]
   Q -->|"a surface others<br/>depend on"| CT["<b>PUBLISHED CONTRACT</b><br/>the stable shape"]
   Q -->|"none of these —<br/>just 'shared stuff'"| BAD["⛔ <b>FORBIDDEN BUCKET</b><br/>utils / services / … — don't"]
@@ -325,6 +327,24 @@ Note the typography above: an **illustrative** ID is written bare (`ACME-1`), wh
 bracketed (`[VER-4]`). Only the bracketed form is a reference the build resolves, so a hypothetical ID
 written as a citation fails the build — which is how this paragraph got caught while being written.
 
+**`[VER-5]` `[auto]`** — Every exception and extension in `CORAL.md` is recorded as a **machine-readable
+entry naming the rule ID it concerns and the path it scopes**.
+
+An exception a tool cannot read is an exception the tool re-reports forever. `coral-lint` has no way to
+honour a decision written as prose, so an approved `internal/models` package fails the gate on every run,
+the team learns to ignore the output, and the register stops being believed — which costs more than the
+original violation. The same applies to agents: `[AGENT-5]` tells one to read `CORAL.md` before
+escalating, and that loop only converges if the file can be read the same way twice.
+
+Four properties make an entry usable, and they are what the format exists to force: it is **attributable**
+to a rule ID, so a finding and a decision can be matched; it is **scoped** to a path, so it excuses one
+place rather than a habit; it is **explicit**, so nothing is excused by silence; and it is **visible**,
+because a decision recorded where nobody loads it is not recorded.
+
+**Scope narrowly.** `path: internal/models` excuses a decision; `path: "**"` excuses the rule, and a
+project that needs that has an amendment to file (below), not an exception to record. Statically
+decidable: the block parses, its rule IDs resolve against `rules.lock`, and its paths exist.
+
 ### Three kinds of divergence
 
 | | What it is | Where it is recorded | Who decides |
@@ -348,22 +368,35 @@ One file, in the consuming project's root, holding both record types. One file r
 `[AGENT-1]`: the agent's question is *"what rules apply here?"*, and that should be one load with one
 answer. An agent that read only half would have a wrong picture of what is permitted.
 
-```markdown
+````markdown
 # Coral adherence
-Targets: Coral 0.4.0
 
-## Extensions — local rules Coral does not have
-[ACME-1]  <the rule, stated as a rule>
-          why Coral does not cover it · how it composes (which families it touches)
-          upstream: not a candidate | candidate | proposed coral#123 | landed in 2.0.0
+```yaml coral
+targets: 0.5.0
 
-## Exceptions — Coral rules this project knowingly breaks
-Breaks [STATE-5]  what we do instead · the trade-off
-          decided by <name>, <date> · revisit when: <condition>
-          upstream: candidate
+# Exceptions — Coral rules this project knowingly breaks.
+exceptions:
+  - rule: STATE-5
+    path: internal/billing
+    reason: two slices co-own the invoice table while the split is in flight
+    decided_by: <name>
+    decided: 2026-08-18
+    revisit_when: the reconciliation slice lands
+    upstream: candidate
+
+# Extensions — local rules Coral does not have. Namespaced per [VER-4].
+extensions:
+  - rule: ACME-1
+    statement: <the rule, stated as a rule>
+    reason: why Coral does not cover it · which families it touches
+    upstream: not-a-candidate    # not-a-candidate | candidate | proposed | landed
 ```
 
-Two details carry weight. The **`upstream` disposition** is what makes the loop run: the same exception
+Prose below the block carries what the fields cannot: the trade-off in full, the
+history of a decision, a diagram. The block is the record; the prose is the why.
+````
+
+Two fields carry weight beyond their own entry. The **`upstream` disposition** is what makes the loop run: the same exception
 appearing across several projects, all marked `candidate`, is the signal for an amendment — and when the
 amendment lands, the entries are deleted and the projects bump their target. **The register shrinks when
 Coral improves**, which is what stops it becoming a forty-entry graveyard.
@@ -390,6 +423,7 @@ The complete normative checklist for this document: every `[auto]` and `[review]
 - `[VER-2]` Adding, tightening, or retiring a rule is a major version; loosening or clarifying is minor.
 - `[VER-3]` State the Coral version a project targets; audit against that version.
 - `[VER-4]` Namespace a project's own rule IDs by project prefix; never reuse a Coral family name.
+- `[VER-5]` Record exceptions and extensions in `CORAL.md` as machine-readable entries naming a rule ID and a scoped path.
 
 <!-- coral:contract:end -->
 

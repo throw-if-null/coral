@@ -32,8 +32,48 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ## Unreleased
 
-*Nothing yet.* A version marks a release, not a commit (`[VER-2]`), so changes land here first and the
-bump happens when the batch is cut.
+**Consolidation pass — the internal contradictions.** A version marks a release, not a commit
+(`[VER-2]`), so these land here and the bump happens when the batch is cut. Three rules are **added**,
+which under the `0.y.z` clause makes that cut a **minor** (`0.6.0`).
+
+**`[MODEL-4]` — `adapter` is a category, and `[MODEL-1]` now names five.** `[MODEL-1]` claimed "there is no
+fifth category. Something that is none of these is a forbidden bucket," while
+[`examples/go-api-slice.md`](./examples/go-api-slice.md) carried a deliberate counter-example: its `store`
+package was "deliberately not in this table," being "neither a crosscut nor a bucket." One of the two had
+to be wrong, and it was the closure claim. `[MODEL-4]` names the missing member and gates it with the
+interface-ownership direction `[STATE-2]` already defined — the slice declares the port, the adapter
+implements it, the arrow runs adapter → slice. Reverse the arrow and it is still the `repository` layer
+`[BUCKET-1]` forbids. **What you must now satisfy:** an adapter holds no application behavior, and is
+named for the infrastructure it speaks to rather than a role. The vocabulary is eight nouns, not seven.
+
+**`[BE-8]` — `401` and `403` are specified.** The six-category taxonomy has no `unauthenticated` or
+`forbidden`, and `[BE-5]`'s status map ran 400/400/404/409/503/500 — so the two statuses every backend
+returns were produced by code no rule described. They stay *out* of the taxonomy, because a slice cannot
+raise what the boundary already decided; `[BE-8]` fixes the shape instead: `401` unauthenticated, `403`
+authenticated but without the capability, `404` for a scoped query that matches nothing — "exists but is
+not yours" must be indistinguishable from "does not exist." `[ERR-1]` now states that the omission is
+deliberate rather than leaving it to be inferred. `[BE-6]` is **clarified** in the same pass: coarse
+capability authorization at the boundary, resource-level authorization with the state it protects, which
+is what its own WHERE-clause requirement always did.
+
+**`[VER-5]` — exceptions become machine-readable.** A `CORAL.md` exception was prose, so `coral-lint` had
+no way to honour one: an approved `internal/models` package failed the gate on every run, forever, and a
+register nobody can act on stops being believed. Exceptions and extensions now go in a parseable block
+naming the rule ID and a **scoped path** — `internal/models`, not `**`. `coral-lint` does not read it yet
+and says so under `--coverage`; the format has to exist before the tool can honour it.
+
+**[`examples/backend-review.md`](./examples/backend-review.md) stops waving off an `[auto]` rule.** It said
+`models`/`utils` trip `[BUCKET-1]` "*by name*" and that "renaming would be cosmetic" — an official example
+teaching that a blocking rule is negotiable whenever compliance looks like tidying. It now separates the
+two claims that were fused: the rule **is** violated, **and** the correct owner cannot be read off the
+repository. That combination is an escalation (`[AGENT-2]`, `[AGENT-4]`) and then a recorded exception
+(`[VER-5]`) if the team keeps the layout — not a pass.
+
+**The examples were pinned to a version that no longer existed.** All three, plus the audit skill, said
+"written against Coral 0.4.0" while `VERSION` said `0.5.0` — `[VER-3]`'s own failure mode, committed by the
+reference material, which is worse than committing it downstream because this is what people copy. Fixed,
+and `scripts/check-versions.mjs` now fails the build on a lagging declaration, so bumping it is a claim
+that the page was re-read against the current rules.
 
 ---
 

@@ -53,9 +53,9 @@ shared parts constructed at startup. [An HTTP endpoint in Go](/examples/go-api-s
 case where a language's own rules — import cycles, code generation — force one capability to span more
 than one package, which stays legitimate as long as every package is named for that capability.
 
-## The four kinds of code
+## The five kinds of code
 
-Every file above is one of four things, and knowing which one you are writing answers most questions
+Every file above is one of five things, and knowing which one you are writing answers most questions
 about where to put it.
 
 A **slice** is one capability, complete: `add.py`, `list.py`. Most of a codebase is slices.
@@ -71,7 +71,14 @@ The **composition root** is the entry point that constructs the crosscuts and ha
 A **published contract** is the part other code is allowed to depend on. For this CLI it is the exit
 code, the separation of `stdout` from `stderr`, and the shape of the `--json` output.
 
-There is a fifth thing most codebases have, and Coral does not allow it: a directory named for nothing in
+An **adapter** is the code that speaks to one specific piece of infrastructure — a database driver, an S3
+client, a payment API — behind an interface the slice itself declared. Which side owns that interface is
+the whole point: the slice says what it needs, the adapter implements it, and the dependency points from
+the adapter to the slice. Turn that arrow around and you have a `repositories` layer, where one shared
+package decides what every caller gets. Small apps often have none — the CLI above has none, because a
+`db.py` crosscut is enough.
+
+There is a sixth thing most codebases have, and Coral does not allow it: a directory named for nothing in
 particular — `utils`, `shared`, `common`, `services`, `helpers`. When code does not obviously belong to a
 slice, the answer is either a crosscut with a real name, or leaving the duplication alone. That rule is
 `[BUCKET-1]`, and it is one a linter can decide on its own.
@@ -89,8 +96,8 @@ Three rules hold at all three sizes:
    reaching into another unit's internals.
 3. Cross a boundary only over a channel. Two apps never fuse and never share a database.
 
-That is the whole vocabulary: seven nouns — slice, crosscut, composition root, published contract, app,
-system, channel. [`CONVENTIONS.md`](/CONVENTIONS) defines each one precisely, and every other document
+That is the whole vocabulary: eight nouns — slice, crosscut, adapter, composition root, published
+contract, app, system, channel. [`CONVENTIONS.md`](/CONVENTIONS) defines each one precisely, and every other document
 refers back to it rather than restating it.
 
 ## Why the rules are shaped this way

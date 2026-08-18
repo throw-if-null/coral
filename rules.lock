@@ -33,6 +33,7 @@ BE-4	review	appendix/backend.md
 BE-5	auto	appendix/backend.md
 BE-6	review	appendix/backend.md
 BE-7	review	appendix/backend.md
+BE-8	review	appendix/backend.md
 BOUND-1	guide	ARCHITECTURE.md
 BOUND-2	review	ARCHITECTURE.md
 BOUND-3	review	ARCHITECTURE.md
@@ -125,6 +126,7 @@ LIB-9	review	appendix/library.md
 MODEL-1	review	ARCHITECTURE.md
 MODEL-2	review	ARCHITECTURE.md
 MODEL-3	guide	ARCHITECTURE.md
+MODEL-4	review	ARCHITECTURE.md
 OBS-1	guide	ARCHITECTURE.md
 OBS-2	review	ARCHITECTURE.md
 OBS-3	review	ARCHITECTURE.md
@@ -166,6 +168,7 @@ VER-1	auto	CONVENTIONS.md
 VER-2	review	CONVENTIONS.md
 VER-3	review	CONVENTIONS.md
 VER-4	auto	CONVENTIONS.md
+VER-5	auto	CONVENTIONS.md
 WEB-1	review	appendix/web.md
 WEB-10	review	appendix/web.md
 WEB-11	review	appendix/web.md

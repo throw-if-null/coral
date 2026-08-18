@@ -13,7 +13,7 @@ description: >
 
 # Coral repo audit
 
-> Written against **Coral 0.4.0**. Audit a project against the version its
+> Written against **Coral 0.5.0**. Audit a project against the version its
 > `CORAL.md` declares, not against this one (`[VER-3]`).
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
@@ -96,8 +96,10 @@ Produce a **structural thesis** by answering:
   consumer test against it without booting the whole thing? Does a change here ripple into many repos?
 - If it's a framework: is standardization achieved by *composition* or by *containment*?
 - Dependency surface: does every consumer link things it does not use?
-- Do the four categories map cleanly (slice / crosscut / composition root / published contract —
-  `[MODEL-1]`)? Where they don't, is that a smell in the code or a gap in the architecture?
+- Do the five categories map cleanly (slice / crosscut / adapter / composition root / published
+  contract — `[MODEL-1]`)? An adapter is only an adapter if the slice declares the interface and the
+  adapter implements it (`[MODEL-4]`); the other arrow direction is a `repository` layer. Where nothing
+  maps, is that a smell in the code or a gap in the architecture?
 
 Map the surface to support this: manifest/`go.mod`, file sizes, the public API, and the critical
 subsystems — lifecycle/init, shutdown, persistence, transport/channel, HTTP, config, globals, health. For
