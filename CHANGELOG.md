@@ -32,9 +32,24 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ## Unreleased
 
-**Consolidation pass — the internal contradictions.** A version marks a release, not a commit
-(`[VER-2]`), so these land here and the bump happens when the batch is cut. Three rules are **added**,
-which under the `0.y.z` clause makes that cut a **minor** (`0.6.0`).
+*Nothing yet.* A version marks a release, not a commit (`[VER-2]`), so changes land here first and the
+bump happens when the batch is cut.
+
+---
+
+## 0.6.0 — 2026-08-18
+
+**A consolidation pass: the rule set now agrees with itself and with its own examples.** Four rules are
+**added** — `[MODEL-4]`, `[BE-8]`, `[VER-5]`, `[AGENTIC-13]` — which under the `0.y.z` clause makes this a
+**minor** rather than a major. Nothing was retired. Several rules are **loosened** (`[MODEL-1]`,
+`[STATE-5]`, `[WEB-4]`, `[SYS-TEST-2]`) or **clarified** (`[BE-1]`, `[BE-6]`, `[BE-7]`, `[CHAN-10]`,
+`[LIB-11]`, `[STRUCT-2]`), and one `[guide]` default is **reversed** (`[WEB-2]`/`[WEB-6]`).
+
+The pass was driven by a review of the whole set against itself. Most of what it found was not a missing
+rule but a **claim the documents made and did not keep** — a taxonomy that declared itself closed while an
+official example carried a counter-example, a status map missing the two statuses every backend returns, a
+dependency direction stated twice and enforced nowhere. Four of the six build gates that existed could not
+catch any of them, which is why two more now exist.
 
 **`[MODEL-4]` — `adapter` is a category, and `[MODEL-1]` now names five.** `[MODEL-1]` claimed "there is no
 fifth category. Something that is none of these is a forbidden bucket," while
