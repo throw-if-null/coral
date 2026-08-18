@@ -81,6 +81,15 @@ therefore semver-relevant — adding a new `code` is a minor change, changing or
 Make errors *inspectable* rather than *parseable*: expose a typed accessor or sentinel a consumer can
 branch on, never expect them to match on a message string.
 
+**The domain identity is primary; the taxonomy category is the routing hint.** A library's errors should
+read in its own vocabulary — `ErrInvalidExpression`, `ErrUnsupportedCodec`, `ErrVersionMismatch` — and that
+vocabulary is the `code` and the typed sentinel a consumer branches on. The `category` rides along so a
+consuming app can map the error onto its own edge contract without knowing the library's domain: `validation`
+becomes a `400` in a backend (`[BE-5]`), exit `1` in a CLI, a retry-or-dead-letter decision in a worker. That
+is the taxonomy earning its place — one small enum that saves every consumer from writing a mapping table
+per library — rather than the library being asked to describe its domain in six words that were chosen for
+applications.
+
 ## Observability  → `[OBS-1]`
 
 **`[LIB-9]`** `[review]` Accept an injected logger or hook interface, define its no-op default, and keep
@@ -99,8 +108,8 @@ against. An unstated trust assumption is the one a consumer will violate.
 ## Contract versioning  → `[CONTRACT-2]`
 
 **`[LIB-11]`** `[review]` Follow **semver**, and treat the following as breaking: an exported signature
-change, a removed or renamed export, a new error type where one was not raised before, a changed error
-category, and a documented-behavior change.
+change, a removed or renamed export, a new error type where one was not raised before, a changed `category`
+**on an error code you already ship**, and a documented-behavior change.
 
 Deprecate before removing, with a stated window and a compile-time-visible marker where the language
 offers one. The rule from `[CHAN-4]` applies at the API surface too: **add freely, never repurpose.**

@@ -123,12 +123,20 @@ key, use optimistic concurrency, or make the update commutative. This is distinc
 an idempotency key suppresses the *same* event redelivered; it does **not** order two *different* events
 racing on the same state.
 
-**`[CHAN-10]` `[review]`** — Cross-app reads are **eventually consistent**, and a computation that needs a
-coherent moment must state how it handles the skew.
+**`[CHAN-10]` `[review]`** — **Never assume a single transactional view across independently transacting
+apps**, and a computation that needs a coherent moment must state how it handles the skew.
 
-Data fetched from two apps in two calls is not a transactional snapshot. Either tolerate the skew, read
-from a single producer that exposes a consistent view, or reconcile asynchronously — and **say which**. Do
-not assume a global snapshot the channel does not provide.
+The earlier form of this rule said cross-app reads *are* eventually consistent, and that is not true as a
+blanket claim: a synchronous read from the app that owns the data may be perfectly strongly consistent
+according to that app's own model, and calling it eventual taught agents to bolt reconciliation onto reads
+that never needed it. What the channel genuinely never provides is **atomicity across owners** — two apps,
+two transactions, no snapshot spanning both, whatever each one guarantees internally.
+
+So the failure mode is composition, not staleness. Data fetched from two apps in two calls is not a
+transactional snapshot even when each call is individually authoritative. Either tolerate the skew, read
+from a single producer that exposes a consistent view, or reconcile asynchronously — and **say which**.
+Event and message channels are additionally eventual by construction (`[CHAN-5]`, `[CHAN-9]`); that is a
+property of those forms, not of every channel.
 
 ---
 
@@ -201,19 +209,36 @@ This is `[TEST-1]` ("assert the observable contract") lifted across the process 
 per-app independent verifiability — you never need both apps live at once, so each stays slice-sized for
 an agent to reason about.
 
-**`[SYS-TEST-2]` `[review]`** — Use **consumer-driven contracts**, and give **every consumed channel
-relationship a published consumer contract**.
+**`[SYS-TEST-2]` `[review]`** — Give **every consumed channel relationship executable compatibility
+verification**: an artifact, run in CI, that fails when the producer breaks the consumer. **Consumer-driven
+contracts are one technique for this, not the requirement itself.**
 
-The consumer's expectations define the contract the producer must honor: the consumer test produces a
-contract artifact, and the producer test verifies it honors that artifact, with neither app importing the
-other. That artifact is what makes `[SYS-TEST-3]`'s release gate real — the gate can only catch breaks for
-contracts it has, so an unverified cross-app dependency is not shippable.
+The requirement used to name the technique, which put it at odds with `[SYS-TEST-4]` on the same page —
+that rule already called a schema registry "the event-shaped form of the same idea", so the spine
+simultaneously mandated CDC and endorsed something else. What actually matters is the property: a
+verification that **executes**, produces a pass or fail, and is wired into the gate. A documented schema
+nobody runs is not verification, and neither is a hand-written integration test that only exercises the
+happy path.
+
+**Consumer-driven contracts** remain the reference technique because they get the direction right: the
+consumer's expectations define what the producer must honor, the consumer test produces the artifact, the
+producer test verifies against it, and neither app imports the other. Also valid, chosen per relationship:
+**schema-registry compatibility checks** for event and stream contracts, a **provider contract** published
+by the owner and verified by each consumer where the consumers are many and the producer is authoritative,
+**protocol conformance suites** for a standard wire format, and **generated client/server compatibility
+tests** where both sides are generated from one schema.
+
+Whichever technique, the artifact is what makes `[SYS-TEST-3]`'s release gate real — the gate can only catch
+breaks for the relationships it has an artifact for, so an unverified cross-app dependency is not
+shippable.
 
 **`[SYS-TEST-3]` `[review]`** — Contract tests are the enforcement mechanism for `[CHAN-4]` and
 `[CONTRACT-2]`: a producer change that would break a downstream consumer fails the **producer's own CI**
 before release.
 
-Run provider verification in the producer's pipeline against the consumer-published contracts.
+Run the verification in the producer's pipeline, against whichever artifact `[SYS-TEST-2]` produced for
+that relationship — consumer-published contracts, the registry's compatibility check, or the conformance
+suite.
 
 **`[SYS-TEST-4]` `[guide]`** — Contract testing is tool-agnostic in principle; pick concrete tooling per
 stack.
@@ -251,7 +276,7 @@ document. Sections 1–3 are the *why*; `[guide]` rules live only there.
 ### Delivery semantics
 - `[CHAN-5]` Make event/message consumers idempotent; never auto-retry a non-idempotent sync call.
 - `[CHAN-9]` Make consumers that mutate shared state safe under concurrent and out-of-order delivery.
-- `[CHAN-10]` Treat cross-app reads as eventually consistent, and state how the skew is handled.
+- `[CHAN-10]` Never assume a transactional view spanning two apps; state how a cross-app computation handles the skew.
 - `[CHAN-6]` Never let errors cross the channel as exceptions; dead-letter the un-processable.
 
 ### Contract evolution
@@ -266,7 +291,7 @@ document. Sections 1–3 are the *why*; `[guide]` rules live only there.
 
 ### Contract testing
 - `[SYS-TEST-1]` Verify each side independently against the shared contract, not by booting both apps.
-- `[SYS-TEST-2]` Use consumer-driven contracts; every consumed dependency has a published contract.
+- `[SYS-TEST-2]` Give every consumed channel relationship executable compatibility verification; consumer-driven contracts are one technique.
 - `[SYS-TEST-3]` Gate producer releases on provider verification against consumer contracts.
 - `[SYS-TEST-5]` Keep integrated end-to-end suites tiny; they backstop contract tests, never replace them.
 

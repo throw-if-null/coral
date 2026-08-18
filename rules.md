@@ -129,7 +129,7 @@ sentence of the definition instead.
 | `[CHAN-7]` | `[review]` | Propagate the correlation/trace id across the channel, in metadata not payload. |
 | `[CHAN-8]` | `[review]` | Authenticate the caller/message and validate every inbound channel payload. |
 | `[CHAN-9]` | `[review]` | Make consumers that mutate shared state safe under concurrent and out-of-order delivery. |
-| `[CHAN-10]` | `[review]` | Treat cross-app reads as eventually consistent, and state how the skew is handled. |
+| `[CHAN-10]` | `[review]` | Never assume a transactional view spanning two apps; state how a cross-app computation handles the skew. |
 | `[ORCH-1]` | `[review]` | Put topology in the orchestration layer; keep business logic out of the wiring. |
 | `[ORCH-2]` | `[review]` | Keep apps peer-agnostic: publish and consume capabilities, never hard-code peers. |
 | `[ORCH-3]` | `[guide]` | Each app is independently deployable and independently observable. |
@@ -137,7 +137,7 @@ sentence of the definition instead.
 | `[ORCH-5]` | `[review]` | Give the harness only published channel capabilities as tools; authorize every call and gate irreversible ones absent bounded pre-authorization. |
 | `[ORCH-6]` | `[review]` | Treat the orchestrating harness as an app: its own contract, observability, and tests. |
 | `[SYS-TEST-1]` | `[review]` | Verify each side independently against the shared contract, not by booting both apps. |
-| `[SYS-TEST-2]` | `[review]` | Use consumer-driven contracts; every consumed dependency has a published contract. |
+| `[SYS-TEST-2]` | `[review]` | Give every consumed channel relationship executable compatibility verification; consumer-driven contracts are one technique. |
 | `[SYS-TEST-3]` | `[review]` | Gate producer releases on provider verification against consumer contracts. |
 | `[SYS-TEST-4]` | `[guide]` | Contract testing is tool-agnostic in principle; pick concrete tooling per stack. |
 | `[SYS-TEST-5]` | `[review]` | Keep integrated end-to-end suites tiny; they backstop contract tests, never replace them. |
@@ -168,14 +168,14 @@ sentence of the definition instead.
 
 | Rule | Class | Statement |
 | --- | --- | --- |
-| `[BE-1]` | `[review]` | One slice per HTTP route or use-case, named for the singular capability plus its effect verb. |
+| `[BE-1]` | `[review]` | One slice per business operation, named for the singular capability plus its effect verb; the route is its trigger. |
 | `[BE-2]` | `[review]` | The contract is status code + response body + observable side effects: `201` create, `200` read, `204` no body. |
 | `[BE-3]` | `[review]` | Wire router, middleware, and injection at the root; crosscuts are singletons, only request-bound state is per-request. |
 | `[BE-4]` | `[review]` | A synchronous `POST` may offer an idempotency key; any platform-redelivered handler must be idempotent. |
 | `[BE-5]` | `[auto]` | Slices raise the taxonomy; one root middleware renders the body and maps `category` → HTTP status. |
 | `[BE-6]` | `[review]` | Authenticate and coarsely authorize at the boundary; scope every query by owner/tenant id, default to deny. |
 | `[BE-8]` | `[review]` | Render authn/authz failures at the boundary, not through the taxonomy: `401` unauthenticated, `403` no capability, `404` scoped miss. |
-| `[BE-7]` | `[review]` | Version the HTTP API with a URL prefix and advance it only for a breaking change; nothing additive bumps it. |
+| `[BE-7]` | `[review]` | Pick one API versioning strategy and apply it system-wide — URL prefix by default; advance it only for a breaking change. |
 
 ## Appendix: CLI
 

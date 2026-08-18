@@ -15,10 +15,18 @@ may not), and inject domain invariants rather than reaching into them.
 
 ## Boundary & naming  → `[BOUND-1]`
 
-**`[BE-1]`** `[review]` One slice per HTTP route or use-case. The slice directory is the **singular
-capability + effect verb** (`expense/create`); the route may be **plural** (`POST /expenses`). Map
-`method + path → slice` by capability and effect, not by URL spelling. A tight read/write pair may share a
-slice (`[BOUND-2]`).
+**`[BE-1]`** `[review]` One slice per **business operation**; the route is that operation's *trigger*, not
+its definition. The slice directory is the **singular capability + effect verb** (`expense/create`); the
+route may be **plural** (`POST /expenses`). Map `method + path → slice` by capability and effect, not by
+URL spelling. A tight read/write pair may share a slice (`[BOUND-2]`).
+
+The distinction decides the two cases where route-counting gives the wrong answer. Two routes that are the
+**same operation** — a current path and a legacy alias, or the same handler mounted under two prefixes —
+are **one slice with two triggers**, not two slices; duplicating the slice to match the URL table
+duplicates the behavior and guarantees the copies drift. And one route that dispatches on a body field into
+two genuinely different operations is **two slices** behind one trigger, however tidy the single endpoint
+looks. `[BOUND-1]` is transport-agnostic on purpose; this rule instantiates it for HTTP without making the
+URL table the architecture.
 
 ## Observable contract & success status  → `[CONTRACT-1]`
 
@@ -110,8 +118,8 @@ id (`[OBS-2]`), where the operator can see it and the caller cannot.
 
 ## Contract versioning  → `[CONTRACT-2]`
 
-**`[BE-7]`** `[review]` Version the HTTP API with a **URL prefix** (`/v1`), and advance it **only** for a
-breaking change.
+**`[BE-7]`** `[review]` **Pick one API versioning strategy, write it down, and apply it across the
+system** — a **URL prefix** (`/v1`) is the default. Advance the version **only** for a breaking change.
 
 **Nothing additive bumps it.** A new endpoint, a new response field, a new optional parameter — no bump,
 ever. Two things are breaking: **repurposing** a field, which is breaking even under the same name (turning
@@ -160,13 +168,13 @@ load both. `[guide]` rules are rationale and live only in the prose.
 
 <!-- coral:contract:start -->
 
-- `[BE-1]` One slice per HTTP route or use-case, named for the singular capability plus its effect verb.
+- `[BE-1]` One slice per business operation, named for the singular capability plus its effect verb; the route is its trigger.
 - `[BE-2]` The contract is status code + response body + observable side effects: `201` create, `200` read, `204` no body.
 - `[BE-3]` Wire router, middleware, and injection at the root; crosscuts are singletons, only request-bound state is per-request.
 - `[BE-4]` A synchronous `POST` may offer an idempotency key; any platform-redelivered handler must be idempotent.
 - `[BE-5]` Slices raise the taxonomy; one root middleware renders the body and maps `category` → HTTP status.
 - `[BE-6]` Authenticate and coarsely authorize at the boundary; scope every query by owner/tenant id, default to deny.
 - `[BE-8]` Render authn/authz failures at the boundary, not through the taxonomy: `401` unauthenticated, `403` no capability, `404` scoped miss.
-- `[BE-7]` Version the HTTP API with a URL prefix and advance it only for a breaking change; nothing additive bumps it.
+- `[BE-7]` Pick one API versioning strategy and apply it system-wide — URL prefix by default; advance it only for a breaking change.
 
 <!-- coral:contract:end -->

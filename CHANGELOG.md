@@ -69,6 +69,40 @@ two claims that were fused: the rule **is** violated, **and** the correct owner 
 repository. That combination is an escalation (`[AGENT-2]`, `[AGENT-4]`) and then a recorded exception
 (`[VER-5]`) if the team keeps the layout — not a pass.
 
+**`[CHAN-10]` — "cross-app reads are eventually consistent" was not true.** A synchronous read from the app
+that *owns* the data may be strongly consistent according to that app's own model, so the blanket claim
+taught agents to bolt reconciliation onto reads that never needed it. What the channel genuinely never
+provides is **atomicity across owners**: two apps, two transactions, no snapshot spanning both. The rule now
+says that instead, and notes that event and message channels are additionally eventual by construction —
+a property of those forms, not of every channel.
+
+**`[SYS-TEST-2]` — executable compatibility verification, with consumer-driven contracts as one technique.**
+The rule mandated CDC while `[SYS-TEST-4]`, on the same page, already called a schema registry "the
+event-shaped form of the same idea" — so the spine mandated one technique and endorsed another. The
+requirement is now the property: an artifact that executes, passes or fails, and is wired into the producer's
+release gate. CDC remains the reference technique; schema-registry compatibility checks, provider contracts,
+protocol conformance suites, and generated client/server compatibility tests are equally valid per
+relationship. A documented schema nobody runs is still not verification.
+
+**`[BE-1]` — the route is the trigger, not the definition.** The statement led with "one slice per HTTP
+route" while its own commentary said to map by capability and effect, "not by URL spelling." Now stated as
+one slice per business operation, which settles the two cases route-counting gets wrong: two routes that are
+the same operation (a legacy alias, a second mount point) are one slice with two triggers, and one route
+dispatching on a body field into two different operations is two slices.
+
+**`[BE-7]` — the versioning *strategy* is the invariant; the URL prefix is the default.** The statement read
+as though `/v1` were architecture, while the commentary already said "the spelling is a default, not
+architecture" and allowed header or media-type versioning. The rule now requires picking one strategy and
+applying it system-wide, with the URL prefix as the default — which is what it always meant, and it removes
+the need to record a `CORAL.md` exception for a choice that was never a violation.
+
+**`[LIB-8]` / `[LIB-11]` — a library's errors read in its own vocabulary.** `[LIB-8]` required "typed
+taxonomy errors" without saying which half a consumer branches on, which read as Coral asking a codec
+library to describe its domain in six words chosen for applications. The domain identity is primary — the
+`code` and the typed sentinel, `ErrUnsupportedCodec` — and the `category` rides along as the routing hint
+that saves every consumer from writing a mapping table per library. `[LIB-11]` is **clarified**: a changed
+`category` is breaking on a code you already ship.
+
 **`[AGENTIC-13]` — side-effect replay protection, which `[AGENTIC-8]` did not provide.** `[AGENTIC-8]`
 deduped a mutating agent "by storing the first result keyed to the request." That makes the handler *answer*
 consistently; it does not make the agent's *actions* happen once. The agent calls `chargeCard()`, the charge
