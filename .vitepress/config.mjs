@@ -4,12 +4,18 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import {
+  APP_SPINE,
   CONTRACT_END,
   CONTRACT_START,
   INDEX_FILE,
   INLINE_ID_RE,
   LOCK_FILE,
+  SYSTEM_SPINE,
+  checkContractScopes,
+  classifyRules,
   parseKernel,
+  parseLayers,
+  parseProfiles,
   parseLock,
   parseRules,
   serializeIndex,
@@ -24,7 +30,7 @@ import {
 // link to the page that defines it — operationalizing the citation system on the
 // web. Parsing lives in ../scripts/rules.mjs so the lockfile writer shares it.
 //
-// Seven gates run here, each guarding a claim the documents make about themselves:
+// Nine gates run here, each guarding a claim the documents make about themselves:
 //   1. every rule definition carries exactly one enforcement class
 //   2. every rule-ID citation resolves to a definition
 //   3. every [auto]/[review] rule appears in its document's Agent Execution
@@ -33,6 +39,8 @@ import {
 //   5. rules.md, the generated index, matches the registry it claims to index
 //   6. the app spine cites no system rule — the dependency points one way
 //   7. the kernel cites existing rules and defines none of them
+//   8. every rule outside the kernel carries exactly one ownership layer
+//   9. a contract marks the rules that are opt-in, so it cannot list them as unconditional
 // Two more run outside this file: link fragments in scripts/check-anchors.mjs
 // (post-build, because heading ids only exist once markdown-it has rendered them),
 // and declared example versions in scripts/check-versions.mjs.
@@ -174,8 +182,6 @@ if (fs.existsSync(lockPath)) {
 // rules where an app type reproduces the system pattern internally, which is why
 // web.md legitimately references [CHAN-*] and [SYS-TEST-1].
 // ─────────────────────────────────────────────────────────────────────────────
-const APP_SPINE = 'ARCHITECTURE.md'
-const SYSTEM_SPINE = 'SYSTEM.md'
 const spineAbs = path.join(SRC, APP_SPINE)
 if (fs.existsSync(spineAbs)) {
   const systemRules = new Set(
@@ -222,7 +228,52 @@ if (fs.existsSync(spineAbs)) {
 // step rules.lock gives a rule change — a constant would add a second thing to edit
 // and nothing to the guarantee.
 // ─────────────────────────────────────────────────────────────────────────────
-problems.push(...parseKernel(SRC, rules).problems)
+const { ids: kernel, problems: kernelProblems } = parseKernel(SRC, rules)
+problems.push(...kernelProblems)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gate 8 — every rule has exactly one ownership layer.
+//
+// Kernel membership comes from the block Gate 7 just validated and from nowhere else;
+// every other rule carries one `{tag}` on its definition line. Both halves are checked
+// against each other, which is what makes the pair a forcing function rather than a
+// convention: a new rule with no tag fails the build, a tag on a kernel rule fails the
+// build, and a rule dropped from the kernel table fails until it is given a tag.
+//
+// The profile registry is validated first because the tags resolve against it — an
+// `{app:cli}` that no registered profile matches is a typo, and a typo that resolved
+// would quietly invent a layer nobody loads.
+//
+// The strict check here is the last one, and it binds REGISTERED app/language profiles
+// only: such a rule must be DEFINED in its profile's own document, and the registry may
+// not name a spine as one. Classification alone cannot fix the loading problem, because a
+// rule sitting in ARCHITECTURE.md is read by everyone who reads ARCHITECTURE.md whatever
+// its tag says — and a registry free to call ARCHITECTURE.md a profile's home could bless
+// exactly that. The fixed `runtime-agent` layer is out of scope for the check by design:
+// [ORCH-4..6] stay in SYSTEM.md and are made opt-in by Gate 9 instead.
+// ─────────────────────────────────────────────────────────────────────────────
+const { taxonomy, problems: taxonomyProblems } = parseLayers(SRC)
+problems.push(...taxonomyProblems)
+const { profiles, problems: profileProblems } = parseProfiles(SRC, taxonomy)
+problems.push(...profileProblems)
+const { layers, problems: layerProblems } = classifyRules({ rules, kernel, profiles, taxonomy })
+problems.push(...layerProblems)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gate 9 — a contract says which of its rules are opt-in.
+//
+// Gate 3 makes each Agent Execution Contract COMPLETE; this makes it HONEST about
+// scope. An agent is invited to load only the contract, so a contract that lists
+// [ORCH-4] beside [CHAN-1] with nothing between them has told the agent that
+// runtime-agent orchestration binds every system — the rule would be correctly
+// classified and still incorrectly loaded.
+//
+// Only runs once the layers are known, because the check is "does this line's scope
+// marker match this rule's layer", and an unclassified rule has no answer.
+// ─────────────────────────────────────────────────────────────────────────────
+if (!taxonomyProblems.length && !layerProblems.length && !profileProblems.length) {
+  problems.push(...checkContractScopes(SRC, { rules, layers }))
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 5 — the rule index is current.
@@ -357,16 +408,21 @@ export default withMermaid(defineConfig({
       { text: 'The System', link: '/SYSTEM' },
       { text: 'Rule index — all rules, one page', link: '/rules' },
       {
-        text: 'Appendices (app types)',
+        text: 'App profiles (by app type)',
         collapsed: false,
         items: [
           { text: 'CLI', link: '/appendix/cli' },
           { text: 'Backend / Service', link: '/appendix/backend' },
           { text: 'Web App', link: '/appendix/web' },
-          { text: 'Agentic App (LLM)', link: '/appendix/agentic-app' },
           { text: 'Library / Package', link: '/appendix/library' },
           { text: 'GitHub Action / Tool', link: '/appendix/gh-action' },
         ],
+      },
+      {
+        // Not an app type: an agentic backend loads the backend profile AND this one.
+        text: 'Runtime-agent profile',
+        collapsed: false,
+        items: [{ text: 'Agentic App (LLM)', link: '/appendix/agentic-app' }],
       },
       {
         text: 'Worked examples',

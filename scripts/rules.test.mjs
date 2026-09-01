@@ -21,7 +21,14 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { KERNEL_END, KERNEL_FILE, KERNEL_START, parseKernel, parseRules } from './rules.mjs'
+import {
+  KERNEL_END,
+  KERNEL_FILE,
+  KERNEL_START,
+  definitionLines,
+  parseKernel,
+  parseRules,
+} from './rules.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
 
@@ -321,4 +328,144 @@ test("this repository's kernel table is structurally sound", () => {
   for (const id of ids) {
     assert.ok(rules.has(id), `[${id}] is in the kernel table but is not a defined rule`)
   }
+})
+
+// ── which lines are definitions ──────────────────────────────────────────────
+//
+// A fenced code block ILLUSTRATES a rule; it never defines one. The documents now print
+// example definition lines — CONVENTIONS.md shows what an ownership tag looks like on a
+// real rule — and the registry is first-definition-wins across a fixed document order, so
+// an unguarded example silently becomes the definition and moves the rule to another page.
+
+test('a definition inside a fenced block is an illustration, not a definition', () => {
+  const lines = [
+    '```',
+    '**`[X-1]` `[review]` `{baseline}`** — an example, not a rule.',
+    '```',
+    '**`[X-2]` `[review]` `{baseline}`** — the real one.',
+  ]
+  assert.deepEqual(
+    definitionLines(lines).map((d) => d.id),
+    ['X-2']
+  )
+})
+
+test('a line with trailing text is an OPENING fence, never a closing one', () => {
+  // ```not-a-closing-fence carries an info string, so it opens; a closing fence may hold
+  // nothing but spaces and tabs. A parser that closes here reads the rest of the example
+  // block as document text and invents definitions out of it.
+  const lines = [
+    '```',
+    '**`[X-1]` `[review]` `{baseline}`** — illustration.',
+    '```not-a-closing-fence',
+    '**`[X-2]` `[review]` `{baseline}`** — still illustration.',
+    '```',
+    '**`[X-3]` `[review]` `{baseline}`** — the real one.',
+  ]
+  assert.deepEqual(
+    definitionLines(lines).map((d) => d.id),
+    ['X-3']
+  )
+})
+
+test('the same holds for a tilde fence', () => {
+  const lines = [
+    '~~~',
+    '**`[X-1]` `[review]` `{baseline}`** — illustration.',
+    '~~~ still info',
+    '**`[X-2]` `[review]` `{baseline}`** — still illustration.',
+    '~~~',
+    '**`[X-3]` `[review]` `{baseline}`** — the real one.',
+  ]
+  assert.deepEqual(
+    definitionLines(lines).map((d) => d.id),
+    ['X-3']
+  )
+})
+
+test('trailing spaces and tabs still close a fence', () => {
+  const lines = [
+    '```',
+    '**`[X-1]` `[review]` `{baseline}`** — illustration.',
+    '``` \t ',
+    '**`[X-2]` `[review]` `{baseline}`** — the real one.',
+  ]
+  assert.deepEqual(
+    definitionLines(lines).map((d) => d.id),
+    ['X-2']
+  )
+})
+
+test('a closing fence may be longer than the one that opened the block', () => {
+  const lines = [
+    '```',
+    '**`[X-1]` `[review]` `{baseline}`** — illustration.',
+    '`````',
+    '**`[X-2]` `[review]` `{baseline}`** — the real one.',
+  ]
+  assert.deepEqual(
+    definitionLines(lines).map((d) => d.id),
+    ['X-2']
+  )
+})
+
+test('a fence of the other character does not close the block', () => {
+  const lines = [
+    '```',
+    '~~~~',
+    '**`[X-1]` `[review]` `{baseline}`** — still illustration.',
+    '```',
+    '**`[X-2]` `[review]` `{baseline}`** — the real one.',
+  ]
+  assert.deepEqual(
+    definitionLines(lines).map((d) => d.id),
+    ['X-2']
+  )
+})
+
+test('up to three spaces of indentation is still a fence; four is not', () => {
+  // Four spaces makes an indented code block, not a fence — so the parser must NOT enter a
+  // fenced state there. It needs no handling of its own: a definition line is anchored at
+  // column 0, so nothing inside an indented block can look like one.
+  assert.deepEqual(
+    definitionLines([
+      '   ```',
+      '**`[X-1]` `[review]` `{baseline}`** — illustration.',
+      '   ```',
+      '**`[X-2]` `[review]` `{baseline}`** — the real one.',
+    ]).map((d) => d.id),
+    ['X-2']
+  )
+  assert.deepEqual(
+    definitionLines([
+      '    ```',
+      '**`[X-1]` `[review]` `{baseline}`** — never entered a fence, so this counts.',
+    ]).map((d) => d.id),
+    ['X-1']
+  )
+})
+
+test('an unclosed fence runs to the end of the document', () => {
+  const lines = [
+    '```',
+    '**`[X-1]` `[review]` `{baseline}`** — illustration, and nothing closes the block.',
+  ]
+  assert.deepEqual(definitionLines(lines), [])
+})
+
+test('a longer fence is needed to close a longer fence', () => {
+  // CONVENTIONS.md wraps a ```yaml sample in a ```` fence; a naive toggle re-opens on the
+  // inner fence and then swallows everything after it.
+  const lines = [
+    '````',
+    '```yaml',
+    'targets: 0.6.0',
+    '```',
+    '````',
+    '**`[X-1]` `[review]` `{baseline}`** — still visible.',
+  ]
+  assert.deepEqual(
+    definitionLines(lines).map((d) => d.id),
+    ['X-1']
+  )
 })

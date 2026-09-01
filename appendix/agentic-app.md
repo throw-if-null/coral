@@ -38,19 +38,19 @@ non-deterministic core; the harness is the deterministic slice around it.
 
 ## Boundary & shape  → `[BOUND-1]`
 
-**`[AGENTIC-1]`** `[guide]` The boundary is **one turn, task, or agent-invocation** — a user message, or a
-goal handed to the agent. One inbound trigger, handled end to end.
+**`[AGENTIC-1]`** `[guide]` `{runtime-agent}` The boundary is **one turn, task, or agent-invocation** — a
+user message, or a goal handed to the agent. One inbound trigger, handled end to end.
 
-**`[AGENTIC-2]`** `[guide]` Distinguish two intensities. A **one-shot call** (build prompt → call model →
-parse output; no loop) needs only the model-as-crosscut discipline below. An **agentic loop** (the model
-iteratively chooses tools and acts) needs the full **Harness**. Don't reach for a loop when one call
-suffices.
+**`[AGENTIC-2]`** `[guide]` `{runtime-agent}` Distinguish two intensities. A **one-shot call** (build
+prompt → call model → parse output; no loop) needs only the model-as-crosscut discipline below. An
+**agentic loop** (the model iteratively chooses tools and acts) needs the full **Harness**. Don't reach for
+a loop when one call suffices.
 
 ## Model as a crosscut; pure core, fuzzy edge  → `[EFFECT-2]` `[XCUT-1]`
 
-**`[AGENTIC-3]`** `[review]` The model is an **injected effect**, not pure compute. The slice flow is
-parse → validate → *build prompt/context* (pure) → **call the model** (an edge effect, non-deterministic
-like any network call) → *parse and validate output* (pure) → effect/tool calls → render.
+**`[AGENTIC-3]`** `[review]` `{runtime-agent}` The model is an **injected effect**, not pure compute. The
+slice flow is parse → validate → *build prompt/context* (pure) → **call the model** (an edge effect,
+non-deterministic like any network call) → *parse and validate output* (pure) → effect/tool calls → render.
 
 The model client, the tools, and memory/retrieval are **injected crosscuts** (`[XCUT-1]`) — defined once,
 passed in, never reached for as globals. Keep prompt-building and output-parsing pure and testable; only
@@ -58,18 +58,18 @@ the call itself is fuzzy.
 
 ## Observable contract  → `[CONTRACT-1]`
 
-**`[AGENTIC-4]`** `[review]` Force a contract on fuzzy output with a **schema** (structured output or
-tool-call format). The observable contract is **"output conforms to the schema" plus the observed side
-effects (tool calls)** — never the exact text.
+**`[AGENTIC-4]`** `[review]` `{runtime-agent}` Force a contract on fuzzy output with a **schema**
+(structured output or tool-call format). The observable contract is **"output conforms to the schema" plus
+the observed side effects (tool calls)** — never the exact text.
 
 Output that fails the schema is a `validation` failure (`[ERR-1]`), repaired or retried a bounded number of
 times, never passed downstream malformed.
 
 ## The Harness (the heart of an agentic app)
 
-**`[AGENTIC-5]`** `[review]` An autonomous or looping agent runs **only inside a harness** — a
-deterministic, observable app that employs the agent within walls. There is no "bare agent" with direct
-authority.
+**`[AGENTIC-5]`** `[review]` `{runtime-agent}` An autonomous or looping agent runs **only inside a
+harness** — a deterministic, observable app that employs the agent within walls. There is no "bare agent"
+with direct authority.
 
 The harness owns five duties:
 
@@ -101,22 +101,22 @@ The harness owns five duties:
    traceable.
 5. **Bound context and authority** — a scoped task, not god-mode.
 
-**`[AGENTIC-6]`** `[guide]` The agent is the non-deterministic *core*; the harness is the deterministic
-*shell*. A harness is therefore an otherwise-ordinary Coral app — it owns its trigger, has a contract, is
-observable and testable — with one injected non-deterministic brain. Build "a Claude Code for your
-purpose," not "a model loose on your systems."
+**`[AGENTIC-6]`** `[guide]` `{runtime-agent}` The agent is the non-deterministic *core*; the harness is the
+deterministic *shell*. A harness is therefore an otherwise-ordinary Coral app — it owns its trigger, has a
+contract, is observable and testable — with one injected non-deterministic brain. Build "a Claude Code for
+your purpose," not "a model loose on your systems."
 
 ## State & memory  → `[STATE-1]`
 
-**`[AGENTIC-7]`** `[review]` Conversation history, agent memory, and RAG/vector retrieval are state:
-slice-owned where local, or a precisely-named **retrieval/memory crosscut** when shared (`[XCUT-1]`,
-`[STATE-2]`). Don't smear them into a generic store reached into from everywhere, and give each store one
-owning feature package (`[STATE-5]`).
+**`[AGENTIC-7]`** `[review]` `{runtime-agent}` Conversation history, agent memory, and RAG/vector retrieval
+are state: slice-owned where local, or a precisely-named **retrieval/memory crosscut** when shared
+(`[XCUT-1]`, `[STATE-2]`). Don't smear them into a generic store reached into from everywhere, and give
+each store one owning feature package (`[STATE-5]`).
 
 ## Idempotency  → `[IDEM-1]`
 
-**`[AGENTIC-8]`** `[review]` On an at-least-once platform, a mutating agent dedupes by **storing the first
-result** keyed to the request, never by re-running.
+**`[AGENTIC-8]`** `[review]` `{runtime-agent}` On an at-least-once platform, a mutating agent dedupes by
+**storing the first result** keyed to the request, never by re-running.
 
 The reason this is stricter than ordinary `[IDEM-5]` dedupe: a generate is not merely non-idempotent, it is
 **non-reproducible**. Re-running does not reproduce the previous output, so the usual "retry until it
@@ -129,9 +129,9 @@ not contractually the same output.
 **What this rule does not do is make the agent's *actions* happen once** — see `[AGENTIC-13]`. It makes the
 handler *answer* consistently, which is a different property and the easier half.
 
-**`[AGENTIC-13]`** `[review]` Every side-effecting tool carries its **own** replay protection — an
-idempotency key, a natural key with check-before-write, or an action ledger. The stored model result is
-not one.
+**`[AGENTIC-13]`** `[review]` `{runtime-agent}` Every side-effecting tool carries its **own** replay
+protection — an idempotency key, a natural key with check-before-write, or an action ledger. The stored
+model result is not one.
 
 This is the gap `[AGENTIC-8]` leaves, and it is a correctness bug rather than a matter of rigour. Consider
 the sequence: the agent decides to act, calls `chargeCard()`, the charge succeeds, and the process dies
@@ -152,14 +152,15 @@ gives you an agent that answers consistently while double-charging.
 
 ## Error model  → `[ERR-1]`
 
-**`[AGENTIC-9]`** `[review]` Map model failures to the taxonomy: model unavailable or timed out →
-`infrastructure`; output that fails its schema → `validation` (bounded repair, then fail); refusal or
-content-filter → a named `validation` or `conflict` code; tool errors propagate under their own taxonomy
-category. Never silently accept malformed output.
+**`[AGENTIC-9]`** `[review]` `{runtime-agent}` Map model failures to the taxonomy: model unavailable or
+timed out → `infrastructure`; output that fails its schema → `validation` (bounded repair, then fail);
+refusal or content-filter → a named `validation` or `conflict` code; tool errors propagate under their own
+taxonomy category. Never silently accept malformed output.
 
 ## Trust (the heaviest slot)  → `[TRUST-1]` `[TRUST-2]`
 
-**`[AGENTIC-10]`** `[review]` Three LLM-specific hazards sit on top of the usual boundary validation:
+**`[AGENTIC-10]`** `[review]` `{runtime-agent}` Three LLM-specific hazards sit on top of the usual boundary
+validation:
 
 - **Prompt injection** — untrusted input reaches the prompt. Treat any external text in context as
   adversarial, and never let it escalate the agent's authority or rewrite its instructions.
@@ -182,8 +183,8 @@ capture them redacted, and let retention rather than blanket avoidance bound the
 
 ## Contract versioning  → `[CONTRACT-2]`
 
-**`[AGENTIC-12]`** `[review]` **Pin the model identifier and version the prompt**, record both with every
-stored result, and re-run the evals before a change to either ships.
+**`[AGENTIC-12]`** `[review]` `{runtime-agent}` **Pin the model identifier and version the prompt**, record
+both with every stored result, and re-run the evals before a change to either ships.
 
 A model upgrade is not a dependency bump. The observable contract is "output conforms to the schema, plus
 the observed tool calls" (`[AGENTIC-4]`), and a new model can satisfy the schema perfectly while changing
@@ -224,7 +225,8 @@ next agent cannot ask what the prompt used to say.
 
 ## Testing  → `[TEST-1]`
 
-**`[AGENTIC-11]`** `[review]` Test in three layers — the first ordinary, the rest the new mode:
+**`[AGENTIC-11]`** `[review]` `{runtime-agent}` Test in three layers — the first ordinary, the rest the new
+mode:
 
 1. **Deterministic parts, normally.** Prompt building, output parsing, and the harness's authorization,
    gating, and tool-wiring are plain pure or behavior tests.
@@ -268,6 +270,7 @@ without a major bump. The five entries that hold regardless are `[AGENTIC-5]`, `
 `[AGENTIC-11]`, `[AGENTIC-12]` and `[AGENTIC-13]` — they are safety guardrails, not construction advice.
 
 <!-- coral:contract:start -->
+<!-- coral:scope:runtime-agent -->
 
 - `[AGENTIC-3]` Treat the model as an injected effect; keep prompt-building and output-parsing pure.
 - `[AGENTIC-4]` Force a schema on model output; the contract is schema conformance plus observed tool calls, never the text.

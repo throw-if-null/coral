@@ -1,9 +1,9 @@
 # Coral Architecture — Conventions
 
-<!-- AGENT NOTE (not shown on the rendered site): this file is AUTHORITATIVE for four things: the
-vocabulary, the rule-ID scheme, the enforcement classes, and the [AGENT-*] operating model. Load it
-before reasoning across documents; ARCHITECTURE.md and SYSTEM.md defer to it and must not redefine
-these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
+<!-- AGENT NOTE (not shown on the rendered site): this file is AUTHORITATIVE for the vocabulary, the
+rule-ID scheme, the enforcement classes, the ownership layers, the kernel, and the [AGENT-*] operating
+model. Load it before reasoning across documents; ARCHITECTURE.md and SYSTEM.md defer to it and must not
+redefine these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
 
 This file holds what every other document builds on, so none of them has to repeat it:
 
@@ -13,6 +13,8 @@ This file holds what every other document builds on, so none of them has to repe
 - **The operating model** — agents write; humans review and orchestrate. ([below](#the-operating-model-agents-write-humans-review-agent))
 - **The kernel** — the nine rules Coral would substantially relax without that operating model.
   ([below](#the-coral-kernel))
+- **The ownership layers** — which surface each rule belongs to, and so who has to load it.
+  ([below](#ownership-layers))
 
 The two spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how to build one app) and
 [`SYSTEM.md`](./SYSTEM.md) (how apps compose into a system) — refer back here instead of repeating any
@@ -191,6 +193,9 @@ Each rule carries **exactly one** — the docs build fails otherwise:
 - `[review]` — needs LLM or human judgment.
 - `[guide]` — rationale or principle; shapes decisions but isn't a pass/fail gate.
 
+It is read from the [metadata slot](#where-a-rule-s-layer-is-recorded) next to the rule ID, so a rule that
+*discusses* `[review]` in its prose neither gains a second class nor supplies a missing one.
+
 The resulting coverage map shows which rules have teeth and which run on goodwill. Classify honestly:
 a rule marked `[auto]` that no linter could actually decide is a promise the architecture cannot keep,
 and it costs more credibility than an honest `[review]`.
@@ -245,7 +250,7 @@ Nine of Coral's rules owe their presence, or their strictness, to this division 
 stated at the strength they are for reasons that survive a human author. Which nine, and how to tell them
 apart, is the [Coral kernel](#the-coral-kernel) below.
 
-**`[AGENT-1]` `[guide]`** — Prefer the structure that minimizes an agent's placement and
+**`[AGENT-1]` `[guide]` `{governance}`** — Prefer the structure that minimizes an agent's placement and
 cross-file-reasoning decisions, even at the cost of some duplication.
 
 **`[AGENT-2]` `[review]`** — **Flag, don't guess.** When a decision is genuinely ambiguous (new slice
@@ -253,10 +258,10 @@ vs. extend existing; duplicate vs. promote to a crosscut; slice vs. split into a
 **reversible** option, leave a clearly marked note (e.g. a `REVIEW:` comment citing the relevant rule
 ID), and surface it for human review. Do not silently pick and bury the decision.
 
-**`[AGENT-3]` `[guide]`** — Do not over-comply literally. A rule that forbids generic buckets does not
-mean contorting code to avoid a legitimate crosscut; a rule that tolerates duplication does not
-license copying a large invariant-bearing block. When the letter and the intent diverge, follow the
-intent and apply `[AGENT-2]`.
+**`[AGENT-3]` `[guide]` `{governance}`** — Do not over-comply literally. A rule that forbids generic
+buckets does not mean contorting code to avoid a legitimate crosscut; a rule that tolerates duplication
+does not license copying a large invariant-bearing block. When the letter and the intent diverge, follow
+the intent and apply `[AGENT-2]`.
 
 **`[AGENT-4]` `[review]`** — An agent never authors an exception or an extension. It flags per
 `[AGENT-2]`; a **human** decides and records the decision.
@@ -265,8 +270,8 @@ This is the guard that keeps the loop honest, and it is the one a helpful agent 
 violate. Writing "we deviate here because X" is legislating, and an agent that can legislate has removed
 the humans-review half of the operating model. Propose the wording if asked; never commit it.
 
-**`[AGENT-5]` `[review]`** — Read the project's `CORAL.md` before escalating. A documented exception or
-extension is a settled decision and is not raised again.
+**`[AGENT-5]` `[review]` `{governance}`** — Read the project's `CORAL.md` before escalating. A documented
+exception or extension is a settled decision and is not raised again.
 
 Without this the loop never converges: the same ambiguity bubbles up every time a new agent meets it, the
 human answers it again, and the accumulated decisions buy nothing. Escalate what is genuinely unsettled.
@@ -283,17 +288,17 @@ claim.
 The version lives in `VERSION`; what changed lives in [`CHANGELOG.md`](./CHANGELOG.md), recorded per rule
 ID.
 
-**`[VER-1]` `[auto]`** — Rule IDs are append-only: never renumbered, never recycled, never removed. A
-withdrawn rule keeps its ID and is marked retired in place.
+**`[VER-1]` `[auto]` `{governance}`** — Rule IDs are append-only: never renumbered, never recycled, never
+removed. A withdrawn rule keeps its ID and is marked retired in place.
 
 A project's `CORAL.md` records "breaks `[STATE-5]`", and that citation has to mean the same thing in five
 years. `rules.lock` is the checked-in record of every published ID and its class; the build fails if one
 disappears, gets reclassified, or is added without the lock being regenerated. That forced step is where
 the changelog entry and the version bump get remembered.
 
-**`[VER-2]` `[review]`** — A change that **adds, tightens, or retires** a rule is a **major** version; a
-change that **loosens or clarifies** a rule, adds an appendix, or adds a `[guide]` rule is **minor**;
-prose that leaves conformance unchanged is **patch**.
+**`[VER-2]` `[review]` `{governance}`** — A change that **adds, tightens, or retires** a rule is a
+**major** version; a change that **loosens or clarifies** a rule, adds an appendix, or adds a `[guide]`
+rule is **minor**; prose that leaves conformance unchanged is **patch**.
 
 Adding a rule is a breaking change, because a rule is a **constraint** — it is closer to adding a
 required field than to adding an API endpoint. Code that conformed yesterday can fail today.
@@ -330,8 +335,8 @@ Without a declared target, every Coral change silently invalidates every project
 Coral-conformant" decays into a feeling. Upgrading is then a deliberate act with a readable diff: *4.0
 added `[CONC-1..5]`; here is what that means for us.*
 
-**`[VER-4]` `[auto]`** — A project's own rule IDs are namespaced by a project prefix and never reuse a
-Coral family name.
+**`[VER-4]` `[auto]` `{governance}`** — A project's own rule IDs are namespaced by a project prefix and
+never reuse a Coral family name.
 
 `ACME-1`, not `XCUT-9`. A project that invents an ID in a Coral family collides the day Coral adds that
 number, and the collision is silent — two documents, same citation, different rule.
@@ -527,8 +532,10 @@ Every other Coral rule is one or more of:
 - **distributed-systems correctness** — channel semantics (`[CHAN-5]`, `[CHAN-9]`, `[CHAN-10]`),
   idempotency (`[IDEM-*]`), observability across apps (`[OBS-*]`).
 - **an app-type-specific convention** — the appendix families (`[CLI-*]`, `[BE-*]`, `[WEB-*]`,
-  `[LIB-*]`, `[GHA-*]`, `[AGENTIC-*]`).
-- **a system-scale convention** — `[ORCH-*]`, `[SYS-TEST-*]`.
+  `[LIB-*]`, `[GHA-*]`).
+- **a runtime-AI convention** — `[AGENTIC-*]`, and `[ORCH-4]`/`[ORCH-5]`/`[ORCH-6]`, which apply only
+  when the running system employs a model.
+- **a system-scale convention** — the rest of `[ORCH-*]`, and `[SYS-TEST-*]`.
 - **implementation guidance** — `[AGENT-5]` is operating protocol around the decisions `[VER-5]`
   persists: read them before escalating; `[GROW-1]` ("start small: one file per slice") is a starting
   default, not a constraint.
@@ -536,6 +543,195 @@ Every other Coral rule is one or more of:
 Concurrency, idempotency, error handling, caching, security, channel semantics and observability are
 load-bearing Coral rules. They are not kernel rules, and importance is not the reason either way: Coral
 states them at the strength it does because the *system* needs them, not because of who typed them.
+
+That list says *why* a rule is not kernel. [Ownership layers](#ownership-layers), below, says something
+narrower and machine-readable: which projects have to load it.
+
+---
+
+## Ownership layers
+
+The kernel answers *why* Coral imposes a rule. This answers a different question: **who has to load it
+at all.**
+
+No single project is the audience for every rule Coral publishes. A CLI with no runtime model has no
+reason to read `[AGENTIC-*]`; a library has no reason to read HTTP status codes; a one-app repository has
+no channel to contract-test; and the rule-numbering discipline constrains no application's source at all.
+Left unstated, all of them arrive as one undifferentiated wall, and the reviewer's real budget — the
+`[review]` rules, which need judgment one at a time — is spent on rules that were never about them.
+
+So every rule carries exactly one **ownership layer**: the narrowest surface that justifies it.
+
+This table is the taxonomy, and the build reads it — the six layers are not additionally
+listed in the tooling, because two lists of one vocabulary is how a renamed layer keeps
+passing every check. Four of its columns are machine facts:
+
+- **Tag** — how a rule names this layer. `—` marks the one whose members come from the
+  [kernel block](#the-nine-kernel-rules) instead of from a tag; `{app:…}` marks a layer whose
+  members must say *which* profile. A layer that takes profiles is necessarily `opt-in`: a
+  profile is something a project selects, and its rules live in a document only a selecting
+  project loads. A layer with a fixed tag may be opt-in too — `runtime-agent` is.
+- **Surface** — which of the three top-level audiences below the layer belongs to. This is
+  what [`rules.md`](./rules.md) groups its subtotals by, and the three groups partition the
+  rule set.
+- **Contract scope** — whether an Agent Execution Contract must mark the rule as opt-in with
+  a `coral:scope` marker. A different question from *surface* — one is who the rule is for,
+  the other is how that is written down in a contract — but **not an independent one**: an
+  `opt-in` layer is `profile-scoped` and every other surface is `unscoped`, and the build
+  refuses a row where the two disagree. `opt-in | unscoped` would have the index call a layer
+  optional while the contract gate accepted its rules as unconditional, which is the split
+  the classification exists to close.
+- **Read by** — the audience, in the words the generated index prints.
+
+<!-- coral:layers:start -->
+
+| Layer | Tag | Surface | Contract scope | Read by | Justified by |
+|---|---|---|---|---|---|
+| kernel | — | conformance | unscoped | every Coral codebase | the operating model — agents author, humans keep architectural authority |
+| framework governance | `{governance}` | governance | unscoped | Coral-aware humans, agents and tooling — never audited against application source | Coral itself: how it is interpreted, versioned, extended, adopted |
+| production baseline | `{baseline}` | conformance | unscoped | every Coral codebase, at the scale the rule is stated for | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior |
+| app profile | `{app:…}` | opt-in | profile-scoped | projects with an app of that shape | the application's external shape — CLI, backend, web, library, action |
+| language binding | `{lang:…}` | opt-in | profile-scoped | projects in that language ecosystem | one language ecosystem needing a concrete realization of a neutral concept |
+| runtime-agent profile | `{runtime-agent}` | opt-in | profile-scoped | applications that call a model at runtime | the **running** application using a model |
+
+<!-- coral:layers:end -->
+
+**`unscoped` does not mean universal.** It means a contract lists the rule without a scope
+marker — the two unscoped surfaces have different audiences, as the *Read by* column says and
+the next section spells out. A seventh layer, or a change to any of these machine facts, is a
+change to what Coral means by ownership: edit the row and the tooling follows, or the build
+fails saying it cannot. The **surface** vocabulary is the one closed part — a layer belongs to
+`conformance`, `governance` or `opt-in`, and nothing else, because the index writes a
+different sentence about each and a fourth would be one it silently omitted.
+
+### The layers do not stack into one list
+
+They answer to three audiences, and conflating them is how "load Coral" becomes "load all 178 rules".
+
+**The conformance surface — what a codebase is built and audited against** — is
+`kernel + production baseline`, plus whichever profiles the repository's app shapes select. The baseline
+carries a scale of its own, so spell it out rather than leaving it to the paragraph below:
+
+- a standalone CLI loads
+  `kernel + app-scale production baseline + app profile · cli`;
+- an agentic backend in a multi-app system loads
+  `kernel + app-scale production baseline + system-scale production baseline + app profile · backend + runtime-agent profile`.
+
+The runtime-agent profile is orthogonal to app shape, never an alternative to it, which is why an agentic
+app is not a seventh app type. A repository holding a CLI and a library selects both profiles.
+**Profiles compose; they do not replace.**
+
+**`framework governance` is not on that surface at all.** No application source code satisfies or violates
+`[VER-2]` or `[VER-4]`: those rules bind the *decisions a project makes about Coral* — which version it
+targets, how it records a deviation, how it numbers rules of its own. **The distinction is what they are
+audited against, not how often they are read.** Several are needed mid-task: `[AGENT-3]` governs how an
+agent reads a rule whose letter and intent diverge, and `[AGENT-5]` sends it to `CORAL.md` before it
+escalates. Coral-aware humans, agents and tooling load them when interpreting Coral, consulting the
+adherence record, or changing how the project relates to Coral — but never as findings against a slice.
+That is why the counts in [`rules.md`](./rules.md) report them separately rather than folding them into the
+conformance surface.
+
+**That is what the two scales above mean.** *App-scale* production baseline is the baseline rules in
+[`ARCHITECTURE.md`](./ARCHITECTURE.md), which govern one app. *System-scale* is the ones in
+[`SYSTEM.md`](./SYSTEM.md) — channel contracts, orchestration topology, cross-app contract testing —
+which govern several apps composing; a repository that ships one app has no channel to version and no
+topology to wire, and never loads them. Scale is **not** a seventh ownership layer: ownership says *why* a
+rule exists and *how narrowly*, and the document it is stated in still says at what scale it bites.
+
+**Ownership is not enforcement.** A rule has an ownership layer *and* an enforcement class, and the two
+say unrelated things: `[CLI-6]` is `app profile · cli` **and** `[auto]`; `[CLI-9]` is
+`app profile · cli` **and** `[review]`. Ownership says who must read the rule; the class says how the
+rule is checked once they do.
+
+**A narrow layer is not a weak one.** Once a project loads a profile, that profile's rules bind exactly
+as hard as the baseline's. Classifying `[BE-8]` as backend-only does not soften it; it says a library
+was never its audience.
+
+### Where a rule's layer is recorded
+
+Next to the rule, on its definition line, as a `{tag}` after the enforcement class:
+
+```
+**`[CONC-1]` `[auto]` `{baseline}`** — A slice holds no mutable state between triggers…
+- **`[CLI-6]`** `[auto]` `{app:cli}` No interactive prompts by default.
+```
+
+The tag sits with the statement it classifies for the same reason the enforcement class does: a table
+of classifications kept elsewhere is a second copy, and a copy can be edited without the rule moving. The build
+requires **exactly one** tag on every rule outside the kernel, so a new rule that nobody classified
+fails rather than silently landing in a default layer, and a tag written in a shape the parser cannot
+read is an error rather than a rule that quietly leaves every layer.
+
+**Both markers live in a slot, the slot is ordered, and the slot ends.** A definition line reads
+*ID → enforcement class → ownership tag → the statement*, in that order — the build rejects a tag written
+before its class — and only the metadata run before the statement is classification. After it, a rule is
+free to talk about braces and about enforcement classes: it may say ``use `{id}` as the path placeholder``,
+name the route `/widgets/{id}`, or write ``compare this with `[review]` `` without any of them being read
+as a second tag or a second class, and [`rules.md`](./rules.md) keeps all of it in the generated statement.
+The boundary cuts both ways — a rule whose slot holds no class cannot borrow one out of its own sentence.
+Inside the slot the reservation is absolute: a class- or tag-shaped span there is metadata whether or not
+it was meant as any, which is what makes "exactly one of each" a checkable claim rather than a hope about
+where people put punctuation.
+
+**Kernel rules carry no tag.** The [kernel block](#the-nine-kernel-rules) above is the only record of
+kernel membership, and a tag on those nine would be a second membership registry — the one thing that
+design forbids. The build enforces both directions: a tag on a kernel rule fails, and removing a rule
+from the kernel table fails until the rule is given a tag.
+
+### The profiles
+
+`baseline`, `governance` and `runtime-agent` name a whole layer. `app:` and `lang:` need to say *which*
+one, and the profiles they may name are registered here — so a typo becomes a build failure rather than
+a silent new layer, and every profile states where its rules live.
+
+<!-- coral:profiles:start -->
+
+| Profile | Rules live in | What it covers |
+|---|---|---|
+| `{app:cli}` | `appendix/cli.md` | Command-line applications: `stdout`/`stderr`, exit codes, `--json`. |
+| `{app:backend}` | `appendix/backend.md` | HTTP services: routes, status codes, middleware, API versioning. |
+| `{app:web}` | `appendix/web.md` | Browser applications: panels, the composition shell, routes, client state. |
+| `{app:library}` | `appendix/library.md` | Libraries and packages consumed as source: the public API is the contract. |
+| `{app:gh-action}` | `appendix/gh-action.md` | GitHub Actions and comparable tool runners: declared outputs, event payloads. |
+
+<!-- coral:profiles:end -->
+
+**There are no `lang:` rows, and that is the honest state.** Coral has no language-binding rules today:
+every rule it publishes is stated in language-neutral terms, and the worked examples in Go and Python
+are illustrations of neutral rules rather than bindings of them. A language binding is what you would
+write if a language forced a *different* realization of a Coral concept — the layer exists so that rule
+has somewhere to go that is not the baseline, and inventing one to populate the layer would be worse
+than a zero. `coral-lint`'s Python internals are a tool's implementation, not a binding either.
+
+Every registered `app:` or `lang:` profile's rules are **defined in that profile's own document**, and the
+build holds them to it — a rule kept in a broadly-loaded document is read as binding however it is
+classified, so the classification and the file have to agree. The registry cannot name a spine as a home,
+and two profiles cannot share one: either would let the registry excuse exactly the failure the check
+exists to catch.
+
+The fixed `runtime-agent` layer has no registry row and no dedicated-document requirement. `[ORCH-4]`,
+`[ORCH-5]` and `[ORCH-6]` deliberately stay in [`SYSTEM.md`](./SYSTEM.md), where the harness guardrail does
+not depend on an ADDENDUM, and are made opt-in by contract scope instead.
+
+### Scoped contract sections
+
+A document's [Agent Execution Contract](#prose-vs-contract) is the complete normative surface of that
+document, and an agent is invited to load only it. A contract that lists an opt-in rule beside an
+unscoped one therefore tells the agent that the opt-in rule is unconditional too — the classification
+would be right and the loading still wrong.
+
+So a contract marks its optional groups. `<!-- coral:scope:app:cli -->` opens a scope that governs the
+contract lines below it until `<!-- coral:scope:end -->` or the close of the contract; every appendix
+contract opens with the profile it belongs to, and `SYSTEM.md` scopes `[ORCH-4]`, `[ORCH-5]` and
+`[ORCH-6]` to `runtime-agent` inside an otherwise unscoped system contract. The build checks both
+directions: an opt-in rule outside a matching scope fails, and a rule from an unscoped layer inside one
+fails too.
+
+### Reading the classification
+
+[`rules.md`](./rules.md) is generated from these sources and carries a **Layer** column plus a count per
+layer, which is the page to open for *"how much of Coral applies to me?"* and *"how many `[review]`
+rules am I actually signing up for?"*.
 
 ---
 
@@ -563,11 +759,12 @@ The complete normative checklist for this document: every `[auto]` and `[review]
 
 Read in this order:
 
-1. **`CONVENTIONS.md`** (this file) — the vocabulary, rule scheme, enforcement classes, operating
-   model. The front door.
+1. **`CONVENTIONS.md`** (this file) — the vocabulary, rule scheme, enforcement classes, ownership
+   layers, operating model. The front door.
 2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the **app** spine: how to build one app. Its
    [appendices](./ARCHITECTURE.md#appendix-index) instantiate it per app type (CLI, backend, web,
-   agentic/LLM, library, GitHub Action).
+   library, GitHub Action), plus the runtime-agent profile an app of any shape adds when it calls a
+   model at runtime.
 3. **[`SYSTEM.md`](./SYSTEM.md)** — the **system** spine: how apps compose over a channel. Builds on the
    app spine; the app spine never cites it.
 4. **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python,

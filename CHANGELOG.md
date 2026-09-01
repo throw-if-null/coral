@@ -33,7 +33,9 @@ the entries between your target and the new version, satisfy the added rules, an
 ## Unreleased
 
 A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut.
+the batch is cut. **The batch takes the highest level of the entries in it — currently minor**, because
+the ownership pass below loosens `[ORCH-4..6]` in applicability. Cutting this as a patch would tell a
+consuming project nothing changed for it, and something did.
 
 **The Coral kernel is named, and `[MODEL-1]`'s contract line is corrected. Patch-level: no rule was
 added, tightened, loosened, or retired, and no ID or enforcement class moved.**
@@ -72,6 +74,136 @@ Two more copies of the same adapter drift: `ARCHITECTURE.md` said `CONVENTIONS.m
 nouns" while listing eight, and `README.md` pointed at the site's "four kinds of code" section, which has
 been *The five kinds of code* since 0.6.0. The historical mentions in this changelog and in
 `examples/go-api-slice.md` describe the pre-adapter taxonomy accurately and are left alone.
+
+**Every rule now names its ownership layer, and the build enforces it. Minor under `[VER-2]`:
+`[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]` are loosened in *applicability*.** No rule was added, tightened, or
+retired, no rule's wording changed except a sentence reordering in `[ROOT-3]`, no ID moved document, and no
+enforcement class changed — `rules.lock` is byte-identical.
+
+**What was loosened, precisely.** `[ORCH-4..6]` were unscoped `[review]` rules in `SYSTEM.md`'s Agent
+Execution Contract, and that contract is the complete normative surface of the document — so an agent
+loading it was told the harness rules bind every system. They now sit under
+`<!-- coral:scope:runtime-agent -->` and apply only where the runtime-agent profile is selected. A system
+composed of ordinary apps, with no model choosing which capability to call, previously had three `[review]`
+rules to answer for and now has none. The statements are unchanged; **the set of projects they bind is
+smaller**, and `[VER-2]` makes loosening a rule a minor.
+
+Nothing else moves conformance. The appendix contracts gained scope markers too, but an appendix was
+always conditional on being that app type — `CONVENTIONS.md` has said since 0.5.0 that building a CLI
+means loading the spine's contract *and* `appendix/cli.md`'s — so those markers document an existing
+scope rather than change one. Reclassifying `[SCOPE-1]`, `[SCOPE-2]` and `[SCOPE-4]` as framework
+governance changes nothing a project is audited against: all three are `[guide]`, in no contract, and
+`[guide]` was never a pass/fail gate. Naming `[AGENTIC-*]` a profile rather than a sixth app type does not
+add `[BE-*]` to an agentic backend either — a backend was always a backend, and nothing in
+`appendix/backend.md` ever excused an app for also calling a model; what changed is that the document set
+now says so structurally instead of leaving it to be inferred from a sidebar heading.
+
+Coral publishes 178 rules and no project is the audience for all of them. A CLI with no runtime model has
+no reason to read `[AGENTIC-*]`; a library has no reason to read HTTP status codes; a project that never
+edits Coral has no reason to read the rule-numbering discipline. Left unstated they arrive as one wall,
+and the reviewer's real budget — the `[review]` rules, spent one judgment at a time — goes on rules that
+were never about them. Each rule now carries exactly one of six **ownership layers**: kernel, framework
+governance, production baseline, app profile, language binding, runtime-agent profile. `CONVENTIONS.md`
+gains an [Ownership layers](./CONVENTIONS.md#ownership-layers) section defining them and a
+`coral:profiles` registry naming the profiles that exist; `rules.md` replaces its binary **Kernel** column
+with a generated **Layer** column and a per-layer tally.
+
+The counts answer to three audiences rather than stacking into one number. **97 rules form the
+conformance surface** (kernel + production baseline) — what a codebase is built and audited against before
+any profile is added, 69 of them `[review]`; 18 of those 97 are stated at *system* scale in `SYSTEM.md`,
+and a repository that ships one app has no channel to version or topology to wire. **9 govern Coral
+itself** and sit outside that surface: no application source code satisfies or violates `[VER-2]`. They
+are still read during ordinary work — `[AGENT-3]` and `[AGENT-5]` are consulted mid-task — but never as
+findings against a slice. The other **72 are opt-in** — 50 `[review]` — and load only where their profile
+is selected. **There are no language-binding
+rules**, and the empty layer is left honestly empty; every Coral rule is stated in language-neutral terms
+today, and the Go and Python worked examples illustrate neutral rules rather than binding them.
+
+**Ownership is a separate axis from enforcement**, and no enforcement class moved. `[CLI-6]` is
+`app profile · cli` *and* `[auto]`; `[CLI-9]` is `app profile · cli` *and* `[review]`. Ownership says who
+must load a rule; the class says how it is checked once they do. A narrow layer is not a weak one — once a
+profile is loaded, its rules bind exactly as hard as the baseline's.
+
+**Kernel membership did not move and did not gain a second home.** It is still read from the
+`coral:kernel` block and nowhere else, which is why kernel rules carry *no* inline tag: one there would be
+a second membership registry. The build fails in both directions — a tag on a kernel rule, and a rule
+dropped from the kernel table without gaining one.
+
+Three classification decisions worth recording, because none of them follows from the file a rule sits in:
+
+- **`[SCOPE-1]`, `[SCOPE-2]` and `[SCOPE-4]` are framework governance**, not architecture, despite living
+  in the app spine. They state where Coral applies and which document owns what happens after a split.
+  None constrains application source code, which is the test.
+- **`[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]` are the runtime-agent profile**, and they **stay in
+  `SYSTEM.md`**. `SYSTEM.md` says in prose that the harness guardrail is stated there precisely so it does
+  not depend on an ADDENDUM, and moving a `[review]` safety rule into a document that carries no stability
+  promise would reverse that for a filing convenience. What did need fixing was the *loading*: an Agent
+  Execution Contract is the complete normative surface of its document, so listing `[ORCH-4]` beside
+  `[CHAN-1]` told an agent that runtime-agent orchestration binds every system. Contracts now mark their
+  opt-in groups with a `coral:scope` marker — every appendix contract opens with its profile, and
+  `SYSTEM.md` scopes the three in place.
+- **`[ROOT-3]`'s sentences were reordered.** Its opening sentence was *"For a library, the consumer is the
+  composition root"*, and `CONVENTIONS.md` says the first sentence of a rule **is** the rule — so by
+  Coral's own convention a library rule was sitting in the universally-loaded spine. The general statement
+  now leads and the library is the illustration. Same two facts, same `[guide]` class, same ID: prose that
+  leaves conformance unchanged.
+
+`[AGENT-1]`, `[AGENT-3]`, `[AGENT-5]`, `[VER-1]`, `[VER-2]` and `[VER-4]` are framework governance, as
+expected — each governs Coral's own interpretation, versioning, or adoption rather than any application.
+`[AGENT-2]`, `[AGENT-4]`, `[VER-3]` and `[VER-5]` remain kernel.
+
+**The six-layer taxonomy is registered in `CONVENTIONS.md`, not in the tooling.** `CONVENTIONS.md` says
+it is authoritative for the ownership layers, so it had better be: a `coral:layers` block records each
+layer's name, its tag form, whether a contract must scope it, who reads it, and why it exists, and the
+build parses that rather than carrying a second copy. Renaming a layer, adding a seventh, or flipping one
+between `unscoped` and `profile-scoped` now moves the tooling with it — before, all three would have left
+every check passing against a vocabulary the documents no longer used. Rule *membership* is unchanged and
+stays where it was: kernel membership in `coral:kernel`, each non-kernel rule's layer inline on its own
+definition, the concrete profiles in `coral:profiles`.
+
+Each layer also declares its **surface** — `conformance`, `governance` or `opt-in` — which is what
+`rules.md` groups its three subtotals by. That column, and not the layer's tag, is what keeps the totals
+honest: renaming `{governance}` moves a tag, and the nine rules stay in the governance group because the
+row still says so. The surface vocabulary is the one closed part of the taxonomy, because the index writes
+a different sentence about each and a fourth would be one it silently omitted. Kernel rules take their
+label, surface and scope from the tagless row rather than having them rebuilt in code, and the generated
+index refuses to render if the three surfaces do not cover every rule.
+
+Surface and contract scope are separate questions that share one dimension, so the build refuses a row
+where they disagree: an `opt-in` layer is `profile-scoped` and every other surface is `unscoped`.
+`opt-in | unscoped` would have `rules.md` call a layer optional while the contract gate accepted its rules
+as unconditional — the split this classification exists to close, arriving through the registry.
+
+A layer that takes profiles is necessarily `opt-in` too, and the build says so: a family declared on a
+conformance surface would have the index count its rules before any profile is selected while the registry
+put them in a document only a selecting project reads. A fixed tag may still be opt-in — `runtime-agent`
+is exactly that case.
+
+**Both markers are metadata in a slot, and the slot ends where the statement begins.** The parser used
+to scan a whole definition line for anything brace-shaped, which quietly reserved ordinary API notation: a
+rule saying ``use `{id}` as the path placeholder``, or naming the route `/widgets/{id}`, was read as
+carrying a second ownership tag. After the statement begins, braces are content. Inside the slot the
+reservation stays absolute — a tag-shaped span there is metadata whether or not it was meant as any, which
+is what keeps "exactly one tag" checkable. The slot is ordered as the documentation says it is
+(*ID → enforcement class → ownership tag → statement*), and the generated index now removes exactly the
+metadata spans, so a `[guide]` rule that explains `{id}` keeps the `{id}` in its own one-line statement.
+The **enforcement class** obeys the same boundary: it is read from the slot, so a rule that discusses
+`[review]` in its prose neither gains a second class nor — the direction that was actually bypassable —
+supplies a missing one out of its own sentence.
+
+**The profile-home check runs both ways now.** It already kept an `{app:cli}` rule out of a spine. It now
+also keeps a non-CLI rule out of `appendix/cli.md`: a `{baseline}` rule defined in a profile's document is
+classified correctly and still invisible to everyone who does not select that profile, and because a
+`[guide]` rule appears in no Agent Execution Contract, contract scoping cannot catch it. Definitions only
+— citing a spine rule from an appendix is how an appendix is meant to refer outward.
+
+The parser gained one fix this needed: **a rule definition inside a fenced code block is an illustration,
+not a definition.** `CONVENTIONS.md` now prints an example definition line, and the registry is
+first-definition-wins across a fixed document order, so without the fix that example silently became the
+definition of `[CLI-6]` and moved the rule to another page — the failure `CHANGELOG.md` caused once
+already, arriving from a direction a file exclusion cannot cover. Opening and closing fences are matched
+separately, per CommonMark: an opener may carry an info string and a closer may not, so ```` ```yaml ````
+opens a block rather than closing one, and a nested fence inside a longer one stays content.
 
 ---
 
