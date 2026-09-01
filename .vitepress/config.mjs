@@ -402,16 +402,21 @@ export default withMermaid(defineConfig({
       { text: 'The System', link: '/SYSTEM' },
       { text: 'Rule index — all rules, one page', link: '/rules' },
       {
-        text: 'Appendices (app types)',
+        text: 'App profiles (by app type)',
         collapsed: false,
         items: [
           { text: 'CLI', link: '/appendix/cli' },
           { text: 'Backend / Service', link: '/appendix/backend' },
           { text: 'Web App', link: '/appendix/web' },
-          { text: 'Agentic App (LLM)', link: '/appendix/agentic-app' },
           { text: 'Library / Package', link: '/appendix/library' },
           { text: 'GitHub Action / Tool', link: '/appendix/gh-action' },
         ],
+      },
+      {
+        // Not an app type: an agentic backend loads the backend profile AND this one.
+        text: 'Runtime-agent profile',
+        collapsed: false,
+        items: [{ text: 'Agentic App (LLM)', link: '/appendix/agentic-app' }],
       },
       {
         text: 'Worked examples',

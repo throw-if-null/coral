@@ -142,8 +142,8 @@ Otherwise, in order:
 - [`ARCHITECTURE.md`](/ARCHITECTURE) — how to build one app. The longest document, holding most of the
   rules.
 - [`SYSTEM.md`](/SYSTEM) — how separately-built apps compose over a channel.
-- [Appendices](/appendix/cli) — one file per app type: CLI, backend, web, agentic, library, GitHub
-  Action.
+- [Appendices](/appendix/cli) — one file per app profile: CLI, backend, web, library, GitHub Action —
+  plus the runtime-agent profile, which an app of any shape adds when it calls a model.
 - [Worked examples](/examples/cli-slice) — real code, in Python and Go.
 
 Every rule carries an ID like `[DUP-2]` and exactly one enforcement class: `[auto]` if a linter can decide
