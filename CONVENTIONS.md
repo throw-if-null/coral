@@ -570,8 +570,12 @@ passing every check. Four of its columns are machine facts:
   what [`rules.md`](./rules.md) groups its subtotals by, and the three groups partition the
   rule set.
 - **Contract scope** — whether an Agent Execution Contract must mark the rule as opt-in with
-  a `coral:scope` marker. Separate from *surface*: one is who the rule is for, the other is
-  what a contract has to say about it.
+  a `coral:scope` marker. A different question from *surface* — one is who the rule is for,
+  the other is how that is written down in a contract — but **not an independent one**: an
+  `opt-in` layer is `profile-scoped` and every other surface is `unscoped`, and the build
+  refuses a row where the two disagree. `opt-in | unscoped` would have the index call a layer
+  optional while the contract gate accepted its rules as unconditional, which is the split
+  the classification exists to close.
 - **Read by** — the audience, in the words the generated index prints.
 
 <!-- coral:layers:start -->
@@ -652,6 +656,13 @@ of classifications kept elsewhere is a second copy, and a copy can be edited wit
 requires **exactly one** tag on every rule outside the kernel, so a new rule that nobody classified
 fails rather than silently landing in a default layer, and a tag written in a shape the parser cannot
 read is an error rather than a rule that quietly leaves every layer.
+
+**The tag lives in a slot, and the slot ends.** A definition line reads *ID → enforcement class →
+ownership tag → the statement*, and only the metadata run before the statement is classification. After
+it, braces are ordinary content: a rule may say ``use `{id}` as the path placeholder`` or name the route
+`/widgets/{id}` without either being read as a second layer. Inside the slot the reservation is absolute
+— a tag-shaped span there is metadata whether or not it was meant as any, which is what makes "exactly
+one" a checkable claim rather than a hope about where people put braces.
 
 **Kernel rules carry no tag.** The [kernel block](#the-nine-kernel-rules) above is the only record of
 kernel membership, and a tag on those nine would be a second membership registry — the one thing that

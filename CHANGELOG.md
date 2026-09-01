@@ -169,6 +169,18 @@ a different sentence about each and a fourth would be one it silently omitted. K
 label, surface and scope from the tagless row rather than having them rebuilt in code, and the generated
 index refuses to render if the three surfaces do not cover every rule.
 
+Surface and contract scope are separate questions that share one dimension, so the build refuses a row
+where they disagree: an `opt-in` layer is `profile-scoped` and every other surface is `unscoped`.
+`opt-in | unscoped` would have `rules.md` call a layer optional while the contract gate accepted its rules
+as unconditional — the split this classification exists to close, arriving through the registry.
+
+**An ownership tag is metadata in a slot, and the slot ends where the statement begins.** The parser used
+to scan a whole definition line for anything brace-shaped, which quietly reserved ordinary API notation: a
+rule saying ``use `{id}` as the path placeholder``, or naming the route `/widgets/{id}`, was read as
+carrying a second ownership tag. After the statement begins, braces are content. Inside the slot the
+reservation stays absolute — a tag-shaped span there is metadata whether or not it was meant as any, which
+is what keeps "exactly one tag" checkable.
+
 **The profile-home check runs both ways now.** It already kept an `{app:cli}` rule out of a spine. It now
 also keeps a non-CLI rule out of `appendix/cli.md`: a `{baseline}` rule defined in a profile's document is
 classified correctly and still invisible to everyone who does not select that profile, and because a

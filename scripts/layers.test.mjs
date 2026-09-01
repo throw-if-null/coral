@@ -368,14 +368,70 @@ test('groupBySurface refuses a layer whose surface is not one of the three', () 
   )
 })
 
-test('the tagless layer cannot be profile-scoped — no marker could name it', () => {
+test('the tagless layer cannot be opt-in — no marker could name it', () => {
+  // `opt-in | profile-scoped` is internally consistent, so it passes the surface/scope
+  // agreement check and has to be refused on its own terms: the kernel row carries no tag,
+  // so no `coral:scope:<tag>` marker could ever select it.
   const { problems } = withRow(
     0,
-    '| the core | — | conformance | profile-scoped | everyone | the operating model |'
+    '| the core | — | opt-in | profile-scoped | everyone | the operating model |'
   )
   // Two problems, both true: the row is refused, and the taxonomy is then left without a
   // tagless layer at all. The first is the one being asserted.
   assert.match(problems[0], /tagless layer must be `unscoped`/)
+})
+
+// ── surface and contract scope may not disagree ──────────────────────────────
+//
+// They are different questions — who the layer is for, and how a contract writes that down
+// — but they share one dimension, and a row where they disagree splits the two systems that
+// read them. `opt-in | unscoped` has rules.md call a layer optional while Gate 9 accepts its
+// rules as unconditional contract lines: the loading contradiction this whole classification
+// was built to remove, reintroduced through the registry.
+
+/** A taxonomy whose second row carries `surface` and `scope`. */
+const combo = (surface, scope) =>
+  withRow(1, `| base rules | \`{base}\` | ${surface} | ${scope} | every codebase | the software |`)
+
+test('an opt-in layer that is not profile-scoped fails', () => {
+  onlyProblem(combo('opt-in', 'unscoped').problems, /`opt-in` and `unscoped` contradict each other/)
+})
+
+test('a conformance layer that is profile-scoped fails', () => {
+  onlyProblem(
+    combo('conformance', 'profile-scoped').problems,
+    /`conformance` and `profile-scoped` contradict each other/
+  )
+})
+
+test('a governance layer that is profile-scoped fails', () => {
+  onlyProblem(
+    combo('governance', 'profile-scoped').problems,
+    /`governance` and `profile-scoped` contradict each other/
+  )
+})
+
+test('the two agreeing combinations pass', () => {
+  for (const [surface, scope] of [
+    ['opt-in', 'profile-scoped'],
+    ['conformance', 'unscoped'],
+    ['governance', 'unscoped'],
+  ]) {
+    const { taxonomy, problems } = combo(surface, scope)
+    assert.deepEqual(problems, [], `${surface} | ${scope}`)
+    const row = taxonomy.find((l) => l.tag === 'base')
+    assert.equal(row.surface, surface)
+    assert.equal(row.scoped, scope === 'profile-scoped')
+  }
+})
+
+test("the repository's own rows all satisfy the invariant", () => {
+  // Asserted as the relationship, not as a list of which layer is which.
+  assert.deepEqual(REAL_PROBLEMS, [])
+  for (const l of REAL) assert.equal(l.scoped, l.surface === 'opt-in', l.label)
+  const tagless = REAL.find((l) => l.tag === null && l.family === null)
+  assert.equal(tagless.scoped, false)
+  assert.notEqual(tagless.surface, 'opt-in')
 })
 
 // ── the profile registry ─────────────────────────────────────────────────────
@@ -576,6 +632,51 @@ test('a span written in the shape of a tag but spelled wrong is an error, not a 
 test('a tag outside its code span fails rather than reading as unclassified', () => {
   const { problems } = parseDoc(['**`[X-1]` `[review]`** {base} — a rule.'])
   onlyProblem(problems, /outside a code span/)
+})
+
+test('a brace token in the STATEMENT is content, not a second tag', () => {
+  // `{id}` is ordinary API notation. The metadata slot ends where the statement begins, so
+  // a rule is free to talk about braces without the parser reading them as classification.
+  const { rules, problems } = parseDoc([
+    '**`[X-1]` `[review]` `{base}`** — Use `{id}` as the path placeholder.',
+  ])
+  assert.deepEqual(problems, [])
+  assert.deepEqual(rules.get('X-1').tags, ['base'])
+})
+
+test('an unbackticked brace token in the statement is content too', () => {
+  const { rules, problems } = parseDoc([
+    '**`[X-1]` `[review]` `{base}`** — Handle /widgets/{id} and /widgets/{id}/parts.',
+  ])
+  assert.deepEqual(problems, [])
+  assert.deepEqual(rules.get('X-1').tags, ['base'])
+})
+
+test('a statement opening with a code span does not extend the slot', () => {
+  // `[CLI-8]`'s real shape: the statement begins with `0`, which is not a class and not
+  // tag-shaped, so the slot closes there and later spans are content.
+  const { rules, problems } = parseDoc([
+    '- **`[X-1]`** `[auto]` `{base}` `0` success · `2` usage error · `{id}` is not a tag.',
+  ])
+  assert.deepEqual(problems, [])
+  assert.deepEqual(rules.get('X-1').tags, ['base'])
+})
+
+test('a brace token in the slot is still metadata, and still checked', () => {
+  // The slot is reserved. A tag-shaped span there is classification whether or not it was
+  // meant as one — which is what makes "exactly one" enforceable at all.
+  const { rules } = parseDoc(['**`[X-1]` `[review]` `{base}` `{meta}`** — two tags.'])
+  assert.deepEqual(rules.get('X-1').tags, ['base', 'meta'])
+})
+
+test('a misplaced bare tag is still caught when the rule has none', () => {
+  const { problems } = parseDoc(['**`[X-1]` `[review]`** {base} — a rule.'])
+  onlyProblem(problems, /outside a code span/)
+})
+
+test('a bare brace after a real tag is not reported as a misplaced one', () => {
+  const { problems } = parseDoc(['**`[X-1]` `[review]` `{base}`** {id} names the placeholder.'])
+  assert.deepEqual(problems, [])
 })
 
 test("the error taxonomy's braced shape is not mistaken for a tag", () => {

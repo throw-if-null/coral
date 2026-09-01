@@ -176,7 +176,8 @@ function tableCells(line) {
 // against the old vocabulary — the documentation/tooling drift the rule set exists to stop,
 // committed by the rule set's own tooling.
 //
-// What is registered is only the SIX-CATEGORY TAXONOMY. Membership stays where it was:
+// What is registered is only the ownership-layer taxonomy — six layers today, and the shape
+// is open: a seventh is a row, not a code change. Membership stays where it was:
 // kernel membership in `coral:kernel`, each non-kernel rule's layer inline on its own
 // definition, and the concrete app/language profiles in `coral:profiles`.
 //
@@ -206,6 +207,9 @@ const SCOPE_WORDS = { unscoped: false, 'profile-scoped': true }
 // in its Surface column, so the nine rules stay in the same group and no generated total
 // silently empties. A typo in the column fails the build instead.
 export const SURFACES = ['conformance', 'governance', 'opt-in']
+// The one surface whose rules a project selects rather than inherits. Contract scope has to
+// agree with it row by row — see the check in parseLayers().
+const OPT_IN = 'opt-in'
 
 // tag grammar: lowercase token, optionally `family:profile`  e.g. baseline, app:cli, lang:go
 export const TAG_CORE = '[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?'
@@ -215,7 +219,6 @@ const TAG_RE = new RegExp(`^\\{(${TAG_CORE})\\}$`)
 // rather than an unrecognised span — `{App:CLI}` and `{app cli}` are caught, while the
 // error taxonomy's `{category, code, message}` (commas, spaces) is correctly not a tag.
 const TAG_SHAPED_RE = /^\{[A-Za-z0-9:_-]+\}$/
-const codeSpans = (s) => [...s.matchAll(/`([^`]*)`/g)].map((m) => m[1])
 // A layer row's tag cell: `{baseline}` for a fixed layer, `{app:…}` for one that takes a
 // profile identity. The ellipsis is literal — the family declares that its members name a
 // profile, and which profiles exist is the other registry's business.
@@ -352,6 +355,21 @@ export function parseLayers(srcDir) {
       )
       return
     }
+    // The two columns say different things and must not disagree about the one thing they
+    // share. Surface is who the layer is for; contract scope is how that optionality is
+    // written in a contract — but `opt-in | unscoped` would have rules.md call a layer
+    // optional while Gate 9 accepted its rules as unconditional contract lines, which is the
+    // loading contradiction the whole classification exists to remove. `conformance |
+    // profile-scoped` is the mirror image: the index counts the rule in the base surface
+    // while the contract tells a project it may decline it.
+    if (SCOPE_WORDS[rawScope] !== (surface === OPT_IN)) {
+      problems.push(
+        `${at}: \`${surface}\` and \`${rawScope}\` contradict each other. An \`${OPT_IN}\` layer is` +
+          ` \`profile-scoped\` and every other surface is \`unscoped\` — otherwise the rule index` +
+          ' and the contract gate describe the same rule differently.'
+      )
+      return
+    }
     let tag = null
     let family = null
     let key
@@ -373,7 +391,7 @@ export function parseLayers(srcDir) {
         problems.push(
           `${at}: the tagless layer must be \`unscoped\`. Its members come from` +
             ` ${KERNEL_FILE}'s kernel block and carry no tag, so no \`coral:scope\` marker could` +
-            ' name it.'
+            ' name it — and by the same token it cannot be an `opt-in` surface.'
         )
         return
       }
@@ -490,6 +508,76 @@ function tagVocabulary(profiles, taxonomy) {
   const fixed = taxonomy.filter((l) => l.tag).map((l) => `\`{${l.tag}}\``)
   const declared = [...profiles.keys()].sort().map((t) => `\`{${t}}\``)
   return [...fixed, ...declared].join(', ')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The metadata slot.
+//
+// A definition line is  ID -> enforcement class -> ownership tag -> the rule statement,
+// and the tag is metadata sitting in that slot, not a token that may appear anywhere. The
+// parser used to scan the WHOLE line for anything brace-shaped, which quietly reserved a
+// piece of ordinary syntax: a rule saying "use `{id}` as the path placeholder", or naming
+// the route /widgets/{id}, was read as carrying a second ownership tag or as having written
+// one outside a code span. Rules are allowed to talk about braces.
+//
+// So the slot has an end. It runs from just after the ID through the whitespace and bold
+// markers around the enforcement class and the ownership tag, and it closes at the first
+// thing that is neither — which is where the statement begins. `{id}` after that point is
+// content. `{id}` BEFORE that point is not: the slot is reserved, and a tag-shaped span
+// there is metadata whether or not it was meant as any.
+// ─────────────────────────────────────────────────────────────────────────────
+// Whitespace and the `**` of a bolded ID or class — the only filler the slot allows.
+const SLOT_FILLER_RE = /^[\s*]+/
+const CODE_SPAN_RE = /^`([^`]*)`/
+const CLASS_SPAN_RE = /^\[(?:auto|review|guide)\]$/
+// A bare brace token, anchored: `/widgets/{id}` does not match, a leading `{id}` does.
+const BARE_TAG_RE = /^\{[A-Za-z0-9:_-]+\}/
+
+/**
+ * Read the ownership tags out of a definition line's metadata slot.
+ *
+ * @param {string} rest the definition line after its rule-ID code span
+ * @returns {{tags: string[], problems: string[]}} problems are sentences, un-prefixed
+ */
+export function ownershipTags(rest) {
+  const tags = []
+  const problems = []
+  let at = 0
+  for (;;) {
+    const filler = SLOT_FILLER_RE.exec(rest.slice(at))
+    if (filler) at += filler[0].length
+    const span = CODE_SPAN_RE.exec(rest.slice(at))
+    if (!span) break
+    const body = span[1]
+    if (CLASS_SPAN_RE.test(body)) {
+      at += span[0].length
+      continue
+    }
+    if (!TAG_SHAPED_RE.test(body)) break // the statement opens with a code span
+    const t = TAG_RE.exec(body)
+    if (t) tags.push(t[1])
+    else {
+      problems.push(
+        `carries \`${body}\`, which is written as an ownership tag but is not one. A tag is` +
+          ' lowercase, with an optional single `family:profile` split — `{baseline}`, `{app:cli}`.'
+      )
+    }
+    at += span[0].length
+  }
+  // A tag outside its backticks renders as literal braces and is invisible to the parser, so
+  // it fails rather than leaving a rule unclassified for a reader who can plainly see a
+  // classification on the line. Only where the slot found no tag: once a rule is classified,
+  // a brace token in its statement is the statement's business.
+  if (!tags.length) {
+    const bare = BARE_TAG_RE.exec(rest.slice(at))
+    if (bare) {
+      problems.push(
+        `carries ${bare[0]} outside a code span. An ownership tag is written as` +
+          ` \`${bare[0]}\` so it reads as a tag and parses as one.`
+      )
+    }
+  }
+  return { tags, problems }
 }
 
 /** Human-readable layer of a resolved classification: `app profile · cli`. */
@@ -977,27 +1065,8 @@ export function parseRules(srcDir) {
       // required or forbidden. What IS judged here is legibility: a span written in the
       // shape of a tag but not spelled like one is an error, never a tag that quietly does
       // not count. Silently dropping `{App:CLI}` would drop the rule out of every layer.
-      const tags = []
-      for (const span of codeSpans(rest)) {
-        if (!TAG_SHAPED_RE.test(span)) continue
-        const t = TAG_RE.exec(span)
-        if (t) tags.push(t[1])
-        else
-          problems.push(
-            `[${id}] ${rel}:${i + 1} carries \`${span}\`, which is written as an ownership tag but` +
-              ' is not one. A tag is lowercase, with an optional single `family:profile` split —' +
-              ' `{baseline}`, `{app:cli}`.'
-          )
-      }
-      // The same span outside backticks renders as literal braces and would be invisible to
-      // the parser, so it fails rather than leaving the rule unclassified for a reader who
-      // can plainly see a classification on the line.
-      for (const m of rest.replace(/`[^`]*`/g, '').matchAll(/\{[A-Za-z0-9:_-]+\}/g)) {
-        problems.push(
-          `[${id}] ${rel}:${i + 1} carries ${m[0]} outside a code span. An ownership tag is written` +
-            ' as `' + `${m[0]}` + '` so it reads as a tag and parses as one.'
-        )
-      }
+      const { tags, problems: tagProblems } = ownershipTags(rest)
+      for (const p of tagProblems) problems.push(`[${id}] ${rel}:${i + 1} ${p}`)
 
       rules.set(id, { page: rel, line: i + 1, cls: classes[0], tags })
       if (!defsByFile.has(rel)) defsByFile.set(rel, [])
