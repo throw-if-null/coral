@@ -23,10 +23,11 @@ of it.
 
 From there: [`ARCHITECTURE.md`](./ARCHITECTURE.md) is how to build one app,
 [`SYSTEM.md`](./SYSTEM.md) is how separately-built apps compose over a channel, [`appendix/`](./appendix)
-holds one file per **profile** — CLI, backend, web, library, GitHub Action, plus the runtime-agent profile
-an app of any shape adds when it calls a model — and [`examples/`](./examples) holds worked code —
-including [a real service reviewed against the rules](./examples/backend-review.md), which states where
-they would have been overkill.
+holds one document per **app profile** — CLI, backend, web, library, GitHub Action — plus the
+runtime-agent addendum, which an app of any shape adds when it calls a model at runtime. And
+[`examples/`](./examples) holds worked code — including
+[a real service reviewed against the rules](./examples/backend-review.md), which states where they would
+have been overkill.
 
 To look a rule up rather than read for it, [`rules.md`](./rules.md) lists all of them on one page with
 their class, their ownership layer, and a one-line statement, grouped by document. It is generated from

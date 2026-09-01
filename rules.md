@@ -18,15 +18,15 @@ Every rule belongs to exactly one **ownership layer**: the narrowest surface tha
 separate axis from the enforcement class — a rule is *both* `app profile · cli` *and* `[auto]`. Ownership
 answers *who has to load this rule*; the class answers *how it is checked*.
 
-They answer to three audiences rather than stacking into one number. **97 carry no profile** — kernel plus
-production baseline — and are what a Coral codebase is built and audited against, 69 of them `[review]`.
-**9 govern Coral itself**, and no application source code satisfies or violates them: they bind whoever
-decides how a project relates to Coral — which version it targets, how it records a deviation, how it
-numbers its own rules. The other **72 are opt-in** — 50 `[review]` — and load only with the profile that
-owns them, so a CLI with no runtime model never reads an `[AGENTIC-*]` rule and a library never reads an
-HTTP status code.
+They answer to three audiences rather than stacking into one number. **97 form the conformance surface** —
+kernel plus production baseline — what a Coral codebase is built and audited against before any profile is
+added, 69 of them `[review]`. **9 govern Coral itself** and sit outside that surface entirely: no
+application source code satisfies or violates them. Coral-aware humans, agents and tooling read them when
+interpreting a rule, consulting the adherence record, or changing how a project relates to Coral. The other
+**72 are opt-in** — 50 `[review]` — and load only where their profile is selected, so a CLI with no runtime
+model never reads an `[AGENTIC-*]` rule and a library never reads an HTTP status code.
 
-Scale narrows the first group further. 18 of those 97 are stated at *system* scale in
+Scale narrows the conformance surface further. 18 of those 97 are stated at *system* scale in
 [`SYSTEM.md`](./SYSTEM.md) — channel contracts, topology, cross-app contract testing — and a repository
 that ships one app has no channel to version and no topology to wire. They are the baseline **when several
 apps compose**, not a reason for a single-app project to load them.
@@ -34,7 +34,7 @@ apps compose**, not a reason for a single-app project to load them.
 | Layer | Rules | `[auto]` | `[review]` | `[guide]` | Loaded by |
 | --- | --- | --- | --- | --- | --- |
 | kernel | 9 | 1 | 8 | 0 | every Coral codebase |
-| framework governance | 9 | 2 | 2 | 5 | whoever decides how a project relates to Coral |
+| framework governance | 9 | 2 | 2 | 5 | Coral-aware humans, agents and tooling — never audited against application source |
 | production baseline | 88 | 12 | 61 | 15 | every Coral codebase, at the scale the rule is stated for |
 | app profile · backend | 8 | 1 | 7 | 0 | projects with a `backend` app |
 | app profile · cli | 11 | 5 | 4 | 2 | projects with a `cli` app |

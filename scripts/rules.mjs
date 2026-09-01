@@ -199,13 +199,15 @@ const OPTIONAL_KEYS = new Set(['app', 'lang', 'runtime-agent'])
 // Who has to load each layer, in the words a reader of rules.md needs. Generated prose, so
 // it sits with the taxonomy rather than being retyped into the index.
 //
-// Two of these are deliberately not "every project". `governance` binds the people deciding
-// how a project relates to Coral, not the code — no application source satisfies or violates
-// [VER-2]. And `baseline` is stated at two scales: the SYSTEM.md rules are the baseline when
-// several apps compose, which a one-app repository never reaches.
+// Two of these are deliberately not "every project". `governance` sits outside application
+// conformance — no application source satisfies or violates [VER-2] — but that is a statement
+// about what it is audited against, not about how often it is read: [AGENT-3] and [AGENT-5]
+// are consulted during ordinary implementation. And `baseline` is stated at two scales: the
+// SYSTEM.md rules are the baseline when several apps compose, which a one-app repo never
+// reaches.
 const LOADED_BY = {
   kernel: 'every Coral codebase',
-  governance: 'whoever decides how a project relates to Coral',
+  governance: 'Coral-aware humans, agents and tooling — never audited against application source',
   baseline: 'every Coral codebase, at the scale the rule is stated for',
   app: 'projects with an app of that shape',
   lang: 'projects in that language ecosystem',
@@ -276,8 +278,21 @@ export const layerLabel = ({ label, profile }) => (profile ? `${label} · ${prof
 // Same posture as the kernel block: one table, in one document, parsed rather than
 // duplicated. A profile is not just a name, it is a claim about where its rules live,
 // so the registry records the home document and the build holds rules to it. That is
-// the check that keeps an `{app:cli}` rule out of the universally-loaded spine — the
-// failure this whole classification exists to prevent.
+// the check that keeps an `{app:cli}` rule out of a broadly-loaded spine — the failure
+// this whole classification exists to prevent.
+//
+// Which means the registry cannot be allowed to name a spine as a home. `| {app:cli} |
+// ARCHITECTURE.md |` would satisfy every downstream check while doing exactly the thing
+// the checks exist to stop: the rules would sit in a document every project reads, and the
+// home check would bless it. The eligible homes are therefore the documents that are NOT
+// broadly loaded — no spine, and nothing that defines no rules at all. Two profiles sharing
+// a home is refused for the same reason one step weaker: loading either one exposes the
+// other's rules, so the profiles are not separable in practice.
+//
+// This binds `app:` and `lang:` only, because they are the layers the registry holds. The
+// fixed `runtime-agent` layer has no registry row and no dedicated-document requirement —
+// `[ORCH-4..6]` deliberately stay in SYSTEM.md, where the guardrail does not depend on an
+// ADDENDUM, and are made opt-in by contract scope instead.
 //
 // There are deliberately no `lang:` rows today. Coral has no language-binding rules,
 // and inventing a profile to populate a layer would be worse than an honest zero.
@@ -330,6 +345,11 @@ export function parseProfiles(srcDir) {
   }
 
   const SHAPE = 'Each row is  | `{family:profile}` | `home/document.md` | what it covers |'
+  // The pages a rule may be defined in, minus the spines. docFiles() rather than a fresh
+  // directory walk, so "can define rules" means the same thing here as it does to the parser.
+  const eligible = new Set(
+    docFiles(srcDir).filter((rel) => !SPINE.includes(rel) && !DEFINES_NOTHING.has(rel))
+  )
   const block = text.slice(start + PROFILES_START.length, end)
   const markerLine = text.slice(0, start).split('\n').length
   let header = false
@@ -404,6 +424,31 @@ export function parseProfiles(srcDir) {
       )
       return
     }
+    if (SPINE.includes(home)) {
+      problems.push(
+        `${at} declares \`{${tag}}\`'s rules as living in \`${home}\`, which is a spine. A spine is` +
+          ' loaded by every project that reads Coral at that scale, so rules kept there are read as' +
+          ' binding whatever they are classified — naming one here would let the registry excuse the' +
+          ' failure the home check exists to catch. A profile needs a document of its own.'
+      )
+      return
+    }
+    if (!eligible.has(home)) {
+      problems.push(
+        `${at} declares \`{${tag}}\`'s rules as living in \`${home}\`, which is not a document that` +
+          ' can define rules. A profile home is one of the pages the rule registry reads.'
+      )
+      return
+    }
+    const claimed = [...profiles].find(([, p]) => p.home === home)
+    if (claimed) {
+      problems.push(
+        `${at} declares \`{${tag}}\`'s rules as living in \`${home}\`, which \`{${claimed[0]}}\`` +
+          ' already claims. Two profiles sharing a document are not separable: loading either one' +
+          " exposes the other's rules, so selecting a profile stops meaning anything."
+      )
+      return
+    }
     profiles.set(tag, { home, covers: covers.trim() })
   })
 
@@ -430,6 +475,10 @@ export function parseProfiles(srcDir) {
  *
  * Both directions are errors, and that is what makes the pair a forcing function: a new rule
  * with no tag fails, and a rule promoted into the kernel fails until its tag is removed.
+ *
+ * A rule in a registered `app:` or `lang:` profile must additionally be defined in that
+ * profile's own document — see parseProfiles() for why the registry cannot name a spine as
+ * one. The fixed `runtime-agent` layer carries no such requirement.
  *
  * @returns {{layers: Map<string,{tag:string|null,key:string,label:string,profile:string|null}>,
  *            problems: string[]}}
@@ -466,14 +515,17 @@ export function classifyRules({ rules, kernel, profiles }) {
       problems.push(`[${id}] ${at}: ${resolved}`)
       continue
     }
+    // Registered `app:` / `lang:` profiles only. The registry guarantees their homes are not
+    // spines, so "defined in its own document" means something; the fixed `runtime-agent`
+    // layer has no registry row and no such requirement — [ORCH-4..6] stay in SYSTEM.md by
+    // design and are made opt-in by contract scope instead.
     if (resolved.profile) {
       const home = profiles.get(rule.tags[0]).home
       if (rule.page !== home) {
         problems.push(
           `[${id}] is classified \`{${rule.tags[0]}}\` but is defined in ${rule.page}, while that` +
-            ` profile's rules live in ${home}. A profile rule defined in a universally-loaded` +
-            ' document is read as universally applicable however it is classified — move the rule,' +
-            ' or reclassify it.'
+            ` profile's rules live in ${home}. A rule kept in a broadly-loaded document is read as` +
+            ' binding however it is classified — move the rule, or reclassify it.'
         )
         continue
       }
@@ -484,7 +536,7 @@ export function classifyRules({ rules, kernel, profiles }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Contract scope — an Agent Execution Contract says which of its rules are optional.
+// Contract scope — an Agent Execution Contract says which of its rules are opt-in.
 //
 // Each contract claims to be the COMPLETE normative surface of its document, and an agent
 // is invited to load only that. So a contract listing `[ORCH-4]` beside `[CHAN-1]` with no
@@ -492,10 +544,20 @@ export function classifyRules({ rules, kernel, profiles }) {
 // is exactly the scope failure the ownership layers exist to name. Classifying the rule and
 // leaving the contract flat would fix the label and not the loading.
 //
+// The distinction this gate needs is structural, and deliberately narrower than any claim
+// about who loads what: a rule in an OPT-IN layer (an app profile, a language binding, the
+// runtime-agent profile) must sit under a scope naming its own tag, and a rule in any other
+// layer must not sit inside one. It says nothing about whether an unscoped rule binds every
+// project — kernel, production baseline and framework governance have different audiences,
+// and reasserting a single "universal" category here is the overclaim the layer definitions
+// exist to avoid.
+//
 // The marker is `<!-- coral:scope:<tag> -->`, and it governs the contract lines after it
-// until `<!-- coral:scope:end -->` or the close of the contract. Universal rules — kernel,
-// production baseline, framework governance — must sit OUTSIDE every marker; an optional
-// rule must sit inside one naming its own tag.
+// until `<!-- coral:scope:end -->` or the close of the contract. Scopes do not nest and do
+// not chain: opening one while another is open is an error rather than a silent switch,
+// because the grammar says a scope runs until it is closed and a parser that quietly
+// disagrees with its own documented grammar is how the next malformed contract gets read
+// as a well-formed one.
 // ─────────────────────────────────────────────────────────────────────────────
 const SCOPE_RE = /^<!--\s*coral:scope:(\S+?)\s*-->$/
 const SCOPE_END = 'end'
@@ -518,27 +580,37 @@ export function checkContractScopes(srcDir, { rules, layers }) {
       const at = `${rel}:${markerLine + i}`
       const m = SCOPE_RE.exec(line.trim())
       if (m) {
-        if (scope && !used) {
+        const tag = m[1]
+        const emptyScope = () =>
           problems.push(
             `${rel}:${openedAt} opens contract scope \`{${scope}}\` but no contract line falls under` +
               ' it. A scope marker that governs nothing is a claim the contract does not make.'
           )
-        }
-        if (m[1] === SCOPE_END) {
-          if (!scope) {
-            problems.push(`${at} closes a contract scope that was never opened.`)
-          }
+        if (tag === SCOPE_END) {
+          if (!scope) problems.push(`${at} closes a contract scope that was never opened.`)
+          else if (!used) emptyScope()
           scope = null
           return
         }
-        const known = [...layers.values()].some((l) => l.tag === m[1])
+        if (scope) {
+          // Reported, then treated as an implicit close, so the lines below are diagnosed
+          // against the scope their author meant rather than cascading a second complaint.
+          problems.push(
+            `${at} opens contract scope \`{${tag}}\` while \`{${scope}}\` (opened at` +
+              ` ${rel}:${openedAt}) is still open. Scopes do not nest and do not chain: close the` +
+              ' first with `<!-- coral:scope:end -->` before opening another, so which rules a' +
+              ' marker governs is readable without counting markers.'
+          )
+          if (!used) emptyScope()
+        }
+        const known = [...layers.values()].some((l) => l.tag === tag)
         if (!known) {
           problems.push(
-            `${at} opens contract scope \`{${m[1]}}\`, which no rule is classified under. A scope` +
+            `${at} opens contract scope \`{${tag}}\`, which no rule is classified under. A scope` +
               ' marker names an ownership tag that is actually in use.'
           )
         }
-        scope = m[1]
+        scope = tag
         used = false
         openedAt = markerLine + i
         return
@@ -547,13 +619,12 @@ export function checkContractScopes(srcDir, { rules, layers }) {
       if (!cite) return
       const layer = layers.get(cite[1])
       if (!layer) return
-      const optional = OPTIONAL_KEYS.has(layer.key)
-      if (!optional) {
+      if (!OPTIONAL_KEYS.has(layer.key)) {
         if (scope) {
           problems.push(
-            `[${cite[1]}] ${at} is \`${layerLabel(layer)}\` — it binds every Coral app — but sits` +
-              ` inside contract scope \`{${scope}}\`, which marks it as opt-in. Move it out of the` +
-              ' scoped group.'
+            `[${cite[1]}] ${at} is \`${layerLabel(layer)}\`, which is not a profile-scoped layer —` +
+              ` but it sits inside opt-in contract scope \`{${scope}}\`, which says a project can` +
+              ' decline it. Move it out of the scoped group.'
           )
         }
         return
@@ -561,11 +632,11 @@ export function checkContractScopes(srcDir, { rules, layers }) {
       used = true
       if (scope !== layer.tag) {
         problems.push(
-          `[${cite[1]}] ${at} is \`${layerLabel(layer)}\`, so it applies only to projects that load` +
-            ' that profile — but the contract lists it ' +
+          `[${cite[1]}] ${at} is \`${layerLabel(layer)}\`, so it applies only where that profile is` +
+            ' selected — but the contract lists it ' +
             (scope ? `under scope \`{${scope}}\`.` : 'unscoped.') +
             ` Put it under \`<!-- coral:scope:${layer.tag} -->\`, or the contract presents an` +
-            ' opt-in rule as universal.'
+            ' opt-in rule as one that binds unconditionally.'
         )
       }
     })
@@ -1065,19 +1136,20 @@ export function serializeIndex(srcDir, rules, defsByFile) {
     '',
     ...wrap(
       'They answer to three audiences rather than stacking into one number. ' +
-        `**${sum(conformance, 'total')} carry no profile** — ${LAYERS[0].label} plus ` +
-        `${LAYERS[2].label} — and are what a Coral codebase is built and audited against, ` +
-        `${sum(conformance, 'review')} of them \`[review]\`. **${sum(governance, 'total')} govern ` +
-        'Coral itself**, and no application source code satisfies or violates them: they bind ' +
-        'whoever decides how a project relates to Coral — which version it ' +
-        `targets, how it records a deviation, how it numbers its own rules. The other ` +
+        `**${sum(conformance, 'total')} form the conformance surface** — ${LAYERS[0].label} plus ` +
+        `${LAYERS[2].label} — what a Coral codebase is built and audited against before any ` +
+        `profile is added, ${sum(conformance, 'review')} of them \`[review]\`. ` +
+        `**${sum(governance, 'total')} govern Coral itself** and sit outside that surface ` +
+        'entirely: no application source code satisfies or violates them. Coral-aware humans, ' +
+        'agents and tooling read them when interpreting a rule, consulting the adherence ' +
+        'record, or changing how a project relates to Coral. The other ' +
         `**${sum(optional, 'total')} are opt-in** — ${sum(optional, 'review')} \`[review]\` — and load ` +
-        'only with the profile that owns them, so a CLI with no runtime model never reads an ' +
+        'only where their profile is selected, so a CLI with no runtime model never reads an ' +
         '`[AGENTIC-*]` rule and a library never reads an HTTP status code.'
     ),
     '',
     ...wrap(
-      `Scale narrows the first group further. ${atSystemScale.length} of those ` +
+      `Scale narrows the conformance surface further. ${atSystemScale.length} of those ` +
         `${sum(conformance, 'total')} are stated at *system* scale in ` +
         `[\`${SYSTEM_SPINE}\`](./${SYSTEM_SPINE}) — channel contracts, topology, cross-app contract ` +
         'testing — and a repository that ships one app has no channel to version and no topology to ' +

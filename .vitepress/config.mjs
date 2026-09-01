@@ -243,10 +243,13 @@ problems.push(...kernelProblems)
 // `{app:cli}` that no registered profile matches is a typo, and a typo that resolved
 // would quietly invent a layer nobody loads.
 //
-// The strict check here is the last one: a profile rule must be DEFINED in its
-// profile's own document. Classification alone cannot fix the loading problem, because
-// a rule sitting in ARCHITECTURE.md is read by everyone who reads ARCHITECTURE.md
-// whatever its tag says.
+// The strict check here is the last one, and it binds REGISTERED app/language profiles
+// only: such a rule must be DEFINED in its profile's own document, and the registry may
+// not name a spine as one. Classification alone cannot fix the loading problem, because a
+// rule sitting in ARCHITECTURE.md is read by everyone who reads ARCHITECTURE.md whatever
+// its tag says — and a registry free to call ARCHITECTURE.md a profile's home could bless
+// exactly that. The fixed `runtime-agent` layer is out of scope for the check by design:
+// [ORCH-4..6] stay in SYSTEM.md and are made opt-in by Gate 9 instead.
 // ─────────────────────────────────────────────────────────────────────────────
 const { profiles, problems: profileProblems } = parseProfiles(SRC)
 problems.push(...profileProblems)

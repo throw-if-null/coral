@@ -22,6 +22,7 @@ import path from 'node:path'
 import test from 'node:test'
 
 import {
+  APP_SPINE,
   CONTRACT_END,
   CONTRACT_START,
   KERNEL_END,
@@ -29,6 +30,7 @@ import {
   PROFILES_END,
   PROFILES_FILE,
   PROFILES_START,
+  SYSTEM_SPINE,
   checkContractScopes,
   classifyRules,
   parseKernel,
@@ -38,6 +40,7 @@ import {
 } from './rules.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
+const SPINE_FILES = ['CONVENTIONS.md', APP_SPINE, SYSTEM_SPINE]
 
 const HEADER = ['| Profile | Rules live in | What it covers |', '|---|---|---|']
 const ROW = '| `{app:cli}` | `appendix/cli.md` | Command-line applications. |'
@@ -127,6 +130,47 @@ test("a profile whose home document does not exist fails", () => {
     '',
   ])
   onlyProblem(problems, /which does not exist/)
+})
+
+test('a profile whose home is a spine fails', () => {
+  // `| {app:cli} | ARCHITECTURE.md |` would satisfy every downstream check while doing the
+  // exact thing they exist to stop: the rules sit in a document every project reads, and the
+  // home check blesses it. The registry must not be able to excuse that.
+  const { problems } = parseBlock(
+    ['', ...HEADER, '| `{app:cli}` | `ARCHITECTURE.md` | Command-line applications. |', ''],
+    { 'ARCHITECTURE.md': '# App\n' }
+  )
+  onlyProblem(problems, /which is a spine/)
+})
+
+test('a language binding whose home is a spine fails too', () => {
+  const { problems } = parseBlock(
+    ['', ...HEADER, '| `{lang:go}` | `SYSTEM.md` | Go. |', ''],
+    { 'SYSTEM.md': '# System\n' }
+  )
+  onlyProblem(problems, /which is a spine/)
+})
+
+test('a home that defines no rules fails', () => {
+  const { problems } = parseBlock(
+    ['', ...HEADER, '| `{app:cli}` | `CHANGELOG.md` | Command-line applications. |', ''],
+    { 'CHANGELOG.md': '# Changelog\n' }
+  )
+  onlyProblem(problems, /not a document that can define rules/)
+})
+
+test('two profiles cannot claim the same home document', () => {
+  // Loading either one exposes the other's rules, so selecting a profile stops meaning
+  // anything — one step weaker than the spine failure, and refused for the same reason.
+  const { profiles, problems } = parseBlock([
+    '',
+    ...HEADER,
+    ROW,
+    '| `{app:backend}` | `appendix/cli.md` | HTTP services. |',
+    '',
+  ])
+  assert.deepEqual([...profiles.keys()], ['app:cli'])
+  onlyProblem(problems, /which `\{app:cli\}` already claims/)
 })
 
 test('prose inside the registry fails rather than being ignored', () => {
@@ -322,6 +366,7 @@ function scopes(lines, layers) {
 
 const LAYER = {
   baseline: { tag: 'baseline', key: 'baseline', label: 'production baseline', profile: null },
+  cli: { tag: 'app:cli', key: 'app', label: 'app profile', profile: 'cli' },
   agent: {
     tag: 'runtime-agent',
     key: 'runtime-agent',
@@ -356,7 +401,7 @@ test('an opt-in rule listed unscoped fails — the contract would present it as 
   onlyProblem(problems, /the contract lists it unscoped/)
 })
 
-test('a baseline rule inside a scope fails — it binds whether or not you opt in', () => {
+test('a rule from a non-profile layer inside a scope fails', () => {
   const problems = scopes(
     [
       '<!-- coral:scope:runtime-agent -->',
@@ -368,7 +413,7 @@ test('a baseline rule inside a scope fails — it binds whether or not you opt i
       ['CHAN-1', LAYER.baseline],
     ])
   )
-  onlyProblem(problems, /binds every Coral app .* but sits inside contract scope/s)
+  onlyProblem(problems, /not a profile-scoped layer .* sits inside opt-in contract scope/s)
 })
 
 test('a scope naming the wrong profile fails', () => {
@@ -388,6 +433,61 @@ test('a scope that governs nothing fails', () => {
     new Map([['ORCH-4', LAYER.agent]])
   )
   onlyProblem(problems, /no contract line falls under it/)
+})
+
+test('opening a scope while another is open fails', () => {
+  // The documented grammar says a scope runs until it is closed. A parser that quietly
+  // switches instead disagrees with its own grammar, and the marker stops being readable
+  // without counting markers.
+  const problems = scopes(
+    [
+      '<!-- coral:scope:runtime-agent -->',
+      '- `[ORCH-4]` only from inside a harness.',
+      '<!-- coral:scope:app:cli -->',
+      '- `[CLI-6]` no interactive prompts.',
+    ],
+    new Map([
+      ['ORCH-4', LAYER.agent],
+      ['CLI-6', LAYER.cli],
+    ])
+  )
+  onlyProblem(problems, /opens contract scope `\{app:cli\}` while `\{runtime-agent\}` .* is still open/s)
+})
+
+test('reopening the same scope without closing it fails', () => {
+  const problems = scopes(
+    [
+      '<!-- coral:scope:runtime-agent -->',
+      '- `[ORCH-4]` only from inside a harness.',
+      '<!-- coral:scope:runtime-agent -->',
+      '- `[ORCH-5]` published capabilities only.',
+    ],
+    new Map([
+      ['ORCH-4', LAYER.agent],
+      ['ORCH-5', LAYER.agent],
+    ])
+  )
+  onlyProblem(problems, /while `\{runtime-agent\}` .* is still open/s)
+})
+
+test('scope → rules → end → a different scope is the valid sequence', () => {
+  const problems = scopes(
+    [
+      '<!-- coral:scope:runtime-agent -->',
+      '- `[ORCH-4]` only from inside a harness.',
+      '<!-- coral:scope:end -->',
+      '- `[CHAN-1]` cross a boundary over a channel.',
+      '<!-- coral:scope:app:cli -->',
+      '- `[CLI-6]` no interactive prompts.',
+      '<!-- coral:scope:end -->',
+    ],
+    new Map([
+      ['ORCH-4', LAYER.agent],
+      ['CHAN-1', LAYER.baseline],
+      ['CLI-6', LAYER.cli],
+    ])
+  )
+  assert.deepEqual(problems, [])
 })
 
 test('closing a scope that was never opened fails', () => {
@@ -432,7 +532,16 @@ test('kernel membership stays single-sourced — no kernel rule carries a tag', 
 
 test("every profile's rules live in the document the registry names for it", () => {
   const { rules } = parseRules(REPO)
-  const { profiles: registry } = parseProfiles(REPO)
+  const { profiles: registry, problems } = parseProfiles(REPO)
+  assert.deepEqual(problems, [])
+  assert.ok(registry.size > 0)
+  // The registry's own invariants, asserted structurally rather than by listing the homes:
+  // no profile lives in a spine, and no two share a document.
+  const homes = [...registry.values()].map((p) => p.home)
+  assert.equal(new Set(homes).size, homes.length, 'two profiles share a home document')
+  for (const home of homes) {
+    assert.ok(!SPINE_FILES.includes(home), `${home} is a spine and cannot be a profile home`)
+  }
   for (const [tag, { home }] of registry) {
     for (const [id, r] of rules) {
       if (r.tags[0] === tag) assert.equal(r.page, home, `[${id}] is ${tag} but lives in ${r.page}`)

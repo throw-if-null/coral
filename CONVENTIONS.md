@@ -582,10 +582,13 @@ replace.**
 
 **`framework governance` is not on that surface at all.** No application source code satisfies or violates
 `[VER-2]` or `[VER-4]`: those rules bind the *decisions a project makes about Coral* — which version it
-targets, how it records a deviation, how it numbers rules of its own. They are read once, when that
-relationship is settled, and again when it changes; they are not part of the audit of a slice. That is why
-the counts in [`rules.md`](./rules.md) report them separately rather than folding them into the
-application surface.
+targets, how it records a deviation, how it numbers rules of its own. **The distinction is what they are
+audited against, not how often they are read.** Several are needed mid-task: `[AGENT-3]` governs how an
+agent reads a rule whose letter and intent diverge, and `[AGENT-5]` sends it to `CORAL.md` before it
+escalates. Coral-aware humans, agents and tooling load them when interpreting Coral, consulting the
+adherence record, or changing how the project relates to Coral — but never as findings against a slice.
+That is why the counts in [`rules.md`](./rules.md) report them separately rather than folding them into the
+conformance surface.
 
 **And `production baseline` is stated at two scales.** The baseline rules in
 [`ARCHITECTURE.md`](./ARCHITECTURE.md) govern one app. The ones in [`SYSTEM.md`](./SYSTEM.md) — channel
@@ -648,9 +651,15 @@ write if a language forced a *different* realization of a Coral concept — the 
 has somewhere to go that is not the baseline, and inventing one to populate the layer would be worse
 than a zero. `coral-lint`'s Python internals are a tool's implementation, not a binding either.
 
-Every profile's rules are **defined in that profile's own document**, and the build holds them to it. A
-profile rule sitting in a universally-loaded document is read as universally applicable however it is
-classified, so the classification and the file have to agree.
+Every registered `app:` or `lang:` profile's rules are **defined in that profile's own document**, and the
+build holds them to it — a rule kept in a broadly-loaded document is read as binding however it is
+classified, so the classification and the file have to agree. The registry cannot name a spine as a home,
+and two profiles cannot share one: either would let the registry excuse exactly the failure the check
+exists to catch.
+
+The fixed `runtime-agent` layer has no registry row and no dedicated-document requirement. `[ORCH-4]`,
+`[ORCH-5]` and `[ORCH-6]` deliberately stay in [`SYSTEM.md`](./SYSTEM.md), where the harness guardrail does
+not depend on an ADDENDUM, and are made opt-in by contract scope instead.
 
 ### Scoped contract sections
 
