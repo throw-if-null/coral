@@ -186,7 +186,7 @@ function tableCells(line) {
 export const LAYERS_START = '<!-- coral:layers:start -->'
 export const LAYERS_END = '<!-- coral:layers:end -->'
 export const LAYERS_FILE = 'CONVENTIONS.md'
-const LAYER_COLUMNS = 5
+const LAYER_COLUMNS = 6
 // The tagless row. Written as an em dash so a reader sees "this layer has no tag" rather
 // than an empty cell that might be an omission.
 const NO_TAG = '—'
@@ -195,6 +195,17 @@ const NO_TAG = '—'
 // neither word claims: `unscoped` is not `universal`. Kernel, framework governance and
 // production baseline are all unscoped and have three different audiences.
 const SCOPE_WORDS = { unscoped: false, 'profile-scoped': true }
+
+// The three top-level surfaces a layer can belong to. Unlike the layers themselves, THIS
+// vocabulary is closed and lives in code, and the split is deliberate: the index writes a
+// different sentence about each surface, so the generator has to know which is which, and a
+// surface it could not write about would be a surface it silently omitted.
+//
+// Closing the set is what removes the drift the layers registry was added for. Renaming
+// `{governance}` to `{framework-governance}` changes a TAG; the row still says `governance`
+// in its Surface column, so the nine rules stay in the same group and no generated total
+// silently empties. A typo in the column fails the build instead.
+export const SURFACES = ['conformance', 'governance', 'opt-in']
 
 // tag grammar: lowercase token, optionally `family:profile`  e.g. baseline, app:cli, lang:go
 export const TAG_CORE = '[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?'
@@ -212,8 +223,35 @@ const LAYER_TAG_RE = /^`\{([a-z][a-z0-9-]*)(:…)?\}`$/
 
 /**
  * @typedef {{label: string, key: string, tag: string|null, family: string|null,
- *            scoped: boolean, readBy: string, why: string}} Layer
+ *            surface: string, scoped: boolean, readBy: string, why: string}} Layer
  */
+
+/** The one thing about the taxonomy that stays anchored in code: which row is the kernel's. */
+export const kernelLayerOf = (taxonomy) => taxonomy.find((l) => l.tag === null && l.family === null)
+
+/**
+ * Rules per top-level surface — the partition the rule index's three subtotals rest on.
+ *
+ * Throws rather than returning a short count: a layer whose surface is not one of the three
+ * would otherwise vanish from every total while its rules still appeared in the per-document
+ * tables, which is precisely the silent gap this grouping exists to make impossible.
+ *
+ * @param {Map<string,{surface:string}>} layers
+ * @returns {Map<string,string[]>} surface -> rule IDs
+ */
+export function groupBySurface(layers) {
+  const out = new Map(SURFACES.map((s) => [s, []]))
+  for (const [id, layer] of layers) {
+    const bucket = out.get(layer.surface)
+    if (!bucket) {
+      throw new Error(
+        `[${id}] has surface \`${layer.surface}\`, which is not one of ${SURFACES.join(', ')}`
+      )
+    }
+    bucket.push(id)
+  }
+  return out
+}
 
 /**
  * Parse and validate the ownership-layer taxonomy in CONVENTIONS.md.
@@ -253,7 +291,7 @@ export function parseLayers(srcDir) {
   }
 
   const SHAPE =
-    'Each row is  | Layer | `{tag}` or — | unscoped/profile-scoped | read by | justified by |'
+    'Each row is  | Layer | `{tag}` or — | surface | contract scope | read by | justified by |'
   const block = text.slice(start + LAYERS_START.length, end)
   const markerLine = text.slice(0, start).split('\n').length
   let header = false
@@ -296,8 +334,17 @@ export function parseLayers(srcDir) {
       )
       return
     }
-    const [rawLabel, rawTag, rawScope, readBy, why] = cells.map((c) => c.trim())
+    const [rawLabel, rawTag, surface, rawScope, readBy, why] = cells.map((c) => c.trim())
     const label = rawLabel.replace(/\*\*/g, '')
+    if (!SURFACES.includes(surface)) {
+      problems.push(
+        `${at}: \`${surface}\` is not a surface. A layer belongs to exactly one of` +
+          ` ${SURFACES.map((x) => `\`${x}\``).join(', ')} — that column is what the rule index` +
+          ' groups its three subtotals by, so an unrecognised value would drop the layer out of' +
+          ' every total while its rules still appeared in the table.'
+      )
+      return
+    }
     if (!(rawScope in SCOPE_WORDS)) {
       problems.push(
         `${at}: \`${rawScope}\` is not a contract-scope word. A layer is \`unscoped\` or` +
@@ -312,10 +359,21 @@ export function parseLayers(srcDir) {
       // The layer whose membership comes from the kernel block rather than from a tag. The
       // parser has to know it by name, so this is the one anchor the code keeps.
       key = 'kernel'
-      if (taxonomy.some((l) => l.key === 'kernel')) {
+      if (taxonomy.some((l) => l.tag === null && l.family === null)) {
         problems.push(
           `${at} is a second tagless layer. Exactly one layer takes its membership from` +
             ` ${KERNEL_FILE}'s kernel block; every other layer is named by a \`{tag}\`.`
+        )
+        return
+      }
+      // A tagless layer cannot be profile-scoped: `coral:scope:<tag>` needs a tag to name,
+      // so the configuration is unreachable rather than merely unusual. Refuse it here
+      // instead of letting Gate 9 meet a state it cannot describe.
+      if (SCOPE_WORDS[rawScope]) {
+        problems.push(
+          `${at}: the tagless layer must be \`unscoped\`. Its members come from` +
+            ` ${KERNEL_FILE}'s kernel block and carry no tag, so no \`coral:scope\` marker could` +
+            ' name it.'
         )
         return
       }
@@ -345,7 +403,16 @@ export function parseLayers(srcDir) {
       problems.push(`${at} declares the layer name \`${label}\` twice. One row per layer.`)
       return
     }
-    taxonomy.push({ label, key, tag, family, scoped: SCOPE_WORDS[rawScope], readBy, why })
+    taxonomy.push({
+      label,
+      key,
+      tag,
+      family,
+      surface,
+      scoped: SCOPE_WORDS[rawScope],
+      readBy,
+      why,
+    })
   })
 
   if (!header || !delim) {
@@ -355,7 +422,7 @@ export function parseLayers(srcDir) {
     )
   } else if (!taxonomy.length) {
     problems.push(`${LAYERS_FILE}'s ownership-layer registry has a header but no layers. ${SHAPE}`)
-  } else if (!taxonomy.some((l) => l.key === 'kernel')) {
+  } else if (!kernelLayerOf(taxonomy)) {
     problems.push(
       `${LAYERS_FILE}'s ownership-layer registry has no tagless row. One layer takes its members` +
         ` from ${KERNEL_FILE}'s kernel block rather than from an inline tag, and it is written` +
@@ -368,15 +435,23 @@ export function parseLayers(srcDir) {
 /**
  * Resolve an ownership tag against the taxonomy and the declared profiles.
  *
- * @returns {{key:string,label:string,profile:string|null,scoped:boolean}|string} the layer,
- *   or an error sentence explaining why the tag is not one.
+ * @returns {{key:string,label:string,profile:string|null,surface:string,scoped:boolean}|string}
+ *   the layer, or an error sentence explaining why the tag is not one.
  */
 export function resolveTag(tag, profiles, taxonomy) {
   const [head, profile] = tag.split(':')
   const familyLayer = taxonomy.find((l) => l.family === head)
   if (profile === undefined) {
     const layer = taxonomy.find((l) => l.tag === tag)
-    if (layer) return { key: layer.key, label: layer.label, profile: null, scoped: layer.scoped }
+    if (layer) {
+      return {
+        key: layer.key,
+        label: layer.label,
+        profile: null,
+        surface: layer.surface,
+        scoped: layer.scoped,
+      }
+    }
     if (familyLayer) {
       return (
         `\`{${tag}}\` names the ${familyLayer.label} layer without a profile. A ${familyLayer.label}` +
@@ -397,7 +472,13 @@ export function resolveTag(tag, profiles, taxonomy) {
       ` ${PROFILES_START} block, which is what stops a typo becoming a silent new layer.`
     )
   }
-  return { key: familyLayer.key, label: familyLayer.label, profile, scoped: familyLayer.scoped }
+  return {
+    key: familyLayer.key,
+    label: familyLayer.label,
+    profile,
+    surface: familyLayer.surface,
+    scoped: familyLayer.scoped,
+  }
 }
 
 /** The `family:` prefixes a profile tag may use, for an error message that can be acted on. */
@@ -631,6 +712,14 @@ export function parseProfiles(srcDir, taxonomy) {
 export function classifyRules({ rules, kernel, profiles, taxonomy }) {
   const problems = []
   const layers = new Map()
+  const kernelLayer = kernelLayerOf(taxonomy)
+  if (kernel.size && !kernelLayer) {
+    problems.push(
+      `The ownership taxonomy declares no tagless layer, so the ${kernel.size} rule(s) in` +
+        ` ${KERNEL_FILE}'s kernel block have no layer to belong to.`
+    )
+    return { layers, problems }
+  }
   // home document -> the profile tag that owns it, for the reverse check below.
   const owners = new Map([...profiles].map(([tag, p]) => [p.home, tag]))
   for (const [id, rule] of rules) {
@@ -645,7 +734,18 @@ export function classifyRules({ rules, kernel, profiles, taxonomy }) {
         )
         continue
       }
-      layers.set(id, { tag: null, key: 'kernel', label: 'kernel', profile: null })
+      // From the row, never reconstructed. Rebuilding `label: 'kernel'` here is what put a
+      // second representation of the layer back into the code the registry had just removed
+      // it from: renaming the row would have moved the tally and left every kernel rule
+      // still labelled with the old name.
+      layers.set(id, {
+        tag: null,
+        key: kernelLayer.key,
+        label: kernelLayer.label,
+        profile: null,
+        surface: kernelLayer.surface,
+        scoped: kernelLayer.scoped,
+      })
       continue
     }
     if (rule.tags.length !== 1) {
@@ -1227,8 +1327,7 @@ export function serializeIndex(srcDir, rules, defsByFile) {
   const { ids: kernel } = parseKernel(srcDir)
   const { profiles } = parseProfiles(srcDir, taxonomy)
   const { layers } = classifyRules({ rules, kernel, profiles, taxonomy })
-  const kernelLayer = taxonomy.find((l) => l.key === 'kernel')
-  const baselineLayer = taxonomy.find((l) => l.key === 'baseline')
+  const kernelLayer = kernelLayerOf(taxonomy)
   const count = (c) => [...rules.values()].filter((r) => r.cls === c).length
   const title = (rel) =>
     (fs.readFileSync(path.join(srcDir, rel), 'utf8').match(/^# (.+)$/m)?.[1] || rel).trim()
@@ -1265,9 +1364,20 @@ export function serializeIndex(srcDir, rules, defsByFile) {
   // source code; `optional` loads with a profile. They partition the rule set, so the three
   // subtotals in the prose below reconcile to rules.size by construction rather than by a
   // number someone kept up to date.
-  const conformance = tally.filter((r) => r.key === 'kernel' || r.key === 'baseline')
-  const governance = tally.filter((r) => r.key === 'governance')
-  const optional = tally.filter((r) => r.scoped)
+  const [conformance, governance, optional] = SURFACES.map((s) =>
+    tally.filter((r) => r.surface === s)
+  )
+  // Asserted, not assumed. "The three subtotals partition the rule set" is a claim the
+  // generated prose makes in so many words, and the only way it can fail is a layer whose
+  // rules reach the per-document tables while its surface reaches no group — exactly the
+  // shape of the drift this registry exists to prevent, so it must not be able to render.
+  const grouped = sum(conformance, 'total') + sum(governance, 'total') + sum(optional, 'total')
+  if (grouped !== rules.size) {
+    throw new Error(
+      `[coral] the ownership surfaces cover ${grouped} of ${rules.size} rules. Every layer in` +
+        ` ${LAYERS_FILE}'s ${LAYERS_START} block must name one of: ${SURFACES.join(', ')}.`
+    )
+  }
   // Architectural scale, derived from the defining document rather than from the layer: the
   // baseline in SYSTEM.md is the baseline WHEN SEVERAL APPS COMPOSE. A one-app repository has
   // no channel to contract-test, so counting those as rules it must load would overclaim.
@@ -1309,8 +1419,9 @@ export function serializeIndex(srcDir, rules, defsByFile) {
     '',
     ...wrap(
       'They answer to three audiences rather than stacking into one number. ' +
-        `**${sum(conformance, 'total')} form the conformance surface** — ${kernelLayer.label} plus ` +
-        `${baselineLayer.label} — what a Coral codebase is built and audited against before any ` +
+        `**${sum(conformance, 'total')} form the conformance surface** — ` +
+        `${conformance.map((r) => r.label).join(' plus ')} — what a Coral codebase is built and ` +
+        'audited against before any ' +
         `profile is added, ${sum(conformance, 'review')} of them \`[review]\`. ` +
         `**${sum(governance, 'total')} govern Coral itself** and sit outside that surface ` +
         'entirely: no application source code satisfies or violates them. Coral-aware humans, ' +
@@ -1333,9 +1444,11 @@ export function serializeIndex(srcDir, rules, defsByFile) {
     '| Layer | Rules | `[auto]` | `[review]` | `[guide]` | Loaded by |',
     '| --- | --- | --- | --- | --- | --- |',
     ...tally.map((r) => {
-      const where = r.profile
-        ? `projects with a \`${r.profile.split(':')[1]}\` ${r.key === 'app' ? 'app' : 'binding'}`
-        : r.readBy
+      // The layer's own `Read by`, profile rows included. Synthesising "projects with a `cli`
+      // app" needed the code to know that `app:` means an app and everything else is a
+      // language binding — a taxonomy fact the registry is supposed to own. The Layer column
+      // already carries which profile it is, so nothing is lost by asking the row.
+      const where = r.readBy
       return `| ${r.label} | ${r.total} | ${r.auto} | ${r.review} | ${r.guide} | ${where} |`
     }),
     '',

@@ -9,11 +9,20 @@
 // mistake. Each failure mode is asserted here against fixtures rather than by breaking the
 // real documents on purpose.
 //
-// The last block runs against the real documents, and note what it does NOT assert: not
-// which rules are in which layer, and not that `language binding` is currently empty. Both
-// would be second copies of facts the documents own — the thing this design exists to
-// avoid. It asserts the invariants instead: every rule lands in exactly one layer, no
-// kernel rule carries a tag, and the profile registry is honoured.
+// Two tiers, and the split matters.
+//
+// The unit tests resolve against a SYNTHETIC taxonomy — `base`, `meta`, `shape:…`,
+// `runtime-addon` — deliberately spelled nothing like Coral's. They test parser and
+// classifier mechanics, so literal values in them are fixtures, not a claim about Coral's
+// layers. Written against `baseline` / `app:cli` they made renaming a canonical tag a test
+// edit, which is the second authority the layers registry was added to delete.
+//
+// The last block runs against the real documents, and note what it does NOT assert: it names
+// no layer, no tag, no label, and does not say that `language binding` is currently empty.
+// Those are facts the documents own. It asserts invariants instead — every rule lands in
+// exactly one layer, the surfaces partition the rule set, no kernel rule carries a tag, the
+// profile registry is honoured — so a deliberate rename moves the documents and the
+// generated index together and touches nothing here.
 // ─────────────────────────────────────────────────────────────────────────────
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -33,13 +42,16 @@ import {
   PROFILES_FILE,
   PROFILES_START,
   SYSTEM_SPINE,
+  SURFACES,
   checkContractScopes,
   classifyRules,
+  groupBySurface,
   parseKernel,
   parseLayers,
   parseProfiles,
   parseRules,
   resolveTag,
+  serializeIndex,
 } from './rules.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
@@ -47,10 +59,11 @@ const SPINE_FILES = ['CONVENTIONS.md', APP_SPINE, SYSTEM_SPINE]
 // The taxonomy the fixtures resolve against. Read from the real CONVENTIONS.md rather than
 // written out here: a literal copy would be exactly the second authority parseLayers() was
 // added to remove, and it would stop these tests from noticing a layer being renamed.
-const { taxonomy: TAXONOMY, problems: TAXONOMY_PROBLEMS } = parseLayers(REPO)
+// The real taxonomy — used ONLY by the integration block at the bottom.
+const { taxonomy: REAL, problems: REAL_PROBLEMS } = parseLayers(REPO)
 
 const HEADER = ['| Profile | Rules live in | What it covers |', '|---|---|---|']
-const ROW = '| `{app:cli}` | `appendix/cli.md` | Command-line applications. |'
+const ROW = '| `{shape:widget}` | `appendix/widget.md` | Widget-shaped applications. |'
 
 /** Run `body` inside a throwaway source tree, with the extra files `tree` provides. */
 function inTree(tree, fn) {
@@ -66,33 +79,29 @@ function inTree(tree, fn) {
   }
 }
 
-/** Write a CONVENTIONS.md holding `body` between the profile markers, and parse it. */
-const parseBlock = (body, extra = {}) =>
-  inTree(
-    {
-      [PROFILES_FILE]: ['# Conventions', '', PROFILES_START, ...body, PROFILES_END, ''].join('\n'),
-      'appendix/cli.md': '# CLI\n',
-      ...extra,
-    },
-    (dir) => parseProfiles(dir, TAXONOMY)
-  )
-
 /** Assert the problems contain exactly one entry matching `re`. */
 function onlyProblem(problems, re) {
   assert.equal(problems.length, 1, `expected one problem, got:\n${problems.join('\n')}`)
   assert.match(problems[0], re)
 }
 
-// ── the ownership-layer taxonomy ─────────────────────────────────────────────
-
+// ── the synthetic taxonomy the unit tests resolve against ────────────────────
+//
+// Every name here is chosen NOT to be one of Coral's: `base` is not `baseline`, `shape:` is
+// not `app:`, `the core` is not `kernel`. These tests are about the machinery, and using the
+// canonical vocabulary would mean renaming a real layer — the thing the registry exists to
+// make possible — broke tests that have nothing to do with the change.
 const LAYER_HEADER = [
-  '| Layer | Tag | Contract scope | Read by | Justified by |',
-  '|---|---|---|---|---|',
+  '| Layer | Tag | Surface | Contract scope | Read by | Justified by |',
+  '|---|---|---|---|---|---|',
 ]
 const LAYER_ROWS = [
-  '| kernel | — | unscoped | every codebase | the operating model |',
-  '| production baseline | `{baseline}` | unscoped | every codebase | the software needing it |',
-  '| app profile | `{app:…}` | profile-scoped | apps of that shape | the external shape |',
+  '| the core | — | conformance | unscoped | everyone | the operating model |',
+  '| base rules | `{base}` | conformance | unscoped | every codebase | the software |',
+  '| meta rules | `{meta}` | governance | unscoped | maintainers | the framework itself |',
+  '| shape profile | `{shape:…}` | opt-in | profile-scoped | matching shapes | the outer shape |',
+  '| dialect binding | `{dialect:…}` | opt-in | profile-scoped | that dialect | the dialect |',
+  '| runtime addon | `{runtime-addon}` | opt-in | profile-scoped | model callers | a live model |',
 ]
 
 /** Write a CONVENTIONS.md holding `body` between the layer markers, and parse it. */
@@ -102,15 +111,39 @@ const parseTaxonomy = (body) =>
     parseLayers
   )
 
+/** The synthetic taxonomy, plus any extra rows a caller wants. Must parse clean. */
+function fixtureTaxonomy(extra = []) {
+  const { taxonomy, problems } = parseTaxonomy(['', ...LAYER_HEADER, ...LAYER_ROWS, ...extra, ''])
+  assert.deepEqual(problems, [], 'the fixture taxonomy itself must parse clean')
+  return taxonomy
+}
+const FIXTURE = fixtureTaxonomy()
+
+/** Write a CONVENTIONS.md holding `body` between the profile markers, and parse it. */
+const parseBlock = (body, extra = {}) =>
+  inTree(
+    {
+      [PROFILES_FILE]: ['# Conventions', '', PROFILES_START, ...body, PROFILES_END, ''].join('\n'),
+      'appendix/widget.md': '# Widget\n',
+      ...extra,
+    },
+    (dir) => parseProfiles(dir, FIXTURE)
+  )
+
+// ── the ownership-layer taxonomy ─────────────────────────────────────────────
+
 test('a well-formed taxonomy yields its layers and no problems', () => {
   const { taxonomy, problems } = parseTaxonomy(['', ...LAYER_HEADER, ...LAYER_ROWS, ''])
   assert.deepEqual(problems, [])
   assert.deepEqual(
-    taxonomy.map((l) => [l.key, l.tag, l.family, l.scoped]),
+    taxonomy.map((l) => [l.label, l.tag, l.family, l.surface, l.scoped]),
     [
-      ['kernel', null, null, false],
-      ['baseline', 'baseline', null, false],
-      ['app', null, 'app', true],
+      ['the core', null, null, 'conformance', false],
+      ['base rules', 'base', null, 'conformance', false],
+      ['meta rules', 'meta', null, 'governance', false],
+      ['shape profile', null, 'shape', 'opt-in', true],
+      ['dialect binding', null, 'dialect', 'opt-in', true],
+      ['runtime addon', 'runtime-addon', null, 'opt-in', true],
     ]
   )
 })
@@ -120,8 +153,8 @@ test('a scope word that is neither `unscoped` nor `profile-scoped` fails', () =>
   const { problems } = parseTaxonomy([
     '',
     ...LAYER_HEADER,
-    ...LAYER_ROWS.slice(0, 2),
-    '| app profile | `{app:…}` | sometimes | apps of that shape | the external shape |',
+    LAYER_ROWS[0],
+    '| shape profile | `{shape:…}` | opt-in | sometimes | matching shapes | the outer shape |',
     '',
   ])
   onlyProblem(problems, /is not a contract-scope word/)
@@ -132,10 +165,10 @@ test('a tag cell that is neither a tag nor the em dash fails', () => {
     '',
     ...LAYER_HEADER,
     LAYER_ROWS[0],
-    '| production baseline | baseline | unscoped | every codebase | why |',
+    '| base rules | base | conformance | unscoped | every codebase | why |',
     '',
   ])
-  onlyProblem(problems, /is not a layer tag/)
+  onlyProblem(problems, /`?base`? is not a layer tag/)
 })
 
 test('a second tagless layer fails — only the kernel takes members from its own block', () => {
@@ -143,7 +176,7 @@ test('a second tagless layer fails — only the kernel takes members from its ow
     '',
     ...LAYER_HEADER,
     LAYER_ROWS[0],
-    '| something else | — | unscoped | everyone | why |',
+    '| something else | — | conformance | unscoped | everyone | why |',
     '',
   ])
   onlyProblem(problems, /is a second tagless layer/)
@@ -157,17 +190,17 @@ test('a taxonomy with no tagless layer fails', () => {
 test('a duplicated tag, and a duplicated layer name, both fail', () => {
   onlyProblem(
     parseTaxonomy(['', ...LAYER_HEADER, ...LAYER_ROWS, LAYER_ROWS[1], '']).problems,
-    /declares `\{baseline\}` twice/
+    /declares `\{base\}` twice/
   )
   onlyProblem(
     parseTaxonomy([
       '',
       ...LAYER_HEADER,
       ...LAYER_ROWS,
-      '| production baseline | `{governance}` | unscoped | everyone | why |',
+      '| base rules | `{other}` | conformance | unscoped | everyone | why |',
       '',
     ]).problems,
-    /declares the layer name `production baseline` twice/
+    /declares the layer name `base rules` twice/
   )
 })
 
@@ -176,12 +209,12 @@ test('a malformed row fails rather than dropping the layer', () => {
     '',
     ...LAYER_HEADER,
     LAYER_ROWS[0],
-    '| production baseline | `{baseline}` | unscoped |',
+    '| base rules | `{base}` | conformance | unscoped |',
     '',
   ])
   assert.deepEqual(
-    taxonomy.map((l) => l.key),
-    ['kernel']
+    taxonomy.map((l) => l.label),
+    ['the core']
   )
   onlyProblem(problems, /malformed layer row/)
 })
@@ -193,7 +226,7 @@ test('prose inside the taxonomy fails, and so does a header of the wrong width',
   )
   onlyProblem(
     parseTaxonomy(['', '| Layer | Tag |', LAYER_HEADER[1], ...LAYER_ROWS, '']).problems,
-    /header must have exactly 5 non-empty columns/
+    /header must have exactly 6 non-empty columns/
   )
 })
 
@@ -223,19 +256,126 @@ test('two taxonomy blocks fail, and so does none', () => {
 test("the repository's taxonomy parses clean and covers every tag rules use", () => {
   // The assertion is structural, not a second copy of the six layers: every tag a rule
   // carries resolves to a declared layer, and the kernel layer is the tagless one.
-  assert.deepEqual(TAXONOMY_PROBLEMS, [])
-  assert.ok(TAXONOMY.length > 0)
-  assert.equal(TAXONOMY.filter((l) => l.tag === null && l.family === null).length, 1)
+  assert.deepEqual(REAL_PROBLEMS, [])
+  assert.ok(REAL.length > 0)
+  assert.equal(REAL.filter((l) => l.tag === null && l.family === null).length, 1)
   const { rules } = parseRules(REPO)
   for (const [id, rule] of rules) {
     for (const tag of rule.tags) {
       const head = tag.split(':')[0]
       assert.ok(
-        TAXONOMY.some((l) => l.tag === head || l.family === head),
+        REAL.some((l) => l.tag === head || l.family === head),
         `[${id}] carries {${tag}}, which no declared layer covers`
       )
     }
   }
+})
+
+// ── mutation: the registry really is the source ──────────────────────────────
+//
+// The tests above prove the parser reads the table. These prove nothing else *also* holds a
+// copy — each one changes a fact in the fixture registry and checks the change lands
+// everywhere, with no code edit. That is the whole claim `coral:layers` was added to make,
+// and it is the claim that quietly stopped being true twice already.
+
+/** Parse a taxonomy from LAYER_ROWS with one row swapped for `row`. */
+const withRow = (i, row) =>
+  fixtureTaxonomy([]) && parseTaxonomy([
+    '',
+    ...LAYER_HEADER,
+    ...LAYER_ROWS.map((r, j) => (j === i ? row : r)),
+    '',
+  ])
+
+test('renaming the tagless layer renames what kernel rules are classified as', () => {
+  // The failure this catches: classifyRules() used to rebuild `label: 'kernel'` by hand, so
+  // the tally moved with the table and every kernel rule kept the old name.
+  const { taxonomy, problems } = withRow(
+    0,
+    '| the nucleus | — | conformance | unscoped | everyone | the operating model |'
+  )
+  assert.deepEqual(problems, [])
+  const { layers } = classifyRules({
+    rules: new Map([['K-1', rule('ARCHITECTURE.md', [])]]),
+    kernel: new Set(['K-1']),
+    profiles: new Map(),
+    taxonomy,
+  })
+  assert.equal(layers.get('K-1').label, 'the nucleus')
+  assert.equal(layers.get('K-1').surface, 'conformance')
+})
+
+test('renaming a tag keeps its rules in the same surface', () => {
+  // The reported drift case, in miniature: rename `{meta}` and update the rule tags, and the
+  // governance subtotal must not empty out. Surface is a column, not a literal in the code.
+  const { taxonomy, problems } = withRow(
+    2,
+    '| meta rules | `{framework-meta}` | governance | unscoped | maintainers | the framework |'
+  )
+  assert.deepEqual(problems, [])
+  const { layers } = classifyRules({
+    rules: new Map([['X-1', rule('ARCHITECTURE.md', ['framework-meta'])]]),
+    kernel: new Set(),
+    profiles: new Map(),
+    taxonomy,
+  })
+  assert.equal(layers.get('X-1').surface, 'governance')
+  assert.deepEqual(groupBySurface(layers).get('governance'), ['X-1'])
+})
+
+test('a seventh layer joins the surface it declares, and is not dropped', () => {
+  // A syntactically valid layer must never vanish from the audience totals. The taxonomy is
+  // open; only the three surfaces are closed.
+  const taxonomy = fixtureTaxonomy([
+    '| extra layer | `{extra}` | conformance | unscoped | everyone | a new reason |',
+  ])
+  const { layers, problems } = classifyRules({
+    rules: new Map([
+      ['X-1', rule('ARCHITECTURE.md', ['extra'])],
+      ['X-2', rule('ARCHITECTURE.md', ['meta'])],
+    ]),
+    kernel: new Set(),
+    profiles: new Map(),
+    taxonomy,
+  })
+  assert.deepEqual(problems, [])
+  const groups = groupBySurface(layers)
+  assert.deepEqual(groups.get('conformance'), ['X-1'])
+  assert.deepEqual(groups.get('governance'), ['X-2'])
+  assert.equal(
+    [...groups.values()].reduce((n, ids) => n + ids.length, 0),
+    layers.size
+  )
+})
+
+test('a layer naming a surface that does not exist is refused, never silently dropped', () => {
+  const { problems } = parseTaxonomy([
+    '',
+    ...LAYER_HEADER,
+    LAYER_ROWS[0],
+    '| odd layer | `{odd}` | somewhere-else | unscoped | someone | a reason |',
+    '',
+  ])
+  onlyProblem(problems, /is not a surface/)
+})
+
+test('groupBySurface refuses a layer whose surface is not one of the three', () => {
+  // Belt and braces: parseLayers cannot produce this, but the grouping is what the index's
+  // totals rest on, so it fails loudly rather than returning a short count.
+  assert.throws(
+    () => groupBySurface(new Map([['X-1', { surface: 'invented' }]])),
+    /is not one of/
+  )
+})
+
+test('the tagless layer cannot be profile-scoped — no marker could name it', () => {
+  const { problems } = withRow(
+    0,
+    '| the core | — | conformance | profile-scoped | everyone | the operating model |'
+  )
+  // Two problems, both true: the row is refused, and the taxonomy is then left without a
+  // tagless layer at all. The first is the one being asserted.
+  assert.match(problems[0], /tagless layer must be `unscoped`/)
 })
 
 // ── the profile registry ─────────────────────────────────────────────────────
@@ -243,13 +383,13 @@ test("the repository's taxonomy parses clean and covers every tag rules use", ()
 test('a well-formed registry yields its profiles and no problems', () => {
   const { profiles, problems } = parseBlock(['', ...HEADER, ROW, ''])
   assert.deepEqual(problems, [])
-  assert.deepEqual([...profiles.keys()], ['app:cli'])
-  assert.equal(profiles.get('app:cli').home, 'appendix/cli.md')
+  assert.deepEqual([...profiles.keys()], ['shape:widget'])
+  assert.equal(profiles.get('shape:widget').home, 'appendix/widget.md')
 })
 
 test('a duplicated profile is an error, not a silent last-one-wins', () => {
   const { problems } = parseBlock(['', ...HEADER, ROW, ROW, ''])
-  onlyProblem(problems, /declares `\{app:cli\}` twice/)
+  onlyProblem(problems, /declares `\{shape:widget\}` twice/)
 })
 
 test('a malformed row fails rather than dropping the profile', () => {
@@ -257,7 +397,7 @@ test('a malformed row fails rather than dropping the profile', () => {
   const { profiles, problems } = parseBlock([
     '',
     ...HEADER,
-    '| {app:cli} | `appendix/cli.md` | Command-line applications. |',
+    '| {shape:widget} | `appendix/widget.md` | Widget-shaped applications. |',
     '',
   ])
   assert.equal(profiles.size, 0)
@@ -268,7 +408,7 @@ test('a row with a fourth column fails', () => {
   const { problems } = parseBlock([
     '',
     ...HEADER,
-    '| `{app:cli}` | `appendix/cli.md` | covers | extra |',
+    '| `{shape:widget}` | `appendix/widget.md` | covers | extra |',
     '',
   ])
   onlyProblem(problems, /malformed profile row/)
@@ -278,7 +418,7 @@ test('a layer that takes no profile cannot be registered as one', () => {
   const { problems } = parseBlock([
     '',
     ...HEADER,
-    '| `{baseline}` | `appendix/cli.md` | not a profile |',
+    '| `{base}` | `appendix/widget.md` | not a profile |',
     '',
   ])
   onlyProblem(problems, /is not a profile/)
@@ -288,7 +428,7 @@ test("a profile whose home document does not exist fails", () => {
   const { problems } = parseBlock([
     '',
     ...HEADER,
-    '| `{app:cli}` | `appendix/nope.md` | Command-line applications. |',
+    '| `{shape:widget}` | `appendix/nope.md` | Widget-shaped applications. |',
     '',
   ])
   onlyProblem(problems, /which does not exist/)
@@ -299,7 +439,7 @@ test('a profile whose home is a spine fails', () => {
   // exact thing they exist to stop: the rules sit in a document every project reads, and the
   // home check blesses it. The registry must not be able to excuse that.
   const { problems } = parseBlock(
-    ['', ...HEADER, '| `{app:cli}` | `ARCHITECTURE.md` | Command-line applications. |', ''],
+    ['', ...HEADER, '| `{shape:widget}` | `ARCHITECTURE.md` | Widget-shaped applications. |', ''],
     { 'ARCHITECTURE.md': '# App\n' }
   )
   onlyProblem(problems, /which is a spine/)
@@ -307,7 +447,7 @@ test('a profile whose home is a spine fails', () => {
 
 test('a language binding whose home is a spine fails too', () => {
   const { problems } = parseBlock(
-    ['', ...HEADER, '| `{lang:go}` | `SYSTEM.md` | Go. |', ''],
+    ['', ...HEADER, '| `{dialect:go}` | `SYSTEM.md` | Go. |', ''],
     { 'SYSTEM.md': '# System\n' }
   )
   onlyProblem(problems, /which is a spine/)
@@ -315,7 +455,7 @@ test('a language binding whose home is a spine fails too', () => {
 
 test('a home that defines no rules fails', () => {
   const { problems } = parseBlock(
-    ['', ...HEADER, '| `{app:cli}` | `CHANGELOG.md` | Command-line applications. |', ''],
+    ['', ...HEADER, '| `{shape:widget}` | `CHANGELOG.md` | Widget-shaped applications. |', ''],
     { 'CHANGELOG.md': '# Changelog\n' }
   )
   onlyProblem(problems, /not a document that can define rules/)
@@ -328,11 +468,11 @@ test('two profiles cannot claim the same home document', () => {
     '',
     ...HEADER,
     ROW,
-    '| `{app:backend}` | `appendix/cli.md` | HTTP services. |',
+    '| `{shape:gadget}` | `appendix/widget.md` | Gadget-shaped applications. |',
     '',
   ])
-  assert.deepEqual([...profiles.keys()], ['app:cli'])
-  onlyProblem(problems, /which `\{app:cli\}` already claims/)
+  assert.deepEqual([...profiles.keys()], ['shape:widget'])
+  onlyProblem(problems, /which `\{shape:widget\}` already claims/)
 })
 
 test('prose inside the registry fails rather than being ignored', () => {
@@ -381,37 +521,39 @@ test('a missing registry block fails', () => {
 // ── resolving a tag ──────────────────────────────────────────────────────────
 
 test('a tag resolves to its layer, and a profile tag keeps its identity', () => {
-  const profiles = new Map([['app:cli', { home: 'appendix/cli.md', covers: '' }]])
-  assert.deepEqual(resolveTag('baseline', profiles, TAXONOMY), {
-    key: 'baseline',
-    label: 'production baseline',
+  const profiles = new Map([['shape:widget', { home: 'appendix/widget.md', covers: '' }]])
+  assert.deepEqual(resolveTag('base', profiles, FIXTURE), {
+    key: 'base',
+    label: 'base rules',
     profile: null,
+    surface: 'conformance',
     scoped: false,
   })
-  assert.deepEqual(resolveTag('app:cli', profiles, TAXONOMY), {
-    key: 'app',
-    label: 'app profile',
-    profile: 'cli',
+  assert.deepEqual(resolveTag('shape:widget', profiles, FIXTURE), {
+    key: 'shape',
+    label: 'shape profile',
+    profile: 'widget',
+    surface: 'opt-in',
     scoped: true,
   })
 })
 
 test('a profile-bearing layer named without a profile is rejected', () => {
-  assert.match(resolveTag('app', new Map(), TAXONOMY), /must say WHICH one/)
+  assert.match(resolveTag('shape', new Map(), FIXTURE), /must say WHICH one/)
 })
 
 test('an unregistered profile is rejected, so a typo cannot invent a layer', () => {
-  assert.match(resolveTag('app:clii', new Map(), TAXONOMY), /is not a declared profile/)
+  assert.match(resolveTag('shape:widgett', new Map(), FIXTURE), /is not a declared profile/)
 })
 
 test('a profile split on a layer that takes none is rejected', () => {
-  assert.match(resolveTag('baseline:strict', new Map(), TAXONOMY), /is not a layer that takes a profile/)
+  assert.match(resolveTag('base:strict', new Map(), FIXTURE), /is not a layer that takes a profile/)
 })
 
 test('an unknown bare tag is rejected and the message lists the real ones', () => {
-  const out = resolveTag('important', new Map(), TAXONOMY)
+  const out = resolveTag('important', new Map(), FIXTURE)
   assert.match(out, /is not an ownership layer/)
-  assert.match(out, /`\{baseline\}`/)
+  assert.match(out, /`\{base\}`/)
 })
 
 // ── reading tags off a definition line ───────────────────────────────────────
@@ -421,9 +563,9 @@ const parseDoc = (lines) =>
   inTree({ 'ARCHITECTURE.md': ['# App', '', ...lines, ''].join('\n') }, parseRules)
 
 test('a tag is read off the definition line, after the enforcement class', () => {
-  const { rules, problems } = parseDoc(['**`[X-1]` `[review]` `{baseline}`** — a rule.'])
+  const { rules, problems } = parseDoc(['**`[X-1]` `[review]` `{base}`** — a rule.'])
   assert.deepEqual(problems, [])
-  assert.deepEqual(rules.get('X-1').tags, ['baseline'])
+  assert.deepEqual(rules.get('X-1').tags, ['base'])
 })
 
 test('a span written in the shape of a tag but spelled wrong is an error, not a skip', () => {
@@ -432,23 +574,23 @@ test('a span written in the shape of a tag but spelled wrong is an error, not a 
 })
 
 test('a tag outside its code span fails rather than reading as unclassified', () => {
-  const { problems } = parseDoc(['**`[X-1]` `[review]`** {baseline} — a rule.'])
+  const { problems } = parseDoc(['**`[X-1]` `[review]`** {base} — a rule.'])
   onlyProblem(problems, /outside a code span/)
 })
 
 test("the error taxonomy's braced shape is not mistaken for a tag", () => {
   // `{category, code, message}` is a code span full of braces and must stay one.
   const { rules, problems } = parseDoc([
-    '**`[X-1]` `[auto]` `{baseline}`** — errors carry `{category, code, message}`.',
+    '**`[X-1]` `[auto]` `{base}`** — errors carry `{category, code, message}`.',
   ])
   assert.deepEqual(problems, [])
-  assert.deepEqual(rules.get('X-1').tags, ['baseline'])
+  assert.deepEqual(rules.get('X-1').tags, ['base'])
 })
 
 // ── assigning layers ─────────────────────────────────────────────────────────
 
 const rule = (page, tags, cls = 'review') => ({ page, line: 1, cls, tags })
-const profiles = () => new Map([['app:cli', { home: 'appendix/cli.md', covers: '' }]])
+const profiles = () => new Map([['shape:widget', { home: 'appendix/widget.md', covers: '' }]])
 
 test('a kernel rule takes its layer from the kernel block and carries no tag', () => {
   const rules = new Map([['K-1', rule('ARCHITECTURE.md', [])]])
@@ -456,19 +598,19 @@ test('a kernel rule takes its layer from the kernel block and carries no tag', (
     rules,
     kernel: new Set(['K-1']),
     profiles: profiles(),
-    taxonomy: TAXONOMY,
+    taxonomy: FIXTURE,
   })
   assert.deepEqual(problems, [])
-  assert.equal(layers.get('K-1').key, 'kernel')
+  assert.equal(layers.get('K-1').label, 'the core')
 })
 
 test('a tag on a kernel rule fails — it would be a second membership registry', () => {
-  const rules = new Map([['K-1', rule('ARCHITECTURE.md', ['baseline'])]])
+  const rules = new Map([['K-1', rule('ARCHITECTURE.md', ['base'])]])
   const { layers, problems } = classifyRules({
     rules,
     kernel: new Set(['K-1']),
     profiles: profiles(),
-    taxonomy: TAXONOMY,
+    taxonomy: FIXTURE,
   })
   assert.equal(layers.size, 0)
   onlyProblem(problems, /second membership registry/)
@@ -479,7 +621,7 @@ test('an untagged non-kernel rule fails, so a new rule cannot land unclassified'
     rules: new Map([['X-1', rule('ARCHITECTURE.md', [])]]),
     kernel: new Set(),
     profiles: profiles(),
-    taxonomy: TAXONOMY,
+    taxonomy: FIXTURE,
   })
   assert.equal(layers.size, 0)
   onlyProblem(problems, /carries no ownership tag/)
@@ -487,37 +629,38 @@ test('an untagged non-kernel rule fails, so a new rule cannot land unclassified'
 
 test('two tags fail — a rule is in one layer or it is in none', () => {
   const { problems } = classifyRules({
-    rules: new Map([['X-1', rule('ARCHITECTURE.md', ['baseline', 'governance'])]]),
+    rules: new Map([['X-1', rule('ARCHITECTURE.md', ['base', 'meta'])]]),
     kernel: new Set(),
     profiles: profiles(),
-    taxonomy: TAXONOMY,
+    taxonomy: FIXTURE,
   })
   onlyProblem(problems, /carries 2 ownership tags/)
 })
 
 test('a profile rule defined outside its own document fails', () => {
   const { problems } = classifyRules({
-    rules: new Map([['X-1', rule('ARCHITECTURE.md', ['app:cli'])]]),
+    rules: new Map([['X-1', rule('ARCHITECTURE.md', ['shape:widget'])]]),
     kernel: new Set(),
     profiles: profiles(),
-    taxonomy: TAXONOMY,
+    taxonomy: FIXTURE,
   })
   onlyProblem(problems, /defined in ARCHITECTURE\.md, while that profile's rules live in/)
 })
 
 test('a profile rule in its own document is accepted, profile identity intact', () => {
   const { layers, problems } = classifyRules({
-    rules: new Map([['X-1', rule('appendix/cli.md', ['app:cli'])]]),
+    rules: new Map([['X-1', rule('appendix/widget.md', ['shape:widget'])]]),
     kernel: new Set(),
     profiles: profiles(),
-    taxonomy: TAXONOMY,
+    taxonomy: FIXTURE,
   })
   assert.deepEqual(problems, [])
   assert.deepEqual(layers.get('X-1'), {
-    tag: 'app:cli',
-    key: 'app',
-    label: 'app profile',
-    profile: 'cli',
+    tag: 'shape:widget',
+    key: 'shape',
+    label: 'shape profile',
+    profile: 'widget',
+    surface: 'opt-in',
     scoped: true,
   })
 })
@@ -528,59 +671,61 @@ test('a profile rule in its own document is accepted, profile identity intact', 
 // broadly-loaded rule out of a profile's document — the same leak running the other way,
 // and the one contract scoping cannot catch, because a `[guide]` rule is in no contract.
 
-/** Classify one rule defined in the CLI profile's home under `tag`. */
-const inCliHome = (tag, cls = 'review') =>
+/** Classify one rule defined in the widget profile's home under `tag`. */
+const inProfileHome = (tag, cls = 'review') =>
   classifyRules({
-    rules: new Map([['X-1', rule('appendix/cli.md', [tag], cls)]]),
+    rules: new Map([['X-1', rule('appendix/widget.md', [tag], cls)]]),
     kernel: new Set(),
     profiles: profiles(),
-    taxonomy: TAXONOMY,
+    taxonomy: FIXTURE,
   })
 
-test('a baseline rule defined in a profile home fails', () => {
-  // Correctly classified, and still invisible to everyone not building a CLI.
-  onlyProblem(inCliHome('baseline').problems, /is `\{app:cli\}`'s document, but is classified/)
+const NOT_ITS_DOCUMENT = /is `\{shape:widget\}`'s document, but is classified/
+
+test('a conformance-surface rule defined in a profile home fails', () => {
+  // Correctly classified, and still invisible to everyone who does not select the profile.
+  onlyProblem(inProfileHome('base').problems, NOT_ITS_DOCUMENT)
 })
 
-test('a governance rule defined in a profile home fails', () => {
-  onlyProblem(inCliHome('governance').problems, /is `\{app:cli\}`'s document, but is classified/)
+test('a governance-surface rule defined in a profile home fails', () => {
+  onlyProblem(inProfileHome('meta').problems, NOT_ITS_DOCUMENT)
 })
 
-test('a runtime-agent rule defined in a profile home fails', () => {
-  onlyProblem(inCliHome('runtime-agent').problems, /is `\{app:cli\}`'s document, but is classified/)
+test("another opt-in layer's rule defined in a profile home fails", () => {
+  onlyProblem(inProfileHome('runtime-addon').problems, NOT_ITS_DOCUMENT)
 })
 
 test('a [guide] rule is caught too — no contract would ever have seen it', () => {
-  onlyProblem(inCliHome('baseline', 'guide').problems, /is `\{app:cli\}`'s document/)
+  onlyProblem(inProfileHome('base', 'guide').problems, NOT_ITS_DOCUMENT)
 })
 
-test('the profile\'s own rule in its own home is fine', () => {
-  const { layers, problems } = inCliHome('app:cli')
+test("the profile's own rule in its own home is fine", () => {
+  const { layers, problems } = inProfileHome('shape:widget')
   assert.deepEqual(problems, [])
-  assert.equal(layers.get('X-1').profile, 'cli')
+  assert.equal(layers.get('X-1').profile, 'widget')
 })
 
 test('a kernel rule defined in a profile home fails', () => {
   const { problems } = classifyRules({
-    rules: new Map([['K-1', rule('appendix/cli.md', [])]]),
+    rules: new Map([['K-1', rule('appendix/widget.md', [])]]),
     kernel: new Set(['K-1']),
     profiles: profiles(),
-    taxonomy: TAXONOMY,
+    taxonomy: FIXTURE,
   })
-  onlyProblem(problems, /is `\{app:cli\}`'s document, but is classified `kernel`/)
+  onlyProblem(problems, NOT_ITS_DOCUMENT)
 })
 
-test('citing a baseline rule from a profile document is untouched — definitions only', () => {
-  // [BOUND-2] is DEFINED in the spine and merely cited by the appendix, which is how an
-  // appendix is meant to refer outward. Only the defining page is checked.
+test('citing a rule from a profile document is untouched — definitions only', () => {
+  // X-1 is DEFINED in the spine and merely cited by the profile document, which is how a
+  // profile is meant to refer outward. Only the defining page is checked.
   const { problems } = classifyRules({
     rules: new Map([
-      ['BOUND-2', rule('ARCHITECTURE.md', ['baseline'])],
-      ['CLI-1', rule('appendix/cli.md', ['app:cli'])],
+      ['X-1', rule('ARCHITECTURE.md', ['base'])],
+      ['Y-1', rule('appendix/widget.md', ['shape:widget'])],
     ]),
     kernel: new Set(),
     profiles: profiles(),
-    taxonomy: TAXONOMY,
+    taxonomy: FIXTURE,
   })
   assert.deepEqual(problems, [])
 })
@@ -598,37 +743,29 @@ function scopes(lines, layers) {
   )
 }
 
+// Resolved from the fixture taxonomy rather than written out, so these carry whatever the
+// rows say — including any field added to a Layer later.
+const WIDGET = new Map([['shape:widget', { home: 'appendix/widget.md', covers: '' }]])
+const resolved = (tag) => ({ tag, ...resolveTag(tag, WIDGET, FIXTURE) })
 const LAYER = {
-  baseline: {
-    tag: 'baseline',
-    key: 'baseline',
-    label: 'production baseline',
-    profile: null,
-    scoped: false,
-  },
-  cli: { tag: 'app:cli', key: 'app', label: 'app profile', profile: 'cli', scoped: true },
-  agent: {
-    tag: 'runtime-agent',
-    key: 'runtime-agent',
-    label: 'runtime-agent profile',
-    profile: null,
-    scoped: true,
-  },
+  unscoped: resolved('base'),
+  profile: resolved('shape:widget'),
+  addon: resolved('runtime-addon'),
 }
 
-test('an opt-in rule under its own scope, beside an unscoped baseline rule, is fine', () => {
+test('an opt-in rule under its own scope, beside an unscoped rule, is fine', () => {
   const problems = scopes(
     [
       '- `[CHAN-1]` cross a boundary over a channel.',
-      '<!-- coral:scope:runtime-agent -->',
+      '<!-- coral:scope:runtime-addon -->',
       '- `[ORCH-4]` only from inside a harness.',
       '<!-- coral:scope:end -->',
       '- `[SYS-TEST-1]` contract-test each side.',
     ],
     new Map([
-      ['CHAN-1', LAYER.baseline],
-      ['ORCH-4', LAYER.agent],
-      ['SYS-TEST-1', LAYER.baseline],
+      ['CHAN-1', LAYER.unscoped],
+      ['ORCH-4', LAYER.addon],
+      ['SYS-TEST-1', LAYER.unscoped],
     ])
   )
   assert.deepEqual(problems, [])
@@ -637,7 +774,7 @@ test('an opt-in rule under its own scope, beside an unscoped baseline rule, is f
 test('an opt-in rule listed unscoped fails — the contract would present it as unconditional', () => {
   const problems = scopes(
     ['- `[ORCH-4]` only from inside a harness.'],
-    new Map([['ORCH-4', LAYER.agent]])
+    new Map([['ORCH-4', LAYER.addon]])
   )
   onlyProblem(problems, /the contract lists it unscoped/)
 })
@@ -645,13 +782,13 @@ test('an opt-in rule listed unscoped fails — the contract would present it as 
 test('a rule from a non-profile layer inside a scope fails', () => {
   const problems = scopes(
     [
-      '<!-- coral:scope:runtime-agent -->',
+      '<!-- coral:scope:runtime-addon -->',
       '- `[ORCH-4]` only from inside a harness.',
       '- `[CHAN-1]` cross a boundary over a channel.',
     ],
     new Map([
-      ['ORCH-4', LAYER.agent],
-      ['CHAN-1', LAYER.baseline],
+      ['ORCH-4', LAYER.addon],
+      ['CHAN-1', LAYER.unscoped],
     ])
   )
   onlyProblem(problems, /not a profile-scoped layer .* sits inside opt-in contract scope/s)
@@ -659,19 +796,19 @@ test('a rule from a non-profile layer inside a scope fails', () => {
 
 test('a scope naming the wrong profile fails', () => {
   const problems = scopes(
-    ['<!-- coral:scope:baseline -->', '- `[ORCH-4]` only from inside a harness.'],
+    ['<!-- coral:scope:base -->', '- `[ORCH-4]` only from inside a harness.'],
     new Map([
-      ['ORCH-4', LAYER.agent],
-      ['CHAN-1', LAYER.baseline],
+      ['ORCH-4', LAYER.addon],
+      ['CHAN-1', LAYER.unscoped],
     ])
   )
-  onlyProblem(problems, /under scope `\{baseline\}`/)
+  onlyProblem(problems, /under scope `\{base\}`/)
 })
 
 test('a scope that governs nothing fails', () => {
   const problems = scopes(
-    ['<!-- coral:scope:runtime-agent -->', '<!-- coral:scope:end -->'],
-    new Map([['ORCH-4', LAYER.agent]])
+    ['<!-- coral:scope:runtime-addon -->', '<!-- coral:scope:end -->'],
+    new Map([['ORCH-4', LAYER.addon]])
   )
   onlyProblem(problems, /no contract line falls under it/)
 })
@@ -682,50 +819,53 @@ test('opening a scope while another is open fails', () => {
   // without counting markers.
   const problems = scopes(
     [
-      '<!-- coral:scope:runtime-agent -->',
+      '<!-- coral:scope:runtime-addon -->',
       '- `[ORCH-4]` only from inside a harness.',
-      '<!-- coral:scope:app:cli -->',
+      '<!-- coral:scope:shape:widget -->',
       '- `[CLI-6]` no interactive prompts.',
     ],
     new Map([
-      ['ORCH-4', LAYER.agent],
-      ['CLI-6', LAYER.cli],
+      ['ORCH-4', LAYER.addon],
+      ['CLI-6', LAYER.profile],
     ])
   )
-  onlyProblem(problems, /opens contract scope `\{app:cli\}` while `\{runtime-agent\}` .* is still open/s)
+  onlyProblem(
+    problems,
+    /opens contract scope `\{shape:widget\}` while `\{runtime-addon\}` .* is still open/s
+  )
 })
 
 test('reopening the same scope without closing it fails', () => {
   const problems = scopes(
     [
-      '<!-- coral:scope:runtime-agent -->',
+      '<!-- coral:scope:runtime-addon -->',
       '- `[ORCH-4]` only from inside a harness.',
-      '<!-- coral:scope:runtime-agent -->',
+      '<!-- coral:scope:runtime-addon -->',
       '- `[ORCH-5]` published capabilities only.',
     ],
     new Map([
-      ['ORCH-4', LAYER.agent],
-      ['ORCH-5', LAYER.agent],
+      ['ORCH-4', LAYER.addon],
+      ['ORCH-5', LAYER.addon],
     ])
   )
-  onlyProblem(problems, /while `\{runtime-agent\}` .* is still open/s)
+  onlyProblem(problems, /while `\{runtime-addon\}` .* is still open/s)
 })
 
 test('scope → rules → end → a different scope is the valid sequence', () => {
   const problems = scopes(
     [
-      '<!-- coral:scope:runtime-agent -->',
+      '<!-- coral:scope:runtime-addon -->',
       '- `[ORCH-4]` only from inside a harness.',
       '<!-- coral:scope:end -->',
       '- `[CHAN-1]` cross a boundary over a channel.',
-      '<!-- coral:scope:app:cli -->',
+      '<!-- coral:scope:shape:widget -->',
       '- `[CLI-6]` no interactive prompts.',
       '<!-- coral:scope:end -->',
     ],
     new Map([
-      ['ORCH-4', LAYER.agent],
-      ['CHAN-1', LAYER.baseline],
-      ['CLI-6', LAYER.cli],
+      ['ORCH-4', LAYER.addon],
+      ['CHAN-1', LAYER.unscoped],
+      ['CLI-6', LAYER.profile],
     ])
   )
   assert.deepEqual(problems, [])
@@ -734,15 +874,15 @@ test('scope → rules → end → a different scope is the valid sequence', () =
 test('closing a scope that was never opened fails', () => {
   const problems = scopes(
     ['<!-- coral:scope:end -->', '- `[CHAN-1]` cross a boundary over a channel.'],
-    new Map([['CHAN-1', LAYER.baseline]])
+    new Map([['CHAN-1', LAYER.unscoped]])
   )
   onlyProblem(problems, /closes a contract scope that was never opened/)
 })
 
 test('a scope naming a tag no rule uses fails', () => {
   const problems = scopes(
-    ['<!-- coral:scope:app:cli -->', '- `[ORCH-4]` only from inside a harness.'],
-    new Map([['ORCH-4', LAYER.agent]])
+    ['<!-- coral:scope:shape:widget -->', '- `[ORCH-4]` only from inside a harness.'],
+    new Map([['ORCH-4', LAYER.addon]])
   )
   assert.ok(problems.some((p) => /which no rule is classified under/.test(p)), problems.join('\n'))
 })
@@ -752,14 +892,14 @@ test('a scope naming a tag no rule uses fails', () => {
 test('every published rule lands in exactly one ownership layer', () => {
   const { rules, problems } = parseRules(REPO)
   const { ids: kernel, problems: kp } = parseKernel(REPO, rules)
-  const { profiles: registry, problems: pp } = parseProfiles(REPO, TAXONOMY)
+  const { profiles: registry, problems: pp } = parseProfiles(REPO, REAL)
   const { layers, problems: lp } = classifyRules({
     rules,
     kernel,
     profiles: registry,
-    taxonomy: TAXONOMY,
+    taxonomy: REAL,
   })
-  assert.deepEqual([...TAXONOMY_PROBLEMS, ...problems, ...kp, ...pp, ...lp], [])
+  assert.deepEqual([...REAL_PROBLEMS, ...problems, ...kp, ...pp, ...lp], [])
   assert.equal(layers.size, rules.size)
   for (const [id, layer] of layers) {
     assert.ok(layer.key, `[${id}] has no layer key`)
@@ -767,6 +907,39 @@ test('every published rule lands in exactly one ownership layer', () => {
     // resolved layer, so there is no shape in which it can appear in two.
     assert.equal(typeof layer.label, 'string')
   }
+})
+
+test('the three surfaces partition every classified rule', () => {
+  // The claim rules.md prints in words — conformance + governance + opt-in = every rule —
+  // asserted without naming a single layer. groupBySurface() throws on a layer whose surface
+  // is not one of the three, which is the shape in which a total could silently go short.
+  const { rules } = parseRules(REPO)
+  const { ids: kernel } = parseKernel(REPO, rules)
+  const { profiles: registry } = parseProfiles(REPO, REAL)
+  const { layers } = classifyRules({ rules, kernel, profiles: registry, taxonomy: REAL })
+  const groups = groupBySurface(layers)
+  assert.deepEqual([...groups.keys()], SURFACES)
+  assert.equal(
+    [...groups.values()].reduce((n, ids) => n + ids.length, 0),
+    rules.size
+  )
+  // and every declared layer names one of them, including any that currently has no rules
+  for (const layer of REAL) assert.ok(SURFACES.includes(layer.surface), layer.label)
+})
+
+test('the generated index reconciles its own three subtotals', () => {
+  // serializeIndex() throws if the surfaces do not cover every rule; this proves the guard
+  // runs on the real registry rather than only on fixtures.
+  const { rules, defsByFile } = parseRules(REPO)
+  const page = serializeIndex(REPO, rules, defsByFile)
+  const n = String.raw`\*\*(\d+)`
+  const [, a, b, c] = page.match(
+    new RegExp(
+      `${n} form the conformance surface\\*\\*[\\s\\S]*?` +
+        `${n} govern Coral itself\\*\\*[\\s\\S]*?${n} are opt-in`
+    )
+  )
+  assert.equal(Number(a) + Number(b) + Number(c), rules.size)
 })
 
 test('kernel membership stays single-sourced — no kernel rule carries a tag', () => {
@@ -778,7 +951,7 @@ test('kernel membership stays single-sourced — no kernel rule carries a tag', 
 
 test("every profile's rules live in the document the registry names for it", () => {
   const { rules } = parseRules(REPO)
-  const { profiles: registry, problems } = parseProfiles(REPO, TAXONOMY)
+  const { profiles: registry, problems } = parseProfiles(REPO, REAL)
   assert.deepEqual(problems, [])
   assert.ok(registry.size > 0)
   // The registry's own invariants, asserted structurally rather than by listing the homes:
@@ -798,7 +971,7 @@ test("every profile's rules live in the document the registry names for it", () 
 test('no contract presents an opt-in rule as unscoped', () => {
   const { rules } = parseRules(REPO)
   const { ids: kernel } = parseKernel(REPO, rules)
-  const { profiles: registry } = parseProfiles(REPO, TAXONOMY)
-  const { layers } = classifyRules({ rules, kernel, profiles: registry, taxonomy: TAXONOMY })
+  const { profiles: registry } = parseProfiles(REPO, REAL)
+  const { layers } = classifyRules({ rules, kernel, profiles: registry, taxonomy: REAL })
   assert.deepEqual(checkContractScopes(REPO, { rules, layers }), [])
 })

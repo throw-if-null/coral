@@ -36,11 +36,11 @@ apps compose**, not a reason for a single-app project to load them.
 | kernel | 9 | 1 | 8 | 0 | every Coral codebase |
 | framework governance | 9 | 2 | 2 | 5 | Coral-aware humans, agents and tooling — never audited against application source |
 | production baseline | 88 | 12 | 61 | 15 | every Coral codebase, at the scale the rule is stated for |
-| app profile · backend | 8 | 1 | 7 | 0 | projects with a `backend` app |
-| app profile · cli | 11 | 5 | 4 | 2 | projects with a `cli` app |
-| app profile · gh-action | 12 | 2 | 9 | 1 | projects with a `gh-action` app |
-| app profile · library | 13 | 2 | 10 | 1 | projects with a `library` app |
-| app profile · web | 12 | 3 | 7 | 2 | projects with a `web` app |
+| app profile · backend | 8 | 1 | 7 | 0 | projects with an app of that shape |
+| app profile · cli | 11 | 5 | 4 | 2 | projects with an app of that shape |
+| app profile · gh-action | 12 | 2 | 9 | 1 | projects with an app of that shape |
+| app profile · library | 13 | 2 | 10 | 1 | projects with an app of that shape |
+| app profile · web | 12 | 3 | 7 | 2 | projects with an app of that shape |
 | language binding | 0 | 0 | 0 | 0 | projects in that language ecosystem |
 | runtime-agent profile | 16 | 0 | 13 | 3 | applications that call a model at runtime |
 

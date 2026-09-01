@@ -161,6 +161,14 @@ every check passing against a vocabulary the documents no longer used. Rule *mem
 stays where it was: kernel membership in `coral:kernel`, each non-kernel rule's layer inline on its own
 definition, the concrete profiles in `coral:profiles`.
 
+Each layer also declares its **surface** — `conformance`, `governance` or `opt-in` — which is what
+`rules.md` groups its three subtotals by. That column, and not the layer's tag, is what keeps the totals
+honest: renaming `{governance}` moves a tag, and the nine rules stay in the governance group because the
+row still says so. The surface vocabulary is the one closed part of the taxonomy, because the index writes
+a different sentence about each and a fourth would be one it silently omitted. Kernel rules take their
+label, surface and scope from the tagless row rather than having them rebuilt in code, and the generated
+index refuses to render if the three surfaces do not cover every rule.
+
 **The profile-home check runs both ways now.** It already kept an `{app:cli}` rule out of a spine. It now
 also keeps a non-CLI rule out of `appendix/cli.md`: a `{baseline}` rule defined in a profile's document is
 classified correctly and still invisible to everyone who does not select that profile, and because a

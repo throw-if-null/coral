@@ -561,28 +561,39 @@ So every rule carries exactly one **ownership layer**: the narrowest surface tha
 
 This table is the taxonomy, and the build reads it — the six layers are not additionally
 listed in the tooling, because two lists of one vocabulary is how a renamed layer keeps
-passing every check. **Tag** is how a rule names its layer (`—` for the one whose members
-come from the [kernel block](#the-nine-kernel-rules) instead); **contract scope** is what an
-Agent Execution Contract must say about it, and is read by the build.
+passing every check. Four of its columns are machine facts:
+
+- **Tag** — how a rule names this layer. `—` marks the one whose members come from the
+  [kernel block](#the-nine-kernel-rules) instead of from a tag; `{app:…}` marks a layer whose
+  members must say *which* profile.
+- **Surface** — which of the three top-level audiences below the layer belongs to. This is
+  what [`rules.md`](./rules.md) groups its subtotals by, and the three groups partition the
+  rule set.
+- **Contract scope** — whether an Agent Execution Contract must mark the rule as opt-in with
+  a `coral:scope` marker. Separate from *surface*: one is who the rule is for, the other is
+  what a contract has to say about it.
+- **Read by** — the audience, in the words the generated index prints.
 
 <!-- coral:layers:start -->
 
-| Layer | Tag | Contract scope | Read by | Justified by |
-|---|---|---|---|---|
-| kernel | — | unscoped | every Coral codebase | the operating model — agents author, humans keep architectural authority |
-| framework governance | `{governance}` | unscoped | Coral-aware humans, agents and tooling — never audited against application source | Coral itself: how it is interpreted, versioned, extended, adopted |
-| production baseline | `{baseline}` | unscoped | every Coral codebase, at the scale the rule is stated for | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior |
-| app profile | `{app:…}` | profile-scoped | projects with an app of that shape | the application's external shape — CLI, backend, web, library, action |
-| language binding | `{lang:…}` | profile-scoped | projects in that language ecosystem | one language ecosystem needing a concrete realization of a neutral concept |
-| runtime-agent profile | `{runtime-agent}` | profile-scoped | applications that call a model at runtime | the **running** application using a model |
+| Layer | Tag | Surface | Contract scope | Read by | Justified by |
+|---|---|---|---|---|---|
+| kernel | — | conformance | unscoped | every Coral codebase | the operating model — agents author, humans keep architectural authority |
+| framework governance | `{governance}` | governance | unscoped | Coral-aware humans, agents and tooling — never audited against application source | Coral itself: how it is interpreted, versioned, extended, adopted |
+| production baseline | `{baseline}` | conformance | unscoped | every Coral codebase, at the scale the rule is stated for | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior |
+| app profile | `{app:…}` | opt-in | profile-scoped | projects with an app of that shape | the application's external shape — CLI, backend, web, library, action |
+| language binding | `{lang:…}` | opt-in | profile-scoped | projects in that language ecosystem | one language ecosystem needing a concrete realization of a neutral concept |
+| runtime-agent profile | `{runtime-agent}` | opt-in | profile-scoped | applications that call a model at runtime | the **running** application using a model |
 
 <!-- coral:layers:end -->
 
 **`unscoped` does not mean universal.** It means a contract lists the rule without a scope
-marker — the three unscoped layers have three different audiences, as the *Read by* column
-says and the next section spells out. A seventh layer, or a change to any of these five
-machine facts, is a change to what Coral means by ownership: edit the row and the tooling
-follows, or the build fails saying it cannot.
+marker — the two unscoped surfaces have different audiences, as the *Read by* column says and
+the next section spells out. A seventh layer, or a change to any of these machine facts, is a
+change to what Coral means by ownership: edit the row and the tooling follows, or the build
+fails saying it cannot. The **surface** vocabulary is the one closed part — a layer belongs to
+`conformance`, `governance` or `opt-in`, and nothing else, because the index writes a
+different sentence about each and a fourth would be one it silently omitted.
 
 ### The layers do not stack into one list
 
