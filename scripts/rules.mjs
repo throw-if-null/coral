@@ -20,6 +20,43 @@ export const INLINE_ID_RE = new RegExp(`^\\[(${ID_CORE})\\]$`)
 // with a bare `[ID]` code-span, and those are citations, not definitions.
 const DEF_LINE_RE = new RegExp(String.raw`^(?:- \*\*|\*\*|- )\`\[(${ID_CORE})\]\`(.*)$`)
 
+// A fenced code block is an ILLUSTRATION of a rule, never a definition of one. Coral's own
+// documents now show what a definition line looks like — CONVENTIONS.md's ownership section
+// prints `- **`[CLI-6]`** `[auto]` `{app:cli}` …` as an example — and the registry is
+// first-definition-wins with CONVENTIONS.md sorting before appendix/cli.md, so without this
+// the example silently became the definition and [CLI-6] moved documents. Same failure the
+// changelog caused, arriving from the other direction: there the fix was to exclude a file,
+// and a file exclusion cannot help when the example is in the file that also defines rules.
+//
+// Fence lengths are tracked per CommonMark: only a fence at least as long as the one that
+// opened the block can close it, which is what keeps CONVENTIONS.md's ````-wrapped CORAL.md
+// example (containing a ```yaml fence) from toggling the state twice and re-opening.
+const FENCE_RE = /^\s*(`{3,}|~{3,})/
+
+/**
+ * Every rule-definition line in a document, skipping fenced code blocks.
+ *
+ * @param {string[]} lines
+ * @returns {Array<{i:number,id:string,rest:string,line:string}>}
+ */
+export function definitionLines(lines) {
+  const out = []
+  let fence = null
+  for (let i = 0; i < lines.length; i++) {
+    const f = FENCE_RE.exec(lines[i])
+    if (f) {
+      const marker = f[1]
+      if (fence === null) fence = marker
+      else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null
+      continue
+    }
+    if (fence !== null) continue
+    const m = DEF_LINE_RE.exec(lines[i])
+    if (m) out.push({ i, id: m[1], rest: m[2], line: lines[i] })
+  }
+  return out
+}
+
 // Factories, not shared instances — a stateful /g regex reused across callers is a
 // bug waiting to happen.
 export const useRe = () => new RegExp(String.raw`\`\[(${ID_CORE})\]\``, 'g')
@@ -133,10 +170,7 @@ export function parseRules(srcDir) {
     const abs = path.join(srcDir, rel)
     if (!fs.existsSync(abs)) continue
     const lines = fs.readFileSync(abs, 'utf8').split('\n')
-    lines.forEach((line, i) => {
-      const m = DEF_LINE_RE.exec(line)
-      if (!m) return
-      const [, id, rest] = m
+    definitionLines(lines).forEach(({ i, id, rest }) => {
       // First definition wins. Later leading occurrences (a contract bullet, an
       // enforcement-table row) are citations of an already-defined rule, and are
       // deliberately exempt from the class check — only the definition carries it.
@@ -447,11 +481,13 @@ export function extractStatements(srcDir, rules) {
     // Fallback: the definition itself, read to the end of its paragraph so a wrapped
     // opening sentence is not truncated at the line break.
     const lines = text.split('\n')
+    const defs = new Map(definitionLines(lines).map((d) => [d.id, d]))
     for (const id of ids) {
       if (out.has(id)) continue
-      const i = lines.findIndex((l) => DEF_LINE_RE.exec(l)?.[1] === id)
-      if (i === -1) continue
-      let body = DEF_LINE_RE.exec(lines[i])[2]
+      const def = defs.get(id)
+      if (!def) continue
+      const i = def.i
+      let body = def.rest
       for (let j = i + 1; j < lines.length && lines[j].trim() && !DEF_LINE_RE.test(lines[j]); j++) {
         body += ` ${lines[j].trim()}`
       }
