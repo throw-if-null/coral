@@ -118,6 +118,10 @@ a real database and asserts on the exit code and the `--json` payload — the sa
 tool depends on. An agent can run that and see whether the change worked, rather than reporting that it
 should have.
 
+Nine of Coral's rules exist *only* because of those four consequences; the rest would earn their place
+in a human-authored codebase too. That subset is named and justified in
+[the Coral kernel](/CONVENTIONS#the-coral-kernel).
+
 ## Where this does not fit
 
 Some domains have one central concept that every feature reaches into: a tax engine, a scheduler, a

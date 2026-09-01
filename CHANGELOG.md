@@ -32,8 +32,31 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ## Unreleased
 
-*Nothing yet.* A version marks a release, not a commit (`[VER-2]`), so changes land here first and the
-bump happens when the batch is cut.
+A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
+the batch is cut.
+
+**The Coral kernel is named. Patch-level: no rule was added, tightened, loosened, or retired, no ID or
+enforcement class moved, and nothing about conformance changed.**
+
+Coral's rules did not all exist for the same reason, and nothing said which was which. Most of them —
+concurrency, idempotency, the error taxonomy, `[TRUST-*]`, the channel semantics — would be worth
+following if humans wrote every line. Nine exist *only* because an agent authors the code while a human
+keeps architectural authority: `[BOUND-2]`, `[MODEL-1]`, `[XCUT-1]`, `[COMPOSE-1]`, `[TEST-1]`,
+`[AGENT-2]`, `[AGENT-4]`, `[VER-3]`, `[VER-5]`. `CONVENTIONS.md` now names that subset, states the
+four-part membership test, and maps each member to the property it defends (locality, bounded context,
+deterministic placement, reviewability, self-verification, drift prevention).
+
+It is a **named subset of existing rules, not a family.** There is no `KERN-*` and there will not be:
+"one rule, one ID" forbids a second family that restates rules defined elsewhere, and the kernel table is
+rows of citations. The build enforces that — a definition line inside the kernel block fails, as does a
+row citing an ID no rule defines. `rules.md` marks the nine from that same block, so membership has one
+source and a change to it lands as a diff in a generated file.
+
+**"Kernel" does not mean "most important."** `[TRUST-1]` matters more to a running system than any of the
+nine. The classification answers *why a rule exists*, and an unmarked rule is not optional.
+
+Also fixed: `ARCHITECTURE.md` still said `CONVENTIONS.md` defines "the seven nouns" while listing eight —
+drift left by `[MODEL-4]` adding **adapter** in 0.6.0.
 
 ---
 

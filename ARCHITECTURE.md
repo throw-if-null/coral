@@ -3,11 +3,11 @@
 *A capability-first architecture for systems where **agents write the code and humans review and
 orchestrate**.*
 
-> **Read [`CONVENTIONS.md`](./CONVENTIONS.md) first.** It defines the seven nouns this document uses
+> **Read [`CONVENTIONS.md`](./CONVENTIONS.md) first.** It defines the eight nouns this document uses
 > (slice, crosscut, adapter, composition root, published contract, app, system, channel), the rule-ID
-> scheme, the
-> enforcement classes, and the [canonical slice](./CONVENTIONS.md#the-canonical-slice) every rule here
-> exists to produce.
+> scheme, the enforcement classes, the [Coral kernel](./CONVENTIONS.md#the-coral-kernel) — which rules
+> exist because an agent is the author — and the [canonical slice](./CONVENTIONS.md#the-canonical-slice)
+> every rule here exists to produce.
 
 This is the **app spine**: how to build one app — a CLI, backend, web app, library, or tool. App-type
 specifics live in the appendices under [`appendix/`](#appendix-index). How separate apps compose into a

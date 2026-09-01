@@ -9,6 +9,7 @@ import {
   INDEX_FILE,
   INLINE_ID_RE,
   LOCK_FILE,
+  parseKernel,
   parseLock,
   parseRules,
   serializeIndex,
@@ -23,7 +24,7 @@ import {
 // link to the page that defines it — operationalizing the citation system on the
 // web. Parsing lives in ../scripts/rules.mjs so the lockfile writer shares it.
 //
-// Six gates run here, each guarding a claim the documents make about themselves:
+// Seven gates run here, each guarding a claim the documents make about themselves:
 //   1. every rule definition carries exactly one enforcement class
 //   2. every rule-ID citation resolves to a definition
 //   3. every [auto]/[review] rule appears in its document's Agent Execution
@@ -31,6 +32,7 @@ import {
 //   4. no rule ID is ever removed, renumbered, or silently reclassified — [VER-1]
 //   5. rules.md, the generated index, matches the registry it claims to index
 //   6. the app spine cites no system rule — the dependency points one way
+//   7. the kernel cites existing rules and defines none of them
 // Two more run outside this file: link fragments in scripts/check-anchors.mjs
 // (post-build, because heading ids only exist once markdown-it has rendered them),
 // and declared example versions in scripts/check-versions.mjs.
@@ -190,6 +192,36 @@ if (fs.existsSync(spineAbs)) {
         ' way (CONVENTIONS.md, "Rule IDs"): the app spine never cites a system rule, so the core app' +
         ' model stays loadable without system concerns. Refer to the family in prose ([ORCH-*]) or' +
         ' state the point without the citation.'
+    )
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gate 7 — the kernel classifies, it does not legislate.
+//
+// CONVENTIONS.md names nine existing rules as the kernel: the ones that exist
+// because an agent authors the code. That is a classification of *why a rule
+// exists*, and it must never become a second place a rule is stated — "one rule,
+// one ID" is the reason there is no KERN-* family in the first place.
+//
+// So two things are checked. Every row must CITE a rule that exists (a typo in the
+// table would otherwise read as a rule silently dropping out of the kernel), and no
+// row may be written in the shape of a definition. The parser enforces the second
+// half; rules.md marks kernel rules from this same block, so the count and the
+// membership cannot disagree with the table either.
+//
+// The size of the kernel is deliberately NOT hardcoded here. Gate 5 already makes a
+// membership change show up as a diff in a generated file, which is the same forcing
+// step rules.lock gives a rule change — a constant would add a second thing to edit
+// and nothing to the guarantee.
+// ─────────────────────────────────────────────────────────────────────────────
+const { ids: kernelIds, problems: kernelProblems } = parseKernel(SRC)
+problems.push(...kernelProblems)
+for (const id of [...kernelIds].sort()) {
+  if (!rules.has(id)) {
+    problems.push(
+      `[${id}] is listed in CONVENTIONS.md's kernel table but is not a defined rule. The kernel is a` +
+        ' named subset of existing rules, so every row must cite one — check the ID for a typo.'
     )
   }
 }

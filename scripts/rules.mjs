@@ -51,6 +51,19 @@ const DEFINES_NOTHING = new Set(['CHANGELOG.md', 'rules.md'])
 export const CONTRACT_START = '<!-- coral:contract:start -->'
 export const CONTRACT_END = '<!-- coral:contract:end -->'
 
+// The kernel block in CONVENTIONS.md — the named subset of rules that exist because
+// an agent is the author. It is a table of CITATIONS, and that is the whole point:
+// "one rule, one ID" forbids a KERN-* family, so the kernel must not be able to
+// restate a rule. Parsing it here rather than hand-listing the IDs is what keeps the
+// classification single-sourced — rules.md marks kernel rules from this block.
+export const KERNEL_START = '<!-- coral:kernel:start -->'
+export const KERNEL_END = '<!-- coral:kernel:end -->'
+export const KERNEL_FILE = 'CONVENTIONS.md'
+
+// Only the Rule column counts. Reading every ID in the block would make a citation in
+// a rationale cell silently join the kernel.
+const KERNEL_ROW_RE = new RegExp(String.raw`^\|\s*\`\[(${ID_CORE})\]\`\s*\|`)
+
 function walk(dir, srcDir) {
   const out = []
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -112,6 +125,60 @@ export function parseRules(srcDir) {
     })
   }
   return { registry, rules, defsByFile, problems, files }
+}
+
+/**
+ * Parse the kernel table out of CONVENTIONS.md.
+ *
+ * The block must CITE rules, never define them: a definition line inside it would make
+ * the kernel a second normative source for a rule that is already defined elsewhere,
+ * which is the one failure this classification must not be able to cause.
+ *
+ * @returns {{ids: Set<string>, problems: string[]}}
+ */
+export function parseKernel(srcDir) {
+  const problems = []
+  const ids = new Set()
+  const abs = path.join(srcDir, KERNEL_FILE)
+  if (!fs.existsSync(abs)) return { ids, problems }
+
+  const text = fs.readFileSync(abs, 'utf8')
+  const start = text.indexOf(KERNEL_START)
+  if (start === -1) {
+    problems.push(
+      `${KERNEL_FILE} has no ${KERNEL_START} block. Kernel membership is recorded there, in one` +
+        ' table, and rules.md is generated from it.'
+    )
+    return { ids, problems }
+  }
+  const end = text.indexOf(KERNEL_END, start)
+  if (end === -1) {
+    problems.push(`${KERNEL_FILE} opens ${KERNEL_START} but never closes it with ${KERNEL_END}.`)
+    return { ids, problems }
+  }
+
+  const block = text.slice(start + KERNEL_START.length, end)
+  const offset = text.slice(0, start).split('\n').length
+  block.split('\n').forEach((line, i) => {
+    const def = DEF_LINE_RE.exec(line)
+    if (def) {
+      problems.push(
+        `[${def[1]}] ${KERNEL_FILE}:${offset + i} is written as a rule DEFINITION inside the kernel` +
+          ' block. The kernel is a named subset of existing rules: every row cites a rule defined' +
+          ' elsewhere, and the kernel never restates one.'
+      )
+    }
+    const row = KERNEL_ROW_RE.exec(line)
+    if (row) ids.add(row[1])
+  })
+
+  if (!ids.size) {
+    problems.push(
+      `${KERNEL_FILE}'s kernel block cites no rule. Rows are read from the Rule column:` +
+        ' | `[BOUND-2]` | … | … |'
+    )
+  }
+  return { ids, problems }
 }
 
 export const LOCK_FILE = 'rules.lock'
@@ -251,6 +318,7 @@ export function extractStatements(srcDir, rules) {
 /** Render the registry as the rules.md page. Owns the whole file — prose included. */
 export function serializeIndex(srcDir, rules, defsByFile) {
   const statements = extractStatements(srcDir, rules)
+  const { ids: kernel } = parseKernel(srcDir)
   const count = (c) => [...rules.values()].filter((r) => r.cls === c).length
   const title = (rel) =>
     (fs.readFileSync(path.join(srcDir, rel), 'utf8').match(/^# (.+)$/m)?.[1] || rel).trim()
@@ -278,6 +346,15 @@ export function serializeIndex(srcDir, rules, defsByFile) {
         'contract, so theirs is the opening sentence of the definition instead.'
     ),
     '',
+    ...wrap(
+      `The **Kernel** column marks the **${kernel.size} kernel rules** — the ones that exist *because* ` +
+        'an agent authors the code while a human keeps architectural authority. It is read from the ' +
+        'one table that records it, in ' +
+        '[`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each is mapped to the property ' +
+        'it defends. An unmarked rule is not optional — the column classifies *why* a rule exists, ' +
+        'not whether it binds.'
+    ),
+    '',
   ]
 
   for (const [rel, defs] of defsByFile) {
@@ -286,11 +363,11 @@ export function serializeIndex(srcDir, rules, defsByFile) {
       '',
       `${defs.length} rule${defs.length === 1 ? '' : 's'} — [\`${rel}\`](./${rel})`,
       '',
-      '| Rule | Class | Statement |',
-      '| --- | --- | --- |',
+      '| Rule | Class | Kernel | Statement |',
+      '| --- | --- | --- | --- |',
       ...defs.map(({ id, cls }) => {
         const s = (statements.get(id) || '').replace(/\|/g, '\\|')
-        return `| \`[${id}]\` | \`[${cls}]\` | ${s} |`
+        return `| \`[${id}]\` | \`[${cls}]\` | ${kernel.has(id) ? '●' : ''} | ${s} |`
       }),
       ''
     )
