@@ -559,26 +559,47 @@ Left unstated, all of them arrive as one undifferentiated wall, and the reviewer
 
 So every rule carries exactly one **ownership layer**: the narrowest surface that justifies it.
 
-| Layer | Justified by | Read by |
-|---|---|---|
-| **kernel** | the operating model — agents author, humans keep architectural authority | every Coral codebase |
-| **framework governance** | Coral itself: how it is interpreted, versioned, extended, adopted | whoever decides how a project relates to Coral |
-| **production baseline** | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior | every Coral codebase, at the scale the rule is stated for |
-| **app profile** | the application's external shape — CLI, backend, web, library, action | projects with an app of that shape |
-| **language binding** | one language ecosystem needing a concrete realization of a neutral concept | projects in that ecosystem |
-| **runtime-agent profile** | the **running** application using a model | applications that call a model at runtime |
+This table is the taxonomy, and the build reads it — the six layers are not additionally
+listed in the tooling, because two lists of one vocabulary is how a renamed layer keeps
+passing every check. **Tag** is how a rule names its layer (`—` for the one whose members
+come from the [kernel block](#the-nine-kernel-rules) instead); **contract scope** is what an
+Agent Execution Contract must say about it, and is read by the build.
+
+<!-- coral:layers:start -->
+
+| Layer | Tag | Contract scope | Read by | Justified by |
+|---|---|---|---|---|
+| kernel | — | unscoped | every Coral codebase | the operating model — agents author, humans keep architectural authority |
+| framework governance | `{governance}` | unscoped | Coral-aware humans, agents and tooling — never audited against application source | Coral itself: how it is interpreted, versioned, extended, adopted |
+| production baseline | `{baseline}` | unscoped | every Coral codebase, at the scale the rule is stated for | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior |
+| app profile | `{app:…}` | profile-scoped | projects with an app of that shape | the application's external shape — CLI, backend, web, library, action |
+| language binding | `{lang:…}` | profile-scoped | projects in that language ecosystem | one language ecosystem needing a concrete realization of a neutral concept |
+| runtime-agent profile | `{runtime-agent}` | profile-scoped | applications that call a model at runtime | the **running** application using a model |
+
+<!-- coral:layers:end -->
+
+**`unscoped` does not mean universal.** It means a contract lists the rule without a scope
+marker — the three unscoped layers have three different audiences, as the *Read by* column
+says and the next section spells out. A seventh layer, or a change to any of these five
+machine facts, is a change to what Coral means by ownership: edit the row and the tooling
+follows, or the build fails saying it cannot.
 
 ### The layers do not stack into one list
 
 They answer to three audiences, and conflating them is how "load Coral" becomes "load all 178 rules".
 
 **The conformance surface — what a codebase is built and audited against** — is
-`kernel + production baseline`, plus whichever profiles the repository's app shapes select. A normal CLI:
-`kernel + production baseline + app profile · cli`. An agentic backend:
-`kernel + production baseline + app profile · backend + runtime-agent profile` — the runtime-agent profile
-is orthogonal to app shape, never an alternative to it, which is why an agentic app is not a seventh app
-type. A repository holding a CLI and a library selects both profiles. **Profiles compose; they do not
-replace.**
+`kernel + production baseline`, plus whichever profiles the repository's app shapes select. The baseline
+carries a scale of its own, so spell it out rather than leaving it to the paragraph below:
+
+- a standalone CLI loads
+  `kernel + app-scale production baseline + app profile · cli`;
+- an agentic backend in a multi-app system loads
+  `kernel + app-scale production baseline + system-scale production baseline + app profile · backend + runtime-agent profile`.
+
+The runtime-agent profile is orthogonal to app shape, never an alternative to it, which is why an agentic
+app is not a seventh app type. A repository holding a CLI and a library selects both profiles.
+**Profiles compose; they do not replace.**
 
 **`framework governance` is not on that surface at all.** No application source code satisfies or violates
 `[VER-2]` or `[VER-4]`: those rules bind the *decisions a project makes about Coral* — which version it
@@ -590,12 +611,12 @@ adherence record, or changing how the project relates to Coral — but never as 
 That is why the counts in [`rules.md`](./rules.md) report them separately rather than folding them into the
 conformance surface.
 
-**And `production baseline` is stated at two scales.** The baseline rules in
-[`ARCHITECTURE.md`](./ARCHITECTURE.md) govern one app. The ones in [`SYSTEM.md`](./SYSTEM.md) — channel
-contracts, orchestration topology, cross-app contract testing — govern several apps composing, and a
-repository that ships one app has no channel to version and no topology to wire. They are the baseline
-**when several apps compose**, not a reason for a single-app project to load `SYSTEM.md`. Ownership says
-*why* a rule exists and *how narrowly*; the document it is stated in still says at what scale it bites.
+**That is what the two scales above mean.** *App-scale* production baseline is the baseline rules in
+[`ARCHITECTURE.md`](./ARCHITECTURE.md), which govern one app. *System-scale* is the ones in
+[`SYSTEM.md`](./SYSTEM.md) — channel contracts, orchestration topology, cross-app contract testing —
+which govern several apps composing; a repository that ships one app has no channel to version and no
+topology to wire, and never loads them. Scale is **not** a seventh ownership layer: ownership says *why* a
+rule exists and *how narrowly*, and the document it is stated in still says at what scale it bites.
 
 **Ownership is not enforcement.** A rule has an ownership layer *and* an enforcement class, and the two
 say unrelated things: `[CLI-6]` is `app profile · cli` **and** `[auto]`; `[CLI-9]` is
@@ -664,15 +685,16 @@ not depend on an ADDENDUM, and are made opt-in by contract scope instead.
 ### Scoped contract sections
 
 A document's [Agent Execution Contract](#prose-vs-contract) is the complete normative surface of that
-document, and an agent is invited to load only it. A contract that lists an opt-in rule beside a
-universal one therefore tells the agent that the opt-in rule binds everything — the classification
+document, and an agent is invited to load only it. A contract that lists an opt-in rule beside an
+unscoped one therefore tells the agent that the opt-in rule is unconditional too — the classification
 would be right and the loading still wrong.
 
 So a contract marks its optional groups. `<!-- coral:scope:app:cli -->` opens a scope that governs the
 contract lines below it until `<!-- coral:scope:end -->` or the close of the contract; every appendix
 contract opens with the profile it belongs to, and `SYSTEM.md` scopes `[ORCH-4]`, `[ORCH-5]` and
-`[ORCH-6]` to `runtime-agent` in the middle of an otherwise universal contract. The build checks both
-directions: an opt-in rule outside a matching scope fails, and a baseline rule inside one fails too.
+`[ORCH-6]` to `runtime-agent` inside an otherwise unscoped system contract. The build checks both
+directions: an opt-in rule outside a matching scope fails, and a rule from an unscoped layer inside one
+fails too.
 
 ### Reading the classification
 

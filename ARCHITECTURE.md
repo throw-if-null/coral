@@ -944,7 +944,8 @@ groups. Each rule is **classified**: exactly one enforcement class, and exactly 
 kernel membership read only from `CONVENTIONS.md`'s kernel block, every other rule tagged on its own
 definition line against a registered profile. Each document is **complete and honestly scoped**: every
 `[auto]`/`[review]` rule appears in its Agent Execution Contract, and a contract marks its opt-in groups
-so it cannot present a profile rule as universal. Each **citation resolves**, this document cites no
+so it cannot present a profile-scoped rule as unconditional. Each **citation resolves**, this document
+cites no
 system rule, and every link fragment reaches a real anchor. And the **published set is stable**: no rule
 ID removed or silently reclassified, the generated [rule index](./rules.md) still matching the registry it
 indexes, every worked example declaring the current Coral version. Malformed metadata fails the build

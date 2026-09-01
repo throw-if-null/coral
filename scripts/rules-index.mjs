@@ -10,6 +10,7 @@ import {
   checkContractScopes,
   classifyRules,
   parseKernel,
+  parseLayers,
   parseProfiles,
   parseRules,
   serializeIndex,
@@ -23,11 +24,12 @@ const { rules, defsByFile, problems } = parseRules(SRC)
 // tags on the definition lines, so malformed metadata would otherwise be written into the
 // index as a quietly wrong classification — the exact failure the validation exists to
 // prevent. Refuse, same as for unparsable rules.
+const { taxonomy, problems: taxonomyProblems } = parseLayers(SRC)
 const { ids: kernel, problems: kernelProblems } = parseKernel(SRC, rules)
-const { profiles, problems: profileProblems } = parseProfiles(SRC)
-const { layers, problems: layerProblems } = classifyRules({ rules, kernel, profiles })
-problems.push(...kernelProblems, ...profileProblems, ...layerProblems)
-if (!layerProblems.length && !profileProblems.length) {
+const { profiles, problems: profileProblems } = parseProfiles(SRC, taxonomy)
+const { layers, problems: layerProblems } = classifyRules({ rules, kernel, profiles, taxonomy })
+problems.push(...taxonomyProblems, ...kernelProblems, ...profileProblems, ...layerProblems)
+if (!taxonomyProblems.length && !layerProblems.length && !profileProblems.length) {
   problems.push(...checkContractScopes(SRC, { rules, layers }))
 }
 if (problems.length) {

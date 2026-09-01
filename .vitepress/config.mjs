@@ -14,6 +14,7 @@ import {
   checkContractScopes,
   classifyRules,
   parseKernel,
+  parseLayers,
   parseProfiles,
   parseLock,
   parseRules,
@@ -39,7 +40,7 @@ import {
 //   6. the app spine cites no system rule — the dependency points one way
 //   7. the kernel cites existing rules and defines none of them
 //   8. every rule outside the kernel carries exactly one ownership layer
-//   9. a contract marks the rules that are opt-in, so it cannot present them as universal
+//   9. a contract marks the rules that are opt-in, so it cannot list them as unconditional
 // Two more run outside this file: link fragments in scripts/check-anchors.mjs
 // (post-build, because heading ids only exist once markdown-it has rendered them),
 // and declared example versions in scripts/check-versions.mjs.
@@ -251,9 +252,11 @@ problems.push(...kernelProblems)
 // exactly that. The fixed `runtime-agent` layer is out of scope for the check by design:
 // [ORCH-4..6] stay in SYSTEM.md and are made opt-in by Gate 9 instead.
 // ─────────────────────────────────────────────────────────────────────────────
-const { profiles, problems: profileProblems } = parseProfiles(SRC)
+const { taxonomy, problems: taxonomyProblems } = parseLayers(SRC)
+problems.push(...taxonomyProblems)
+const { profiles, problems: profileProblems } = parseProfiles(SRC, taxonomy)
 problems.push(...profileProblems)
-const { layers, problems: layerProblems } = classifyRules({ rules, kernel, profiles })
+const { layers, problems: layerProblems } = classifyRules({ rules, kernel, profiles, taxonomy })
 problems.push(...layerProblems)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -268,7 +271,7 @@ problems.push(...layerProblems)
 // Only runs once the layers are known, because the check is "does this line's scope
 // marker match this rule's layer", and an unclassified rule has no answer.
 // ─────────────────────────────────────────────────────────────────────────────
-if (!layerProblems.length && !profileProblems.length) {
+if (!taxonomyProblems.length && !layerProblems.length && !profileProblems.length) {
   problems.push(...checkContractScopes(SRC, { rules, layers }))
 }
 

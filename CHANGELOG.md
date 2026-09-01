@@ -152,6 +152,21 @@ Three classification decisions worth recording, because none of them follows fro
 expected — each governs Coral's own interpretation, versioning, or adoption rather than any application.
 `[AGENT-2]`, `[AGENT-4]`, `[VER-3]` and `[VER-5]` remain kernel.
 
+**The six-layer taxonomy is registered in `CONVENTIONS.md`, not in the tooling.** `CONVENTIONS.md` says
+it is authoritative for the ownership layers, so it had better be: a `coral:layers` block records each
+layer's name, its tag form, whether a contract must scope it, who reads it, and why it exists, and the
+build parses that rather than carrying a second copy. Renaming a layer, adding a seventh, or flipping one
+between `unscoped` and `profile-scoped` now moves the tooling with it — before, all three would have left
+every check passing against a vocabulary the documents no longer used. Rule *membership* is unchanged and
+stays where it was: kernel membership in `coral:kernel`, each non-kernel rule's layer inline on its own
+definition, the concrete profiles in `coral:profiles`.
+
+**The profile-home check runs both ways now.** It already kept an `{app:cli}` rule out of a spine. It now
+also keeps a non-CLI rule out of `appendix/cli.md`: a `{baseline}` rule defined in a profile's document is
+classified correctly and still invisible to everyone who does not select that profile, and because a
+`[guide]` rule appears in no Agent Execution Contract, contract scoping cannot catch it. Definitions only
+— citing a spine rule from an appendix is how an appendix is meant to refer outward.
+
 The parser gained one fix this needed: **a rule definition inside a fenced code block is an illustration,
 not a definition.** `CONVENTIONS.md` now prints an example definition line, and the registry is
 first-definition-wins across a fixed document order, so without the fix that example silently became the

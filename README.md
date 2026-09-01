@@ -39,8 +39,8 @@ Rules carry stable IDs like `[DUP-2]`, and two independent classifications: an *
 **[ownership layer](./CONVENTIONS.md#ownership-layers)** saying who has to read it — so a CLI is not asked
 to reason about HTTP status codes or runtime-AI rules. On the live site every citation links to its
 definition. The build fails if a rule has no class or no layer, if a citation has no definition, if a rule
-is missing from its document's Agent Execution Contract, if a contract presents an opt-in rule as
-universal, if a published rule ID has disappeared or been reclassified, if the rule index is stale, or if
+is missing from its document's Agent Execution Contract, if a contract lists an opt-in rule without
+saying so, if a published rule ID has disappeared or been reclassified, if the rule index is stale, or if
 a link fragment doesn't resolve — the docs' own drift control is structural, not goodwill.
 
 ## Versioning, and how a project records where it differs

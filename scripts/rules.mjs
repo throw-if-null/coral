@@ -168,51 +168,33 @@ function tableCells(line) {
 // to reason about `[AGENTIC-*]`, and a library should not have to read HTTP status
 // codes, so every rule names the narrowest surface that justifies it.
 //
-// The six layers are fixed. They are the taxonomy itself, not a registry of rules, so
-// they live in code rather than in a document — a seventh layer is a change to what
-// Coral means by ownership, not an entry someone adds.
+// The taxonomy is READ FROM CONVENTIONS.md, not hardcoded here. It used to be a constant,
+// and that made two authorities for one fact: CONVENTIONS.md says it is authoritative for
+// the ownership layers and prints a six-row table, while the parser carried its own copy
+// plus a separate set of which layers are opt-in. Renaming a layer, adding a seventh, or
+// changing one from opt-in to unconditional would have left every build check passing
+// against the old vocabulary — the documentation/tooling drift the rule set exists to stop,
+// committed by the rule set's own tooling.
 //
-//   kernel               — read from CONVENTIONS.md's kernel block, and ONLY from there.
-//   framework governance — governs Coral itself: interpretation, versioning, adoption.
-//   production baseline  — language- and app-shape-neutral; every production app.
-//   app profile          — applies because of the app's external shape (cli, backend, …).
-//   language binding     — applies because of one language ecosystem. Currently empty.
-//   runtime-agent profile— applies because the RUNNING app uses a model.
+// What is registered is only the SIX-CATEGORY TAXONOMY. Membership stays where it was:
+// kernel membership in `coral:kernel`, each non-kernel rule's layer inline on its own
+// definition, and the concrete app/language profiles in `coral:profiles`.
 //
-// `family` marks the two layers whose members carry a profile identity: `app:cli` is a
-// classification, `app` alone is not. Which concrete profiles exist is a documented
-// fact rather than a code constant — see the profile registry below.
-// ─────────────────────────────────────────────────────────────────────────────
-export const LAYERS = [
-  { key: 'kernel', label: 'kernel', tag: null, family: null },
-  { key: 'governance', label: 'framework governance', tag: 'governance', family: null },
-  { key: 'baseline', label: 'production baseline', tag: 'baseline', family: null },
-  { key: 'app', label: 'app profile', tag: null, family: 'app' },
-  { key: 'lang', label: 'language binding', tag: null, family: 'lang' },
-  { key: 'runtime-agent', label: 'runtime-agent profile', tag: 'runtime-agent', family: null },
-]
-
-// The layers a project OPTS INTO. Their rules are not universally applicable, which is
-// why a contract that carries one has to say so — see checkContractScopes().
-const OPTIONAL_KEYS = new Set(['app', 'lang', 'runtime-agent'])
-
-// Who has to load each layer, in the words a reader of rules.md needs. Generated prose, so
-// it sits with the taxonomy rather than being retyped into the index.
-//
-// Two of these are deliberately not "every project". `governance` sits outside application
-// conformance — no application source satisfies or violates [VER-2] — but that is a statement
-// about what it is audited against, not about how often it is read: [AGENT-3] and [AGENT-5]
-// are consulted during ordinary implementation. And `baseline` is stated at two scales: the
-// SYSTEM.md rules are the baseline when several apps compose, which a one-app repo never
-// reaches.
-const LOADED_BY = {
-  kernel: 'every Coral codebase',
-  governance: 'Coral-aware humans, agents and tooling — never audited against application source',
-  baseline: 'every Coral codebase, at the scale the rule is stated for',
-  app: 'projects with an app of that shape',
-  lang: 'projects in that language ecosystem',
-  'runtime-agent': 'applications that call a model at runtime',
-}
+// One thing is still anchored in code, and has to be: the row with no tag is the kernel
+// layer, because its membership comes from a different source that the parser has to know
+// by name. Everything else — label, tag, family, opt-in-ness, audience — is a doc fact.
+export const LAYERS_START = '<!-- coral:layers:start -->'
+export const LAYERS_END = '<!-- coral:layers:end -->'
+export const LAYERS_FILE = 'CONVENTIONS.md'
+const LAYER_COLUMNS = 5
+// The tagless row. Written as an em dash so a reader sees "this layer has no tag" rather
+// than an empty cell that might be an omission.
+const NO_TAG = '—'
+// The two literal values the contract-scope column may take. `profile-scoped` means a
+// contract listing one of these rules must say so; `unscoped` means it must not. Note what
+// neither word claims: `unscoped` is not `universal`. Kernel, framework governance and
+// production baseline are all unscoped and have three different audiences.
+const SCOPE_WORDS = { unscoped: false, 'profile-scoped': true }
 
 // tag grammar: lowercase token, optionally `family:profile`  e.g. baseline, app:cli, lang:go
 export const TAG_CORE = '[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?'
@@ -223,31 +205,190 @@ const TAG_RE = new RegExp(`^\\{(${TAG_CORE})\\}$`)
 // error taxonomy's `{category, code, message}` (commas, spaces) is correctly not a tag.
 const TAG_SHAPED_RE = /^\{[A-Za-z0-9:_-]+\}$/
 const codeSpans = (s) => [...s.matchAll(/`([^`]*)`/g)].map((m) => m[1])
+// A layer row's tag cell: `{baseline}` for a fixed layer, `{app:…}` for one that takes a
+// profile identity. The ellipsis is literal — the family declares that its members name a
+// profile, and which profiles exist is the other registry's business.
+const LAYER_TAG_RE = /^`\{([a-z][a-z0-9-]*)(:…)?\}`$/
+
+/**
+ * @typedef {{label: string, key: string, tag: string|null, family: string|null,
+ *            scoped: boolean, readBy: string, why: string}} Layer
+ */
+
+/**
+ * Parse and validate the ownership-layer taxonomy in CONVENTIONS.md.
+ *
+ * Same posture as the kernel block and the profile registry, for the same reason: this is
+ * the single source of what layers exist, so a row that silently fails to parse would
+ * delete a layer while the page still reads correctly. Unrecognised line, duplicate label
+ * or tag, wrong column count, a scope word that is neither of the two, more or less than
+ * one tagless row — all errors, none skipped.
+ *
+ * @returns {{taxonomy: Layer[], problems: string[]}}
+ */
+export function parseLayers(srcDir) {
+  const problems = []
+  const taxonomy = []
+  const abs = path.join(srcDir, LAYERS_FILE)
+  if (!fs.existsSync(abs)) {
+    problems.push(`${LAYERS_FILE} is missing — it is where the ownership taxonomy is defined.`)
+    return { taxonomy, problems }
+  }
+  const text = fs.readFileSync(abs, 'utf8')
+  const count = (marker) => text.split(marker).length - 1
+  const starts = count(LAYERS_START)
+  const ends = count(LAYERS_END)
+  if (starts !== 1 || ends !== 1) {
+    problems.push(
+      `${LAYERS_FILE} must hold exactly one ${LAYERS_START} block (found ${starts} start marker(s)` +
+        ` and ${ends} end marker(s)). Two taxonomies would leave one of them silently unread.`
+    )
+    return { taxonomy, problems }
+  }
+  const start = text.indexOf(LAYERS_START)
+  const end = text.indexOf(LAYERS_END)
+  if (end < start) {
+    problems.push(`${LAYERS_FILE} has ${LAYERS_END} before ${LAYERS_START}.`)
+    return { taxonomy, problems }
+  }
+
+  const SHAPE =
+    'Each row is  | Layer | `{tag}` or — | unscoped/profile-scoped | read by | justified by |'
+  const block = text.slice(start + LAYERS_START.length, end)
+  const markerLine = text.slice(0, start).split('\n').length
+  let header = false
+  let delim = false
+
+  block.split('\n').forEach((line, i) => {
+    const at = `${LAYERS_FILE}:${markerLine + i}`
+    const trimmed = line.trim()
+    if (!trimmed) return
+    if (!trimmed.startsWith('|')) {
+      problems.push(
+        `${at} is inside the ownership-layer registry but is not a table row. The block holds the` +
+          ` registry and nothing else — prose belongs outside the markers. ${SHAPE}`
+      )
+      return
+    }
+    const cells = tableCells(trimmed)
+    if (!header) {
+      header = true
+      if (!cells || cells.length !== LAYER_COLUMNS || cells.some((c) => !c.trim())) {
+        problems.push(
+          `${at}: the ownership-layer registry's header must have exactly ${LAYER_COLUMNS}` +
+            ` non-empty columns, matching its rows. ${SHAPE}`
+        )
+      }
+      return
+    }
+    if (!delim) {
+      delim = true
+      if (!cells || cells.length !== LAYER_COLUMNS || !cells.every((c) => DELIM_CELL_RE.test(c))) {
+        problems.push(
+          `${at}: expected the header delimiter row with exactly ${LAYER_COLUMNS} columns here.`
+        )
+      }
+      return
+    }
+    if (!cells || cells.length !== LAYER_COLUMNS || cells.some((c) => !c.trim())) {
+      problems.push(
+        `${at} is a malformed layer row, so the layer it declares cannot be read. ${SHAPE}`
+      )
+      return
+    }
+    const [rawLabel, rawTag, rawScope, readBy, why] = cells.map((c) => c.trim())
+    const label = rawLabel.replace(/\*\*/g, '')
+    if (!(rawScope in SCOPE_WORDS)) {
+      problems.push(
+        `${at}: \`${rawScope}\` is not a contract-scope word. A layer is \`unscoped\` or` +
+          ' `profile-scoped`, and nothing else — that column is what Gate 9 reads.'
+      )
+      return
+    }
+    let tag = null
+    let family = null
+    let key
+    if (rawTag === NO_TAG) {
+      // The layer whose membership comes from the kernel block rather than from a tag. The
+      // parser has to know it by name, so this is the one anchor the code keeps.
+      key = 'kernel'
+      if (taxonomy.some((l) => l.key === 'kernel')) {
+        problems.push(
+          `${at} is a second tagless layer. Exactly one layer takes its membership from` +
+            ` ${KERNEL_FILE}'s kernel block; every other layer is named by a \`{tag}\`.`
+        )
+        return
+      }
+    } else {
+      const m = LAYER_TAG_RE.exec(rawTag)
+      if (!m) {
+        problems.push(
+          `${at}: ${rawTag} is not a layer tag. Write a fixed layer as \`` +
+            '`{baseline}`` and one that takes a profile identity as ``{app:…}`` — or ' +
+            `\`${NO_TAG}\` for the layer read from the kernel block.`
+        )
+        return
+      }
+      if (m[2]) {
+        family = m[1]
+        key = m[1]
+      } else {
+        tag = m[1]
+        key = m[1]
+      }
+    }
+    if (taxonomy.some((l) => l.key === key)) {
+      problems.push(`${at} declares ${rawTag} twice. One row per ownership layer.`)
+      return
+    }
+    if (taxonomy.some((l) => l.label === label)) {
+      problems.push(`${at} declares the layer name \`${label}\` twice. One row per layer.`)
+      return
+    }
+    taxonomy.push({ label, key, tag, family, scoped: SCOPE_WORDS[rawScope], readBy, why })
+  })
+
+  if (!header || !delim) {
+    problems.push(
+      `${LAYERS_FILE}'s ownership-layer registry is not a table. It must open with a header row` +
+        ` and its delimiter. ${SHAPE}`
+    )
+  } else if (!taxonomy.length) {
+    problems.push(`${LAYERS_FILE}'s ownership-layer registry has a header but no layers. ${SHAPE}`)
+  } else if (!taxonomy.some((l) => l.key === 'kernel')) {
+    problems.push(
+      `${LAYERS_FILE}'s ownership-layer registry has no tagless row. One layer takes its members` +
+        ` from ${KERNEL_FILE}'s kernel block rather than from an inline tag, and it is written` +
+        ` with \`${NO_TAG}\` in the tag column.`
+    )
+  }
+  return { taxonomy, problems }
+}
 
 /**
  * Resolve an ownership tag against the taxonomy and the declared profiles.
  *
- * @returns {{key:string,label:string,profile:string|null}|string} the layer, or an error
- *   sentence explaining why the tag is not one.
+ * @returns {{key:string,label:string,profile:string|null,scoped:boolean}|string} the layer,
+ *   or an error sentence explaining why the tag is not one.
  */
-export function resolveTag(tag, profiles) {
+export function resolveTag(tag, profiles, taxonomy) {
   const [head, profile] = tag.split(':')
-  const familyLayer = LAYERS.find((l) => l.family === head)
+  const familyLayer = taxonomy.find((l) => l.family === head)
   if (profile === undefined) {
-    const layer = LAYERS.find((l) => l.tag === tag)
-    if (layer) return { key: layer.key, label: layer.label, profile: null }
+    const layer = taxonomy.find((l) => l.tag === tag)
+    if (layer) return { key: layer.key, label: layer.label, profile: null, scoped: layer.scoped }
     if (familyLayer) {
       return (
         `\`{${tag}}\` names the ${familyLayer.label} layer without a profile. A ${familyLayer.label}` +
         ` rule must say WHICH one — \`{${head}:<profile>}\`.`
       )
     }
-    return `\`{${tag}}\` is not an ownership layer. Use one of: ${tagVocabulary(profiles)}.`
+    return `\`{${tag}}\` is not an ownership layer. Use one of: ${tagVocabulary(profiles, taxonomy)}.`
   }
   if (!familyLayer) {
     return (
       `\`{${tag}}\` uses the profile form \`family:profile\`, but \`${head}\` is not a layer that takes` +
-      ` a profile. Only these take one: ${families()}.`
+      ` a profile. Only these take one: ${families(taxonomy)}.`
     )
   }
   if (!profiles.has(tag)) {
@@ -256,15 +397,16 @@ export function resolveTag(tag, profiles) {
       ` ${PROFILES_START} block, which is what stops a typo becoming a silent new layer.`
     )
   }
-  return { key: familyLayer.key, label: familyLayer.label, profile }
+  return { key: familyLayer.key, label: familyLayer.label, profile, scoped: familyLayer.scoped }
 }
 
 /** The `family:` prefixes a profile tag may use, for an error message that can be acted on. */
-const families = () => LAYERS.filter((l) => l.family).map((l) => `\`${l.family}:\``).join(', ')
+const families = (taxonomy) =>
+  taxonomy.filter((l) => l.family).map((l) => `\`${l.family}:\``).join(', ')
 
 /** The tags a rule may currently carry, for an error message that can be acted on. */
-function tagVocabulary(profiles) {
-  const fixed = LAYERS.filter((l) => l.tag).map((l) => `\`{${l.tag}}\``)
+function tagVocabulary(profiles, taxonomy) {
+  const fixed = taxonomy.filter((l) => l.tag).map((l) => `\`{${l.tag}}\``)
   const declared = [...profiles.keys()].sort().map((t) => `\`{${t}}\``)
   return [...fixed, ...declared].join(', ')
 }
@@ -315,9 +457,12 @@ const PROFILE_ROW_RE = new RegExp(
  * column count, missing header or delimiter, a home document that does not exist — all
  * errors, none skipped.
  *
+ * @param {string} srcDir
+ * @param {Layer[]} taxonomy the parsed ownership taxonomy; the families it declares are the
+ *   only ones a row may name.
  * @returns {{profiles: Map<string,{home:string,covers:string}>, problems: string[]}}
  */
-export function parseProfiles(srcDir) {
+export function parseProfiles(srcDir, taxonomy) {
   const problems = []
   const profiles = new Map()
   const abs = path.join(srcDir, PROFILES_FILE)
@@ -403,11 +548,11 @@ export function parseProfiles(srcDir) {
       return
     }
     const [, tag, home, covers] = row
-    const family = LAYERS.find((l) => l.family === tag.split(':')[0])
+    const family = taxonomy.find((l) => l.family === tag.split(':')[0])
     if (!tag.includes(':') || !family) {
       problems.push(
         `${at} declares \`{${tag}}\`, which is not a profile. Only the layers that take a profile` +
-          ` identity are registered here: ${families()}.`
+          ` identity are registered here: ${families(taxonomy)}.`
       )
       return
     }
@@ -483,9 +628,11 @@ export function parseProfiles(srcDir) {
  * @returns {{layers: Map<string,{tag:string|null,key:string,label:string,profile:string|null}>,
  *            problems: string[]}}
  */
-export function classifyRules({ rules, kernel, profiles }) {
+export function classifyRules({ rules, kernel, profiles, taxonomy }) {
   const problems = []
   const layers = new Map()
+  // home document -> the profile tag that owns it, for the reverse check below.
+  const owners = new Map([...profiles].map(([tag, p]) => [p.home, tag]))
   for (const [id, rule] of rules) {
     const at = `${rule.page}${rule.line ? `:${rule.line}` : ''}`
     if (kernel.has(id)) {
@@ -506,11 +653,11 @@ export function classifyRules({ rules, kernel, profiles }) {
         `[${id}] ${at} carries ` +
           (rule.tags.length === 0 ? 'no ownership tag' : `${rule.tags.length} ownership tags`) +
           '; every rule outside the kernel needs exactly one on its definition line, after its' +
-          ` enforcement class. Available: ${tagVocabulary(profiles)}.`
+          ` enforcement class. Available: ${tagVocabulary(profiles, taxonomy)}.`
       )
       continue
     }
-    const resolved = resolveTag(rule.tags[0], profiles)
+    const resolved = resolveTag(rule.tags[0], profiles, taxonomy)
     if (typeof resolved === 'string') {
       problems.push(`[${id}] ${at}: ${resolved}`)
       continue
@@ -531,6 +678,29 @@ export function classifyRules({ rules, kernel, profiles }) {
       }
     }
     layers.set(id, { tag: rule.tags[0], ...resolved })
+  }
+
+  // And the reverse. The check above keeps a profile rule out of a broadly-loaded document;
+  // this keeps a broadly-loaded rule out of a profile's document, which is the same leak
+  // running the other way. A `{baseline}` rule defined in appendix/cli.md is classified
+  // correctly and still invisible to everyone who is not building a CLI — and because a
+  // `[guide]` rule appears in no Agent Execution Contract, Gate 9 cannot see it either.
+  //
+  // Definitions only. Citing [BOUND-2] in appendix/cli.md is how an appendix is supposed to
+  // refer to the spine; what is forbidden is DEFINING a rule there that is not the profile's.
+  for (const [home, tag] of owners) {
+    for (const [id, rule] of rules) {
+      if (rule.page !== home || !layers.has(id)) continue
+      const layer = layers.get(id)
+      const actual = layer.profile ? `${layer.key}:${layer.profile}` : layer.tag
+      if (actual === tag) continue
+      problems.push(
+        `[${id}] is defined in ${home}, which is \`{${tag}}\`'s document, but is classified` +
+          ` \`${layerLabel(layer)}\`. Only that profile's rules are defined there: a rule kept in a` +
+          ' profile document is read only by projects that select the profile, whatever its layer' +
+          ' says. Move the definition to a document its own layer is loaded from, or reclassify it.'
+      )
+    }
   }
   return { layers, problems }
 }
@@ -619,7 +789,7 @@ export function checkContractScopes(srcDir, { rules, layers }) {
       if (!cite) return
       const layer = layers.get(cite[1])
       if (!layer) return
-      if (!OPTIONAL_KEYS.has(layer.key)) {
+      if (!layer.scoped) {
         if (scope) {
           problems.push(
             `[${cite[1]}] ${at} is \`${layerLabel(layer)}\`, which is not a profile-scoped layer —` +
@@ -1053,9 +1223,12 @@ export function extractStatements(srcDir, rules) {
 /** Render the registry as the rules.md page. Owns the whole file — prose included. */
 export function serializeIndex(srcDir, rules, defsByFile) {
   const statements = extractStatements(srcDir, rules)
+  const { taxonomy } = parseLayers(srcDir)
   const { ids: kernel } = parseKernel(srcDir)
-  const { profiles } = parseProfiles(srcDir)
-  const { layers } = classifyRules({ rules, kernel, profiles })
+  const { profiles } = parseProfiles(srcDir, taxonomy)
+  const { layers } = classifyRules({ rules, kernel, profiles, taxonomy })
+  const kernelLayer = taxonomy.find((l) => l.key === 'kernel')
+  const baselineLayer = taxonomy.find((l) => l.key === 'baseline')
   const count = (c) => [...rules.values()].filter((r) => r.cls === c).length
   const title = (rel) =>
     (fs.readFileSync(path.join(srcDir, rel), 'utf8').match(/^# (.+)$/m)?.[1] || rel).trim()
@@ -1066,15 +1239,15 @@ export function serializeIndex(srcDir, rules, defsByFile) {
   // too — a layer with no rules is a fact worth stating, and stating it here keeps it from
   // being asserted in prose that nothing checks.
   const buckets = []
-  for (const layer of LAYERS) {
+  for (const layer of taxonomy) {
     if (!layer.family) {
-      buckets.push({ label: layer.label, key: layer.key, profile: null })
+      buckets.push({ ...layer, profile: null })
       continue
     }
     const declared = [...profiles.keys()].filter((t) => t.startsWith(`${layer.family}:`)).sort()
-    if (!declared.length) buckets.push({ label: layer.label, key: layer.key, profile: null })
+    if (!declared.length) buckets.push({ ...layer, profile: null })
     for (const tag of declared) {
-      buckets.push({ label: `${layer.label} · ${tag.split(':')[1]}`, key: layer.key, profile: tag })
+      buckets.push({ ...layer, label: `${layer.label} · ${tag.split(':')[1]}`, profile: tag })
     }
   }
   const members = (b) =>
@@ -1094,7 +1267,7 @@ export function serializeIndex(srcDir, rules, defsByFile) {
   // number someone kept up to date.
   const conformance = tally.filter((r) => r.key === 'kernel' || r.key === 'baseline')
   const governance = tally.filter((r) => r.key === 'governance')
-  const optional = tally.filter((r) => OPTIONAL_KEYS.has(r.key))
+  const optional = tally.filter((r) => r.scoped)
   // Architectural scale, derived from the defining document rather than from the layer: the
   // baseline in SYSTEM.md is the baseline WHEN SEVERAL APPS COMPOSE. A one-app repository has
   // no channel to contract-test, so counting those as rules it must load would overclaim.
@@ -1136,8 +1309,8 @@ export function serializeIndex(srcDir, rules, defsByFile) {
     '',
     ...wrap(
       'They answer to three audiences rather than stacking into one number. ' +
-        `**${sum(conformance, 'total')} form the conformance surface** — ${LAYERS[0].label} plus ` +
-        `${LAYERS[2].label} — what a Coral codebase is built and audited against before any ` +
+        `**${sum(conformance, 'total')} form the conformance surface** — ${kernelLayer.label} plus ` +
+        `${baselineLayer.label} — what a Coral codebase is built and audited against before any ` +
         `profile is added, ${sum(conformance, 'review')} of them \`[review]\`. ` +
         `**${sum(governance, 'total')} govern Coral itself** and sit outside that surface ` +
         'entirely: no application source code satisfies or violates them. Coral-aware humans, ' +
@@ -1162,12 +1335,12 @@ export function serializeIndex(srcDir, rules, defsByFile) {
     ...tally.map((r) => {
       const where = r.profile
         ? `projects with a \`${r.profile.split(':')[1]}\` ${r.key === 'app' ? 'app' : 'binding'}`
-        : LOADED_BY[r.key]
+        : r.readBy
       return `| ${r.label} | ${r.total} | ${r.auto} | ${r.review} | ${r.guide} | ${where} |`
     }),
     '',
     ...wrap(
-      `**${LAYERS[0].label}** membership is read from the one table that records it, in ` +
+      `**${kernelLayer.label}** membership is read from the one table that records it, in ` +
         '[`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each member is mapped to ' +
         'the property it defends. Every other rule carries its layer as a `{tag}` on its own ' +
         'definition line, and the profiles those tags may name are registered in ' +
