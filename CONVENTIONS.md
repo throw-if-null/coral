@@ -1,10 +1,9 @@
 # Coral Architecture — Conventions
 
-<!-- AGENT NOTE (not shown on the rendered site): this file is AUTHORITATIVE for four things: the
-vocabulary, the rule-ID scheme, the enforcement classes, the ownership layers, and the [AGENT-*]
-operating model. Load it
-before reasoning across documents; ARCHITECTURE.md and SYSTEM.md defer to it and must not redefine
-these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
+<!-- AGENT NOTE (not shown on the rendered site): this file is AUTHORITATIVE for the vocabulary, the
+rule-ID scheme, the enforcement classes, the ownership layers, the kernel, and the [AGENT-*] operating
+model. Load it before reasoning across documents; ARCHITECTURE.md and SYSTEM.md defer to it and must not
+redefine these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
 
 This file holds what every other document builds on, so none of them has to repeat it:
 
@@ -553,27 +552,47 @@ The kernel answers *why* Coral imposes a rule. This answers a different question
 at all.**
 
 No single project is the audience for every rule Coral publishes. A CLI with no runtime model has no
-reason to read `[AGENTIC-*]`; a library has no reason to read HTTP status codes; a project that never
-edits Coral itself has no reason to read the rule-numbering discipline. Left unstated, all of them
-arrive as one undifferentiated wall, and the reviewer's real budget — the `[review]` rules, which need
-judgment one at a time — is spent on rules that were never about them.
+reason to read `[AGENTIC-*]`; a library has no reason to read HTTP status codes; a one-app repository has
+no channel to contract-test; and the rule-numbering discipline constrains no application's source at all.
+Left unstated, all of them arrive as one undifferentiated wall, and the reviewer's real budget — the
+`[review]` rules, which need judgment one at a time — is spent on rules that were never about them.
 
 So every rule carries exactly one **ownership layer**: the narrowest surface that justifies it.
 
-| Layer | Justified by | Loaded by |
+| Layer | Justified by | Read by |
 |---|---|---|
-| **kernel** | the operating model — agents author, humans keep architectural authority | every project |
-| **framework governance** | Coral itself: how it is interpreted, versioned, extended, adopted | every project |
-| **production baseline** | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior | every production application |
+| **kernel** | the operating model — agents author, humans keep architectural authority | every Coral codebase |
+| **framework governance** | Coral itself: how it is interpreted, versioned, extended, adopted | whoever decides how a project relates to Coral |
+| **production baseline** | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior | every Coral codebase, at the scale the rule is stated for |
 | **app profile** | the application's external shape — CLI, backend, web, library, action | projects with an app of that shape |
 | **language binding** | one language ecosystem needing a concrete realization of a neutral concept | projects in that ecosystem |
 | **runtime-agent profile** | the **running** application using a model | applications that call a model at runtime |
 
-The layers are **cumulative, and the profiles compose**. A normal CLI loads
-`kernel + production baseline + app profile · cli`. An agentic backend loads
-`kernel + production baseline + app profile · backend + runtime-agent profile` — the runtime-agent
-profile is orthogonal to app shape, never an alternative to it, which is why an agentic app is not a
-seventh app type. A repository holding a CLI and a library loads both profiles.
+### The layers do not stack into one list
+
+They answer to three audiences, and conflating them is how "load Coral" becomes "load all 178 rules".
+
+**The conformance surface — what a codebase is built and audited against** — is
+`kernel + production baseline`, plus whichever profiles the repository's app shapes select. A normal CLI:
+`kernel + production baseline + app profile · cli`. An agentic backend:
+`kernel + production baseline + app profile · backend + runtime-agent profile` — the runtime-agent profile
+is orthogonal to app shape, never an alternative to it, which is why an agentic app is not a seventh app
+type. A repository holding a CLI and a library selects both profiles. **Profiles compose; they do not
+replace.**
+
+**`framework governance` is not on that surface at all.** No application source code satisfies or violates
+`[VER-2]` or `[VER-4]`: those rules bind the *decisions a project makes about Coral* — which version it
+targets, how it records a deviation, how it numbers rules of its own. They are read once, when that
+relationship is settled, and again when it changes; they are not part of the audit of a slice. That is why
+the counts in [`rules.md`](./rules.md) report them separately rather than folding them into the
+application surface.
+
+**And `production baseline` is stated at two scales.** The baseline rules in
+[`ARCHITECTURE.md`](./ARCHITECTURE.md) govern one app. The ones in [`SYSTEM.md`](./SYSTEM.md) — channel
+contracts, orchestration topology, cross-app contract testing — govern several apps composing, and a
+repository that ships one app has no channel to version and no topology to wire. They are the baseline
+**when several apps compose**, not a reason for a single-app project to load `SYSTEM.md`. Ownership says
+*why* a rule exists and *how narrowly*; the document it is stated in still says at what scale it bites.
 
 **Ownership is not enforcement.** A rule has an ownership layer *and* an enforcement class, and the two
 say unrelated things: `[CLI-6]` is `app profile · cli` **and** `[auto]`; `[CLI-9]` is
@@ -678,11 +697,12 @@ The complete normative checklist for this document: every `[auto]` and `[review]
 
 Read in this order:
 
-1. **`CONVENTIONS.md`** (this file) — the vocabulary, rule scheme, enforcement classes, operating
-   model. The front door.
+1. **`CONVENTIONS.md`** (this file) — the vocabulary, rule scheme, enforcement classes, ownership
+   layers, operating model. The front door.
 2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the **app** spine: how to build one app. Its
    [appendices](./ARCHITECTURE.md#appendix-index) instantiate it per app type (CLI, backend, web,
-   agentic/LLM, library, GitHub Action).
+   library, GitHub Action), plus the runtime-agent profile an app of any shape adds when it calls a
+   model at runtime.
 3. **[`SYSTEM.md`](./SYSTEM.md)** — the **system** spine: how apps compose over a channel. Builds on the
    app spine; the app spine never cites it.
 4. **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python,

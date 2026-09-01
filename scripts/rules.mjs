@@ -28,10 +28,28 @@ const DEF_LINE_RE = new RegExp(String.raw`^(?:- \*\*|\*\*|- )\`\[(${ID_CORE})\]\
 // changelog caused, arriving from the other direction: there the fix was to exclude a file,
 // and a file exclusion cannot help when the example is in the file that also defines rules.
 //
-// Fence lengths are tracked per CommonMark: only a fence at least as long as the one that
-// opened the block can close it, which is what keeps CONVENTIONS.md's ````-wrapped CORAL.md
-// example (containing a ```yaml fence) from toggling the state twice and re-opening.
-const FENCE_RE = /^\s*(`{3,}|~{3,})/
+// Opening and closing are NOT the same shape, and treating them as one pattern is how a
+// too-permissive parser lets an example escape. CommonMark, for the parts this relies on:
+//
+//   · a fence is 3+ backticks or 3+ tildes, indented at most three spaces;
+//   · an OPENING fence may carry an info string — ```yaml — and for a backtick fence that
+//     info string may not itself contain a backtick;
+//   · a CLOSING fence carries nothing but spaces and tabs after the marker, and is the same
+//     character and at least as long as the fence that opened the block.
+//
+// The last two are what make ```not-a-closing-fence an opener rather than a closer. A single
+// pattern matching "3+ markers, anything after" closes there and reads every following line
+// as document text again — which for a page of rule examples means inventing definitions.
+//
+// While a block is open only the closing shape is tested, so a nested ```yaml inside a
+// ````-opened block is content, not a state change. CONVENTIONS.md's CORAL.md sample is
+// exactly that, and a parser that toggles on any fence swallows every definition after it.
+//
+// NOT modelled: indented code blocks (four spaces, no fence). They need no handling here
+// because DEF_LINE_RE anchors a definition at column 0, so a line inside one can never look
+// like a definition in the first place — and a four-space-indented fence is not a fence.
+const FENCE_OPEN_RE = /^ {0,3}(?:(`{3,})[^`]*|(~{3,}).*)$/
+const FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/
 
 /**
  * Every rule-definition line in a document, skipping fenced code blocks.
@@ -41,18 +59,21 @@ const FENCE_RE = /^\s*(`{3,}|~{3,})/
  */
 export function definitionLines(lines) {
   const out = []
-  let fence = null
+  let fence = null // the marker that opened the current block, or null outside one
   for (let i = 0; i < lines.length; i++) {
-    const f = FENCE_RE.exec(lines[i])
-    if (f) {
-      const marker = f[1]
-      if (fence === null) fence = marker
-      else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null
+    const line = lines[i]
+    if (fence !== null) {
+      const close = FENCE_CLOSE_RE.exec(line)
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null
       continue
     }
-    if (fence !== null) continue
-    const m = DEF_LINE_RE.exec(lines[i])
-    if (m) out.push({ i, id: m[1], rest: m[2], line: lines[i] })
+    const open = FENCE_OPEN_RE.exec(line)
+    if (open) {
+      fence = open[1] ?? open[2]
+      continue
+    }
+    const m = DEF_LINE_RE.exec(line)
+    if (m) out.push({ i, id: m[1], rest: m[2], line })
   }
   return out
 }
@@ -64,7 +85,13 @@ const classRe = () => /`\[(auto|review|guide)\]`/g
 
 // The spine is pinned first because the registry is first-definition-wins:
 // precedence has to be stable and must not depend on directory order.
-const SPINE = ['CONVENTIONS.md', 'ARCHITECTURE.md', 'SYSTEM.md']
+//
+// The two architectural scales are named rather than spelled out at each use. Gate 6 needs
+// them to check the one-way dependency, and rules.md needs them to say which baseline rules
+// are stated for several apps composing rather than for one app — two readers, so one name.
+export const APP_SPINE = 'ARCHITECTURE.md'
+export const SYSTEM_SPINE = 'SYSTEM.md'
+const SPINE = ['CONVENTIONS.md', APP_SPINE, SYSTEM_SPINE]
 const SKIP = new Set(['node_modules', 'public'])
 
 // A changelog RECORDS rules; it does not define them. But it quotes each new rule
@@ -171,10 +198,15 @@ const OPTIONAL_KEYS = new Set(['app', 'lang', 'runtime-agent'])
 
 // Who has to load each layer, in the words a reader of rules.md needs. Generated prose, so
 // it sits with the taxonomy rather than being retyped into the index.
+//
+// Two of these are deliberately not "every project". `governance` binds the people deciding
+// how a project relates to Coral, not the code — no application source satisfies or violates
+// [VER-2]. And `baseline` is stated at two scales: the SYSTEM.md rules are the baseline when
+// several apps compose, which a one-app repository never reaches.
 const LOADED_BY = {
-  kernel: 'every Coral project',
-  governance: 'every Coral project (Coral itself)',
-  baseline: 'every production Coral application',
+  kernel: 'every Coral codebase',
+  governance: 'whoever decides how a project relates to Coral',
+  baseline: 'every Coral codebase, at the scale the rule is stated for',
   app: 'projects with an app of that shape',
   lang: 'projects in that language ecosystem',
   'runtime-agent': 'applications that call a model at runtime',
@@ -213,7 +245,7 @@ export function resolveTag(tag, profiles) {
   if (!familyLayer) {
     return (
       `\`{${tag}}\` uses the profile form \`family:profile\`, but \`${head}\` is not a layer that takes` +
-      ` a profile. Only ${LAYERS.filter((l) => l.family).map((l) => `\`${l.family}:\``).join(' and ')} do.`
+      ` a profile. Only these take one: ${families()}.`
     )
   }
   if (!profiles.has(tag)) {
@@ -224,6 +256,9 @@ export function resolveTag(tag, profiles) {
   }
   return { key: familyLayer.key, label: familyLayer.label, profile }
 }
+
+/** The `family:` prefixes a profile tag may use, for an error message that can be acted on. */
+const families = () => LAYERS.filter((l) => l.family).map((l) => `\`${l.family}:\``).join(', ')
 
 /** The tags a rule may currently carry, for an error message that can be acted on. */
 function tagVocabulary(profiles) {
@@ -352,7 +387,7 @@ export function parseProfiles(srcDir) {
     if (!tag.includes(':') || !family) {
       problems.push(
         `${at} declares \`{${tag}}\`, which is not a profile. Only the layers that take a profile` +
-          ` identity are registered here: ${LAYERS.filter((l) => l.family).map((l) => `\`${l.family}:\``).join(', ')}.`
+          ` identity are registered here: ${families()}.`
       )
       return
     }
@@ -527,7 +562,8 @@ export function checkContractScopes(srcDir, { rules, layers }) {
       if (scope !== layer.tag) {
         problems.push(
           `[${cite[1]}] ${at} is \`${layerLabel(layer)}\`, so it applies only to projects that load` +
-            ` that profile — but the contract lists it ${scope ? `under scope \`{${scope}}\`` : 'unscoped'}.` +
+            ' that profile — but the contract lists it ' +
+            (scope ? `under scope \`{${scope}}\`.` : 'unscoped.') +
             ` Put it under \`<!-- coral:scope:${layer.tag} -->\`, or the contract presents an` +
             ' opt-in rule as universal.'
         )
@@ -980,8 +1016,20 @@ export function serializeIndex(srcDir, rules, defsByFile) {
     return { ...b, total: ids.length, auto: cls('auto'), review: cls('review'), guide: cls('guide') }
   })
   const sum = (rows, k) => rows.reduce((n, r) => n + r[k], 0)
-  const universal = tally.filter((r) => r.key === 'kernel' || r.key === 'baseline')
+  // Three audiences, not one stack. `conformance` is what a codebase is audited against;
+  // `governance` binds whoever decides how the project relates to Coral and constrains no
+  // source code; `optional` loads with a profile. They partition the rule set, so the three
+  // subtotals in the prose below reconcile to rules.size by construction rather than by a
+  // number someone kept up to date.
+  const conformance = tally.filter((r) => r.key === 'kernel' || r.key === 'baseline')
+  const governance = tally.filter((r) => r.key === 'governance')
   const optional = tally.filter((r) => OPTIONAL_KEYS.has(r.key))
+  // Architectural scale, derived from the defining document rather than from the layer: the
+  // baseline in SYSTEM.md is the baseline WHEN SEVERAL APPS COMPOSE. A one-app repository has
+  // no channel to contract-test, so counting those as rules it must load would overclaim.
+  const atSystemScale = conformance
+    .flatMap(members)
+    .filter(([id]) => rules.get(id).page === SYSTEM_SPINE)
 
   const out = [
     '# Rule index',
@@ -1016,11 +1064,25 @@ export function serializeIndex(srcDir, rules, defsByFile) {
     ),
     '',
     ...wrap(
-      `**${sum(universal, 'total')} rules bind every Coral application** (${LAYERS[0].label} + ` +
-        `${LAYERS[2].label}), of which ${sum(universal, 'review')} are \`[review]\`. The remaining ` +
-        `${sum(optional, 'total')} are opt-in — ${sum(optional, 'review')} \`[review]\` — and load ` +
+      'They answer to three audiences rather than stacking into one number. ' +
+        `**${sum(conformance, 'total')} carry no profile** — ${LAYERS[0].label} plus ` +
+        `${LAYERS[2].label} — and are what a Coral codebase is built and audited against, ` +
+        `${sum(conformance, 'review')} of them \`[review]\`. **${sum(governance, 'total')} govern ` +
+        'Coral itself**, and no application source code satisfies or violates them: they bind ' +
+        'whoever decides how a project relates to Coral — which version it ' +
+        `targets, how it records a deviation, how it numbers its own rules. The other ` +
+        `**${sum(optional, 'total')} are opt-in** — ${sum(optional, 'review')} \`[review]\` — and load ` +
         'only with the profile that owns them, so a CLI with no runtime model never reads an ' +
         '`[AGENTIC-*]` rule and a library never reads an HTTP status code.'
+    ),
+    '',
+    ...wrap(
+      `Scale narrows the first group further. ${atSystemScale.length} of those ` +
+        `${sum(conformance, 'total')} are stated at *system* scale in ` +
+        `[\`${SYSTEM_SPINE}\`](./${SYSTEM_SPINE}) — channel contracts, topology, cross-app contract ` +
+        'testing — and a repository that ships one app has no channel to version and no topology to ' +
+        'wire. They are the baseline **when several apps compose**, not a reason for a single-app ' +
+        'project to load them.'
     ),
     '',
     '| Layer | Rules | `[auto]` | `[review]` | `[guide]` | Loaded by |',
@@ -1034,7 +1096,7 @@ export function serializeIndex(srcDir, rules, defsByFile) {
     '',
     ...wrap(
       `**${LAYERS[0].label}** membership is read from the one table that records it, in ` +
-        '[`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each of the nine is mapped to ' +
+        '[`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each member is mapped to ' +
         'the property it defends. Every other rule carries its layer as a `{tag}` on its own ' +
         'definition line, and the profiles those tags may name are registered in ' +
         '[`CONVENTIONS.md`](./CONVENTIONS.md#ownership-layers). Kernel membership answers *why Coral ' +

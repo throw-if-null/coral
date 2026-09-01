@@ -87,8 +87,12 @@ gains an [Ownership layers](./CONVENTIONS.md#ownership-layers) section defining 
 `coral:profiles` registry naming the profiles that exist; `rules.md` replaces its binary **Kernel** column
 with a generated **Layer** column and a per-layer tally.
 
-**97 rules bind every Coral application** (kernel + production baseline), 69 of them `[review]`. The other
-72 are opt-in — 50 `[review]` — and load with the profile that owns them. **There are no language-binding
+The counts answer to three audiences rather than stacking into one number. **97 rules carry no profile**
+(kernel + production baseline) and are what a codebase is built and audited against, 69 of them
+`[review]`; 18 of those 97 are stated at *system* scale in `SYSTEM.md`, and a repository that ships one
+app has no channel to version or topology to wire. **9 govern Coral itself** — no application source code
+satisfies or violates `[VER-2]`; they bind the decisions a project makes *about* Coral. The other **72 are
+opt-in** — 50 `[review]` — and load with the profile that owns them. **There are no language-binding
 rules**, and the empty layer is left honestly empty; every Coral rule is stated in language-neutral terms
 today, and the Go and Python worked examples illustrate neutral rules rather than binding them.
 
@@ -129,7 +133,9 @@ The parser gained one fix this needed: **a rule definition inside a fenced code 
 not a definition.** `CONVENTIONS.md` now prints an example definition line, and the registry is
 first-definition-wins across a fixed document order, so without the fix that example silently became the
 definition of `[CLI-6]` and moved the rule to another page — the failure `CHANGELOG.md` caused once
-already, arriving from a direction a file exclusion cannot cover.
+already, arriving from a direction a file exclusion cannot cover. Opening and closing fences are matched
+separately, per CommonMark: an opener may carry an info string and a closer may not, so ```` ```yaml ````
+opens a block rather than closing one, and a nested fence inside a longer one stays content.
 
 ---
 

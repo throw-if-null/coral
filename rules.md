@@ -18,15 +18,24 @@ Every rule belongs to exactly one **ownership layer**: the narrowest surface tha
 separate axis from the enforcement class — a rule is *both* `app profile · cli` *and* `[auto]`. Ownership
 answers *who has to load this rule*; the class answers *how it is checked*.
 
-**97 rules bind every Coral application** (kernel + production baseline), of which 69 are `[review]`. The
-remaining 72 are opt-in — 50 `[review]` — and load only with the profile that owns them, so a CLI with no
-runtime model never reads an `[AGENTIC-*]` rule and a library never reads an HTTP status code.
+They answer to three audiences rather than stacking into one number. **97 carry no profile** — kernel plus
+production baseline — and are what a Coral codebase is built and audited against, 69 of them `[review]`.
+**9 govern Coral itself**, and no application source code satisfies or violates them: they bind whoever
+decides how a project relates to Coral — which version it targets, how it records a deviation, how it
+numbers its own rules. The other **72 are opt-in** — 50 `[review]` — and load only with the profile that
+owns them, so a CLI with no runtime model never reads an `[AGENTIC-*]` rule and a library never reads an
+HTTP status code.
+
+Scale narrows the first group further. 18 of those 97 are stated at *system* scale in
+[`SYSTEM.md`](./SYSTEM.md) — channel contracts, topology, cross-app contract testing — and a repository
+that ships one app has no channel to version and no topology to wire. They are the baseline **when several
+apps compose**, not a reason for a single-app project to load them.
 
 | Layer | Rules | `[auto]` | `[review]` | `[guide]` | Loaded by |
 | --- | --- | --- | --- | --- | --- |
-| kernel | 9 | 1 | 8 | 0 | every Coral project |
-| framework governance | 9 | 2 | 2 | 5 | every Coral project (Coral itself) |
-| production baseline | 88 | 12 | 61 | 15 | every production Coral application |
+| kernel | 9 | 1 | 8 | 0 | every Coral codebase |
+| framework governance | 9 | 2 | 2 | 5 | whoever decides how a project relates to Coral |
+| production baseline | 88 | 12 | 61 | 15 | every Coral codebase, at the scale the rule is stated for |
 | app profile · backend | 8 | 1 | 7 | 0 | projects with a `backend` app |
 | app profile · cli | 11 | 5 | 4 | 2 | projects with a `cli` app |
 | app profile · gh-action | 12 | 2 | 9 | 1 | projects with a `gh-action` app |
@@ -36,7 +45,7 @@ runtime model never reads an `[AGENTIC-*]` rule and a library never reads an HTT
 | runtime-agent profile | 16 | 0 | 13 | 3 | applications that call a model at runtime |
 
 **kernel** membership is read from the one table that records it, in
-[`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each of the nine is mapped to the property it
+[`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each member is mapped to the property it
 defends. Every other rule carries its layer as a `{tag}` on its own definition line, and the profiles those
 tags may name are registered in [`CONVENTIONS.md`](./CONVENTIONS.md#ownership-layers). Kernel membership
 answers *why Coral imposes a rule, and at what strength*; it does not mean the rule matters more, and no

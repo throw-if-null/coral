@@ -23,20 +23,24 @@ of it.
 
 From there: [`ARCHITECTURE.md`](./ARCHITECTURE.md) is how to build one app,
 [`SYSTEM.md`](./SYSTEM.md) is how separately-built apps compose over a channel, [`appendix/`](./appendix)
-holds one file per app type, and [`examples/`](./examples) holds worked code — including
-[a real service reviewed against the rules](./examples/backend-review.md), which states where they would
-have been overkill.
+holds one file per **profile** — CLI, backend, web, library, GitHub Action, plus the runtime-agent profile
+an app of any shape adds when it calls a model — and [`examples/`](./examples) holds worked code —
+including [a real service reviewed against the rules](./examples/backend-review.md), which states where
+they would have been overkill.
 
 To look a rule up rather than read for it, [`rules.md`](./rules.md) lists all of them on one page with
-their class and a one-line statement, grouped by document. It is generated from the documents
-(`npm run rules:index`) and the build fails if it falls behind them, because an index that can drift from
-what it indexes is worse than no index.
+their class, their ownership layer, and a one-line statement, grouped by document. It is generated from
+the documents (`npm run rules:index`) and the build fails if it falls behind them, because an index that
+can drift from what it indexes is worse than no index.
 
-Rules carry stable IDs like `[DUP-2]` with an enforcement class (`[auto]` / `[review]` / `[guide]`); on the
-live site every citation links to its definition. The build fails if a rule has no class, if a citation has
-no definition, if a rule is missing from its document's Agent Execution Contract, if a published rule ID
-has disappeared or been reclassified, if the rule index is stale, or if a link fragment doesn't resolve —
-the docs' own drift control is structural, not goodwill.
+Rules carry stable IDs like `[DUP-2]`, and two independent classifications: an **enforcement class**
+(`[auto]` / `[review]` / `[guide]`) saying how the rule is checked, and an
+**[ownership layer](./CONVENTIONS.md#ownership-layers)** saying who has to read it — so a CLI is not asked
+to reason about HTTP status codes or runtime-AI rules. On the live site every citation links to its
+definition. The build fails if a rule has no class or no layer, if a citation has no definition, if a rule
+is missing from its document's Agent Execution Contract, if a contract presents an opt-in rule as
+universal, if a published rule ID has disappeared or been reclassified, if the rule index is stale, or if
+a link fragment doesn't resolve — the docs' own drift control is structural, not goodwill.
 
 ## Versioning, and how a project records where it differs
 

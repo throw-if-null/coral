@@ -939,14 +939,18 @@ The rule IDs and enforcement classes exist so the architecture can be **checked*
 first line of drift control is structural: a genuine crosscut (`[XCUT]`) has one copy and nothing to
 drift. The tiers below are the backstop for what slips past it.
 
-Two things are checked today. This repository enforces its **own** consistency at build time — every rule
-carries exactly one enforcement class, every rule-ID citation resolves to a definition, every
-`[auto]`/`[review]` rule appears in its document's Agent Execution Contract, no rule ID is removed or
-silently reclassified, the generated [rule index](./rules.md) still matches the registry it indexes, this
-document cites no system rule, every worked example declares the current Coral version, and every link
-fragment resolves. And
-[`tools/coral-lint`](./tools/coral-lint/README.md) enforces a growing subset of Tier 1 against a target
-repository.
+Two things are checked today. This repository enforces its **own** consistency at build time, in four
+groups. Each rule is **classified**: exactly one enforcement class, and exactly one ownership layer —
+kernel membership read only from `CONVENTIONS.md`'s kernel block, every other rule tagged on its own
+definition line against a registered profile. Each document is **complete and honestly scoped**: every
+`[auto]`/`[review]` rule appears in its Agent Execution Contract, and a contract marks its opt-in groups
+so it cannot present a profile rule as universal. Each **citation resolves**, this document cites no
+system rule, and every link fragment reaches a real anchor. And the **published set is stable**: no rule
+ID removed or silently reclassified, the generated [rule index](./rules.md) still matching the registry it
+indexes, every worked example declaring the current Coral version. Malformed metadata fails the build
+rather than being skipped, because a skipped rule is one that quietly leaves a layer while the page still
+reads correctly. Separately, [`tools/coral-lint`](./tools/coral-lint/README.md) enforces a growing subset
+of Tier 1 against a target repository.
 
 **Tier 1 — static checks (deterministic, blocking).** One per `[auto]` rule **defined in this document**;
 each appendix carries its own, and each check cites the rule ID it enforces so a failure points back here. Some of these ship as
@@ -1040,7 +1044,9 @@ experience, sits outside the `1.0.0` condition, and may change substantially wit
 [`CONVENTIONS.md`](./CONVENTIONS.md#versioning-and-local-deviations). It graduates to a core appendix once
 someone has built the thing and the rules survived contact with it.
 
-- **[`appendix/agentic-app.md`](./appendix/agentic-app.md)** — apps built around an LLM at runtime; the
-  model is an injected effect and the agent runs in a harness. **ADDENDUM.** Its safety guardrails
+- **[`appendix/agentic-app.md`](./appendix/agentic-app.md)** — the **runtime-agent profile**, not a
+  sixth app shape: an app of any shape adds it when it calls a model at runtime, so an agentic backend
+  loads this *and* `appendix/backend.md`. The model is an injected effect and the agent runs in a
+  harness. **ADDENDUM.** Its safety guardrails
   (harness, untrusted model output, never exact-match, never float the model identifier) hold regardless;
   its construction advice is provisional, and one slot is open pending a decision.

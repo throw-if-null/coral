@@ -4,11 +4,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import {
+  APP_SPINE,
   CONTRACT_END,
   CONTRACT_START,
   INDEX_FILE,
   INLINE_ID_RE,
   LOCK_FILE,
+  SYSTEM_SPINE,
   checkContractScopes,
   classifyRules,
   parseKernel,
@@ -179,8 +181,6 @@ if (fs.existsSync(lockPath)) {
 // rules where an app type reproduces the system pattern internally, which is why
 // web.md legitimately references [CHAN-*] and [SYS-TEST-1].
 // ─────────────────────────────────────────────────────────────────────────────
-const APP_SPINE = 'ARCHITECTURE.md'
-const SYSTEM_SPINE = 'SYSTEM.md'
 const spineAbs = path.join(SRC, APP_SPINE)
 if (fs.existsSync(spineAbs)) {
   const systemRules = new Set(
