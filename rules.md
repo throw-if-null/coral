@@ -80,7 +80,7 @@ layer below it is optional once its profile is loaded.
 | `[BOUND-5]` | `[review]` | production baseline | A scheduled/background trigger is a slice: observable outcome, overlap-safe, tested. |
 | `[ROOT-1]` | `[review]` | production baseline | Keep the root thin: register, construct, inject, bootstrap. No business logic. |
 | `[ROOT-2]` | `[auto]` | production baseline | The root imports no persistence or domain-internal module. |
-| `[ROOT-3]` | `[guide]` | production baseline | For a library, the *consumer* is the composition root: the package exposes capabilities and lets the consumer wire them. |
+| `[ROOT-3]` | `[guide]` | production baseline | Each appendix names its root form — including the app types that have no root of their own: for a library the *consumer* is the composition root, so the package exposes capabilities and lets the consumer wire them. |
 | `[STRUCT-1]` | `[auto]` | production baseline | Colocate tests, or mirror the package structure where colocation is impossible. |
 | `[STRUCT-2]` | `[review]` | production baseline | Put slices in concrete, domain-oriented feature packages; the package owns its capability's state. |
 | `[STRUCT-3]` | `[auto]` | production baseline | Keep root-level crosscuts rare and precisely named. |

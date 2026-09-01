@@ -280,8 +280,13 @@ almost always announces itself as an import of the thing it operates on. Pair it
 appropriate to your stack — if the root is the largest file in the app, `[ROOT-1]` is being violated
 whatever the imports say.
 
-**`[ROOT-3]` `[guide]` `{baseline}`** — For a library, the *consumer* is the composition root: the package
-exposes capabilities and lets the consumer wire them. Each appendix names its root form.
+**`[ROOT-3]` `[guide]` `{baseline}`** — **Each appendix names its root form** — including the app types
+that have no root of their own: for a library the *consumer* is the composition root, so the package
+exposes capabilities and lets the consumer wire them.
+
+The library is the case worth naming here rather than only in its appendix, because it is the one where
+the answer is *nothing in this package*: everything this section assigns to the root belongs to somebody
+the author will never meet.
 
 ---
 
