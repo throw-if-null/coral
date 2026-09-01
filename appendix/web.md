@@ -18,17 +18,17 @@ keeping each piece a slice; what does **not** follow is that each piece needs it
 
 ## Boundary & the frontend slice  → `[BOUND-1]`
 
-**`[WEB-1]`** `[review]` A slice is **one route / page-action / endpoint**, and its **UI and its handler
-live in the same slice**: a frontend slice owns its view, its local state, and the one capability call it
-makes. Do not split a feature's UI from its logic into global `components/` and `services/` layers — that
-is the `[BUCKET-1]` failure wearing frontend clothes.
+**`[WEB-1]`** `[review]` `{app:web}` A slice is **one route / page-action / endpoint**, and its **UI and
+its handler live in the same slice**: a frontend slice owns its view, its local state, and the one
+capability call it makes. Do not split a feature's UI from its logic into global `components/` and
+`services/` layers — that is the `[BUCKET-1]` failure wearing frontend clothes.
 
 ## The shape of a rich UI — a dashboard is read fan-in  → `[COMPOSE-4]` `[ORCH-1]`
 
-**`[WEB-2]`** `[guide]` **Microfrontends are an escalation pattern, not the default.** Adopt them when a
-concrete requirement forces runtime independence: independent deployment, independent team ownership,
-runtime isolation, different frameworks or runtimes, or independently versioned product surfaces. A
-feature-rich frontend is **not** one of those reasons.
+**`[WEB-2]`** `[guide]` `{app:web}` **Microfrontends are an escalation pattern, not the default.** Adopt
+them when a concrete requirement forces runtime independence: independent deployment, independent team
+ownership, runtime isolation, different frameworks or runtimes, or independently versioned product
+surfaces. A feature-rich frontend is **not** one of those reasons.
 
 This rule used to read the other way — "prefer building rich UI as microfrontends" — and that was wrong in
 a way worth naming, because the reasoning that produced it was sound and the conclusion still did not
@@ -42,17 +42,17 @@ Where the requirement is real, everything the earlier wording described applies:
 owning its UI, its local state, and its capability call, the screen is a small system, and the panel
 channel is contract-tested (`[WEB-4]`, `[SYS-TEST-1]`).
 
-**`[WEB-3]`** `[review]` The **composition shell is the frontend's orchestration layer** (`[ORCH-1]` in the
-browser): it owns **layout and routing — where panels sit — and contains no business logic**. It mounts
-slices; it does not reach inside them. Adding or moving a panel is a shell change, not an edit to another
-panel.
+**`[WEB-3]`** `[review]` `{app:web}` The **composition shell is the frontend's orchestration layer**
+(`[ORCH-1]` in the browser): it owns **layout and routing — where panels sit — and contains no business
+logic**. It mounts slices; it does not reach inside them. Adding or moving a panel is a shell change, not
+an edit to another panel.
 
-**`[WEB-4]`** `[auto]` A frontend slice never reaches into another slice's internals (`[COMPOSE-1]`) —
-it depends only on a published surface. **Where runtime isolation is claimed** (`[WEB-2]`), that surface
-must additionally be a **channel** (`[CHAN-*]` in [`SYSTEM.md`](../SYSTEM.md)) — an event stream, a typed
-contract surface, or a thin client-side bus — and statically there is **no import edge between panel
-directories at all**. In an integrated frontend (`[WEB-6]`), a **typed import of another slice's published
-surface is permitted, and is preferred to a bus**.
+**`[WEB-4]`** `[auto]` `{app:web}` A frontend slice never reaches into another slice's internals
+(`[COMPOSE-1]`) — it depends only on a published surface. **Where runtime isolation is claimed**
+(`[WEB-2]`), that surface must additionally be a **channel** (`[CHAN-*]` in [`SYSTEM.md`](../SYSTEM.md)) —
+an event stream, a typed contract surface, or a thin client-side bus — and statically there is **no import
+edge between panel directories at all**. In an integrated frontend (`[WEB-6]`), a **typed import of another
+slice's published surface is permitted, and is preferred to a bus**.
 
 The distinction the earlier version of this rule lost: it banned import edges unconditionally, including
 inside the integrated frontend `[WEB-6]` sanctions. So the honest fallback was still forced to communicate
@@ -68,18 +68,18 @@ slice's index or barrel naming what it offers — never a deep path into another
 or store. Deleting a slice must break only its published surface's consumers, and if a deep import made
 that untrue, the boundary is gone whichever mechanism carried it.
 
-**`[WEB-5]`** `[review]` Shared design tokens, primitives, and interaction patterns are a **crosscut**:
-defined once as a design-system package, injected into every slice, never re-implemented or forked per
-panel.
+**`[WEB-5]`** `[review]` `{app:web}` Shared design tokens, primitives, and interaction patterns are a
+**crosscut**: defined once as a design-system package, injected into every slice, never re-implemented or
+forked per panel.
 
 A control panel must look like *one* product, and visual cohesion is the cross-cutting concern that data
 fan-in doesn't have — it is most of what makes UI fan-in genuinely harder than the read fan-in of
 `[COMPOSE-4]`. It is also a textbook `[XCUT-1]`: cross-cutting, and carrying an invariant (one visual
 language) that is a defect when it diverges.
 
-**`[WEB-6]`** `[guide]` **The default web architecture is a single integrated frontend organized
-internally by capability slice**, consuming the design-system crosscut. One deployment unit, one bundle;
-the slice boundaries are structural.
+**`[WEB-6]`** `[guide]` `{app:web}` **The default web architecture is a single integrated frontend
+organized internally by capability slice**, consuming the design-system crosscut. One deployment unit, one
+bundle; the slice boundaries are structural.
 
 This is the default because it is the reversible choice and because it keeps every property Coral
 actually asks for. Each slice still owns its view, its local state, and its one capability call
@@ -94,8 +94,8 @@ where the reversal is cheap, and escalate when a named requirement appears.
 
 ## Trust / security — the heaviest slot  → `[TRUST-1]` `[TRUST-2]`
 
-**`[WEB-7]`** `[review]` Treat the **client as hostile**: never trust anything that arrives from the
-browser.
+**`[WEB-7]`** `[review]` `{app:web}` Treat the **client as hostile**: never trust anything that arrives
+from the browser.
 
 Authentication and authorization run at the server boundary as **middleware before the slice**, so the
 slice receives an already-authenticated principal. Validate every request payload, enforce CSRF and
@@ -108,21 +108,21 @@ signature, and tests. **Default to deny.**
 
 ## Idempotency & effects  → `[IDEM-1]`
 
-**`[WEB-8]`** `[auto]` HTTP method semantics: `GET`/`HEAD` are safe and read-only (`[IDEM-2]` — a `GET`
-handler must not mutate); `POST` is non-idempotent; `PUT`/`DELETE` are idempotent. The client owns retry;
-never auto-retry a `POST` (`[IDEM-4]`). Offer an idempotency key where a user may double-submit.
+**`[WEB-8]`** `[auto]` `{app:web}` HTTP method semantics: `GET`/`HEAD` are safe and read-only (`[IDEM-2]` —
+a `GET` handler must not mutate); `POST` is non-idempotent; `PUT`/`DELETE` are idempotent. The client owns
+retry; never auto-retry a `POST` (`[IDEM-4]`). Offer an idempotency key where a user may double-submit.
 
 ## Error rendering  → `[ERR-3]`
 
-**`[WEB-9]`** `[auto]` Slices raise the taxonomy; a root middleware renders — mapping `category` → HTTP
-status (per `[BE-5]`) **and** to the right surface: a user-facing error view or page for navigations, a
-structured `{category, code, message}` body for API and fetch calls. Slices never render their own HTTP
-response; `code` strings stay slice-owned (`[ERR-2]`).
+**`[WEB-9]`** `[auto]` `{app:web}` Slices raise the taxonomy; a root middleware renders — mapping
+`category` → HTTP status (per `[BE-5]`) **and** to the right surface: a user-facing error view or page for
+navigations, a structured `{category, code, message}` body for API and fetch calls. Slices never render
+their own HTTP response; `code` strings stay slice-owned (`[ERR-2]`).
 
 ## Contract versioning  → `[CONTRACT-2]`
 
-**`[WEB-10]`** `[review]` The UI's stable contract is its **route/URL structure**: never break a route, and
-never silently repurpose one.
+**`[WEB-10]`** `[review]` `{app:web}` The UI's stable contract is its **route/URL structure**: never break
+a route, and never silently repurpose one.
 
 This is the slot where web differs most from every other app type, and it is worth being precise about why.
 A route has **no version prefix and no deprecation path**. Users bookmark it, other sites link it,
@@ -146,8 +146,8 @@ Where the app also exposes an API, that half follows `[BE-7]`.
 
 ## State / effects  → `[STATE-1]` `[STATE-6]`
 
-**`[WEB-11]`** `[review]` Server state is the source of truth. Client state is a **cache of it**, owned by
-the slice that fetched it, and never the only place a fact exists.
+**`[WEB-11]`** `[review]` `{app:web}` Server state is the source of truth. Client state is a **cache of
+it**, owned by the slice that fetched it, and never the only place a fact exists.
 
 This is `[STATE-6]` in the browser, and the browser makes it sharper: a hard refresh, a new tab, and a cold
 load *are* the empty-cache case, and users generate them constantly. So every render path must be correct
@@ -172,9 +172,9 @@ should not be pushed through the channel.
 
 ## Testing mechanics  → `[TEST-1]` `[TEST-4]`
 
-**`[WEB-12]`** `[review]` A web slice's behavior test drives it **through the surface a user or a caller
-actually touches** — a route with a request, or a mounted panel with an interaction — and asserts the
-observable contract: the status or rendered output, the capability call it made, and the side effect.
+**`[WEB-12]`** `[review]` `{app:web}` A web slice's behavior test drives it **through the surface a user or
+a caller actually touches** — a route with a request, or a mounted panel with an interaction — and asserts
+the observable contract: the status or rendered output, the capability call it made, and the side effect.
 
 That rules three things out, and they are the three that web test suites are usually made of:
 
@@ -228,6 +228,7 @@ load both. Where the app also serves an API, [`backend.md`](./backend.md)'s cont
 `[guide]` rules are rationale and live only in the prose.
 
 <!-- coral:contract:start -->
+<!-- coral:scope:app:web -->
 
 - `[WEB-1]` A slice is one route/page-action/endpoint, with its UI and its handler in the same slice.
 - `[WEB-3]` Keep the composition shell to layout and routing; it mounts slices and holds no business logic.

@@ -15,13 +15,16 @@ related commands (`add`/`list` for one capability) may share a slice (`[BOUND-2]
 
 A command's contract is **exit code + `stdout`/`stderr` separation + `--json`**:
 
-- **`[CLI-1]`** `[review]` Normal output goes to `stdout`; errors and diagnostics go to `stderr`.
-- **`[CLI-2]`** `[review]` Failures return non-zero exit codes.
-- **`[CLI-3]`** `[auto]` Read commands **must** support `--json` on `stdout`; mutations **may**, and if
+- **`[CLI-1]`** `[review]` `{app:cli}` Normal output goes to `stdout`; errors and diagnostics go to
+  `stderr`.
+- **`[CLI-2]`** `[review]` `{app:cli}` Failures return non-zero exit codes.
+- **`[CLI-3]`** `[auto]` `{app:cli}` Read commands **must** support `--json` on `stdout`; mutations
+  **may**, and if
   they do it follows `[CLI-4]`. A mutation's `--json` result is typically the created id — the
   [canonical slice](../CONVENTIONS.md#the-canonical-slice) and the
   [CLI example](../examples/cli-slice.md) both show `add` emitting one.
-- **`[CLI-4]`** `[review]` `--json` output is stable across patch releases, fully typed, and free of
+- **`[CLI-4]`** `[review]` `{app:cli}` `--json` output is stable across patch releases, fully typed, and
+  free of
   color, progress, or decoration. → `[CONTRACT-1]`
 
 ## Composition root  → `[ROOT-1]`
@@ -31,11 +34,12 @@ constructs and injects crosscuts (`db`, `config`, `errors`, `logging`). It conta
 
 ## Unix-style command rules
 
-- **`[CLI-5]`** `[guide]` Commands are narrow, explicit, composable, and script-friendly. Concretely:
+- **`[CLI-5]`** `[guide]` `{app:cli}` Commands are narrow, explicit, composable, and script-friendly.
+  Concretely:
   one command does one thing well; its behavior is clear from its name and flags; its output pipes
   cleanly; and it never requires a human at the keyboard.
-- **`[CLI-6]`** `[auto]` No interactive prompts by default. → `[CLI-5]`
-- **`[CLI-7]`** `[guide]` Command names are stable and predictable.
+- **`[CLI-6]`** `[auto]` `{app:cli}` No interactive prompts by default. → `[CLI-5]`
+- **`[CLI-7]`** `[guide]` `{app:cli}` Command names are stable and predictable.
 
 ## Idempotency form  → `[IDEM-1]`
 
@@ -57,15 +61,18 @@ A non-idempotent command must not be made to behave idempotently without renamin
 Slices raise the taxonomy error `{category, code, message}`; the **root** catches it once, writes
 `message` to `stderr`, and maps `category` → exit code. Minimal exit-code policy:
 
-- **`[CLI-8]`** `[auto]` `0` success · `2` usage error · `1` every other failure.
-- **`[CLI-9]`** `[review]` For finer scripting precision, use stable string `code`s on `stderr`, not a
+- **`[CLI-8]`** `[auto]` `{app:cli}` `0` success · `2` usage error · `1` every other failure.
+- **`[CLI-9]`** `[review]` `{app:cli}` For finer scripting precision, use stable string `code`s on
+  `stderr`, not a
   wider exit-code matrix.
 
 ## Observability mechanism  → `[OBS-1]`
 
-- **`[CLI-10]`** `[auto]` Debug mode is a single global flag (e.g. `--debug`) configured at the root;
+- **`[CLI-10]`** `[auto]` `{app:cli}` Debug mode is a single global flag (e.g. `--debug`) configured at the
+  root;
   slices do not configure tracing independently. → `[OBS-2]`
-- **`[CLI-11]`** `[auto]` Trace output goes to `stderr`; default mode stays quiet; traces never pollute
+- **`[CLI-11]`** `[auto]` `{app:cli}` Trace output goes to `stderr`; default mode stays quiet; traces never
+  pollute
   `--json` on `stdout`. → `[OBS-3]`
 
 Debug may include: resolved command and arguments, resolved config and paths, transaction lifecycle
@@ -125,6 +132,7 @@ The complete normative checklist for this appendix: every `[auto]` and `[review]
 load both. `[guide]` rules are rationale and live only in the prose.
 
 <!-- coral:contract:start -->
+<!-- coral:scope:app:cli -->
 
 - `[CLI-1]` Normal output goes to `stdout`; errors and diagnostics go to `stderr`.
 - `[CLI-2]` Failures return non-zero exit codes.

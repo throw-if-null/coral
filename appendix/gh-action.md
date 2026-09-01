@@ -14,24 +14,24 @@ Most Action defects are one of those two facts being assumed away.
 
 ## Boundary  → `[BOUND-1]`
 
-**`[GHA-1]`** `[review]` One action run is one slice: one trigger, handled end to end. An action that does
-several unrelated things is several actions.
+**`[GHA-1]`** `[review]` `{app:gh-action}` One action run is one slice: one trigger, handled end to end. An
+action that does several unrelated things is several actions.
 
 Where one distribution genuinely must cover several capabilities, dispatch on a declared `mode`-style input
 at the entry point and keep one slice per mode — the same shape as a CLI's subcommands (`[BOUND-2]`).
 
 ## Observable contract  → `[CONTRACT-1]`
 
-**`[GHA-2]`** `[review]` The contract is **declared outputs + exit status + annotations**. Log text is not a
-contract.
+**`[GHA-2]`** `[review]` `{app:gh-action}` The contract is **declared outputs + exit status +
+annotations**. Log text is not a contract.
 
 This is the rule with the most day-to-day consequence: a downstream step must consume your **outputs**,
 never parse your log lines. Log format is a diagnostic surface you need to stay free to change
 (`[OBS-1]`), and the moment a workflow greps it you have acquired an undeclared contract you will break by
 improving a message.
 
-**`[GHA-3]`** `[auto]` Every output the action writes is declared in `action.yml`, and the action relies on
-no undeclared output.
+**`[GHA-3]`** `[auto]` `{app:gh-action}` Every output the action writes is declared in `action.yml`, and
+the action relies on no undeclared output.
 
 Statically decidable by comparing `GITHUB_OUTPUT` writes against the declared `outputs:` block, in both
 directions — an undeclared write is invisible to consumers reading the manifest, and a declared output that
@@ -39,9 +39,9 @@ is never written is a contract you are silently failing to honor.
 
 ## Composition root  → `[ROOT-1]`
 
-**`[GHA-4]`** `[review]` The entry point is the root: it reads and validates inputs and environment,
-constructs and injects crosscuts, dispatches to the slice, and renders the result. It holds no business
-logic.
+**`[GHA-4]`** `[review]` `{app:gh-action}` The entry point is the root: it reads and validates inputs and
+environment, constructs and injects crosscuts, dispatches to the slice, and renders the result. It holds no
+business logic.
 
 Inputs and environment are configuration (`[CONFIG-1]`, `[CONFIG-3]`): resolve and validate every required
 one *here*, and fail the step immediately with a clear annotation rather than at first use, three minutes
@@ -49,8 +49,8 @@ into the run.
 
 ## Idempotency form — mandatory  → `[IDEM-5]`
 
-**`[GHA-5]`** `[review]` Every mutating run must be safe under redelivery, via an idempotency key, a natural
-key, or check-before-write. Never assume exactly-once.
+**`[GHA-5]`** `[review]` `{app:gh-action}` Every mutating run must be safe under redelivery, via an
+idempotency key, a natural key, or check-before-write. Never assume exactly-once.
 
 The platform re-runs on a human's click, on a transient failure, and on a schedule that overlapped. The
 concrete failure shape is duplicate outward-facing effects — three identical PR comments, two release tags,
@@ -63,8 +63,8 @@ a run is in flight (`[BOUND-5]`, `[CONC-3]`).
 
 ## Trust / security — the heaviest slot  → `[TRUST-1]` `[TRUST-2]`
 
-**`[GHA-6]`** `[review]` Treat the event payload as attacker-controlled, and never interpolate it into a
-shell command or script body.
+**`[GHA-6]`** `[review]` `{app:gh-action}` Treat the event payload as attacker-controlled, and never
+interpolate it into a shell command or script body.
 
 `pull_request_target`, `issue_comment`, and `workflow_run` execute with a **write-scoped token** against
 content an outsider authored. Every field a stranger can type — PR title and body, branch name, issue
@@ -73,23 +73,24 @@ into a `run:` block is a code-execution sink, because the workflow expression is
 text *before* the shell ever sees it. Pass untrusted values through the **environment** (an `env:` entry
 the step reads as `"$VAR"`) so they arrive as data rather than as code, and validate them before acting.
 
-**`[GHA-7]`** `[review]` Declare `permissions:` explicitly and scope them to what the run needs; default to
-read-only.
+**`[GHA-7]`** `[review]` `{app:gh-action}` Declare `permissions:` explicitly and scope them to what the run
+needs; default to read-only.
 
 The token's default scope is far wider than most actions require, and an action that never states its
 permissions inherits whatever the repository default happens to be — which is not a decision anyone made
 for this action. Secrets come from the config crosscut (`[CONFIG-4]`), are never echoed, and are never
 written to an output; an output is readable by every downstream step.
 
-**`[GHA-8]`** `[guide]` Pin third-party actions you call by commit SHA, not by a moving tag.
+**`[GHA-8]`** `[guide]` `{app:gh-action}` Pin third-party actions you call by commit SHA, not by a moving
+tag.
 
 A moving tag is someone else's mutable code executing inside your privileged context. Pinning is the
 difference between depending on a *version* and depending on whatever that account publishes next.
 
 ## Error rendering  → `[ERR-3]`
 
-**`[GHA-9]`** `[review]` Slices raise the taxonomy; the entry point maps `category` → exit status and
-annotation, and distinguishes **recoverable** from **non-recoverable** failure.
+**`[GHA-9]`** `[review]` `{app:gh-action}` Slices raise the taxonomy; the entry point maps `category` →
+exit status and annotation, and distinguishes **recoverable** from **non-recoverable** failure.
 
 The distinction is load-bearing here in a way it is not for a CLI, because a human decides whether to hit
 re-run. `infrastructure` is worth retrying and should say so in its annotation; `usage` and `validation`
@@ -100,8 +101,8 @@ allows (`[ERR-3]`).
 
 ## Observability  → `[OBS-1]`
 
-**`[GHA-10]`** `[auto]` Diagnostics use log groups and annotations only, never the outputs surface
-(`[OBS-3]`).
+**`[GHA-10]`** `[auto]` `{app:gh-action}` Diagnostics use log groups and annotations only, never the
+outputs surface (`[OBS-3]`).
 
 Because a run has no caller to return to, say what it *did* — counts, ids touched, whether it was a no-op
 on redelivery (`[BOUND-5]`). "Skipped: already applied for SHA abc123" is what turns `[GHA-5]`'s
@@ -109,8 +110,8 @@ idempotency from a claim into something an operator can verify from the log.
 
 ## Contract versioning  → `[CONTRACT-2]`
 
-**`[GHA-11]`** `[review]` Input and output names are the versioned contract: add freely, never repurpose,
-deprecate before removing.
+**`[GHA-11]`** `[review]` `{app:gh-action}` Input and output names are the versioned contract: add freely,
+never repurpose, deprecate before removing.
 
 Follow the ecosystem's moving-major-tag discipline (`v1` advancing to each compatible release, with
 immutable `v1.2.3` tags underneath). Removing or renaming an input breaks every workflow that sets it, and
@@ -119,8 +120,9 @@ repurposing a name stricter here than almost anywhere else.
 
 ## Testing mechanics  → `[TEST-1]`
 
-**`[GHA-12]`** `[review]` Exercise the entry point with simulated inputs and realistic event-payload
-fixtures, asserting declared outputs, exit status, annotations, **and idempotency under a repeated run**.
+**`[GHA-12]`** `[review]` `{app:gh-action}` Exercise the entry point with simulated inputs and realistic
+event-payload fixtures, asserting declared outputs, exit status, annotations, **and idempotency under a
+repeated run**.
 
 The repeated-run assertion is the one that is always missing and always matters: invoke the slice twice
 against the same state and assert the second run is a no-op with the same outputs (`[TEST-4]`,
@@ -165,6 +167,7 @@ control: `[GHA-5]` (delivery is at-least-once) and `[GHA-6]` (the run is privile
 often hostile).
 
 <!-- coral:contract:start -->
+<!-- coral:scope:app:gh-action -->
 
 - `[GHA-1]` One action run is one slice: one trigger, handled end to end.
 - `[GHA-2]` The contract is declared outputs + exit status + annotations; log text is not a contract.

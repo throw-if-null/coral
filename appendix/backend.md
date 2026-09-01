@@ -15,10 +15,10 @@ may not), and inject domain invariants rather than reaching into them.
 
 ## Boundary & naming  → `[BOUND-1]`
 
-**`[BE-1]`** `[review]` One slice per **business operation**; the route is that operation's *trigger*, not
-its definition. The slice directory is the **singular capability + effect verb** (`expense/create`); the
-route may be **plural** (`POST /expenses`). Map `method + path → slice` by capability and effect, not by
-URL spelling. A tight read/write pair may share a slice (`[BOUND-2]`).
+**`[BE-1]`** `[review]` `{app:backend}` One slice per **business operation**; the route is that operation's
+*trigger*, not its definition. The slice directory is the **singular capability + effect verb**
+(`expense/create`); the route may be **plural** (`POST /expenses`). Map `method + path → slice` by
+capability and effect, not by URL spelling. A tight read/write pair may share a slice (`[BOUND-2]`).
 
 The distinction decides the two cases where route-counting gives the wrong answer. Two routes that are the
 **same operation** — a current path and a legacy alias, or the same handler mounted under two prefixes —
@@ -30,22 +30,23 @@ URL table the architecture.
 
 ## Observable contract & success status  → `[CONTRACT-1]`
 
-**`[BE-2]`** `[review]` The contract is **status code + response body + observable side effects**. Success
-status by effect: **`201`** for a resource-creating `POST` (return the created `id`, optionally a
-`Location`); **`200`** for reads and idempotent sets that return a body; **`204`** for sets and deletes
-with no body. The returned `id` and body shape are part of the stable contract (`[CONTRACT-1]`).
+**`[BE-2]`** `[review]` `{app:backend}` The contract is **status code + response body + observable side
+effects**. Success status by effect: **`201`** for a resource-creating `POST` (return the created `id`,
+optionally a `Location`); **`200`** for reads and idempotent sets that return a body; **`204`** for sets
+and deletes with no body. The returned `id` and body shape are part of the stable contract
+(`[CONTRACT-1]`).
 
 ## Composition root & scope  → `[ROOT-1]`
 
-**`[BE-3]`** `[review]` Wiring is router + middleware + dependency injection. **Crosscuts are singletons
-by default** (connection pool, config, logger, error type, domain-invariant helpers). Only
-**request-bound** state is per-request: the transaction/connection handle, the authenticated principal,
-and the correlation/trace id. Inject request-scoped values into the slice; never let a slice reach for
-ambient globals (`[XCUT-3]`) or read configuration directly (`[CONFIG-2]`).
+**`[BE-3]`** `[review]` `{app:backend}` Wiring is router + middleware + dependency injection. **Crosscuts
+are singletons by default** (connection pool, config, logger, error type, domain-invariant helpers). Only
+**request-bound** state is per-request: the transaction/connection handle, the authenticated principal, and
+the correlation/trace id. Inject request-scoped values into the slice; never let a slice reach for ambient
+globals (`[XCUT-3]`) or read configuration directly (`[CONFIG-2]`).
 
 ## Idempotency  → `[IDEM-1]` `[IDEM-5]`
 
-**`[BE-4]`** `[review]` Resolve the spine's idempotency-key question by delivery path:
+**`[BE-4]`** `[review]` `{app:backend}` Resolve the spine's idempotency-key question by delivery path:
 
 - A **synchronous client-driven** `POST` is *not* an at-least-once path, so an idempotency key is
   **optional** — offer one when clients may retry on timeout, but it is not required.
@@ -56,10 +57,10 @@ ambient globals (`[XCUT-3]`) or read configuration directly (`[CONFIG-2]`).
 
 ## Error rendering & status map  → `[ERR-3]`
 
-**`[BE-5]`** `[auto]` Slices raise the taxonomy; a single root error-handling middleware renders the
-`{category, code, message}` body and maps `category` → HTTP status. No slice constructs its own HTTP
-response, which is what makes this statically checkable: a status-code write inside a slice module is a
-violation.
+**`[BE-5]`** `[auto]` `{app:backend}` Slices raise the taxonomy; a single root error-handling middleware
+renders the `{category, code, message}` body and maps `category` → HTTP status. No slice constructs its own
+HTTP response, which is what makes this statically checkable: a status-code write inside a slice module is
+a violation.
 
 | category         | HTTP status |
 | ---------------- | ----------- |
@@ -76,10 +77,10 @@ construction**, not by omission: no slice raises them, so they are not taxonomy 
 
 ## Trust / security  → `[TRUST-1]` `[TRUST-2]`
 
-**`[BE-6]`** `[review]` **Authenticate** at the boundary as root middleware, before the slice, and do
-**coarse capability authorization** there too — may this principal call this endpoint at all; the slice
-receives an already-authenticated principal. **Resource-level authorization lives with the state it
-protects**: if resources are **user- or tenant-scoped**, the owner/tenant id is **part of the record and
+**`[BE-6]`** `[review]` `{app:backend}` **Authenticate** at the boundary as root middleware, before the
+slice, and do **coarse capability authorization** there too — may this principal call this endpoint at all;
+the slice receives an already-authenticated principal. **Resource-level authorization lives with the state
+it protects**: if resources are **user- or tenant-scoped**, the owner/tenant id is **part of the record and
 part of every query's WHERE clause**.
 
 Both halves are load-bearing and the split is not a compromise. *May this principal call
@@ -95,9 +96,10 @@ tests — it is the one slot in this appendix that is expensive to retrofit. Sec
 crosscut, never inline (`[CONFIG-4]`). **Default to deny:** a slice with no explicit authorization rule
 is not shippable.
 
-**`[BE-8]`** `[review]` Render authentication and authorization failures at the boundary that decides
-them, never through the error taxonomy: **`401`** when the caller is unauthenticated, **`403`** when an
-authenticated caller lacks the capability, and **`404`** when a scoped query does not match.
+**`[BE-8]`** `[review]` `{app:backend}` Render authentication and authorization failures at the boundary
+that decides them, never through the error taxonomy: **`401`** when the caller is unauthenticated,
+**`403`** when an authenticated caller lacks the capability, and **`404`** when a scoped query does not
+match.
 
 Keep `401` and `403` apart — a client can act on the difference and cannot act on the wrong one. `401`
 means *we do not know who you are*: the credential is absent, malformed, or expired, and retrying with a
@@ -118,8 +120,9 @@ id (`[OBS-2]`), where the operator can see it and the caller cannot.
 
 ## Contract versioning  → `[CONTRACT-2]`
 
-**`[BE-7]`** `[review]` **Pick one API versioning strategy, write it down, and apply it across the
-system** — a **URL prefix** (`/v1`) is the default. Advance the version **only** for a breaking change.
+**`[BE-7]`** `[review]` `{app:backend}` **Pick one API versioning strategy, write it down, and apply it
+across the system** — a **URL prefix** (`/v1`) is the default. Advance the version **only** for a breaking
+change.
 
 **Nothing additive bumps it.** A new endpoint, a new response field, a new optional parameter — no bump,
 ever. Two things are breaking: **repurposing** a field, which is breaking even under the same name (turning
@@ -167,6 +170,7 @@ The complete normative checklist for this appendix: every `[auto]` and `[review]
 load both. `[guide]` rules are rationale and live only in the prose.
 
 <!-- coral:contract:start -->
+<!-- coral:scope:app:backend -->
 
 - `[BE-1]` One slice per business operation, named for the singular capability plus its effect verb; the route is its trigger.
 - `[BE-2]` The contract is status code + response body + observable side effects: `201` create, `200` read, `204` no body.
