@@ -1,0 +1,324 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests for the kernel-table parser — `node --test scripts/`, wired into the build.
+//
+// The kernel table in CONVENTIONS.md is the single source of kernel membership, and
+// rules.md is generated from it. That makes the parser's *rejections* the load-bearing
+// part: if a malformed row can be skipped instead of failing, a rule leaves the kernel
+// silently and the generated index agrees with the mistake. Proving that by breaking
+// the real documents is a manual ritual nobody repeats, so the failure modes are
+// asserted here against fixtures instead.
+//
+// The last test runs the parser against the real documents. Note what it does NOT do:
+// it does not list the kernel IDs it expects. CONVENTIONS.md is the single source of
+// membership, and a copy here would be a second one — the thing this whole design is
+// arranged to avoid. It asserts the *structure* instead: the table parses clean, it is
+// not empty, and every rule it names is a rule that exists. Membership changes stay
+// visible where they belong, in the generated rules.md diff.
+// ─────────────────────────────────────────────────────────────────────────────
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import test from 'node:test'
+
+import { KERNEL_END, KERNEL_FILE, KERNEL_START, parseKernel, parseRules } from './rules.mjs'
+
+const REPO = path.resolve(import.meta.dirname, '..')
+
+/** A registry stand-in: the IDs a fixture is allowed to cite. */
+const registry = (...ids) => new Map(ids.map((id) => [id, { page: 'ARCHITECTURE.md', cls: 'review' }]))
+
+const HEADER = ['| Rule | Why it is kernel | Properties defended |', '|---|---|---|']
+
+/** Write a CONVENTIONS.md holding `body` between the kernel markers, and parse it. */
+function parse(body, rules) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coral-kernel-'))
+  const page = ['# Conventions', '', KERNEL_START, ...body, KERNEL_END, ''].join('\n')
+  fs.writeFileSync(path.join(dir, KERNEL_FILE), page)
+  try {
+    return parseKernel(dir, rules)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/** Write a CONVENTIONS.md from raw lines — the markers are the test's business. */
+function parseRaw(lines, rules) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coral-kernel-'))
+  fs.writeFileSync(path.join(dir, KERNEL_FILE), ['# Conventions', '', ...lines, ''].join('\n'))
+  try {
+    return parseKernel(dir, rules)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/** One well-formed kernel block, as raw lines. */
+const BLOCK = ['', ...HEADER, '| `[MODEL-1]` | why | properties |', '']
+const block = () => [KERNEL_START, ...BLOCK, KERNEL_END]
+
+/** Assert the problems contain exactly one entry matching `re`. */
+function onlyProblem(problems, re) {
+  assert.equal(problems.length, 1, `expected one problem, got:\n${problems.join('\n')}`)
+  assert.match(problems[0], re)
+}
+
+test('a well-formed block yields its membership and no problems', () => {
+  const { ids, problems } = parse(
+    [
+      '',
+      ...HEADER,
+      '| `[BOUND-2]` | one capability-sized unit | locality |',
+      '| `[SYS-TEST-1]` | multi-segment families parse too | reviewability |',
+      '',
+    ],
+    registry('BOUND-2', 'SYS-TEST-1')
+  )
+  assert.deepEqual(problems, [])
+  assert.deepEqual([...ids], ['BOUND-2', 'SYS-TEST-1'])
+})
+
+test('a rule cell without backticks fails instead of dropping out of membership', () => {
+  const { ids, problems } = parse(
+    ['', ...HEADER, '| [MODEL-1] | no code span | deterministic placement |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /malformed kernel row/)
+  assert.equal(ids.size, 0)
+})
+
+test('a row with the wrong column count is malformed, not a silent pass', () => {
+  const { problems } = parse(
+    ['', ...HEADER, '| `[MODEL-1]` | why | properties | extra |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /malformed kernel row/)
+})
+
+test('an empty rationale or properties cell is malformed', () => {
+  const { problems } = parse(['', ...HEADER, '| `[MODEL-1]` | why |  |', ''], registry('MODEL-1'))
+  onlyProblem(problems, /malformed kernel row/)
+})
+
+test('the same rule listed twice fails', () => {
+  const { ids, problems } = parse(
+    [
+      '',
+      ...HEADER,
+      '| `[MODEL-1]` | first row | deterministic placement |',
+      '| `[MODEL-1]` | second row | reviewability |',
+      '',
+    ],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /listed in the kernel table twice/)
+  // The first row still counts; only the copy is rejected.
+  assert.deepEqual([...ids], ['MODEL-1'])
+})
+
+test('an ID no rule defines fails', () => {
+  const { ids, problems } = parse(
+    ['', ...HEADER, '| `[MODEL-99]` | invented | locality |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /is not a defined rule/)
+  // Membership is still reported, so the generated index cannot silently disagree.
+  assert.deepEqual([...ids], ['MODEL-99'])
+})
+
+test('membership is read without a registry, and then nothing resolves', () => {
+  const { ids, problems } = parse(['', ...HEADER, '| `[MODEL-99]` | invented | locality |', ''])
+  assert.deepEqual(problems, [])
+  assert.deepEqual([...ids], ['MODEL-99'])
+})
+
+test('a rule definition inside the block fails', () => {
+  const { problems } = parse(
+    [
+      '',
+      ...HEADER,
+      '| `[MODEL-1]` | cited, as it must be | deterministic placement |',
+      '',
+      '- **`[BOUND-2]`** `[review]` — restated here',
+      '',
+    ],
+    registry('MODEL-1', 'BOUND-2')
+  )
+  onlyProblem(problems, /written as a rule DEFINITION inside the kernel block/)
+})
+
+test('prose inside the block fails — the markers hold the table and nothing else', () => {
+  const { problems } = parse(
+    ['', ...HEADER, '| `[MODEL-1]` | why | properties |', '', 'Nine rules, listed above.', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /is not a table row/)
+})
+
+test('a header row that is really a rule row fails', () => {
+  const { ids, problems } = parse(
+    [
+      '',
+      '| `[MODEL-1]` | why | properties |',
+      '|---|---|---|',
+      '| `[BOUND-2]` | why | properties |',
+      '',
+    ],
+    registry('MODEL-1', 'BOUND-2')
+  )
+  onlyProblem(problems, /first row must be its header/)
+  // The row consumed as a header does not become membership.
+  assert.deepEqual([...ids], ['BOUND-2'])
+})
+
+test('a missing delimiter row fails', () => {
+  const { problems } = parse(
+    [
+      '',
+      HEADER[0],
+      '| `[MODEL-1]` | why | properties |',
+      '| `[BOUND-2]` | why | properties |',
+      '',
+    ],
+    registry('MODEL-1', 'BOUND-2')
+  )
+  onlyProblem(problems, /expected the header delimiter row/)
+})
+
+test('a header with no rules fails', () => {
+  const { ids, problems } = parse(['', ...HEADER, ''], registry('MODEL-1'))
+  onlyProblem(problems, /has a header but no rules/)
+  assert.equal(ids.size, 0)
+})
+
+test('an entirely empty block fails', () => {
+  const { problems } = parse([''], registry('MODEL-1'))
+  onlyProblem(problems, /is not a table/)
+})
+
+test('a block that is never closed fails', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coral-kernel-'))
+  const page = ['# Conventions', '', KERNEL_START, ...HEADER, '| `[MODEL-1]` | why | props |', ''].join('\n')
+  fs.writeFileSync(path.join(dir, KERNEL_FILE), page)
+  try {
+    const { ids, problems } = parseKernel(dir, registry('MODEL-1'))
+    onlyProblem(problems, /never closes it/)
+    assert.equal(ids.size, 0)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a page with no kernel block at all fails', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coral-kernel-'))
+  fs.writeFileSync(path.join(dir, KERNEL_FILE), '# Conventions\n\nNo kernel here.\n')
+  try {
+    onlyProblem(parseKernel(dir).problems, /has no <!-- coral:kernel:start --> block/)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+// ── one block, and only one ──────────────────────────────────────────────────
+//
+// Taking the first start marker and the first end after it is the failure mode here: a
+// second kernel table would be fully visible on the page and contribute nothing to
+// generated membership, with no way for a reader to tell which one counted.
+
+test('two complete kernel blocks fail', () => {
+  const { ids, problems } = parseRaw([...block(), '', ...block()], registry('MODEL-1'))
+  assert.equal(problems.length, 2, problems.join('\n'))
+  assert.match(problems[0], /has 2 <!-- coral:kernel:start --> markers/)
+  assert.match(problems[1], /has 2 <!-- coral:kernel:end --> markers/)
+  assert.equal(ids.size, 0)
+})
+
+test('a duplicate start marker fails', () => {
+  const { ids, problems } = parseRaw(
+    [KERNEL_START, '', KERNEL_START, ...BLOCK, KERNEL_END],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /has 2 <!-- coral:kernel:start --> markers/)
+  assert.equal(ids.size, 0)
+})
+
+test('a duplicate end marker fails', () => {
+  const { ids, problems } = parseRaw([...block(), '', KERNEL_END], registry('MODEL-1'))
+  onlyProblem(problems, /has 2 <!-- coral:kernel:end --> markers/)
+  assert.equal(ids.size, 0)
+})
+
+test('an end marker before the start marker fails', () => {
+  const { ids, problems } = parseRaw(
+    [KERNEL_END, '', KERNEL_START, ...BLOCK],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /before <!-- coral:kernel:start -->/)
+  assert.equal(ids.size, 0)
+})
+
+// ── the header and delimiter carry the same three columns the rows do ────────
+
+test('a two-column delimiter fails', () => {
+  const { problems } = parse(
+    ['', HEADER[0], '|---|---|', '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /delimiter row with exactly 3 columns/)
+})
+
+test('a one-column delimiter fails', () => {
+  const { problems } = parse(
+    ['', HEADER[0], '|---|', '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /delimiter row with exactly 3 columns/)
+})
+
+test('a four-column delimiter fails', () => {
+  const { problems } = parse(
+    ['', HEADER[0], '|---|---|---|---|', '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /delimiter row with exactly 3 columns/)
+})
+
+test('alignment colons in the delimiter are accepted', () => {
+  const { ids, problems } = parse(
+    ['', HEADER[0], '| :--- | :-: | ---: |', '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  assert.deepEqual(problems, [])
+  assert.deepEqual([...ids], ['MODEL-1'])
+})
+
+test('a header with the wrong column count fails', () => {
+  const { ids, problems } = parse(
+    ['', '| Rule | Why it is kernel |', HEADER[1], '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /header must have exactly 3 non-empty columns/)
+  // The rows still parse, so the failure is reported once and not compounded.
+  assert.deepEqual([...ids], ['MODEL-1'])
+})
+
+test('a header with an empty column fails', () => {
+  const { problems } = parse(
+    ['', '| Rule |  | Properties defended |', HEADER[1], '| `[MODEL-1]` | why | props |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /header must have exactly 3 non-empty columns/)
+})
+
+test("this repository's kernel table is structurally sound", () => {
+  const { rules } = parseRules(REPO)
+  const { ids, problems } = parseKernel(REPO, rules)
+
+  assert.deepEqual(problems, [])
+  assert.ok(ids.size > 0, 'the kernel table names no rules')
+  // Every member is a rule that exists — the kernel is a subset, never a source of
+  // rules. Which rules are members is CONVENTIONS.md's business, not this test's.
+  for (const id of ids) {
+    assert.ok(rules.has(id), `[${id}] is in the kernel table but is not a defined rule`)
+  }
+})

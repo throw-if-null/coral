@@ -3,11 +3,11 @@
 *A capability-first architecture for systems where **agents write the code and humans review and
 orchestrate**.*
 
-> **Read [`CONVENTIONS.md`](./CONVENTIONS.md) first.** It defines the seven nouns this document uses
+> **Read [`CONVENTIONS.md`](./CONVENTIONS.md) first.** It defines the eight nouns this document uses
 > (slice, crosscut, adapter, composition root, published contract, app, system, channel), the rule-ID
-> scheme, the
-> enforcement classes, and the [canonical slice](./CONVENTIONS.md#the-canonical-slice) every rule here
-> exists to produce.
+> scheme, the enforcement classes, the [Coral kernel](./CONVENTIONS.md#the-coral-kernel) — the rules Coral
+> would substantially relax without the agent-author / human-architect operating model — and the
+> [canonical slice](./CONVENTIONS.md#the-canonical-slice) every rule here exists to produce.
 
 This is the **app spine**: how to build one app — a CLI, backend, web app, library, or tool. App-type
 specifics live in the appendices under [`appendix/`](#appendix-index). How separate apps compose into a
@@ -832,7 +832,7 @@ Reviewers walk this same list and cite the same IDs.
 <!-- coral:contract:start -->
 
 ### Placement & naming
-- `[MODEL-1]` Every unit of code is a slice, a crosscut, the composition root, or a published contract.
+- `[MODEL-1]` Every unit of code is a slice, a crosscut, an adapter, the composition root, or a published contract.
 - `[MODEL-2]` Name every package for the capability or concern it owns, never for its technical role.
 - `[MODEL-4]` An adapter implements a slice-declared port: infrastructure only, arrow inward, wired by the root, no behavior.
 - `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages; the package owns its capability's state.

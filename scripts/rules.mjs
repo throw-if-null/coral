@@ -51,6 +51,51 @@ const DEFINES_NOTHING = new Set(['CHANGELOG.md', 'rules.md'])
 export const CONTRACT_START = '<!-- coral:contract:start -->'
 export const CONTRACT_END = '<!-- coral:contract:end -->'
 
+// The kernel block in CONVENTIONS.md — the named subset of rules whose presence or
+// strictness is materially justified by the agent-author / human-architect operating
+// model. It is a table of CITATIONS, and that is the whole point:
+// "one rule, one ID" forbids a KERN-* family, so the kernel must not be able to
+// restate a rule. Parsing it here rather than hand-listing the IDs is what keeps the
+// classification single-sourced — rules.md marks kernel rules from this block.
+export const KERNEL_START = '<!-- coral:kernel:start -->'
+export const KERNEL_END = '<!-- coral:kernel:end -->'
+export const KERNEL_FILE = 'CONVENTIONS.md'
+
+// The exact shape of a kernel row: ID citation, rationale, properties. Anchored at both
+// ends, so it fixes the column count too.
+//
+// Only the FIRST column contributes membership — reading every ID in the block would let
+// a citation in a rationale cell silently join the kernel. And the match is required, not
+// opportunistic: a row that fails this shape is an error, never a row that quietly does
+// not count. `| [MODEL-1] | … | … |` (no backticks) is not a citation the site can link
+// and must not be readable as membership either.
+//
+// The cell class is `[^|]*[^|\s][^|]*` — "no pipes, and not blank". `\S` would be the
+// obvious spelling and is wrong: `|` is non-whitespace, so it let ` why | properties `
+// parse as one cell and a four-column row read as a valid three-column one.
+const KERNEL_ROW_RE = new RegExp(
+  String.raw`^\|\s*\`\[(${ID_CORE})\]\`\s*\|([^|]*[^|\s][^|]*)\|([^|]*[^|\s][^|]*)\|$`
+)
+// The header and its delimiter are held to the same three-column shape as the data
+// rows. They used to be checked loosely — the delimiter pattern was /^\|[\s:|-]+\|$/,
+// which accepts `|---|` and `|-|-|-|-|` alike, so the parser could report a valid table
+// while its header described two columns and its rows carried three. Once this function
+// says the table is structurally valid, it has to actually be a three-column Markdown
+// table from the header down.
+//
+// Header cells are checked structurally, not by their wording: three non-empty cells.
+// Freezing the prose would make rewording a heading a build failure and buy nothing —
+// nothing reads the header text.
+const KERNEL_COLUMNS = 3
+// One Markdown alignment cell: hyphens, optionally colon-anchored on either side.
+const DELIM_CELL_RE = /^\s*:?-+:?\s*$/
+
+/** The cells of a full Markdown table row, or null if the line is not one. */
+function tableCells(line) {
+  if (line.length < 2 || !line.startsWith('|') || !line.endsWith('|')) return null
+  return line.slice(1, -1).split('|')
+}
+
 function walk(dir, srcDir) {
   const out = []
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -112,6 +157,182 @@ export function parseRules(srcDir) {
     })
   }
   return { registry, rules, defsByFile, problems, files }
+}
+
+/**
+ * Parse and validate the kernel table in CONVENTIONS.md.
+ *
+ * Two guarantees, and both have to be enforced rather than assumed.
+ *
+ * The block CITES rules and never defines them: a definition line inside it would make
+ * the kernel a second normative source for a rule already defined elsewhere, which is
+ * the one failure this classification must not be able to cause.
+ *
+ * And every line in the block is accounted for. The first version of this parser only
+ * *collected* rows that matched, which sounds equivalent and is not: a row whose ID lost
+ * its backticks, or gained a fourth column, simply stopped being a kernel rule, silently,
+ * while the table still read correctly to a human. A table that is the single source of a
+ * classification cannot have a shape in which membership can fall out unnoticed — so an
+ * unrecognised line is an error, a duplicate ID is an error, and the header and its
+ * delimiter must be present, be exactly one line each, and carry the same three columns
+ * the rows do.
+ *
+ * The same argument applies one level up, to the markers: the file must hold exactly one
+ * of each. Reading the first block would leave a second, fully visible kernel table
+ * contributing nothing, and a reader with no way to tell which one counts.
+ *
+ * The kernel's *size* is deliberately not checked. Gate 5 already turns a membership
+ * change into a diff in a generated file; a constant here would be a second thing to
+ * edit and would add nothing.
+ *
+ * @param {string} srcDir
+ * @param {Map<string,unknown>} [rules] the rule registry; when given, every cited ID must
+ *   resolve in it — the check that keeps the kernel a subset of rules that actually exist.
+ * @returns {{ids: Set<string>, problems: string[]}}
+ */
+export function parseKernel(srcDir, rules) {
+  const problems = []
+  const ids = new Set()
+  const abs = path.join(srcDir, KERNEL_FILE)
+  if (!fs.existsSync(abs)) {
+    problems.push(`${KERNEL_FILE} is missing — it is where kernel membership is recorded.`)
+    return { ids, problems }
+  }
+
+  // Exactly one block. Taking the first start and the first end after it — which is what
+  // this did — means a second, entirely visible kernel table contributes nothing to
+  // generated membership, and a human reading the page cannot tell which one counts.
+  // A page with two canonical tables has no canonical table.
+  const text = fs.readFileSync(abs, 'utf8')
+  const count = (marker) => text.split(marker).length - 1
+  const starts = count(KERNEL_START)
+  const ends = count(KERNEL_END)
+  if (starts !== 1 || ends !== 1) {
+    if (starts === 0) {
+      problems.push(
+        `${KERNEL_FILE} has no ${KERNEL_START} block. Kernel membership is recorded there, in one` +
+          ' table, and rules.md is generated from it.'
+      )
+    } else if (starts > 1) {
+      problems.push(
+        `${KERNEL_FILE} has ${starts} ${KERNEL_START} markers. Kernel membership is one table:` +
+          ' a second block is a second source, and only one of them would be read.'
+      )
+    }
+    if (ends === 0 && starts > 0) {
+      problems.push(`${KERNEL_FILE} opens ${KERNEL_START} but never closes it with ${KERNEL_END}.`)
+    } else if (ends > 1) {
+      problems.push(
+        `${KERNEL_FILE} has ${ends} ${KERNEL_END} markers, and the kernel block takes exactly one.`
+      )
+    }
+    return { ids, problems }
+  }
+
+  const start = text.indexOf(KERNEL_START)
+  const end = text.indexOf(KERNEL_END)
+  if (end < start) {
+    problems.push(
+      `${KERNEL_FILE} has ${KERNEL_END} before ${KERNEL_START}. The end marker closes the block;` +
+        ' it cannot precede it.'
+    )
+    return { ids, problems }
+  }
+
+  const SHAPE = 'Each row is  | `[ID]` | why it is kernel | properties defended |'
+  const block = text.slice(start + KERNEL_START.length, end)
+  // 1-based line number of the marker, so a reported line matches the editor's gutter.
+  const markerLine = text.slice(0, start).split('\n').length
+  let header = false
+  let delim = false
+  let rows = 0
+
+  block.split('\n').forEach((line, i) => {
+    const at = `${KERNEL_FILE}:${markerLine + i}`
+    const trimmed = line.trim()
+    if (!trimmed) return
+
+    const def = DEF_LINE_RE.exec(line)
+    if (def) {
+      problems.push(
+        `[${def[1]}] ${at} is written as a rule DEFINITION inside the kernel block. The kernel is a` +
+          ' named subset of existing rules: every row cites a rule defined elsewhere, and the kernel' +
+          ' never restates one.'
+      )
+      return
+    }
+    if (!trimmed.startsWith('|')) {
+      problems.push(
+        `${at} is inside the kernel block but is not a table row. The block holds the membership` +
+          ` table and nothing else — prose belongs outside the markers. ${SHAPE}`
+      )
+      return
+    }
+    if (!header) {
+      header = true
+      if (KERNEL_ROW_RE.test(trimmed)) {
+        problems.push(`${at}: the kernel table's first row must be its header, not a rule row.`)
+        return
+      }
+      const cells = tableCells(trimmed)
+      if (!cells || cells.length !== KERNEL_COLUMNS || cells.some((c) => !c.trim())) {
+        problems.push(
+          `${at}: the kernel table's header must have exactly ${KERNEL_COLUMNS} non-empty columns,` +
+            ` matching its rows. ${SHAPE}`
+        )
+      }
+      return
+    }
+    if (!delim) {
+      delim = true
+      const cells = tableCells(trimmed)
+      if (!cells || cells.length !== KERNEL_COLUMNS || !cells.every((c) => DELIM_CELL_RE.test(c))) {
+        problems.push(
+          `${at}: expected the header delimiter row with exactly ${KERNEL_COLUMNS} columns` +
+            ' (|---|---|---|) here.'
+        )
+      }
+      return
+    }
+
+    rows++
+    const row = KERNEL_ROW_RE.exec(trimmed)
+    if (!row) {
+      problems.push(
+        `${at} is a malformed kernel row, so its membership cannot be read. ${SHAPE} — the ID must` +
+          ' be a backticked citation (`[MODEL-1]`, not [MODEL-1]) and there must be exactly three' +
+          ' non-empty columns.'
+      )
+      return
+    }
+    const id = row[1]
+    if (ids.has(id)) {
+      problems.push(
+        `[${id}] ${at} is listed in the kernel table twice. One row per rule: a second row is a` +
+          ' copy that can be edited without the first one moving.'
+      )
+      return
+    }
+    ids.add(id)
+    if (rules && !rules.has(id)) {
+      problems.push(
+        `[${id}] ${at} is listed in the kernel table but is not a defined rule. The kernel is a` +
+          ' named subset of existing rules, so every row must cite one — check the ID for a typo.'
+      )
+    }
+  })
+
+  if (!header || !delim) {
+    problems.push(
+      `${KERNEL_FILE}'s kernel block is not a table. It must open with a header row and its` +
+        ` delimiter. ${SHAPE}`
+    )
+  } else if (!rows) {
+    // Counted as rows, not as parsed IDs: a table whose only row is malformed has already
+    // reported that, and "no rules" on top of it would just be noise.
+    problems.push(`${KERNEL_FILE}'s kernel table has a header but no rules. ${SHAPE}`)
+  }
+  return { ids, problems }
 }
 
 export const LOCK_FILE = 'rules.lock'
@@ -251,6 +472,7 @@ export function extractStatements(srcDir, rules) {
 /** Render the registry as the rules.md page. Owns the whole file — prose included. */
 export function serializeIndex(srcDir, rules, defsByFile) {
   const statements = extractStatements(srcDir, rules)
+  const { ids: kernel } = parseKernel(srcDir)
   const count = (c) => [...rules.values()].filter((r) => r.cls === c).length
   const title = (rel) =>
     (fs.readFileSync(path.join(srcDir, rel), 'utf8').match(/^# (.+)$/m)?.[1] || rel).trim()
@@ -278,6 +500,15 @@ export function serializeIndex(srcDir, rules, defsByFile) {
         'contract, so theirs is the opening sentence of the definition instead.'
     ),
     '',
+    ...wrap(
+      `The **Kernel** column marks the **${kernel.size} kernel rules** — the ones whose presence, or ` +
+        'the strictness Coral states them at, is materially justified by an agent authoring the code ' +
+        'while a human keeps architectural authority. It is read from the one table that records it, in ' +
+        '[`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each is mapped to the property ' +
+        'it defends. An unmarked rule is not optional — the column classifies *why* Coral imposes a ' +
+        'rule, and at what strength, not whether it binds.'
+    ),
+    '',
   ]
 
   for (const [rel, defs] of defsByFile) {
@@ -286,11 +517,11 @@ export function serializeIndex(srcDir, rules, defsByFile) {
       '',
       `${defs.length} rule${defs.length === 1 ? '' : 's'} — [\`${rel}\`](./${rel})`,
       '',
-      '| Rule | Class | Statement |',
-      '| --- | --- | --- |',
+      '| Rule | Class | Kernel | Statement |',
+      '| --- | --- | --- | --- |',
       ...defs.map(({ id, cls }) => {
         const s = (statements.get(id) || '').replace(/\|/g, '\\|')
-        return `| \`[${id}]\` | \`[${cls}]\` | ${s} |`
+        return `| \`[${id}]\` | \`[${cls}]\` | ${kernel.has(id) ? '●' : ''} | ${s} |`
       }),
       ''
     )

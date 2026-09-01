@@ -11,6 +11,8 @@ This file holds what every other document builds on, so none of them has to repe
 - **The rule-ID scheme** — how rules are numbered and cited, e.g. `[DUP-2]`. ([below](#rule-ids))
 - **The enforcement classes** — `[auto]` / `[review]` / `[guide]`. ([below](#enforcement-classes))
 - **The operating model** — agents write; humans review and orchestrate. ([below](#the-operating-model-agents-write-humans-review-agent))
+- **The kernel** — the nine rules Coral would substantially relax without that operating model.
+  ([below](#the-coral-kernel))
 
 The two spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how to build one app) and
 [`SYSTEM.md`](./SYSTEM.md) (how apps compose into a system) — refer back here instead of repeating any
@@ -239,6 +241,10 @@ by serving one of four properties:
 - **Self-verification** — every slice, and every app across the channel, exposes an observable contract the
   agent can assert against by running it, closing the loop without trusting internal state.
 
+Nine of Coral's rules owe their presence, or their strictness, to this division of labour; the rest are
+stated at the strength they are for reasons that survive a human author. Which nine, and how to tell them
+apart, is the [Coral kernel](#the-coral-kernel) below.
+
 **`[AGENT-1]` `[guide]`** — Prefer the structure that minimizes an agent's placement and
 cross-file-reasoning decisions, even at the cost of some duplication.
 
@@ -413,6 +419,123 @@ slice needs this"* or *"when we split the shared datastore"* is a trigger someon
 
 Coral itself targets the version in `VERSION`; the worked examples and the audit skill each state the
 version they were written against, which is the cheapest available test that this convention is usable.
+
+---
+
+## The Coral kernel
+
+Coral's rules are not all here for the same reason. A **kernel rule** is one whose **presence or
+strictness is materially justified by the operating model**:
+[agents author the code while humans retain architectural authority](#the-operating-model-agents-write-humans-review-agent).
+Remove that premise and Coral would **substantially relax** the constraint.
+
+Note what that does *not* claim. A human-authored codebase has its own reasons to encapsulate
+(`[COMPOSE-1]`), to test behavior (`[TEST-1]`), and to be careful about abstraction (`[XCUT-1]`); several
+kernel rules would still be good advice. What changes without the premise is how *hard* Coral has to
+insist, and whether the rule needs to be normative at all rather than a matter of taste. The kernel is the
+set where the answer is "hard, and normative, because of who is writing."
+
+**"Kernel" does not mean "the most important rules."** `[TRUST-1]` matters more to a running system than
+anything below it: get the trust boundary wrong and the system is unsafe, while getting `[MODEL-1]` wrong
+only makes it hard to change. Kernel membership answers a different question — *why is Coral imposing
+this, at this strength?*
+
+The kernel is a **named subset of existing rules**, never a family of its own. There are no `KERN-*` IDs:
+**one rule, one ID** ([above](#rule-ids)) forbids a second family that restates rules defined elsewhere,
+and an alias is a copy that will drift from the rule it aliases. Every ID below is a **citation**. Each
+rule's normative statement lives at its own definition and nowhere else — including here.
+
+### Membership test
+
+A rule is a kernel rule only when **all four** hold:
+
+1. **Agent-justified.** Its presence, or the strictness at which Coral states it, materially comes from
+   agents authoring code while humans retain architectural authority — not from the code being software.
+   The test is the counterfactual: drop the premise, and would Coral substantially relax this?
+2. **Protects a defended property.** It directly protects at least one of the six below.
+3. **Not merely general correctness.** It is not a general software-correctness, distributed-systems, or
+   security rule, and not a stack- or app-type-specific convention.
+4. **Not downstream of another kernel rule.** It cannot reasonably be read as an enforcement mechanism
+   or a refinement of one.
+
+The **defended properties** are the operating model's four properties, restated at the grain a single
+rule can be tested against, plus drift — the failure the vocabulary already names:
+
+| Property | What it keeps true | Operating-model property |
+|---|---|---|
+| **locality** | everything a change needs sits in one place | context-window economy |
+| **bounded context** | what an agent must load in order to be correct is finite and knowable | context-window economy |
+| **deterministic placement** | "where does this go?" has one answer | deterministic placement |
+| **reviewability** | the architectural decision is visible in the diff a human reads | bounded blast radius |
+| **self-verification** | the agent can close its own loop by running the thing | self-verification |
+| **drift prevention** | copies of one concern cannot silently diverge | drift (`[XCUT-4]`) |
+
+### The nine kernel rules
+
+<!-- coral:kernel:start -->
+
+| Rule | Why it is kernel | Properties defended |
+|---|---|---|
+| `[BOUND-2]` | Gives the agent one capability-sized unit to understand and modify end to end. | locality, bounded context, reviewability |
+| `[MODEL-1]` | Gives new code a finite set of architectural roles instead of an open-ended placement decision. | deterministic placement |
+| `[XCUT-1]` | Stops similarity-driven extraction from becoming global abstraction: sharing requires a must-not-diverge invariant. | locality, drift prevention |
+| `[COMPOSE-1]` | Preserves context boundaries — another slice is consumed through its published capability, without loading its internals. | bounded context, reviewability |
+| `[TEST-1]` | Gives the authoring agent an executable feedback loop against observable behavior. | self-verification, reviewability |
+| `[AGENT-2]` | Makes an ambiguous architectural decision visible to a human reviewer instead of a hidden guess. | deterministic placement, reviewability |
+| `[AGENT-4]` | Reserves architectural legislation — exceptions and extensions — for humans. | reviewability, drift prevention |
+| `[VER-3]` | Fixes the normative Coral version an agent follows, so its architectural context cannot change implicitly. | drift prevention |
+| `[VER-5]` | Persists human architectural decisions as explicit, scoped data rather than tribal knowledge. | bounded context, reviewability, drift prevention |
+
+<!-- coral:kernel:end -->
+
+The block above is the **only** place kernel membership is recorded, and the build reads it. There must be
+exactly one such block — two would leave a fully visible table contributing nothing, with no way to tell
+which one counted — and every line between the markers has to be accounted for: a definition line fails
+(the kernel cites rules, it never restates one), so does a row whose ID is not a backticked citation, a
+row with the wrong number of columns, a duplicated rule, a header or delimiter that does not carry the
+same three columns as the rows, prose that wandered inside, and an ID no rule defines. The point of
+failing on a *malformed* row rather than skipping it is that skipping is how a rule leaves the kernel
+silently while the table still reads correctly to a human. [`rules.md`](./rules.md) marks these nine from
+this same block rather than from a second list, so changing the kernel produces a reviewable diff in a
+generated file — the forcing step `rules.lock` gives a rule change.
+
+`[VER-3]` is in the kernel for determinacy, not for process: the pinned version makes "the rules that
+apply here" a stable, deterministic set rather than whatever `main` says today. It is mapped to **drift
+prevention** alone. Pinning does not reduce how much an agent must load, so it does not defend bounded
+context; what it prevents is the rule set moving underneath a project whose conformance was checked
+against an earlier one.
+
+### Everything else
+
+Non-kernel rules are **not optional** — kernel membership classifies *why Coral imposes a rule, and at
+what strength*, not whether it is normative. An `[auto]` rule outside the kernel still fails the build.
+Every other Coral rule is one or more of:
+
+- **a refinement of a kernel constraint** — `[STRUCT-1]` and `[STRUCT-2]` refine locality (where the
+  slice and its tests physically sit), as does `[GROW-2]` (answer file growth inside the slice, never
+  with a global abstraction); `[DUP-2]`, `[DUP-3]` and `[DUP-4]` refine the extraction discipline
+  `[XCUT-1]` states; `[TEST-2]`, `[TEST-3]` and `[TEST-4]` refine `[TEST-1]`; `[GROW-3]` refines the
+  split discipline that keeps a bounded context bounded — domain densification is a `[SCOPE-3]` signal,
+  not a licence to build a shared core.
+- **static or mechanical enforcement of a kernel constraint** — `[BUCKET-1]` mechanically reinforces
+  deterministic placement and controlled sharing: it is the check that catches the failure `[MODEL-1]`
+  and `[XCUT-1]` describe.
+- **general application correctness** — purity and effect placement (`[EFFECT-*]`), error taxonomy
+  (`[ERR-*]`), caching, concurrency (`[CONC-*]`).
+- **security or trust-boundary correctness** — `[TRUST-1]`, `[TRUST-2]`, and the status-code and
+  authorization rules in the appendices.
+- **distributed-systems correctness** — channel semantics (`[CHAN-5]`, `[CHAN-9]`, `[CHAN-10]`),
+  idempotency (`[IDEM-*]`), observability across apps (`[OBS-*]`).
+- **an app-type-specific convention** — the appendix families (`[CLI-*]`, `[BE-*]`, `[WEB-*]`,
+  `[LIB-*]`, `[GHA-*]`, `[AGENTIC-*]`).
+- **a system-scale convention** — `[ORCH-*]`, `[SYS-TEST-*]`.
+- **implementation guidance** — `[AGENT-5]` is operating protocol around the decisions `[VER-5]`
+  persists: read them before escalating; `[GROW-1]` ("start small: one file per slice") is a starting
+  default, not a constraint.
+
+Concurrency, idempotency, error handling, caching, security, channel semantics and observability are
+load-bearing Coral rules. They are not kernel rules, and importance is not the reason either way: Coral
+states them at the strength it does because the *system* needs them, not because of who typed them.
 
 ---
 

@@ -9,6 +9,7 @@ import {
   INDEX_FILE,
   INLINE_ID_RE,
   LOCK_FILE,
+  parseKernel,
   parseLock,
   parseRules,
   serializeIndex,
@@ -23,7 +24,7 @@ import {
 // link to the page that defines it — operationalizing the citation system on the
 // web. Parsing lives in ../scripts/rules.mjs so the lockfile writer shares it.
 //
-// Six gates run here, each guarding a claim the documents make about themselves:
+// Seven gates run here, each guarding a claim the documents make about themselves:
 //   1. every rule definition carries exactly one enforcement class
 //   2. every rule-ID citation resolves to a definition
 //   3. every [auto]/[review] rule appears in its document's Agent Execution
@@ -31,6 +32,7 @@ import {
 //   4. no rule ID is ever removed, renumbered, or silently reclassified — [VER-1]
 //   5. rules.md, the generated index, matches the registry it claims to index
 //   6. the app spine cites no system rule — the dependency points one way
+//   7. the kernel cites existing rules and defines none of them
 // Two more run outside this file: link fragments in scripts/check-anchors.mjs
 // (post-build, because heading ids only exist once markdown-it has rendered them),
 // and declared example versions in scripts/check-versions.mjs.
@@ -193,6 +195,34 @@ if (fs.existsSync(spineAbs)) {
     )
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gate 7 — the kernel classifies, it does not legislate.
+//
+// CONVENTIONS.md names a subset of existing rules as the kernel: the ones whose
+// presence or strictness is materially justified by the agent-author /
+// human-architect operating model. That is a classification of *why Coral imposes a
+// rule, and at what strength*, and it must never become a second place a rule is
+// stated — "one rule, one ID" is the reason there is no KERN-* family in the first
+// place.
+//
+// parseKernel() does the work, because the same validation has to hold for whoever
+// reads the table — the build here and scripts/rules-index.mjs both — and because it
+// is then unit-testable (scripts/rules.test.mjs) rather than only reachable by
+// breaking the docs on purpose. Passing the registry in is what turns "the rows
+// parse" into "the rows cite rules that exist".
+//
+// Every line inside the markers is accounted for: an unrecognised or malformed row is
+// an error rather than a row that quietly does not count, a duplicate ID is an error,
+// and a definition-shaped line is an error. A table that is the single source of a
+// classification must not have a shape in which membership can fall out unnoticed.
+//
+// The size of the kernel is deliberately NOT hardcoded. Gate 5 already makes a
+// membership change show up as a diff in a generated file, which is the same forcing
+// step rules.lock gives a rule change — a constant would add a second thing to edit
+// and nothing to the guarantee.
+// ─────────────────────────────────────────────────────────────────────────────
+problems.push(...parseKernel(SRC, rules).problems)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 5 — the rule index is current.
