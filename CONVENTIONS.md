@@ -565,7 +565,9 @@ passing every check. Four of its columns are machine facts:
 
 - **Tag** — how a rule names this layer. `—` marks the one whose members come from the
   [kernel block](#the-nine-kernel-rules) instead of from a tag; `{app:…}` marks a layer whose
-  members must say *which* profile.
+  members must say *which* profile. A layer that takes profiles is necessarily `opt-in`: a
+  profile is something a project selects, and its rules live in a document only a selecting
+  project loads. A layer with a fixed tag may be opt-in too — `runtime-agent` is.
 - **Surface** — which of the three top-level audiences below the layer belongs to. This is
   what [`rules.md`](./rules.md) groups its subtotals by, and the three groups partition the
   rule set.
@@ -657,12 +659,14 @@ requires **exactly one** tag on every rule outside the kernel, so a new rule tha
 fails rather than silently landing in a default layer, and a tag written in a shape the parser cannot
 read is an error rather than a rule that quietly leaves every layer.
 
-**The tag lives in a slot, and the slot ends.** A definition line reads *ID → enforcement class →
-ownership tag → the statement*, and only the metadata run before the statement is classification. After
-it, braces are ordinary content: a rule may say ``use `{id}` as the path placeholder`` or name the route
-`/widgets/{id}` without either being read as a second layer. Inside the slot the reservation is absolute
-— a tag-shaped span there is metadata whether or not it was meant as any, which is what makes "exactly
-one" a checkable claim rather than a hope about where people put braces.
+**The tag lives in a slot, the slot is ordered, and the slot ends.** A definition line reads
+*ID → enforcement class → ownership tag → the statement*, in that order — the build rejects a tag written
+before its class — and only the metadata run before the statement is classification. After it, braces are
+ordinary content: a rule may say ``use `{id}` as the path placeholder`` or name the route `/widgets/{id}`
+without either being read as a second layer, and [`rules.md`](./rules.md) keeps them in the generated
+statement. Inside the slot the reservation is absolute — a tag-shaped span there is metadata whether or
+not it was meant as any, which is what makes "exactly one" a checkable claim rather than a hope about
+where people put braces.
 
 **Kernel rules carry no tag.** The [kernel block](#the-nine-kernel-rules) above is the only record of
 kernel membership, and a tag on those nine would be a second membership registry — the one thing that

@@ -413,6 +413,19 @@ export function parseLayers(srcDir) {
         key = m[1]
       }
     }
+    // A family tag says "this layer has concrete profiles", and a profile is something a
+    // project selects. Declaring one on a non-opt-in surface gives two incompatible answers:
+    // the surface says the rules are in the base conformance set, while the profile registry
+    // puts them in a document only a selecting project loads. The scope invariant above then
+    // makes `profile-scoped` automatic.
+    if (family && surface !== OPT_IN) {
+      problems.push(
+        `${at}: ${rawTag} declares a profile family, so its layer must be \`${OPT_IN}\` —` +
+          ` \`${surface}\` says its rules apply before any profile is selected, while every` +
+          ' profile it registers would live in a document only a selecting project reads.'
+      )
+      return
+    }
     if (taxonomy.some((l) => l.key === key)) {
       problems.push(`${at} declares ${rawTag} twice. One row per ownership layer.`)
       return
@@ -541,8 +554,12 @@ const BARE_TAG_RE = /^\{[A-Za-z0-9:_-]+\}/
  */
 export function ownershipTags(rest) {
   const tags = []
+  const spans = [] // [start, end) of each ownership span within `rest`
   const problems = []
   let at = 0
+  let classAt = -1
+  let tagAt = -1
+  let seen = 0
   for (;;) {
     const filler = SLOT_FILLER_RE.exec(rest.slice(at))
     if (filler) at += filler[0].length
@@ -550,19 +567,31 @@ export function ownershipTags(rest) {
     if (!span) break
     const body = span[1]
     if (CLASS_SPAN_RE.test(body)) {
-      at += span[0].length
-      continue
-    }
-    if (!TAG_SHAPED_RE.test(body)) break // the statement opens with a code span
-    const t = TAG_RE.exec(body)
-    if (t) tags.push(t[1])
-    else {
-      problems.push(
-        `carries \`${body}\`, which is written as an ownership tag but is not one. A tag is` +
-          ' lowercase, with an optional single `family:profile` split — `{baseline}`, `{app:cli}`.'
-      )
-    }
+      if (classAt < 0) classAt = seen
+    } else if (TAG_SHAPED_RE.test(body)) {
+      if (tagAt < 0) tagAt = seen
+      const t = TAG_RE.exec(body)
+      if (t) tags.push(t[1])
+      else {
+        problems.push(
+          `carries \`${body}\`, which is written as an ownership tag but is not one. A tag is` +
+            ' lowercase, with an optional single `family:profile` split — `{baseline}`, `{app:cli}`.'
+        )
+      }
+      spans.push([at, at + span[0].length])
+    } else break // the statement opens with a code span
     at += span[0].length
+    seen++
+  }
+  // The slot is ordered — CONVENTIONS.md says ID → enforcement class → ownership tag → the
+  // statement, and a parser looser than its own documented grammar is one more thing a reader
+  // has to discover by experiment. Only flagged when both are present: a missing class is
+  // parseRules()' own check and does not need saying twice.
+  if (tagAt >= 0 && classAt >= 0 && tagAt < classAt) {
+    problems.push(
+      'carries its ownership tag before its enforcement class. The definition line reads' +
+        ' ID → enforcement class → ownership tag → the statement.'
+    )
   }
   // A tag outside its backticks renders as literal braces and is invisible to the parser, so
   // it fails rather than leaving a rule unclassified for a reader who can plainly see a
@@ -577,7 +606,22 @@ export function ownershipTags(rest) {
       )
     }
   }
-  return { tags, problems }
+  return { tags, spans, problems }
+}
+
+/**
+ * A definition line's `rest` with its ownership metadata removed and nothing else.
+ *
+ * The generated index used to strip every brace-shaped code span, which is the same
+ * over-reach the slot parser was added to fix — a `[guide]` rule saying "use `{id}`" had the
+ * `{id}` deleted from its own statement. Removing exactly the spans the slot identified
+ * leaves the statement alone.
+ */
+export function stripOwnership(rest) {
+  const { spans } = ownershipTags(rest)
+  let out = rest
+  for (const [start, end] of [...spans].reverse()) out = out.slice(0, start) + out.slice(end)
+  return out
 }
 
 /** Human-readable layer of a resolved classification: `app profile · cli`. */
@@ -718,6 +762,17 @@ export function parseProfiles(srcDir, taxonomy) {
     }
     const [, tag, home, covers] = row
     const family = taxonomy.find((l) => l.family === tag.split(':')[0])
+    if (family && family.surface !== OPT_IN) {
+      // parseLayers() already refuses such a row, so this only fires for a taxonomy built
+      // some other way. It is worth keeping: the registry is what turns a family into
+      // selectable profiles, and it should not do that for a layer nobody selects.
+      problems.push(
+        `${at} registers a profile under \`${family.label}\`, whose surface is` +
+          ` \`${family.surface}\` rather than \`${OPT_IN}\`. A profile is selected; a layer that` +
+          ' is not opt-in has nothing to select.'
+      )
+      return
+    }
     if (!tag.includes(':') || !family) {
       problems.push(
         `${at} declares \`{${tag}}\`, which is not a profile. Only the layers that take a profile` +
@@ -1370,16 +1425,17 @@ export function extractStatements(srcDir, rules) {
       const def = defs.get(id)
       if (!def) continue
       const i = def.i
-      let body = def.rest
+      let body = stripOwnership(def.rest)
       for (let j = i + 1; j < lines.length && lines[j].trim() && !DEF_LINE_RE.test(lines[j]); j++) {
         body += ` ${lines[j].trim()}`
       }
       // Order matters. The `**` that closes a bolded ID has to go BEFORE flatten pairs
       // it with the next opening `**` in the sentence — otherwise `**[SCOPE-1]** — This
       // covers **command-shaped apps**` loses "This covers" instead of the emphasis.
+      // The ownership tag is already gone — stripOwnership() removed exactly the metadata
+      // slot's spans, so a `{id}` in the statement survives.
       body = body
         .replace(classRe(), '')     // the enforcement class is its own column
-        .replace(/`\{[^`]*\}`/g, '')  // and so is the ownership tag
         .trimStart()
         .replace(/^\*\*/, '')       // closing marker of a bolded ID
         .replace(/^[\s—–:-]+/, '')  // the dash or colon that opens most definitions

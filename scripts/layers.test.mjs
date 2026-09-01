@@ -52,6 +52,7 @@ import {
   parseRules,
   resolveTag,
   serializeIndex,
+  stripOwnership,
 } from './rules.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
@@ -271,6 +272,69 @@ test("the repository's taxonomy parses clean and covers every tag rules use", ()
   }
 })
 
+// ── generated statements keep the statement's own braces ─────────────────────
+
+test('stripOwnership removes the metadata tag and nothing else', () => {
+  // Whitespace left behind by the removal is collapsed downstream; what matters is which
+  // spans go and which stay.
+  const out = stripOwnership('** `[guide]` `{base}`** — Use `{id}` and `{category, code, message}`.')
+  assert.doesNotMatch(out, /\{base\}/)
+  assert.match(out, /`\[guide\]`/)
+  assert.match(out, /Use `\{id\}` and `\{category, code, message\}`\./)
+})
+
+test('a [guide] statement keeps its brace syntax through serializeIndex', () => {
+  // The generated fallback used to strip EVERY brace code span, so a rule explaining `{id}`
+  // had the `{id}` deleted out of its own one-line statement. Same over-reach the slot
+  // parser fixed, one path further along.
+  const conventions = [
+    '# Conventions',
+    '',
+    '**`[K-1]` `[review]`** — the kernel one.',
+    '',
+    LAYERS_START,
+    '',
+    ...LAYER_HEADER,
+    ...LAYER_ROWS,
+    '',
+    LAYERS_END,
+    '',
+    KERNEL_START,
+    '',
+    '| Rule | Why | Properties |',
+    '|---|---|---|',
+    '| `[K-1]` | because | locality |',
+    '',
+    KERNEL_END,
+    '',
+    PROFILES_START,
+    '',
+    ...HEADER,
+    ROW,
+    '',
+    PROFILES_END,
+    '',
+  ].join('\n')
+  const widget = [
+    '# Widget',
+    '',
+    '**`[X-1]` `[guide]` `{shape:widget}`** — Use `{id}` in the path and raise',
+    '`{category, code, message}` on failure.',
+    '',
+  ].join('\n')
+  const page = inTree(
+    { [PROFILES_FILE]: conventions, 'appendix/widget.md': widget },
+    (dir) => {
+      const { rules, defsByFile, problems } = parseRules(dir)
+      assert.deepEqual(problems, [])
+      return serializeIndex(dir, rules, defsByFile)
+    }
+  )
+  const row = page.split('\n').find((l) => l.startsWith('| `[X-1]`'))
+  assert.match(row, /Use `\{id\}` in the path and raise `\{category, code, message\}` on failure\./)
+  assert.doesNotMatch(row, /\{shape:widget\}/)
+})
+
 // ── mutation: the registry really is the source ──────────────────────────────
 //
 // The tests above prove the parser reads the table. These prove nothing else *also* holds a
@@ -425,10 +489,63 @@ test('the two agreeing combinations pass', () => {
   }
 })
 
+test('a profile family on a non-opt-in surface fails', () => {
+  // A family says "this layer has concrete profiles", and a profile is selected. On a
+  // conformance surface the two halves disagree: the index counts the rules before any
+  // profile is chosen, while the registry puts them in a document only a chooser reads.
+  for (const surface of ['conformance', 'governance']) {
+    const { problems } = withRow(
+      3,
+      `| shape profile | \`{shape:…}\` | ${surface} | unscoped | matching shapes | the shape |`
+    )
+    onlyProblem(problems, /declares a profile family, so its layer must be `opt-in`/)
+  }
+})
+
+test('a profile family that is opt-in and profile-scoped passes', () => {
+  const { taxonomy, problems } = withRow(
+    3,
+    '| shape profile | `{shape:…}` | opt-in | profile-scoped | matching shapes | the shape |'
+  )
+  assert.deepEqual(problems, [])
+  assert.equal(taxonomy.find((l) => l.family === 'shape').surface, 'opt-in')
+})
+
+test('a FIXED tag may still be opt-in — runtime-agent is the intended case', () => {
+  const { taxonomy, problems } = withRow(
+    5,
+    '| runtime addon | `{runtime-addon}` | opt-in | profile-scoped | model callers | a model |'
+  )
+  assert.deepEqual(problems, [])
+  const row = taxonomy.find((l) => l.tag === 'runtime-addon')
+  assert.equal(row.family, null)
+  assert.equal(row.surface, 'opt-in')
+})
+
+test('the profile registry refuses a family whose layer is not opt-in', () => {
+  // Defensive: parseLayers() already refuses the row, so this only fires for a taxonomy
+  // built some other way. The registry is what turns a family into selectable profiles.
+  const bent = FIXTURE.map((l) =>
+    l.family === 'shape' ? { ...l, surface: 'conformance', scoped: false } : l
+  )
+  const { problems } = inTree(
+    {
+      [PROFILES_FILE]: ['# Conventions', '', PROFILES_START, '', ...HEADER, ROW, '', PROFILES_END, '']
+        .join('\n'),
+      'appendix/widget.md': '# Widget\n',
+    },
+    (dir) => parseProfiles(dir, bent)
+  )
+  onlyProblem(problems, /whose surface is `conformance` rather than `opt-in`/)
+})
+
 test("the repository's own rows all satisfy the invariant", () => {
   // Asserted as the relationship, not as a list of which layer is which.
   assert.deepEqual(REAL_PROBLEMS, [])
-  for (const l of REAL) assert.equal(l.scoped, l.surface === 'opt-in', l.label)
+  for (const l of REAL) {
+    assert.equal(l.scoped, l.surface === 'opt-in', l.label)
+    if (l.family) assert.equal(l.surface, 'opt-in', `${l.label} is a family`)
+  }
   const tagless = REAL.find((l) => l.tag === null && l.family === null)
   assert.equal(tagless.scoped, false)
   assert.notEqual(tagless.surface, 'opt-in')
@@ -632,6 +749,27 @@ test('a span written in the shape of a tag but spelled wrong is an error, not a 
 test('a tag outside its code span fails rather than reading as unclassified', () => {
   const { problems } = parseDoc(['**`[X-1]` `[review]`** {base} — a rule.'])
   onlyProblem(problems, /outside a code span/)
+})
+
+test('the metadata slot is ordered: class, then tag', () => {
+  const { rules, problems } = parseDoc(['**`[X-1]` `[review]` `{base}`** — a rule.'])
+  assert.deepEqual(problems, [])
+  assert.deepEqual(rules.get('X-1').tags, ['base'])
+})
+
+test('a tag before the enforcement class fails', () => {
+  // CONVENTIONS.md documents ID → class → tag → statement. A parser looser than its own
+  // stated grammar is one more thing a reader has to discover by experiment.
+  const { rules, problems } = parseDoc(['**`[X-1]` `{base}` `[review]`** — a rule.'])
+  onlyProblem(problems, /carries its ownership tag before its enforcement class/)
+  // still collected, so this is the only complaint rather than "and it has no tag either"
+  assert.deepEqual(rules.get('X-1').tags, ['base'])
+})
+
+test('a kernel-shaped line — class then statement, no tag — still passes', () => {
+  const { rules, problems } = parseDoc(['**`[X-1]` `[review]`** — a kernel rule.'])
+  assert.deepEqual(problems, [])
+  assert.deepEqual(rules.get('X-1').tags, [])
 })
 
 test('a brace token in the STATEMENT is content, not a second tag', () => {

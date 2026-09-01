@@ -174,12 +174,19 @@ where they disagree: an `opt-in` layer is `profile-scoped` and every other surfa
 `opt-in | unscoped` would have `rules.md` call a layer optional while the contract gate accepted its rules
 as unconditional — the split this classification exists to close, arriving through the registry.
 
+A layer that takes profiles is necessarily `opt-in` too, and the build says so: a family declared on a
+conformance surface would have the index count its rules before any profile is selected while the registry
+put them in a document only a selecting project reads. A fixed tag may still be opt-in — `runtime-agent`
+is exactly that case.
+
 **An ownership tag is metadata in a slot, and the slot ends where the statement begins.** The parser used
 to scan a whole definition line for anything brace-shaped, which quietly reserved ordinary API notation: a
 rule saying ``use `{id}` as the path placeholder``, or naming the route `/widgets/{id}`, was read as
 carrying a second ownership tag. After the statement begins, braces are content. Inside the slot the
 reservation stays absolute — a tag-shaped span there is metadata whether or not it was meant as any, which
-is what keeps "exactly one tag" checkable.
+is what keeps "exactly one tag" checkable. The slot is ordered as the documentation says it is
+(*ID → enforcement class → ownership tag → statement*), and the generated index now removes exactly the
+metadata spans, so a `[guide]` rule that explains `{id}` keeps the `{id}` in its own one-line statement.
 
 **The profile-home check runs both ways now.** It already kept an `{app:cli}` rule out of a spine. It now
 also keeps a non-CLI rule out of `appendix/cli.md`: a `{baseline}` rule defined in a profile's document is
