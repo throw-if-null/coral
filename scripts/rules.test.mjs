@@ -21,7 +21,14 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { KERNEL_END, KERNEL_FILE, KERNEL_START, parseKernel, parseRules } from './rules.mjs'
+import {
+  KERNEL_END,
+  KERNEL_FILE,
+  KERNEL_START,
+  definitionLines,
+  parseKernel,
+  parseRules,
+} from './rules.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
 
@@ -321,4 +328,41 @@ test("this repository's kernel table is structurally sound", () => {
   for (const id of ids) {
     assert.ok(rules.has(id), `[${id}] is in the kernel table but is not a defined rule`)
   }
+})
+
+// ── which lines are definitions ──────────────────────────────────────────────
+//
+// A fenced code block ILLUSTRATES a rule; it never defines one. The documents now print
+// example definition lines — CONVENTIONS.md shows what an ownership tag looks like on a
+// real rule — and the registry is first-definition-wins across a fixed document order, so
+// an unguarded example silently becomes the definition and moves the rule to another page.
+
+test('a definition inside a fenced block is an illustration, not a definition', () => {
+  const lines = [
+    '```',
+    '**`[X-1]` `[review]` `{baseline}`** — an example, not a rule.',
+    '```',
+    '**`[X-2]` `[review]` `{baseline}`** — the real one.',
+  ]
+  assert.deepEqual(
+    definitionLines(lines).map((d) => d.id),
+    ['X-2']
+  )
+})
+
+test('a longer fence is needed to close a longer fence', () => {
+  // CONVENTIONS.md wraps a ```yaml sample in a ```` fence; a naive toggle re-opens on the
+  // inner fence and then swallows everything after it.
+  const lines = [
+    '````',
+    '```yaml',
+    'targets: 0.6.0',
+    '```',
+    '````',
+    '**`[X-1]` `[review]` `{baseline}`** — still visible.',
+  ]
+  assert.deepEqual(
+    definitionLines(lines).map((d) => d.id),
+    ['X-1']
+  )
 })
