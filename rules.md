@@ -12,10 +12,12 @@ Statements come from each document's Agent Execution Contract, which is why they
 `[guide]` rules are rationale rather than instruction and appear in no contract, so theirs is the opening
 sentence of the definition instead.
 
-The **Kernel** column marks the **9 kernel rules** — the ones that exist *because* an agent authors the
-code while a human keeps architectural authority. It is read from the one table that records it, in
+The **Kernel** column marks the **9 kernel rules** — the ones whose presence, or the strictness Coral
+states them at, is materially justified by an agent authoring the code while a human keeps architectural
+authority. It is read from the one table that records it, in
 [`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each is mapped to the property it defends. An
-unmarked rule is not optional — the column classifies *why* a rule exists, not whether it binds.
+unmarked rule is not optional — the column classifies *why* Coral imposes a rule, and at what strength, not
+whether it binds.
 
 ## Coral Architecture — Conventions
 
@@ -44,7 +46,7 @@ unmarked rule is not optional — the column classifies *why* a rule exists, not
 | `[SCOPE-2]` | `[guide]` |  | It is weak for dense, deeply-coupled domains where every feature reaches into one large central concept. |
 | `[SCOPE-3]` | `[review]` |  | When features converge on one dense concept, give it its own app behind a published contract. |
 | `[SCOPE-4]` | `[guide]` |  | What happens *after* the split is not in this document. |
-| `[MODEL-1]` | `[review]` | ● | Every unit of code is a slice, a crosscut, the composition root, or a published contract. |
+| `[MODEL-1]` | `[review]` | ● | Every unit of code is a slice, a crosscut, an adapter, the composition root, or a published contract. |
 | `[MODEL-2]` | `[review]` |  | Name every package for the capability or concern it owns, never for its technical role. |
 | `[MODEL-3]` | `[guide]` |  | A crosscut's decisive property is defined once, injected many. |
 | `[MODEL-4]` | `[review]` |  | An adapter implements a slice-declared port: infrastructure only, arrow inward, wired by the root, no behavior. |

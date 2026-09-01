@@ -35,28 +35,43 @@ the entries between your target and the new version, satisfy the added rules, an
 A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
 the batch is cut.
 
-**The Coral kernel is named. Patch-level: no rule was added, tightened, loosened, or retired, no ID or
-enforcement class moved, and nothing about conformance changed.**
+**The Coral kernel is named, and `[MODEL-1]`'s contract line is corrected. Patch-level: no rule was
+added, tightened, loosened, or retired, and no ID or enforcement class moved.**
 
-Coral's rules did not all exist for the same reason, and nothing said which was which. Most of them —
-concurrency, idempotency, the error taxonomy, `[TRUST-*]`, the channel semantics — would be worth
-following if humans wrote every line. Nine exist *only* because an agent authors the code while a human
-keeps architectural authority: `[BOUND-2]`, `[MODEL-1]`, `[XCUT-1]`, `[COMPOSE-1]`, `[TEST-1]`,
-`[AGENT-2]`, `[AGENT-4]`, `[VER-3]`, `[VER-5]`. `CONVENTIONS.md` now names that subset, states the
-four-part membership test, and maps each member to the property it defends (locality, bounded context,
-deterministic placement, reviewability, self-verification, drift prevention).
+Coral's rules were not all here for the same reason, and nothing said which was which. Nine of them owe
+their presence — or the strictness Coral states them at — to the operating model: an agent authors the
+code while a human retains architectural authority. Remove that premise and Coral would substantially
+relax `[BOUND-2]`, `[MODEL-1]`, `[XCUT-1]`, `[COMPOSE-1]`, `[TEST-1]`, `[AGENT-2]`, `[AGENT-4]`,
+`[VER-3]` and `[VER-5]`. `CONVENTIONS.md` now names that subset, states the four-part membership test,
+and maps each member to the property it defends (locality, bounded context, deterministic placement,
+reviewability, self-verification, drift prevention). It is deliberately *not* the claim that a human
+author would have no reason to follow them.
 
 It is a **named subset of existing rules, not a family.** There is no `KERN-*` and there will not be:
 "one rule, one ID" forbids a second family that restates rules defined elsewhere, and the kernel table is
-rows of citations. The build enforces that — a definition line inside the kernel block fails, as does a
-row citing an ID no rule defines. `rules.md` marks the nine from that same block, so membership has one
-source and a change to it lands as a diff in a generated file.
+rows of citations. The build enforces that: a definition line inside the kernel block fails, as does a
+malformed or duplicated row, or a row citing an ID no rule defines — with unit tests for each failure
+mode (`npm run check:rules`) rather than a ritual of breaking the docs on purpose. `rules.md` marks the
+nine from that same block, so membership has one source and a change to it lands as a diff in a generated
+file.
 
 **"Kernel" does not mean "most important."** `[TRUST-1]` matters more to a running system than any of the
-nine. The classification answers *why a rule exists*, and an unmarked rule is not optional.
+nine. The classification answers *why Coral imposes a rule, and at what strength* — an unmarked rule is
+not optional.
 
-Also fixed: `ARCHITECTURE.md` still said `CONVENTIONS.md` defines "the seven nouns" while listing eight —
-drift left by `[MODEL-4]` adding **adapter** in 0.6.0.
+**`[MODEL-1]`'s contract line was missing `adapter`, and that one is not cosmetic.** The canonical
+definition has named five categories since `[MODEL-4]` landed in 0.6.0; the Agent Execution Contract in
+`ARCHITECTURE.md` still said *"a slice, a crosscut, the composition root, or a published contract"*.
+`CONVENTIONS.md` promises the contract is the **complete** normative surface — an agent may load only
+that — so an agent doing exactly what Coral invites it to do was given a four-category model and no
+legitimate home for infrastructure behind a slice-declared port. The two now agree. **Clarification, not
+a tightening:** the rule already required five, and `rules.md` (generated from the contract) picks the
+correction up.
+
+Two more copies of the same adapter drift: `ARCHITECTURE.md` said `CONVENTIONS.md` defines "the seven
+nouns" while listing eight, and `README.md` pointed at the site's "four kinds of code" section, which has
+been *The five kinds of code* since 0.6.0. The historical mentions in this changelog and in
+`examples/go-api-slice.md` describe the pre-adapter taxonomy accurately and are left alone.
 
 ---
 

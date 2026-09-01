@@ -60,9 +60,23 @@ export const KERNEL_START = '<!-- coral:kernel:start -->'
 export const KERNEL_END = '<!-- coral:kernel:end -->'
 export const KERNEL_FILE = 'CONVENTIONS.md'
 
-// Only the Rule column counts. Reading every ID in the block would make a citation in
-// a rationale cell silently join the kernel.
-const KERNEL_ROW_RE = new RegExp(String.raw`^\|\s*\`\[(${ID_CORE})\]\`\s*\|`)
+// The exact shape of a kernel row: ID citation, rationale, properties. Anchored at both
+// ends, so it fixes the column count too.
+//
+// Only the FIRST column contributes membership — reading every ID in the block would let
+// a citation in a rationale cell silently join the kernel. And the match is required, not
+// opportunistic: a row that fails this shape is an error, never a row that quietly does
+// not count. `| [MODEL-1] | … | … |` (no backticks) is not a citation the site can link
+// and must not be readable as membership either.
+//
+// The cell class is `[^|]*[^|\s][^|]*` — "no pipes, and not blank". `\S` would be the
+// obvious spelling and is wrong: `|` is non-whitespace, so it let ` why | properties `
+// parse as one cell and a four-column row read as a valid three-column one.
+const KERNEL_ROW_RE = new RegExp(
+  String.raw`^\|\s*\`\[(${ID_CORE})\]\`\s*\|([^|]*[^|\s][^|]*)\|([^|]*[^|\s][^|]*)\|$`
+)
+// The header's delimiter row — |---|---|---| or | --- | :-: | --- |.
+const TABLE_DELIM_RE = /^\|[\s:|-]+\|$/
 
 function walk(dir, srcDir) {
   const out = []
@@ -128,19 +142,39 @@ export function parseRules(srcDir) {
 }
 
 /**
- * Parse the kernel table out of CONVENTIONS.md.
+ * Parse and validate the kernel table in CONVENTIONS.md.
  *
- * The block must CITE rules, never define them: a definition line inside it would make
- * the kernel a second normative source for a rule that is already defined elsewhere,
- * which is the one failure this classification must not be able to cause.
+ * Two guarantees, and both have to be enforced rather than assumed.
  *
+ * The block CITES rules and never defines them: a definition line inside it would make
+ * the kernel a second normative source for a rule already defined elsewhere, which is
+ * the one failure this classification must not be able to cause.
+ *
+ * And every line in the block is accounted for. The first version of this parser only
+ * *collected* rows that matched, which sounds equivalent and is not: a row whose ID lost
+ * its backticks, or gained a fourth column, simply stopped being a kernel rule, silently,
+ * while the table still read correctly to a human. A table that is the single source of a
+ * classification cannot have a shape in which membership can fall out unnoticed — so an
+ * unrecognised line is an error, a duplicate ID is an error, and the header and its
+ * delimiter must be present and be exactly one line each.
+ *
+ * The kernel's *size* is deliberately not checked. Gate 5 already turns a membership
+ * change into a diff in a generated file; a constant here would be a second thing to
+ * edit and would add nothing.
+ *
+ * @param {string} srcDir
+ * @param {Map<string,unknown>} [rules] the rule registry; when given, every cited ID must
+ *   resolve in it — the check that keeps the kernel a subset of rules that actually exist.
  * @returns {{ids: Set<string>, problems: string[]}}
  */
-export function parseKernel(srcDir) {
+export function parseKernel(srcDir, rules) {
   const problems = []
   const ids = new Set()
   const abs = path.join(srcDir, KERNEL_FILE)
-  if (!fs.existsSync(abs)) return { ids, problems }
+  if (!fs.existsSync(abs)) {
+    problems.push(`${KERNEL_FILE} is missing — it is where kernel membership is recorded.`)
+    return { ids, problems }
+  }
 
   const text = fs.readFileSync(abs, 'utf8')
   const start = text.indexOf(KERNEL_START)
@@ -157,26 +191,86 @@ export function parseKernel(srcDir) {
     return { ids, problems }
   }
 
+  const SHAPE = 'Each row is  | `[ID]` | why it is kernel | properties defended |'
   const block = text.slice(start + KERNEL_START.length, end)
-  const offset = text.slice(0, start).split('\n').length
+  // 1-based line number of the marker, so a reported line matches the editor's gutter.
+  const markerLine = text.slice(0, start).split('\n').length
+  let header = false
+  let delim = false
+  let rows = 0
+
   block.split('\n').forEach((line, i) => {
+    const at = `${KERNEL_FILE}:${markerLine + i}`
+    const trimmed = line.trim()
+    if (!trimmed) return
+
     const def = DEF_LINE_RE.exec(line)
     if (def) {
       problems.push(
-        `[${def[1]}] ${KERNEL_FILE}:${offset + i} is written as a rule DEFINITION inside the kernel` +
-          ' block. The kernel is a named subset of existing rules: every row cites a rule defined' +
-          ' elsewhere, and the kernel never restates one.'
+        `[${def[1]}] ${at} is written as a rule DEFINITION inside the kernel block. The kernel is a` +
+          ' named subset of existing rules: every row cites a rule defined elsewhere, and the kernel' +
+          ' never restates one.'
+      )
+      return
+    }
+    if (!trimmed.startsWith('|')) {
+      problems.push(
+        `${at} is inside the kernel block but is not a table row. The block holds the membership` +
+          ` table and nothing else — prose belongs outside the markers. ${SHAPE}`
+      )
+      return
+    }
+    if (!header) {
+      header = true
+      if (KERNEL_ROW_RE.test(trimmed)) {
+        problems.push(`${at}: the kernel table's first row must be its header, not a rule row.`)
+      }
+      return
+    }
+    if (!delim) {
+      delim = true
+      if (!TABLE_DELIM_RE.test(trimmed)) {
+        problems.push(`${at}: expected the header delimiter row (|---|---|---|) here.`)
+      }
+      return
+    }
+
+    rows++
+    const row = KERNEL_ROW_RE.exec(trimmed)
+    if (!row) {
+      problems.push(
+        `${at} is a malformed kernel row, so its membership cannot be read. ${SHAPE} — the ID must` +
+          ' be a backticked citation (`[MODEL-1]`, not [MODEL-1]) and there must be exactly three' +
+          ' non-empty columns.'
+      )
+      return
+    }
+    const id = row[1]
+    if (ids.has(id)) {
+      problems.push(
+        `[${id}] ${at} is listed in the kernel table twice. One row per rule: a second row is a` +
+          ' copy that can be edited without the first one moving.'
+      )
+      return
+    }
+    ids.add(id)
+    if (rules && !rules.has(id)) {
+      problems.push(
+        `[${id}] ${at} is listed in the kernel table but is not a defined rule. The kernel is a` +
+          ' named subset of existing rules, so every row must cite one — check the ID for a typo.'
       )
     }
-    const row = KERNEL_ROW_RE.exec(line)
-    if (row) ids.add(row[1])
   })
 
-  if (!ids.size) {
+  if (!header || !delim) {
     problems.push(
-      `${KERNEL_FILE}'s kernel block cites no rule. Rows are read from the Rule column:` +
-        ' | `[BOUND-2]` | … | … |'
+      `${KERNEL_FILE}'s kernel block is not a table. It must open with a header row and its` +
+        ` delimiter. ${SHAPE}`
     )
+  } else if (!rows) {
+    // Counted as rows, not as parsed IDs: a table whose only row is malformed has already
+    // reported that, and "no rules" on top of it would just be noise.
+    problems.push(`${KERNEL_FILE}'s kernel table has a header but no rules. ${SHAPE}`)
   }
   return { ids, problems }
 }
@@ -347,12 +441,12 @@ export function serializeIndex(srcDir, rules, defsByFile) {
     ),
     '',
     ...wrap(
-      `The **Kernel** column marks the **${kernel.size} kernel rules** — the ones that exist *because* ` +
-        'an agent authors the code while a human keeps architectural authority. It is read from the ' +
-        'one table that records it, in ' +
+      `The **Kernel** column marks the **${kernel.size} kernel rules** — the ones whose presence, or ` +
+        'the strictness Coral states them at, is materially justified by an agent authoring the code ' +
+        'while a human keeps architectural authority. It is read from the one table that records it, in ' +
         '[`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each is mapped to the property ' +
-        'it defends. An unmarked rule is not optional — the column classifies *why* a rule exists, ' +
-        'not whether it binds.'
+        'it defends. An unmarked rule is not optional — the column classifies *why* Coral imposes a ' +
+        'rule, and at what strength, not whether it binds.'
     ),
     '',
   ]

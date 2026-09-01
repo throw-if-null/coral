@@ -832,7 +832,7 @@ Reviewers walk this same list and cite the same IDs.
 <!-- coral:contract:start -->
 
 ### Placement & naming
-- `[MODEL-1]` Every unit of code is a slice, a crosscut, the composition root, or a published contract.
+- `[MODEL-1]` Every unit of code is a slice, a crosscut, an adapter, the composition root, or a published contract.
 - `[MODEL-2]` Name every package for the capability or concern it owns, never for its technical role.
 - `[MODEL-4]` An adapter implements a slice-declared port: infrastructure only, arrow inward, wired by the root, no behavior.
 - `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages; the package owns its capability's state.

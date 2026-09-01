@@ -204,27 +204,23 @@ if (fs.existsSync(spineAbs)) {
 // exists*, and it must never become a second place a rule is stated — "one rule,
 // one ID" is the reason there is no KERN-* family in the first place.
 //
-// So two things are checked. Every row must CITE a rule that exists (a typo in the
-// table would otherwise read as a rule silently dropping out of the kernel), and no
-// row may be written in the shape of a definition. The parser enforces the second
-// half; rules.md marks kernel rules from this same block, so the count and the
-// membership cannot disagree with the table either.
+// parseKernel() does the work, because the same validation has to hold for whoever
+// reads the table — the build here and scripts/rules-index.mjs both — and because it
+// is then unit-testable (scripts/rules.test.mjs) rather than only reachable by
+// breaking the docs on purpose. Passing the registry in is what turns "the rows
+// parse" into "the rows cite rules that exist".
 //
-// The size of the kernel is deliberately NOT hardcoded here. Gate 5 already makes a
+// Every line inside the markers is accounted for: an unrecognised or malformed row is
+// an error rather than a row that quietly does not count, a duplicate ID is an error,
+// and a definition-shaped line is an error. A table that is the single source of a
+// classification must not have a shape in which membership can fall out unnoticed.
+//
+// The size of the kernel is deliberately NOT hardcoded. Gate 5 already makes a
 // membership change show up as a diff in a generated file, which is the same forcing
 // step rules.lock gives a rule change — a constant would add a second thing to edit
 // and nothing to the guarantee.
 // ─────────────────────────────────────────────────────────────────────────────
-const { ids: kernelIds, problems: kernelProblems } = parseKernel(SRC)
-problems.push(...kernelProblems)
-for (const id of [...kernelIds].sort()) {
-  if (!rules.has(id)) {
-    problems.push(
-      `[${id}] is listed in CONVENTIONS.md's kernel table but is not a defined rule. The kernel is a` +
-        ' named subset of existing rules, so every row must cite one — check the ID for a typo.'
-    )
-  }
-}
+problems.push(...parseKernel(SRC, rules).problems)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 5 — the rule index is current.
