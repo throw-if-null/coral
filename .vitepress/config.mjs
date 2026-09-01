@@ -199,10 +199,12 @@ if (fs.existsSync(spineAbs)) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 7 — the kernel classifies, it does not legislate.
 //
-// CONVENTIONS.md names nine existing rules as the kernel: the ones that exist
-// because an agent authors the code. That is a classification of *why a rule
-// exists*, and it must never become a second place a rule is stated — "one rule,
-// one ID" is the reason there is no KERN-* family in the first place.
+// CONVENTIONS.md names a subset of existing rules as the kernel: the ones whose
+// presence or strictness is materially justified by the agent-author /
+// human-architect operating model. That is a classification of *why Coral imposes a
+// rule, and at what strength*, and it must never become a second place a rule is
+// stated — "one rule, one ID" is the reason there is no KERN-* family in the first
+// place.
 //
 // parseKernel() does the work, because the same validation has to hold for whoever
 // reads the table — the build here and scripts/rules-index.mjs both — and because it

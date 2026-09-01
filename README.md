@@ -17,8 +17,9 @@ a scheduler, a solver. That limit is stated as a rule (`[SCOPE-2]`), not as a fo
 
 Start with [`CONVENTIONS.md`](./CONVENTIONS.md). It defines the eight nouns every other document uses, the
 rule-ID scheme, the enforcement classes, the agents-write / humans-review operating model, and the
-[Coral kernel](./CONVENTIONS.md#the-coral-kernel) — the nine rules Coral imposes because an agent is the
-author; the rest refer back to it instead of restating any of it.
+[Coral kernel](./CONVENTIONS.md#the-coral-kernel) — the nine rules Coral would substantially relax
+without the agent-author / human-architect operating model; the rest refer back to it instead of
+restating any of it.
 
 From there: [`ARCHITECTURE.md`](./ARCHITECTURE.md) is how to build one app,
 [`SYSTEM.md`](./SYSTEM.md) is how separately-built apps compose over a channel, [`appendix/`](./appendix)

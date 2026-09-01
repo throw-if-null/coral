@@ -11,7 +11,8 @@ This file holds what every other document builds on, so none of them has to repe
 - **The rule-ID scheme** — how rules are numbered and cited, e.g. `[DUP-2]`. ([below](#rule-ids))
 - **The enforcement classes** — `[auto]` / `[review]` / `[guide]`. ([below](#enforcement-classes))
 - **The operating model** — agents write; humans review and orchestrate. ([below](#the-operating-model-agents-write-humans-review-agent))
-- **The kernel** — the nine rules Coral imposes *because* an agent is the author. ([below](#the-coral-kernel))
+- **The kernel** — the nine rules Coral would substantially relax without that operating model.
+  ([below](#the-coral-kernel))
 
 The two spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how to build one app) and
 [`SYSTEM.md`](./SYSTEM.md) (how apps compose into a system) — refer back here instead of repeating any

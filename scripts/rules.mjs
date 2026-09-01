@@ -51,8 +51,9 @@ const DEFINES_NOTHING = new Set(['CHANGELOG.md', 'rules.md'])
 export const CONTRACT_START = '<!-- coral:contract:start -->'
 export const CONTRACT_END = '<!-- coral:contract:end -->'
 
-// The kernel block in CONVENTIONS.md — the named subset of rules that exist because
-// an agent is the author. It is a table of CITATIONS, and that is the whole point:
+// The kernel block in CONVENTIONS.md — the named subset of rules whose presence or
+// strictness is materially justified by the agent-author / human-architect operating
+// model. It is a table of CITATIONS, and that is the whole point:
 // "one rule, one ID" forbids a KERN-* family, so the kernel must not be able to
 // restate a rule. Parsing it here rather than hand-listing the IDs is what keeps the
 // classification single-sourced — rules.md marks kernel rules from this block.

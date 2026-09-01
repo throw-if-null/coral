@@ -8,8 +8,12 @@
 // the real documents is a manual ritual nobody repeats, so the failure modes are
 // asserted here against fixtures instead.
 //
-// The last test is the regression that matters most day to day: the parser and the
-// real table still agree, and the real table still parses clean.
+// The last test runs the parser against the real documents. Note what it does NOT do:
+// it does not list the kernel IDs it expects. CONVENTIONS.md is the single source of
+// membership, and a copy here would be a second one — the thing this whole design is
+// arranged to avoid. It asserts the *structure* instead: the table parses clean, it is
+// not empty, and every rule it names is a rule that exists. Membership changes stay
+// visible where they belong, in the generated rules.md diff.
 // ─────────────────────────────────────────────────────────────────────────────
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -17,7 +21,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { KERNEL_END, KERNEL_FILE, KERNEL_START, parseKernel } from './rules.mjs'
+import { KERNEL_END, KERNEL_FILE, KERNEL_START, parseKernel, parseRules } from './rules.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
 
@@ -200,14 +204,15 @@ test('a page with no kernel block at all fails', () => {
   }
 })
 
-// Membership itself, asserted. Changing the kernel means changing this list — the same
-// forcing step rules.lock gives a rule change, and the reason it is spelled out rather
-// than derived from the table it is meant to be checking.
-test("this repository's kernel table parses clean, with exactly the nine kernel rules", () => {
-  const { ids, problems } = parseKernel(REPO)
+test("this repository's kernel table is structurally sound", () => {
+  const { rules } = parseRules(REPO)
+  const { ids, problems } = parseKernel(REPO, rules)
+
   assert.deepEqual(problems, [])
-  assert.deepEqual(
-    [...ids].sort(),
-    ['AGENT-2', 'AGENT-4', 'BOUND-2', 'COMPOSE-1', 'MODEL-1', 'TEST-1', 'VER-3', 'VER-5', 'XCUT-1']
-  )
+  assert.ok(ids.size > 0, 'the kernel table names no rules')
+  // Every member is a rule that exists — the kernel is a subset, never a source of
+  // rules. Which rules are members is CONVENTIONS.md's business, not this test's.
+  for (const id of ids) {
+    assert.ok(rules.has(id), `[${id}] is in the kernel table but is not a defined rule`)
+  }
 })
