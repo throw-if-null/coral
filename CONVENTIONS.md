@@ -193,6 +193,9 @@ Each rule carries **exactly one** — the docs build fails otherwise:
 - `[review]` — needs LLM or human judgment.
 - `[guide]` — rationale or principle; shapes decisions but isn't a pass/fail gate.
 
+It is read from the [metadata slot](#where-a-rule-s-layer-is-recorded) next to the rule ID, so a rule that
+*discusses* `[review]` in its prose neither gains a second class nor supplies a missing one.
+
 The resulting coverage map shows which rules have teeth and which run on goodwill. Classify honestly:
 a rule marked `[auto]` that no linter could actually decide is a promise the architecture cannot keep,
 and it costs more credibility than an honest `[review]`.
@@ -659,14 +662,16 @@ requires **exactly one** tag on every rule outside the kernel, so a new rule tha
 fails rather than silently landing in a default layer, and a tag written in a shape the parser cannot
 read is an error rather than a rule that quietly leaves every layer.
 
-**The tag lives in a slot, the slot is ordered, and the slot ends.** A definition line reads
+**Both markers live in a slot, the slot is ordered, and the slot ends.** A definition line reads
 *ID → enforcement class → ownership tag → the statement*, in that order — the build rejects a tag written
-before its class — and only the metadata run before the statement is classification. After it, braces are
-ordinary content: a rule may say ``use `{id}` as the path placeholder`` or name the route `/widgets/{id}`
-without either being read as a second layer, and [`rules.md`](./rules.md) keeps them in the generated
-statement. Inside the slot the reservation is absolute — a tag-shaped span there is metadata whether or
-not it was meant as any, which is what makes "exactly one" a checkable claim rather than a hope about
-where people put braces.
+before its class — and only the metadata run before the statement is classification. After it, a rule is
+free to talk about braces and about enforcement classes: it may say ``use `{id}` as the path placeholder``,
+name the route `/widgets/{id}`, or write ``compare this with `[review]` `` without any of them being read
+as a second tag or a second class, and [`rules.md`](./rules.md) keeps all of it in the generated statement.
+The boundary cuts both ways — a rule whose slot holds no class cannot borrow one out of its own sentence.
+Inside the slot the reservation is absolute: a class- or tag-shaped span there is metadata whether or not
+it was meant as any, which is what makes "exactly one of each" a checkable claim rather than a hope about
+where people put punctuation.
 
 **Kernel rules carry no tag.** The [kernel block](#the-nine-kernel-rules) above is the only record of
 kernel membership, and a tag on those nine would be a second membership registry — the one thing that

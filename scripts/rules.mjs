@@ -81,7 +81,6 @@ export function definitionLines(lines) {
 // Factories, not shared instances — a stateful /g regex reused across callers is a
 // bug waiting to happen.
 export const useRe = () => new RegExp(String.raw`\`\[(${ID_CORE})\]\``, 'g')
-const classRe = () => /`\[(auto|review|guide)\]`/g
 
 // The spine is pinned first because the registry is first-definition-wins:
 // precedence has to be stable and must not depend on directory order.
@@ -526,12 +525,14 @@ function tagVocabulary(profiles, taxonomy) {
 // ─────────────────────────────────────────────────────────────────────────────
 // The metadata slot.
 //
-// A definition line is  ID -> enforcement class -> ownership tag -> the rule statement,
-// and the tag is metadata sitting in that slot, not a token that may appear anywhere. The
-// parser used to scan the WHOLE line for anything brace-shaped, which quietly reserved a
-// piece of ordinary syntax: a rule saying "use `{id}` as the path placeholder", or naming
-// the route /widgets/{id}, was read as carrying a second ownership tag or as having written
-// one outside a code span. Rules are allowed to talk about braces.
+// A definition line is  ID -> enforcement class -> ownership tag -> the rule statement, and
+// BOTH pieces of metadata sit in that slot rather than being tokens that may appear anywhere.
+// The parser used to scan the WHOLE line for each, which quietly reserved two pieces of
+// ordinary syntax. A rule saying "use `{id}` as the path placeholder", or naming the route
+// /widgets/{id}, was read as carrying a second ownership tag. A rule saying "compare this
+// with `[review]`" was read as carrying two enforcement classes — and, worse in the other
+// direction, `**`[X-1]` `{base}`** — behaves like `[review]`.` was ACCEPTED, its class taken
+// from its own prose. Rules are allowed to talk about braces and about enforcement classes.
 //
 // So the slot has an end. It runs from just after the ID through the whitespace and bold
 // markers around the enforcement class and the ownership tag, and it closes at the first
@@ -552,9 +553,10 @@ const BARE_TAG_RE = /^\{[A-Za-z0-9:_-]+\}/
  * @param {string} rest the definition line after its rule-ID code span
  * @returns {{tags: string[], problems: string[]}} problems are sentences, un-prefixed
  */
-export function ownershipTags(rest) {
+export function parseDefinitionMetadata(rest) {
+  const classes = []
   const tags = []
-  const spans = [] // [start, end) of each ownership span within `rest`
+  const spans = [] // [start, end) of every metadata span, in document order
   const problems = []
   let at = 0
   let classAt = -1
@@ -568,6 +570,7 @@ export function ownershipTags(rest) {
     const body = span[1]
     if (CLASS_SPAN_RE.test(body)) {
       if (classAt < 0) classAt = seen
+      classes.push(body.slice(1, -1))
     } else if (TAG_SHAPED_RE.test(body)) {
       if (tagAt < 0) tagAt = seen
       const t = TAG_RE.exec(body)
@@ -578,15 +581,15 @@ export function ownershipTags(rest) {
             ' lowercase, with an optional single `family:profile` split — `{baseline}`, `{app:cli}`.'
         )
       }
-      spans.push([at, at + span[0].length])
     } else break // the statement opens with a code span
+    spans.push([at, at + span[0].length])
     at += span[0].length
     seen++
   }
   // The slot is ordered — CONVENTIONS.md says ID → enforcement class → ownership tag → the
   // statement, and a parser looser than its own documented grammar is one more thing a reader
   // has to discover by experiment. Only flagged when both are present: a missing class is
-  // parseRules()' own check and does not need saying twice.
+  // reported by the caller and does not need saying twice.
   if (tagAt >= 0 && classAt >= 0 && tagAt < classAt) {
     problems.push(
       'carries its ownership tag before its enforcement class. The definition line reads' +
@@ -606,19 +609,19 @@ export function ownershipTags(rest) {
       )
     }
   }
-  return { tags, spans, problems }
+  return { classes, tags, spans, end: at, problems }
 }
 
 /**
- * A definition line's `rest` with its ownership metadata removed and nothing else.
+ * A definition line's `rest` with its metadata removed and nothing else.
  *
- * The generated index used to strip every brace-shaped code span, which is the same
- * over-reach the slot parser was added to fix — a `[guide]` rule saying "use `{id}`" had the
- * `{id}` deleted from its own statement. Removing exactly the spans the slot identified
- * leaves the statement alone.
+ * The generated index used to strip every class-shaped and brace-shaped code span anywhere
+ * on the line, which deleted a rule's own words: a `[guide]` rule saying "compare this with
+ * `[review]`" lost the comparison, and one explaining "use `{id}`" lost the placeholder.
+ * Removing exactly the spans the slot consumed leaves the statement alone.
  */
-export function stripOwnership(rest) {
-  const { spans } = ownershipTags(rest)
+export function stripDefinitionMetadata(rest) {
+  const { spans } = parseDefinitionMetadata(rest)
   let out = rest
   for (const [start, end] of [...spans].reverse()) out = out.slice(0, start) + out.slice(end)
   return out
@@ -1106,22 +1109,26 @@ export function parseRules(srcDir) {
       if (registry.has(id)) return
       registry.set(id, rel)
 
-      const classes = [...rest.matchAll(classRe())].map((c) => c[1])
+      // Both pieces of metadata come from the slot, never from the statement. A rule that
+      // discusses `[review]` in its prose does not thereby carry two classes, and — the
+      // direction that actually let something through — a rule with no class in its slot
+      // cannot borrow one out of its own sentence.
+      //
+      // The ownership tag is collected here and JUDGED in classifyRules(), which is the only
+      // place that knows whether this rule is in the kernel, and so whether a tag is required
+      // or forbidden. What is judged here is legibility: a span written in the shape of a tag
+      // but not spelled like one is an error, never a tag that quietly does not count.
+      const meta = parseDefinitionMetadata(rest)
+      const { classes, tags } = meta
+      for (const p of meta.problems) problems.push(`[${id}] ${rel}:${i + 1} ${p}`)
       if (classes.length !== 1) {
         problems.push(
           `[${id}] ${rel}:${i + 1} carries ${classes.length === 0 ? 'no' : classes.length}` +
-            ' enforcement class; CONVENTIONS.md requires exactly one of `[auto]` / `[review]` /' +
-            ' `[guide]` on the definition line.'
+            ' enforcement class before its statement; CONVENTIONS.md requires exactly one of' +
+            ' `[auto]` / `[review]` / `[guide]` in the metadata, next to the rule ID. One in the' +
+            ' statement is prose.'
         )
       }
-
-      // Ownership tags are collected here and judged in classifyRules(), which is the only
-      // place that knows whether this rule is in the kernel — and so whether a tag is
-      // required or forbidden. What IS judged here is legibility: a span written in the
-      // shape of a tag but not spelled like one is an error, never a tag that quietly does
-      // not count. Silently dropping `{App:CLI}` would drop the rule out of every layer.
-      const { tags, problems: tagProblems } = ownershipTags(rest)
-      for (const p of tagProblems) problems.push(`[${id}] ${rel}:${i + 1} ${p}`)
 
       rules.set(id, { page: rel, line: i + 1, cls: classes[0], tags })
       if (!defsByFile.has(rel)) defsByFile.set(rel, [])
@@ -1425,17 +1432,16 @@ export function extractStatements(srcDir, rules) {
       const def = defs.get(id)
       if (!def) continue
       const i = def.i
-      let body = stripOwnership(def.rest)
+      let body = stripDefinitionMetadata(def.rest)
       for (let j = i + 1; j < lines.length && lines[j].trim() && !DEF_LINE_RE.test(lines[j]); j++) {
         body += ` ${lines[j].trim()}`
       }
       // Order matters. The `**` that closes a bolded ID has to go BEFORE flatten pairs
       // it with the next opening `**` in the sentence — otherwise `**[SCOPE-1]** — This
       // covers **command-shaped apps**` loses "This covers" instead of the emphasis.
-      // The ownership tag is already gone — stripOwnership() removed exactly the metadata
-      // slot's spans, so a `{id}` in the statement survives.
+      // Both the class and the tag are already gone — stripDefinitionMetadata() removed
+      // exactly the slot's spans, so a `[review]` or a `{id}` in the statement survives.
       body = body
-        .replace(classRe(), '')     // the enforcement class is its own column
         .trimStart()
         .replace(/^\*\*/, '')       // closing marker of a bolded ID
         .replace(/^[\s—–:-]+/, '')  // the dash or colon that opens most definitions

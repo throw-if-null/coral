@@ -179,7 +179,7 @@ conformance surface would have the index count its rules before any profile is s
 put them in a document only a selecting project reads. A fixed tag may still be opt-in — `runtime-agent`
 is exactly that case.
 
-**An ownership tag is metadata in a slot, and the slot ends where the statement begins.** The parser used
+**Both markers are metadata in a slot, and the slot ends where the statement begins.** The parser used
 to scan a whole definition line for anything brace-shaped, which quietly reserved ordinary API notation: a
 rule saying ``use `{id}` as the path placeholder``, or naming the route `/widgets/{id}`, was read as
 carrying a second ownership tag. After the statement begins, braces are content. Inside the slot the
@@ -187,6 +187,9 @@ reservation stays absolute — a tag-shaped span there is metadata whether or no
 is what keeps "exactly one tag" checkable. The slot is ordered as the documentation says it is
 (*ID → enforcement class → ownership tag → statement*), and the generated index now removes exactly the
 metadata spans, so a `[guide]` rule that explains `{id}` keeps the `{id}` in its own one-line statement.
+The **enforcement class** obeys the same boundary: it is read from the slot, so a rule that discusses
+`[review]` in its prose neither gains a second class nor — the direction that was actually bypassable —
+supplies a missing one out of its own sentence.
 
 **The profile-home check runs both ways now.** It already kept an `{app:cli}` rule out of a spine. It now
 also keeps a non-CLI rule out of `appendix/cli.md`: a `{baseline}` rule defined in a profile's document is

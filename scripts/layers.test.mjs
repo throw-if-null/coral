@@ -52,7 +52,7 @@ import {
   parseRules,
   resolveTag,
   serializeIndex,
-  stripOwnership,
+  stripDefinitionMetadata,
 } from './rules.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
@@ -274,16 +274,18 @@ test("the repository's taxonomy parses clean and covers every tag rules use", ()
 
 // ── generated statements keep the statement's own braces ─────────────────────
 
-test('stripOwnership removes the metadata tag and nothing else', () => {
+test('stripDefinitionMetadata removes both metadata spans and nothing else', () => {
   // Whitespace left behind by the removal is collapsed downstream; what matters is which
   // spans go and which stay.
-  const out = stripOwnership('** `[guide]` `{base}`** — Use `{id}` and `{category, code, message}`.')
+  const out = stripDefinitionMetadata(
+    '** `[guide]` `{base}`** — Use `{id}`, `{category, code, message}`, and compare `[review]`.'
+  )
   assert.doesNotMatch(out, /\{base\}/)
-  assert.match(out, /`\[guide\]`/)
-  assert.match(out, /Use `\{id\}` and `\{category, code, message\}`\./)
+  assert.doesNotMatch(out, /`\[guide\]`/)
+  assert.match(out, /Use `\{id\}`, `\{category, code, message\}`, and compare `\[review\]`\./)
 })
 
-test('a [guide] statement keeps its brace syntax through serializeIndex', () => {
+test('a [guide] statement keeps its brace AND class syntax through serializeIndex', () => {
   // The generated fallback used to strip EVERY brace code span, so a rule explaining `{id}`
   // had the `{id}` deleted out of its own one-line statement. Same over-reach the slot
   // parser fixed, one path further along.
@@ -318,8 +320,8 @@ test('a [guide] statement keeps its brace syntax through serializeIndex', () => 
   const widget = [
     '# Widget',
     '',
-    '**`[X-1]` `[guide]` `{shape:widget}`** — Use `{id}` in the path and raise',
-    '`{category, code, message}` on failure.',
+    '**`[X-1]` `[guide]` `{shape:widget}`** — Use `{id}` in the path, raise',
+    '`{category, code, message}` on failure, and compare this with `[review]`.',
     '',
   ].join('\n')
   const page = inTree(
@@ -331,8 +333,14 @@ test('a [guide] statement keeps its brace syntax through serializeIndex', () => 
     }
   )
   const row = page.split('\n').find((l) => l.startsWith('| `[X-1]`'))
-  assert.match(row, /Use `\{id\}` in the path and raise `\{category, code, message\}` on failure\./)
+  assert.match(
+    row,
+    /Use `\{id\}` in the path, raise `\{category, code, message\}` on failure, and compare/
+  )
+  assert.match(row, /compare this with `\[review\]`\./)
   assert.doesNotMatch(row, /\{shape:widget\}/)
+  // the metadata class moved to its own column; the one in the prose stayed in the statement
+  assert.match(row, /^\| `\[X-1\]` \| `\[guide\]` \|/)
 })
 
 // ── mutation: the registry really is the source ──────────────────────────────
@@ -764,6 +772,38 @@ test('a tag before the enforcement class fails', () => {
   onlyProblem(problems, /carries its ownership tag before its enforcement class/)
   // still collected, so this is the only complaint rather than "and it has no tag either"
   assert.deepEqual(rules.get('X-1').tags, ['base'])
+})
+
+test('a class in the STATEMENT cannot satisfy a missing metadata class', () => {
+  // The bypass: no class in the slot, but `[review]` in the prose. The global scan used to
+  // accept the rule's own sentence as its enforcement class.
+  const { problems } = parseDoc(['**`[X-1]` `{base}`** — This behaves like `[review]`.'])
+  onlyProblem(problems, /carries no enforcement class before its statement/)
+})
+
+test('a class in the STATEMENT does not become a second class', () => {
+  // The inverse: structurally valid, and the global scan rejected it for saying `[review]`
+  // out loud.
+  const { rules, problems } = parseDoc([
+    '**`[X-1]` `[guide]` `{base}`** — Compare this with `[review]`.',
+  ])
+  assert.deepEqual(problems, [])
+  assert.equal(rules.get('X-1').cls, 'guide')
+  assert.deepEqual(rules.get('X-1').tags, ['base'])
+})
+
+test('two classes in the metadata slot still fail', () => {
+  const { problems } = parseDoc(['**`[X-1]` `[guide]` `[review]` `{base}`** — a rule.'])
+  onlyProblem(problems, /carries 2 enforcement class(es)? before its statement/)
+})
+
+test('a kernel-shaped line keeps a class-shaped span in its statement', () => {
+  const { rules, problems } = parseDoc([
+    '**`[K-1]` `[review]`** — Do not confuse this with `[guide]`.',
+  ])
+  assert.deepEqual(problems, [])
+  assert.equal(rules.get('K-1').cls, 'review')
+  assert.deepEqual(rules.get('K-1').tags, [])
 })
 
 test('a kernel-shaped line — class then statement, no tag — still passes', () => {
