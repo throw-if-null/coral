@@ -488,14 +488,16 @@ rule can be tested against, plus drift — the failure the vocabulary already na
 
 <!-- coral:kernel:end -->
 
-The block above is the **only** place kernel membership is recorded, and the build reads it. Every line
-between the markers has to be accounted for: a definition line fails (the kernel cites rules, it never
-restates one), so does a row whose ID is not a backticked citation, a row with the wrong number of
-columns, a duplicated rule, prose that wandered inside, and an ID no rule defines. The point of failing on
-a *malformed* row rather than skipping it is that skipping is how a rule leaves the kernel silently while
-the table still reads correctly to a human. [`rules.md`](./rules.md) marks these nine from this same
-block rather than from a second list, so changing the kernel produces a reviewable diff in a generated
-file — the forcing step `rules.lock` gives a rule change.
+The block above is the **only** place kernel membership is recorded, and the build reads it. There must be
+exactly one such block — two would leave a fully visible table contributing nothing, with no way to tell
+which one counted — and every line between the markers has to be accounted for: a definition line fails
+(the kernel cites rules, it never restates one), so does a row whose ID is not a backticked citation, a
+row with the wrong number of columns, a duplicated rule, a header or delimiter that does not carry the
+same three columns as the rows, prose that wandered inside, and an ID no rule defines. The point of
+failing on a *malformed* row rather than skipping it is that skipping is how a rule leaves the kernel
+silently while the table still reads correctly to a human. [`rules.md`](./rules.md) marks these nine from
+this same block rather than from a second list, so changing the kernel produces a reviewable diff in a
+generated file — the forcing step `rules.lock` gives a rule change.
 
 `[VER-3]` is in the kernel for determinacy, not for process: the pinned version makes "the rules that
 apply here" a stable, deterministic set rather than whatever `main` says today. It is mapped to **drift

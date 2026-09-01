@@ -42,6 +42,21 @@ function parse(body, rules) {
   }
 }
 
+/** Write a CONVENTIONS.md from raw lines — the markers are the test's business. */
+function parseRaw(lines, rules) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coral-kernel-'))
+  fs.writeFileSync(path.join(dir, KERNEL_FILE), ['# Conventions', '', ...lines, ''].join('\n'))
+  try {
+    return parseKernel(dir, rules)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/** One well-formed kernel block, as raw lines. */
+const BLOCK = ['', ...HEADER, '| `[MODEL-1]` | why | properties |', '']
+const block = () => [KERNEL_START, ...BLOCK, KERNEL_END]
+
 /** Assert the problems contain exactly one entry matching `re`. */
 function onlyProblem(problems, re) {
   assert.equal(problems.length, 1, `expected one problem, got:\n${problems.join('\n')}`)
@@ -202,6 +217,97 @@ test('a page with no kernel block at all fails', () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
+})
+
+// ── one block, and only one ──────────────────────────────────────────────────
+//
+// Taking the first start marker and the first end after it is the failure mode here: a
+// second kernel table would be fully visible on the page and contribute nothing to
+// generated membership, with no way for a reader to tell which one counted.
+
+test('two complete kernel blocks fail', () => {
+  const { ids, problems } = parseRaw([...block(), '', ...block()], registry('MODEL-1'))
+  assert.equal(problems.length, 2, problems.join('\n'))
+  assert.match(problems[0], /has 2 <!-- coral:kernel:start --> markers/)
+  assert.match(problems[1], /has 2 <!-- coral:kernel:end --> markers/)
+  assert.equal(ids.size, 0)
+})
+
+test('a duplicate start marker fails', () => {
+  const { ids, problems } = parseRaw(
+    [KERNEL_START, '', KERNEL_START, ...BLOCK, KERNEL_END],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /has 2 <!-- coral:kernel:start --> markers/)
+  assert.equal(ids.size, 0)
+})
+
+test('a duplicate end marker fails', () => {
+  const { ids, problems } = parseRaw([...block(), '', KERNEL_END], registry('MODEL-1'))
+  onlyProblem(problems, /has 2 <!-- coral:kernel:end --> markers/)
+  assert.equal(ids.size, 0)
+})
+
+test('an end marker before the start marker fails', () => {
+  const { ids, problems } = parseRaw(
+    [KERNEL_END, '', KERNEL_START, ...BLOCK],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /before <!-- coral:kernel:start -->/)
+  assert.equal(ids.size, 0)
+})
+
+// ── the header and delimiter carry the same three columns the rows do ────────
+
+test('a two-column delimiter fails', () => {
+  const { problems } = parse(
+    ['', HEADER[0], '|---|---|', '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /delimiter row with exactly 3 columns/)
+})
+
+test('a one-column delimiter fails', () => {
+  const { problems } = parse(
+    ['', HEADER[0], '|---|', '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /delimiter row with exactly 3 columns/)
+})
+
+test('a four-column delimiter fails', () => {
+  const { problems } = parse(
+    ['', HEADER[0], '|---|---|---|---|', '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /delimiter row with exactly 3 columns/)
+})
+
+test('alignment colons in the delimiter are accepted', () => {
+  const { ids, problems } = parse(
+    ['', HEADER[0], '| :--- | :-: | ---: |', '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  assert.deepEqual(problems, [])
+  assert.deepEqual([...ids], ['MODEL-1'])
+})
+
+test('a header with the wrong column count fails', () => {
+  const { ids, problems } = parse(
+    ['', '| Rule | Why it is kernel |', HEADER[1], '| `[MODEL-1]` | why | properties |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /header must have exactly 3 non-empty columns/)
+  // The rows still parse, so the failure is reported once and not compounded.
+  assert.deepEqual([...ids], ['MODEL-1'])
+})
+
+test('a header with an empty column fails', () => {
+  const { problems } = parse(
+    ['', '| Rule |  | Properties defended |', HEADER[1], '| `[MODEL-1]` | why | props |', ''],
+    registry('MODEL-1')
+  )
+  onlyProblem(problems, /header must have exactly 3 non-empty columns/)
 })
 
 test("this repository's kernel table is structurally sound", () => {

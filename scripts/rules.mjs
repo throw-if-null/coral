@@ -76,8 +76,25 @@ export const KERNEL_FILE = 'CONVENTIONS.md'
 const KERNEL_ROW_RE = new RegExp(
   String.raw`^\|\s*\`\[(${ID_CORE})\]\`\s*\|([^|]*[^|\s][^|]*)\|([^|]*[^|\s][^|]*)\|$`
 )
-// The header's delimiter row — |---|---|---| or | --- | :-: | --- |.
-const TABLE_DELIM_RE = /^\|[\s:|-]+\|$/
+// The header and its delimiter are held to the same three-column shape as the data
+// rows. They used to be checked loosely — the delimiter pattern was /^\|[\s:|-]+\|$/,
+// which accepts `|---|` and `|-|-|-|-|` alike, so the parser could report a valid table
+// while its header described two columns and its rows carried three. Once this function
+// says the table is structurally valid, it has to actually be a three-column Markdown
+// table from the header down.
+//
+// Header cells are checked structurally, not by their wording: three non-empty cells.
+// Freezing the prose would make rewording a heading a build failure and buy nothing —
+// nothing reads the header text.
+const KERNEL_COLUMNS = 3
+// One Markdown alignment cell: hyphens, optionally colon-anchored on either side.
+const DELIM_CELL_RE = /^\s*:?-+:?\s*$/
+
+/** The cells of a full Markdown table row, or null if the line is not one. */
+function tableCells(line) {
+  if (line.length < 2 || !line.startsWith('|') || !line.endsWith('|')) return null
+  return line.slice(1, -1).split('|')
+}
 
 function walk(dir, srcDir) {
   const out = []
@@ -157,7 +174,12 @@ export function parseRules(srcDir) {
  * while the table still read correctly to a human. A table that is the single source of a
  * classification cannot have a shape in which membership can fall out unnoticed — so an
  * unrecognised line is an error, a duplicate ID is an error, and the header and its
- * delimiter must be present and be exactly one line each.
+ * delimiter must be present, be exactly one line each, and carry the same three columns
+ * the rows do.
+ *
+ * The same argument applies one level up, to the markers: the file must hold exactly one
+ * of each. Reading the first block would leave a second, fully visible kernel table
+ * contributing nothing, and a reader with no way to tell which one counts.
  *
  * The kernel's *size* is deliberately not checked. Gate 5 already turns a membership
  * change into a diff in a generated file; a constant here would be a second thing to
@@ -177,18 +199,43 @@ export function parseKernel(srcDir, rules) {
     return { ids, problems }
   }
 
+  // Exactly one block. Taking the first start and the first end after it — which is what
+  // this did — means a second, entirely visible kernel table contributes nothing to
+  // generated membership, and a human reading the page cannot tell which one counts.
+  // A page with two canonical tables has no canonical table.
   const text = fs.readFileSync(abs, 'utf8')
-  const start = text.indexOf(KERNEL_START)
-  if (start === -1) {
-    problems.push(
-      `${KERNEL_FILE} has no ${KERNEL_START} block. Kernel membership is recorded there, in one` +
-        ' table, and rules.md is generated from it.'
-    )
+  const count = (marker) => text.split(marker).length - 1
+  const starts = count(KERNEL_START)
+  const ends = count(KERNEL_END)
+  if (starts !== 1 || ends !== 1) {
+    if (starts === 0) {
+      problems.push(
+        `${KERNEL_FILE} has no ${KERNEL_START} block. Kernel membership is recorded there, in one` +
+          ' table, and rules.md is generated from it.'
+      )
+    } else if (starts > 1) {
+      problems.push(
+        `${KERNEL_FILE} has ${starts} ${KERNEL_START} markers. Kernel membership is one table:` +
+          ' a second block is a second source, and only one of them would be read.'
+      )
+    }
+    if (ends === 0 && starts > 0) {
+      problems.push(`${KERNEL_FILE} opens ${KERNEL_START} but never closes it with ${KERNEL_END}.`)
+    } else if (ends > 1) {
+      problems.push(
+        `${KERNEL_FILE} has ${ends} ${KERNEL_END} markers, and the kernel block takes exactly one.`
+      )
+    }
     return { ids, problems }
   }
-  const end = text.indexOf(KERNEL_END, start)
-  if (end === -1) {
-    problems.push(`${KERNEL_FILE} opens ${KERNEL_START} but never closes it with ${KERNEL_END}.`)
+
+  const start = text.indexOf(KERNEL_START)
+  const end = text.indexOf(KERNEL_END)
+  if (end < start) {
+    problems.push(
+      `${KERNEL_FILE} has ${KERNEL_END} before ${KERNEL_START}. The end marker closes the block;` +
+        ' it cannot precede it.'
+    )
     return { ids, problems }
   }
 
@@ -225,13 +272,25 @@ export function parseKernel(srcDir, rules) {
       header = true
       if (KERNEL_ROW_RE.test(trimmed)) {
         problems.push(`${at}: the kernel table's first row must be its header, not a rule row.`)
+        return
+      }
+      const cells = tableCells(trimmed)
+      if (!cells || cells.length !== KERNEL_COLUMNS || cells.some((c) => !c.trim())) {
+        problems.push(
+          `${at}: the kernel table's header must have exactly ${KERNEL_COLUMNS} non-empty columns,` +
+            ` matching its rows. ${SHAPE}`
+        )
       }
       return
     }
     if (!delim) {
       delim = true
-      if (!TABLE_DELIM_RE.test(trimmed)) {
-        problems.push(`${at}: expected the header delimiter row (|---|---|---|) here.`)
+      const cells = tableCells(trimmed)
+      if (!cells || cells.length !== KERNEL_COLUMNS || !cells.every((c) => DELIM_CELL_RE.test(c))) {
+        problems.push(
+          `${at}: expected the header delimiter row with exactly ${KERNEL_COLUMNS} columns` +
+            ' (|---|---|---|) here.'
+        )
       }
       return
     }
