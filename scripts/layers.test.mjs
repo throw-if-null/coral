@@ -47,6 +47,7 @@ import {
   classifyRules,
   groupBySurface,
   parseKernel,
+  loadRuleModel,
   parseLayers,
   parseProfiles,
   parseRules,
@@ -93,16 +94,16 @@ function onlyProblem(problems, re) {
 // canonical vocabulary would mean renaming a real layer — the thing the registry exists to
 // make possible — broke tests that have nothing to do with the change.
 const LAYER_HEADER = [
-  '| Layer | Tag | Surface | Contract scope | Read by | Justified by |',
-  '|---|---|---|---|---|---|',
+  '| Layer | Key | Tag | Surface | Contract scope | Read by | Justified by |',
+  '|---|---|---|---|---|---|---|',
 ]
 const LAYER_ROWS = [
-  '| the core | — | conformance | unscoped | everyone | the operating model |',
-  '| base rules | `{base}` | conformance | unscoped | every codebase | the software |',
-  '| meta rules | `{meta}` | governance | unscoped | maintainers | the framework itself |',
-  '| shape profile | `{shape:…}` | opt-in | profile-scoped | matching shapes | the outer shape |',
-  '| dialect binding | `{dialect:…}` | opt-in | profile-scoped | that dialect | the dialect |',
-  '| runtime addon | `{runtime-addon}` | opt-in | profile-scoped | model callers | a live model |',
+  '| the core | `core` | — | conformance | unscoped | everyone | the operating model |',
+  '| base rules | `base-rules` | `{base}` | conformance | unscoped | every codebase | the software |',
+  '| meta rules | `meta-rules` | `{meta}` | governance | unscoped | maintainers | the framework |',
+  '| shape profile | `shape-profile` | `{shape:…}` | opt-in | profile-scoped | shapes | the shape |',
+  '| dialect binding | `dialect-binding` | `{dialect:…}` | opt-in | profile-scoped | dialects | it |',
+  '| runtime addon | `runtime-addon-layer` | `{runtime-addon}` | opt-in | profile-scoped | callers | m |',
 ]
 
 /** Write a CONVENTIONS.md holding `body` between the layer markers, and parse it. */
@@ -155,7 +156,7 @@ test('a scope word that is neither `unscoped` nor `profile-scoped` fails', () =>
     '',
     ...LAYER_HEADER,
     LAYER_ROWS[0],
-    '| shape profile | `{shape:…}` | opt-in | sometimes | matching shapes | the outer shape |',
+    '| shape profile | `shape-profile` | `{shape:…}` | opt-in | sometimes | shapes | the shape |',
     '',
   ])
   onlyProblem(problems, /is not a contract-scope word/)
@@ -166,7 +167,7 @@ test('a tag cell that is neither a tag nor the em dash fails', () => {
     '',
     ...LAYER_HEADER,
     LAYER_ROWS[0],
-    '| base rules | base | conformance | unscoped | every codebase | why |',
+    '| base rules | `base-rules` | base | conformance | unscoped | every codebase | why |',
     '',
   ])
   onlyProblem(problems, /`?base`? is not a layer tag/)
@@ -177,7 +178,7 @@ test('a second tagless layer fails — only the kernel takes members from its ow
     '',
     ...LAYER_HEADER,
     LAYER_ROWS[0],
-    '| something else | — | conformance | unscoped | everyone | why |',
+    '| something else | `something-else` | — | conformance | unscoped | everyone | why |',
     '',
   ])
   onlyProblem(problems, /is a second tagless layer/)
@@ -198,7 +199,7 @@ test('a duplicated tag, and a duplicated layer name, both fail', () => {
       '',
       ...LAYER_HEADER,
       ...LAYER_ROWS,
-      '| base rules | `{other}` | conformance | unscoped | everyone | why |',
+      '| base rules | `other-rules` | `{other}` | conformance | unscoped | everyone | why |',
       '',
     ]).problems,
     /declares the layer name `base rules` twice/
@@ -210,7 +211,7 @@ test('a malformed row fails rather than dropping the layer', () => {
     '',
     ...LAYER_HEADER,
     LAYER_ROWS[0],
-    '| base rules | `{base}` | conformance | unscoped |',
+    '| base rules | `base-rules` | `{base}` | conformance | unscoped |',
     '',
   ])
   assert.deepEqual(
@@ -227,7 +228,7 @@ test('prose inside the taxonomy fails, and so does a header of the wrong width',
   )
   onlyProblem(
     parseTaxonomy(['', '| Layer | Tag |', LAYER_HEADER[1], ...LAYER_ROWS, '']).problems,
-    /header must have exactly 6 non-empty columns/
+    /header must have exactly 7 non-empty columns/
   )
 })
 
@@ -327,12 +328,14 @@ test('a [guide] statement keeps its brace AND class syntax through serializeInde
   const page = inTree(
     { [PROFILES_FILE]: conventions, 'appendix/widget.md': widget },
     (dir) => {
-      const { rules, defsByFile, problems } = parseRules(dir)
-      assert.deepEqual(problems, [])
-      return serializeIndex(dir, rules, defsByFile)
+      const model = loadRuleModel(dir)
+      assert.deepEqual(model.problems, [])
+      return serializeIndex(dir, model)
     }
   )
-  const row = page.split('\n').find((l) => l.startsWith('| `[X-1]`'))
+  // The per-document table, not the compact by-scope one: the scope section lists the same
+  // ID with no statement, and it comes first on the page.
+  const row = page.split('\n').findLast((l) => l.startsWith('| `[X-1]`'))
   assert.match(
     row,
     /Use `\{id\}` in the path, raise `\{category, code, message\}` on failure, and compare/
@@ -364,17 +367,19 @@ test('renaming the tagless layer renames what kernel rules are classified as', (
   // the tally moved with the table and every kernel rule kept the old name.
   const { taxonomy, problems } = withRow(
     0,
-    '| the nucleus | — | conformance | unscoped | everyone | the operating model |'
+    '| the nucleus | `core` | — | conformance | unscoped | everyone | the operating model |'
   )
   assert.deepEqual(problems, [])
-  const { layers } = classifyRules({
+  const { scopes } = classifyRules({
     rules: new Map([['K-1', rule('ARCHITECTURE.md', [])]]),
     kernel: new Set(['K-1']),
     profiles: new Map(),
     taxonomy,
   })
-  assert.equal(layers.get('K-1').label, 'the nucleus')
-  assert.equal(layers.get('K-1').surface, 'conformance')
+  assert.equal(scopes.get('K-1').label, 'the nucleus')
+  assert.equal(scopes.get('K-1').surface, 'conformance')
+  // and the machine key, which is a separate column, did NOT move with the label
+  assert.equal(scopes.get('K-1').kind, 'core')
 })
 
 test('renaming a tag keeps its rules in the same surface', () => {
@@ -382,26 +387,29 @@ test('renaming a tag keeps its rules in the same surface', () => {
   // governance subtotal must not empty out. Surface is a column, not a literal in the code.
   const { taxonomy, problems } = withRow(
     2,
-    '| meta rules | `{framework-meta}` | governance | unscoped | maintainers | the framework |'
+    '| meta rules | `meta-rules` | `{framework-meta}` | governance | unscoped | maintainers | why |'
   )
   assert.deepEqual(problems, [])
-  const { layers } = classifyRules({
+  const { scopes } = classifyRules({
     rules: new Map([['X-1', rule('ARCHITECTURE.md', ['framework-meta'])]]),
     kernel: new Set(),
     profiles: new Map(),
     taxonomy,
   })
-  assert.equal(layers.get('X-1').surface, 'governance')
-  assert.deepEqual(groupBySurface(layers).get('governance'), ['X-1'])
+  assert.equal(scopes.get('X-1').surface, 'governance')
+  // the tag moved and the machine key did not, which is the whole point of the key column
+  assert.equal(scopes.get('X-1').kind, 'meta-rules')
+  assert.equal(scopes.get('X-1').tag, 'framework-meta')
+  assert.deepEqual(groupBySurface(scopes).get('governance'), ['X-1'])
 })
 
 test('a seventh layer joins the surface it declares, and is not dropped', () => {
   // A syntactically valid layer must never vanish from the audience totals. The taxonomy is
   // open; only the three surfaces are closed.
   const taxonomy = fixtureTaxonomy([
-    '| extra layer | `{extra}` | conformance | unscoped | everyone | a new reason |',
+    '| extra layer | `extra-layer` | `{extra}` | conformance | unscoped | everyone | a reason |',
   ])
-  const { layers, problems } = classifyRules({
+  const { scopes, problems } = classifyRules({
     rules: new Map([
       ['X-1', rule('ARCHITECTURE.md', ['extra'])],
       ['X-2', rule('ARCHITECTURE.md', ['meta'])],
@@ -411,12 +419,13 @@ test('a seventh layer joins the surface it declares, and is not dropped', () => 
     taxonomy,
   })
   assert.deepEqual(problems, [])
-  const groups = groupBySurface(layers)
+  assert.equal(scopes.get('X-1').kind, 'extra-layer')
+  const groups = groupBySurface(scopes)
   assert.deepEqual(groups.get('conformance'), ['X-1'])
   assert.deepEqual(groups.get('governance'), ['X-2'])
   assert.equal(
     [...groups.values()].reduce((n, ids) => n + ids.length, 0),
-    layers.size
+    scopes.size
   )
 })
 
@@ -425,7 +434,7 @@ test('a layer naming a surface that does not exist is refused, never silently dr
     '',
     ...LAYER_HEADER,
     LAYER_ROWS[0],
-    '| odd layer | `{odd}` | somewhere-else | unscoped | someone | a reason |',
+    '| odd layer | `odd-layer` | `{odd}` | somewhere-else | unscoped | someone | a reason |',
     '',
   ])
   onlyProblem(problems, /is not a surface/)
@@ -446,7 +455,7 @@ test('the tagless layer cannot be opt-in — no marker could name it', () => {
   // so no `coral:scope:<tag>` marker could ever select it.
   const { problems } = withRow(
     0,
-    '| the core | — | opt-in | profile-scoped | everyone | the operating model |'
+    '| the core | `core` | — | opt-in | profile-scoped | everyone | the operating model |'
   )
   // Two problems, both true: the row is refused, and the taxonomy is then left without a
   // tagless layer at all. The first is the one being asserted.
@@ -463,7 +472,10 @@ test('the tagless layer cannot be opt-in — no marker could name it', () => {
 
 /** A taxonomy whose second row carries `surface` and `scope`. */
 const combo = (surface, scope) =>
-  withRow(1, `| base rules | \`{base}\` | ${surface} | ${scope} | every codebase | the software |`)
+  withRow(
+    1,
+    `| base rules | \`base-rules\` | \`{base}\` | ${surface} | ${scope} | every codebase | why |`
+  )
 
 test('an opt-in layer that is not profile-scoped fails', () => {
   onlyProblem(combo('opt-in', 'unscoped').problems, /`opt-in` and `unscoped` contradict each other/)
@@ -504,7 +516,7 @@ test('a profile family on a non-opt-in surface fails', () => {
   for (const surface of ['conformance', 'governance']) {
     const { problems } = withRow(
       3,
-      `| shape profile | \`{shape:…}\` | ${surface} | unscoped | matching shapes | the shape |`
+      `| shape profile | \`shape-profile\` | \`{shape:…}\` | ${surface} | unscoped | shapes | why |`
     )
     onlyProblem(problems, /declares a profile family, so its layer must be `opt-in`/)
   }
@@ -513,7 +525,7 @@ test('a profile family on a non-opt-in surface fails', () => {
 test('a profile family that is opt-in and profile-scoped passes', () => {
   const { taxonomy, problems } = withRow(
     3,
-    '| shape profile | `{shape:…}` | opt-in | profile-scoped | matching shapes | the shape |'
+    '| shape profile | `shape-profile` | `{shape:…}` | opt-in | profile-scoped | shapes | why |'
   )
   assert.deepEqual(problems, [])
   assert.equal(taxonomy.find((l) => l.family === 'shape').surface, 'opt-in')
@@ -522,7 +534,7 @@ test('a profile family that is opt-in and profile-scoped passes', () => {
 test('a FIXED tag may still be opt-in — runtime-agent is the intended case', () => {
   const { taxonomy, problems } = withRow(
     5,
-    '| runtime addon | `{runtime-addon}` | opt-in | profile-scoped | model callers | a model |'
+    '| runtime addon | `runtime-addon-layer` | `{runtime-addon}` | opt-in | profile-scoped | c | m |'
   )
   assert.deepEqual(problems, [])
   const row = taxonomy.find((l) => l.tag === 'runtime-addon')
@@ -704,18 +716,20 @@ test('a missing registry block fails', () => {
 test('a tag resolves to its layer, and a profile tag keeps its identity', () => {
   const profiles = new Map([['shape:widget', { home: 'appendix/widget.md', covers: '' }]])
   assert.deepEqual(resolveTag('base', profiles, FIXTURE), {
-    key: 'base',
-    label: 'base rules',
+    kind: 'base-rules',
     profile: null,
+    tag: 'base',
+    label: 'base rules',
     surface: 'conformance',
-    scoped: false,
+    contractScoped: false,
   })
   assert.deepEqual(resolveTag('shape:widget', profiles, FIXTURE), {
-    key: 'shape',
-    label: 'shape profile',
+    kind: 'shape-profile',
     profile: 'widget',
+    tag: 'shape:widget',
+    label: 'shape profile',
     surface: 'opt-in',
-    scoped: true,
+    contractScoped: true,
   })
 })
 
@@ -873,36 +887,43 @@ const profiles = () => new Map([['shape:widget', { home: 'appendix/widget.md', c
 
 test('a kernel rule takes its layer from the kernel block and carries no tag', () => {
   const rules = new Map([['K-1', rule('ARCHITECTURE.md', [])]])
-  const { layers, problems } = classifyRules({
+  const { scopes, problems } = classifyRules({
     rules,
     kernel: new Set(['K-1']),
     profiles: profiles(),
     taxonomy: FIXTURE,
   })
   assert.deepEqual(problems, [])
-  assert.equal(layers.get('K-1').label, 'the core')
+  assert.deepEqual(scopes.get('K-1'), {
+    kind: 'core',
+    profile: null,
+    tag: null,
+    label: 'the core',
+    surface: 'conformance',
+    contractScoped: false,
+  })
 })
 
 test('a tag on a kernel rule fails — it would be a second membership registry', () => {
   const rules = new Map([['K-1', rule('ARCHITECTURE.md', ['base'])]])
-  const { layers, problems } = classifyRules({
+  const { scopes, problems } = classifyRules({
     rules,
     kernel: new Set(['K-1']),
     profiles: profiles(),
     taxonomy: FIXTURE,
   })
-  assert.equal(layers.size, 0)
+  assert.equal(scopes.size, 0)
   onlyProblem(problems, /second membership registry/)
 })
 
 test('an untagged non-kernel rule fails, so a new rule cannot land unclassified', () => {
-  const { layers, problems } = classifyRules({
+  const { scopes, problems } = classifyRules({
     rules: new Map([['X-1', rule('ARCHITECTURE.md', [])]]),
     kernel: new Set(),
     profiles: profiles(),
     taxonomy: FIXTURE,
   })
-  assert.equal(layers.size, 0)
+  assert.equal(scopes.size, 0)
   onlyProblem(problems, /carries no ownership tag/)
 })
 
@@ -927,20 +948,20 @@ test('a profile rule defined outside its own document fails', () => {
 })
 
 test('a profile rule in its own document is accepted, profile identity intact', () => {
-  const { layers, problems } = classifyRules({
+  const { scopes, problems } = classifyRules({
     rules: new Map([['X-1', rule('appendix/widget.md', ['shape:widget'])]]),
     kernel: new Set(),
     profiles: profiles(),
     taxonomy: FIXTURE,
   })
   assert.deepEqual(problems, [])
-  assert.deepEqual(layers.get('X-1'), {
-    tag: 'shape:widget',
-    key: 'shape',
-    label: 'shape profile',
+  assert.deepEqual(scopes.get('X-1'), {
+    kind: 'shape-profile',
     profile: 'widget',
+    tag: 'shape:widget',
+    label: 'shape profile',
     surface: 'opt-in',
-    scoped: true,
+    contractScoped: true,
   })
 })
 
@@ -979,9 +1000,9 @@ test('a [guide] rule is caught too — no contract would ever have seen it', () 
 })
 
 test("the profile's own rule in its own home is fine", () => {
-  const { layers, problems } = inProfileHome('shape:widget')
+  const { scopes, problems } = inProfileHome('shape:widget')
   assert.deepEqual(problems, [])
-  assert.equal(layers.get('X-1').profile, 'widget')
+  assert.equal(scopes.get('X-1').profile, 'widget')
 })
 
 test('a kernel rule defined in a profile home fails', () => {
@@ -1011,21 +1032,26 @@ test('citing a rule from a profile document is untouched — definitions only', 
 
 // ── contract scopes ──────────────────────────────────────────────────────────
 
-/** A one-document tree whose contract holds `lines`, checked for scope honesty. */
-function scopes(lines, layers) {
+/**
+ * A one-document tree whose contract holds `lines`, checked for scope honesty.
+ *
+ * `byId` is rule ID -> resolved scope; the helper builds the canonical rules the gate now
+ * reads, each carrying its own scope. There is no second classification map to hand it.
+ */
+function scopes(lines, byId) {
   const page = ['# Doc', '', CONTRACT_START, ...lines, CONTRACT_END, ''].join('\n')
   return inTree({ 'SYSTEM.md': page }, (dir) =>
-    checkContractScopes(dir, {
-      rules: new Map([...layers.keys()].map((id) => [id, { page: 'SYSTEM.md' }])),
-      layers,
-    })
+    checkContractScopes(
+      dir,
+      new Map([...byId].map(([id, scope]) => [id, { page: 'SYSTEM.md', scope }]))
+    )
   )
 }
 
 // Resolved from the fixture taxonomy rather than written out, so these carry whatever the
-// rows say — including any field added to a Layer later.
+// rows say — including any field added to a Scope later.
 const WIDGET = new Map([['shape:widget', { home: 'appendix/widget.md', covers: '' }]])
-const resolved = (tag) => ({ tag, ...resolveTag(tag, WIDGET, FIXTURE) })
+const resolved = (tag) => resolveTag(tag, WIDGET, FIXTURE)
 const LAYER = {
   unscoped: resolved('base'),
   profile: resolved('shape:widget'),
@@ -1172,19 +1198,19 @@ test('every published rule lands in exactly one ownership layer', () => {
   const { rules, problems } = parseRules(REPO)
   const { ids: kernel, problems: kp } = parseKernel(REPO, rules)
   const { profiles: registry, problems: pp } = parseProfiles(REPO, REAL)
-  const { layers, problems: lp } = classifyRules({
+  const { scopes: resolvedScopes, problems: lp } = classifyRules({
     rules,
     kernel,
     profiles: registry,
     taxonomy: REAL,
   })
   assert.deepEqual([...REAL_PROBLEMS, ...problems, ...kp, ...pp, ...lp], [])
-  assert.equal(layers.size, rules.size)
-  for (const [id, layer] of layers) {
-    assert.ok(layer.key, `[${id}] has no layer key`)
+  assert.equal(resolvedScopes.size, rules.size)
+  for (const [id, scope] of resolvedScopes) {
+    assert.ok(scope.kind, `[${id}] has no scope kind`)
     // "Exactly one" is structural, not a count of matches: a rule holds one tag and one
-    // resolved layer, so there is no shape in which it can appear in two.
-    assert.equal(typeof layer.label, 'string')
+    // resolved scope, so there is no shape in which it can appear in two.
+    assert.equal(typeof scope.label, 'string')
   }
 })
 
@@ -1195,8 +1221,13 @@ test('the three surfaces partition every classified rule', () => {
   const { rules } = parseRules(REPO)
   const { ids: kernel } = parseKernel(REPO, rules)
   const { profiles: registry } = parseProfiles(REPO, REAL)
-  const { layers } = classifyRules({ rules, kernel, profiles: registry, taxonomy: REAL })
-  const groups = groupBySurface(layers)
+  const { scopes: resolvedScopes } = classifyRules({
+    rules,
+    kernel,
+    profiles: registry,
+    taxonomy: REAL,
+  })
+  const groups = groupBySurface(resolvedScopes)
   assert.deepEqual([...groups.keys()], SURFACES)
   assert.equal(
     [...groups.values()].reduce((n, ids) => n + ids.length, 0),
@@ -1209,8 +1240,9 @@ test('the three surfaces partition every classified rule', () => {
 test('the generated index reconciles its own three subtotals', () => {
   // serializeIndex() throws if the surfaces do not cover every rule; this proves the guard
   // runs on the real registry rather than only on fixtures.
-  const { rules, defsByFile } = parseRules(REPO)
-  const page = serializeIndex(REPO, rules, defsByFile)
+  const model = loadRuleModel(REPO)
+  const { rules } = model
+  const page = serializeIndex(REPO, model)
   const n = String.raw`\*\*(\d+)`
   const [, a, b, c] = page.match(
     new RegExp(
@@ -1248,9 +1280,7 @@ test("every profile's rules live in the document the registry names for it", () 
 })
 
 test('no contract presents an opt-in rule as unscoped', () => {
-  const { rules } = parseRules(REPO)
-  const { ids: kernel } = parseKernel(REPO, rules)
-  const { profiles: registry } = parseProfiles(REPO, REAL)
-  const { layers } = classifyRules({ rules, kernel, profiles: registry, taxonomy: REAL })
-  assert.deepEqual(checkContractScopes(REPO, { rules, layers }), [])
+  const { rules, classified } = loadRuleModel(REPO)
+  assert.ok(classified)
+  assert.deepEqual(checkContractScopes(REPO, rules), [])
 })
