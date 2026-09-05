@@ -564,8 +564,14 @@ So every rule carries exactly one **ownership layer**: the narrowest surface tha
 
 This table is the taxonomy, and the build reads it — the six layers are not additionally
 listed in the tooling, because two lists of one vocabulary is how a renamed layer keeps
-passing every check. Four of its columns are machine facts:
+passing every check. Five of its columns are machine facts:
 
+- **Key** — the layer's stable machine identity, and what a tool switches on. It is stated
+  here rather than derived from the other columns precisely so the other columns can move:
+  the **Layer** name is presentation text and may be reworded, and a **Tag** may be renamed,
+  without either changing what a resolved scope reports. Written as a code span holding one
+  lowercase hyphen-separated token, unique across the table. The cell is matched whole, so a
+  malformed one is refused rather than tidied into a key nobody wrote.
 - **Tag** — how a rule names this layer. `—` marks the one whose members come from the
   [kernel block](#the-nine-kernel-rules) instead of from a tag; `{app:…}` marks a layer whose
   members must say *which* profile. A layer that takes profiles is necessarily `opt-in`: a
@@ -585,14 +591,14 @@ passing every check. Four of its columns are machine facts:
 
 <!-- coral:layers:start -->
 
-| Layer | Tag | Surface | Contract scope | Read by | Justified by |
-|---|---|---|---|---|---|
-| kernel | — | conformance | unscoped | every Coral codebase | the operating model — agents author, humans keep architectural authority |
-| framework governance | `{governance}` | governance | unscoped | Coral-aware humans, agents and tooling — never audited against application source | Coral itself: how it is interpreted, versioned, extended, adopted |
-| production baseline | `{baseline}` | conformance | unscoped | every Coral codebase, at the scale the rule is stated for | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior |
-| app profile | `{app:…}` | opt-in | profile-scoped | projects with an app of that shape | the application's external shape — CLI, backend, web, library, action |
-| language binding | `{lang:…}` | opt-in | profile-scoped | projects in that language ecosystem | one language ecosystem needing a concrete realization of a neutral concept |
-| runtime-agent profile | `{runtime-agent}` | opt-in | profile-scoped | applications that call a model at runtime | the **running** application using a model |
+| Layer | Key | Tag | Surface | Contract scope | Read by | Justified by |
+|---|---|---|---|---|---|---|
+| kernel | `kernel` | — | conformance | unscoped | every Coral codebase | the operating model — agents author, humans keep architectural authority |
+| framework governance | `framework-governance` | `{governance}` | governance | unscoped | Coral-aware humans, agents and tooling — never audited against application source | Coral itself: how it is interpreted, versioned, extended, adopted |
+| production baseline | `production-baseline` | `{baseline}` | conformance | unscoped | every Coral codebase, at the scale the rule is stated for | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior |
+| app profile | `app-profile` | `{app:…}` | opt-in | profile-scoped | projects with an app of that shape | the application's external shape — CLI, backend, web, library, action |
+| language binding | `language-binding` | `{lang:…}` | opt-in | profile-scoped | projects in that language ecosystem | one language ecosystem needing a concrete realization of a neutral concept |
+| runtime-agent profile | `runtime-agent-profile` | `{runtime-agent}` | opt-in | profile-scoped | applications that call a model at runtime | the **running** application using a model |
 
 <!-- coral:layers:end -->
 
@@ -600,7 +606,8 @@ passing every check. Four of its columns are machine facts:
 marker — the two unscoped surfaces have different audiences, as the *Read by* column says and
 the next section spells out. A seventh layer, or a change to any of these machine facts, is a
 change to what Coral means by ownership: edit the row and the tooling follows, or the build
-fails saying it cannot. The **surface** vocabulary is the one closed part — a layer belongs to
+fails saying it cannot. A seventh layer is a seventh **row** — there is no list of keys in the
+tooling to extend alongside it. The **surface** vocabulary is the one closed part — a layer belongs to
 `conformance`, `governance` or `opt-in`, and nothing else, because the index writes a
 different sentence about each and a fourth would be one it silently omitted.
 

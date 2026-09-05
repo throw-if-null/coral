@@ -205,6 +205,42 @@ already, arriving from a direction a file exclusion cannot cover. Opening and cl
 separately, per CommonMark: an opener may carry an info string and a closer may not, so ```` ```yaml ````
 opens a block rather than closing one, and a nested fence inside a longer one stays content.
 
+**Ownership became part of the rule, not a lookup beside it. Patch-level: no rule was added, tightened,
+loosened, or retired, no ID or enforcement class moved, and no rule changed layer.**
+
+The classification above was correct and awkwardly held. A rule was `{page, line, class, tags}` and its
+resolved layer lived in a separate `Map<ruleId, layer>`, so a consumer that had a rule did not yet know
+what the rule belonged to — it had to call five parsers in the right order and keep the second map
+alongside. `.vitepress/config.mjs` did that, `scripts/rules-index.mjs` did it again, and the index
+generator did it a third time on rules it had already been handed. Four compositions of one fact, and the
+classification was only ever as single-sourced as the least careful of them.
+
+There is now one canonical rule model. `loadRuleModel()` parses the definitions, the ownership taxonomy,
+the kernel block and the profile registry, resolves every rule, and returns rules that carry their own
+`scope` — `{kind, profile, tag, label, surface, contractScoped}`. `[CLI-6]` is kind `app-profile`,
+profile `cli`; `[MODEL-1]` is kind `kernel` with no profile and no tag, resolved from the kernel block as
+before. A rule the model cannot resolve is returned without a scope **and** with a build error: nothing
+falls back to the baseline. Contract scoping reads the scope off the rule, and the layer lookup it used
+to need is gone rather than kept for compatibility.
+
+**The taxonomy now states each layer's machine key.** The `coral:layers` block gained a **Key** column —
+`kernel`, `framework-governance`, `production-baseline`, `app-profile`, `language-binding`,
+`runtime-agent-profile` — and that key is what a resolved scope reports. It is stated rather than derived
+so the other columns can still move: renaming the layer `app profile` to something else is presentation,
+renaming the tag `{governance}` is a tag change, and neither renames the thing a tool switches on. The
+key is validated for shape and uniqueness, the set stays open, and a seventh layer is still a seventh
+row — there is no list of keys in the tooling to extend beside it.
+
+**`rules.md` gained a `Rules by scope` section.** The page's tables were grouped by defining document,
+which answers *what is in `SYSTEM.md`* and not *which layer owns this rule* — and the second is the
+question ownership was added to answer. The same rules are now also listed grouped by layer, in registry
+order, with a subsection per profile, generated from the canonical model. Compact by design: ID, class
+and defining document, with the statements left where they were. The section says in so many words that
+ownership is **one** applicability axis: production-baseline rules are still narrowed by app versus system
+scale, so a group there is not a load set. The document-oriented tables are
+unchanged, and `rules.lock` is byte-identical — ownership stays authoritative in the definitions, the
+kernel block and the taxonomy, and the lock stays the append-only record of published IDs and classes.
+
 ---
 
 ## 0.6.0 — 2026-08-18
