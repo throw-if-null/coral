@@ -565,6 +565,37 @@ test('the repository model is clean and every rule in it has one scope', () => {
   }
 })
 
+// The published machine identities, pinned as a REQUIRED SUBSET.
+//
+// The rule-level assertions below reach five of the six layers and cannot reach the sixth:
+// `language-binding` has no rules, so renaming its key alone would move a documented stable
+// identifier past every other test on the branch while `rules.md` regenerated cleanly, and a
+// consumer switching on `scope.kind === 'language-binding'` would break with nothing failing
+// here. An empty layer is still a published one.
+//
+// A subset, deliberately. Adding a seventh layer must stay a registry edit — see the
+// synthetic test above, which proves it needs no JavaScript change. The two guarantees are
+// complementary: existing keys do not silently rename, new keys stay addable.
+const STABLE_KINDS = [
+  'kernel',
+  'framework-governance',
+  'production-baseline',
+  'app-profile',
+  'language-binding',
+  'runtime-agent-profile',
+]
+
+test('every published ownership kind keeps its stable machine identity', () => {
+  const actual = new Set(REAL.taxonomy.map((layer) => layer.kind))
+  for (const kind of STABLE_KINDS) {
+    assert.ok(
+      actual.has(kind),
+      `missing stable ownership kind \`${kind}\` — renaming a published key breaks every` +
+        ' consumer switching on it. Adding a NEW key is fine and needs no change here.'
+    )
+  }
+})
+
 // `kind` and `profile` are the stable public API — the whole reason the key is a column
 // rather than something derived — so pinning them is the point, not an accident.
 //

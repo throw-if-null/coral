@@ -571,7 +571,10 @@ passing every check. Five of its columns are machine facts:
   the **Layer** name is presentation text and may be reworded, and a **Tag** may be renamed,
   without either changing what a resolved scope reports. Written as a code span holding one
   lowercase hyphen-separated token, unique across the table. The cell is matched whole, so a
-  malformed one is refused rather than tidied into a key nobody wrote.
+  malformed one is refused rather than tidied into a key nobody wrote. **Adding a key is
+  supported; changing a published one is a compatibility break** — external tooling switches
+  on it, so a rename is a version-relevant change under `[VER-2]`, and it is one even for a
+  layer that currently has no rules.
 - **Tag** — how a rule names this layer. `—` marks the one whose members come from the
   [kernel block](#the-nine-kernel-rules) instead of from a tag; `{app:…}` marks a layer whose
   members must say *which* profile. A layer that takes profiles is necessarily `opt-in`: a

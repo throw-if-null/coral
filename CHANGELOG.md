@@ -229,7 +229,9 @@ to need is gone rather than kept for compatibility.
 so the other columns can still move: renaming the layer `app profile` to something else is presentation,
 renaming the tag `{governance}` is a tag change, and neither renames the thing a tool switches on. The
 key is validated for shape and uniqueness, the set stays open, and a seventh layer is still a seventh
-row — there is no list of keys in the tooling to extend beside it.
+row — there is no list of keys in the tooling to extend beside it. Adding a key is supported; changing a
+published one is a compatibility break for anything switching on it, including for a layer that currently
+has no rules, and the build holds every published key in place.
 
 **`rules.md` gained a `Rules by scope` section.** The page's tables were grouped by defining document,
 which answers *what is in `SYSTEM.md`* and not *which layer owns this rule* — and the second is the
