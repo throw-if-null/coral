@@ -12,12 +12,8 @@ import {
   LOCK_FILE,
   SYSTEM_SPINE,
   checkContractScopes,
-  classifyRules,
-  parseKernel,
-  parseLayers,
-  parseProfiles,
+  loadRuleModel,
   parseLock,
-  parseRules,
   serializeIndex,
   useRe,
 } from '../scripts/rules.mjs'
@@ -52,7 +48,12 @@ const BASE = process.env.DOCS_BASE || '/'
 // VitePress does NOT apply `base` to `head` entries — prefix public assets by hand.
 const asset = (file) => `${BASE}${file}`
 
-const { registry, rules, defsByFile, problems, files: DOC_FILES } = parseRules(SRC)
+// One composition for the whole build. Gates 1, 7 and 8 all used to be spelled out here as
+// separate parser calls, and scripts/rules-index.mjs spelled the same five out again — so
+// the canonical model does it once and every gate below reads a rule that already knows its
+// own ownership scope.
+const model = loadRuleModel(SRC)
+const { registry, rules, defsByFile, problems, files: DOC_FILES } = model
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 2 — referential integrity: every rule ID that appears anywhere must be
@@ -227,9 +228,10 @@ if (fs.existsSync(spineAbs)) {
 // membership change show up as a diff in a generated file, which is the same forcing
 // step rules.lock gives a rule change — a constant would add a second thing to edit
 // and nothing to the guarantee.
+//
+// Its problems arrive in `model.problems` above, along with the taxonomy's and the
+// classifier's — the model is where the composition lives.
 // ─────────────────────────────────────────────────────────────────────────────
-const { ids: kernel, problems: kernelProblems } = parseKernel(SRC, rules)
-problems.push(...kernelProblems)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 8 — every rule has exactly one ownership layer.
@@ -251,13 +253,10 @@ problems.push(...kernelProblems)
 // its tag says — and a registry free to call ARCHITECTURE.md a profile's home could bless
 // exactly that. The fixed `runtime-agent` layer is out of scope for the check by design:
 // [ORCH-4..6] stay in SYSTEM.md and are made opt-in by Gate 9 instead.
+//
+// The result is not a lookup table beside the rules: loadRuleModel() attaches each resolved
+// scope to its rule, so `rules.get(id).scope.kind` is the one place ownership is read from.
 // ─────────────────────────────────────────────────────────────────────────────
-const { taxonomy, problems: taxonomyProblems } = parseLayers(SRC)
-problems.push(...taxonomyProblems)
-const { profiles, problems: profileProblems } = parseProfiles(SRC, taxonomy)
-problems.push(...profileProblems)
-const { layers, problems: layerProblems } = classifyRules({ rules, kernel, profiles, taxonomy })
-problems.push(...layerProblems)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 9 — a contract says which of its rules are opt-in.
@@ -271,9 +270,7 @@ problems.push(...layerProblems)
 // Only runs once the layers are known, because the check is "does this line's scope
 // marker match this rule's layer", and an unclassified rule has no answer.
 // ─────────────────────────────────────────────────────────────────────────────
-if (!taxonomyProblems.length && !layerProblems.length && !profileProblems.length) {
-  problems.push(...checkContractScopes(SRC, { rules, layers }))
-}
+if (model.classified) problems.push(...checkContractScopes(SRC, rules))
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 5 — the rule index is current.
@@ -290,7 +287,7 @@ if (!taxonomyProblems.length && !layerProblems.length && !profileProblems.length
 if (!problems.length) {
   const indexPath = path.join(SRC, INDEX_FILE)
   const current = fs.existsSync(indexPath) ? fs.readFileSync(indexPath, 'utf8') : null
-  if (current !== serializeIndex(SRC, rules, defsByFile)) {
+  if (current !== serializeIndex(SRC, model)) {
     problems.push(
       `${INDEX_FILE} is ${current === null ? 'missing' : 'stale'}. It is generated from the rule` +
         ' registry, so it cannot be edited by hand — run `npm run rules:index` to re-render it.'

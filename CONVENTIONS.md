@@ -562,10 +562,23 @@ Left unstated, all of them arrive as one undifferentiated wall, and the reviewer
 
 So every rule carries exactly one **ownership layer**: the narrowest surface that justifies it.
 
-This table is the taxonomy, and the build reads it — the six layers are not additionally
-listed in the tooling, because two lists of one vocabulary is how a renamed layer keeps
-passing every check. Four of its columns are machine facts:
+This table is the **authoritative** taxonomy, and the build reads it. The tooling carries no
+exhaustive list of valid layers: adding one is a registry change, never a JavaScript
+vocabulary change, because two lists of one vocabulary is how a renamed layer keeps passing
+every check. The build's *tests* do hold a required subset of the machine keys already
+published, so an existing key cannot be silently renamed — a compatibility lock, not a second
+authority, and one that does not have to grow when a layer is added. Five of the table's
+columns are machine facts:
 
+- **Key** — the layer's stable machine identity, and what a tool switches on. It is stated
+  here rather than derived from the other columns precisely so the other columns can move:
+  the **Layer** name is presentation text and may be reworded, and a **Tag** may be renamed,
+  without either changing what a resolved scope reports. Written as a code span holding one
+  lowercase hyphen-separated token, unique across the table. The cell is matched whole, so a
+  malformed one is refused rather than tidied into a key nobody wrote. **Adding a key is
+  supported; changing a published one is a compatibility break** — external tooling switches
+  on it, so a rename is a version-relevant change under `[VER-2]`, and it is one even for a
+  layer that currently has no rules.
 - **Tag** — how a rule names this layer. `—` marks the one whose members come from the
   [kernel block](#the-nine-kernel-rules) instead of from a tag; `{app:…}` marks a layer whose
   members must say *which* profile. A layer that takes profiles is necessarily `opt-in`: a
@@ -585,14 +598,14 @@ passing every check. Four of its columns are machine facts:
 
 <!-- coral:layers:start -->
 
-| Layer | Tag | Surface | Contract scope | Read by | Justified by |
-|---|---|---|---|---|---|
-| kernel | — | conformance | unscoped | every Coral codebase | the operating model — agents author, humans keep architectural authority |
-| framework governance | `{governance}` | governance | unscoped | Coral-aware humans, agents and tooling — never audited against application source | Coral itself: how it is interpreted, versioned, extended, adopted |
-| production baseline | `{baseline}` | conformance | unscoped | every Coral codebase, at the scale the rule is stated for | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior |
-| app profile | `{app:…}` | opt-in | profile-scoped | projects with an app of that shape | the application's external shape — CLI, backend, web, library, action |
-| language binding | `{lang:…}` | opt-in | profile-scoped | projects in that language ecosystem | one language ecosystem needing a concrete realization of a neutral concept |
-| runtime-agent profile | `{runtime-agent}` | opt-in | profile-scoped | applications that call a model at runtime | the **running** application using a model |
+| Layer | Key | Tag | Surface | Contract scope | Read by | Justified by |
+|---|---|---|---|---|---|---|
+| kernel | `kernel` | — | conformance | unscoped | every Coral codebase | the operating model — agents author, humans keep architectural authority |
+| framework governance | `framework-governance` | `{governance}` | governance | unscoped | Coral-aware humans, agents and tooling — never audited against application source | Coral itself: how it is interpreted, versioned, extended, adopted |
+| production baseline | `production-baseline` | `{baseline}` | conformance | unscoped | every Coral codebase, at the scale the rule is stated for | the software needing it — architecture, correctness, security, concurrency, state, observability, contracts, testing, distributed behavior |
+| app profile | `app-profile` | `{app:…}` | opt-in | profile-scoped | projects with an app of that shape | the application's external shape — CLI, backend, web, library, action |
+| language binding | `language-binding` | `{lang:…}` | opt-in | profile-scoped | projects in that language ecosystem | one language ecosystem needing a concrete realization of a neutral concept |
+| runtime-agent profile | `runtime-agent-profile` | `{runtime-agent}` | opt-in | profile-scoped | applications that call a model at runtime | the **running** application using a model |
 
 <!-- coral:layers:end -->
 
@@ -600,9 +613,11 @@ passing every check. Four of its columns are machine facts:
 marker — the two unscoped surfaces have different audiences, as the *Read by* column says and
 the next section spells out. A seventh layer, or a change to any of these machine facts, is a
 change to what Coral means by ownership: edit the row and the tooling follows, or the build
-fails saying it cannot. The **surface** vocabulary is the one closed part — a layer belongs to
-`conformance`, `governance` or `opt-in`, and nothing else, because the index writes a
-different sentence about each and a fourth would be one it silently omitted.
+fails saying it cannot. A seventh layer is a seventh **row** — no exhaustive key list in the
+tooling has to be extended alongside it, and the compatibility lock on the published keys says
+nothing about a key that is new. The **surface** vocabulary is the one closed part — a layer
+belongs to `conformance`, `governance` or `opt-in`, and nothing else, because the index writes
+a different sentence about each and a fourth would be one it silently omitted.
 
 ### The layers do not stack into one list
 
