@@ -232,10 +232,12 @@ key is validated for shape and uniqueness, the set stays open, and a seventh lay
 row — there is no list of keys in the tooling to extend beside it.
 
 **`rules.md` gained a `Rules by scope` section.** The page's tables were grouped by defining document,
-which answers *what is in `SYSTEM.md`* and not *what does a CLI project load* — and the second is the
+which answers *what is in `SYSTEM.md`* and not *which layer owns this rule* — and the second is the
 question ownership was added to answer. The same rules are now also listed grouped by layer, in registry
 order, with a subsection per profile, generated from the canonical model. Compact by design: ID, class
-and defining document, with the statements left where they were. The document-oriented tables are
+and defining document, with the statements left where they were. The section says in so many words that
+ownership is **one** applicability axis: production-baseline rules are still narrowed by app versus system
+scale, so a group there is not a load set. The document-oriented tables are
 unchanged, and `rules.lock` is byte-identical — ownership stays authoritative in the definitions, the
 kernel block and the taxonomy, and the lock stays the append-only record of published IDs and classes.
 

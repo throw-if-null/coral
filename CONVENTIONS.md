@@ -569,8 +569,9 @@ passing every check. Five of its columns are machine facts:
 - **Key** — the layer's stable machine identity, and what a tool switches on. It is stated
   here rather than derived from the other columns precisely so the other columns can move:
   the **Layer** name is presentation text and may be reworded, and a **Tag** may be renamed,
-  without either changing what a resolved scope reports. One lowercase hyphen-separated
-  token, unique across the table, and the build refuses a malformed or repeated one.
+  without either changing what a resolved scope reports. Written as a code span holding one
+  lowercase hyphen-separated token, unique across the table. The cell is matched whole, so a
+  malformed one is refused rather than tidied into a key nobody wrote.
 - **Tag** — how a rule names this layer. `—` marks the one whose members come from the
   [kernel block](#the-nine-kernel-rules) instead of from a tag; `{app:…}` marks a layer whose
   members must say *which* profile. A layer that takes profiles is necessarily `opt-in`: a

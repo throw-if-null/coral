@@ -205,10 +205,16 @@ const LAYER_COLUMNS = 7
 // the label ties it to presentation, so rewording `app profile` to `application profile`
 // does the same. And the kernel layer has neither a tag nor a family to derive from.
 //
-// So the registry states it, and the parser validates it structurally: one lowercase
-// hyphen-separated token, unique across the table. `kernel`, `app-profile`,
+// So the registry states it, and the parser validates it structurally: a code span holding
+// one lowercase hyphen-separated token, unique across the table. `kernel`, `app-profile`,
 // `runtime-agent-profile`. The set stays open — a seventh layer is a seventh row.
-const LAYER_KIND_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
+//
+// Matched whole, like the tag cell beside it, and for the same reason. Reading the cell as
+// "strip the backticks, then check what is left" REPAIRS malformed syntax instead of
+// refusing it: `` `app`-profile `` normalises to `app-profile` and is accepted, so the
+// registry would quietly answer for a key nobody wrote. A registry that is the single source
+// of an identifier must not have a shape in which the identifier can be invented for it.
+const LAYER_KIND_CELL_RE = /^`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`$/
 // The tagless row. Written as an em dash so a reader sees "this layer has no tag" rather
 // than an empty cell that might be an omission.
 const NO_TAG = '—'
@@ -374,16 +380,17 @@ export function parseLayers(srcDir) {
     }
     const [rawLabel, rawKind, rawTag, surface, rawScope, readBy, why] = cells.map((c) => c.trim())
     const label = rawLabel.replace(/\*\*/g, '')
-    const kind = rawKind.replace(/`/g, '')
-    if (!LAYER_KIND_RE.test(kind)) {
+    const kindCell = LAYER_KIND_CELL_RE.exec(rawKind)
+    if (!kindCell) {
       problems.push(
-        `${at}: \`${rawKind}\` is not a layer key. The key is what every consumer switches a` +
-          ' resolved scope on, so it is a lowercase hyphen-separated token — `kernel`,' +
-          ' `app-profile`, `runtime-agent-profile` — and not the label, which is presentation' +
-          ' text that may be reworded.'
+        `${at}: ${rawKind} is not a layer key. The key is what every consumer switches a` +
+          ' resolved scope on, so it is written as a code span holding one lowercase' +
+          ' hyphen-separated token — ``kernel``, ``app-profile``, ``runtime-agent-profile`` —' +
+          ' and not as the label, which is presentation text that may be reworded.'
       )
       return
     }
+    const kind = kindCell[1]
     if (!SURFACES.includes(surface)) {
       problems.push(
         `${at}: \`${surface}\` is not a surface. A layer belongs to exactly one of` +
@@ -912,18 +919,27 @@ export function parseProfiles(srcDir, taxonomy) {
  * them, so it stays testable against a hand-built registry; loadRuleModel() is what turns
  * the result into the canonical rule objects consumers actually hold.
  *
- * @returns {{scopes: Map<string,Scope>, problems: string[]}}
+ * `unresolved` is the rules it deliberately left without a scope, having said why. It is
+ * returned rather than inferred so loadRuleModel() can tell "this rule failed, and here is
+ * the sentence explaining it" from "this rule vanished and nobody noticed" — the second is
+ * a bug in this function, and matching problem strings to find it would be a third parser.
+ *
+ * @returns {{scopes: Map<string,Scope>, unresolved: Set<string>, problems: string[]}}
  */
 export function classifyRules({ rules, kernel, profiles, taxonomy }) {
   const problems = []
   const scopes = new Map()
+  const unresolved = new Set()
   const kernelLayer = kernelLayerOf(taxonomy)
   if (kernel.size && !kernelLayer) {
     problems.push(
       `The ownership taxonomy declares no tagless layer, so the ${kernel.size} rule(s) in` +
         ` ${KERNEL_FILE}'s kernel block have no layer to belong to.`
     )
-    return { scopes, problems }
+    // Nothing can be classified against a taxonomy with no kernel row, and the reason has
+    // just been given once. Naming all of them again would be the same sentence per rule.
+    for (const id of rules.keys()) unresolved.add(id)
+    return { scopes, unresolved, problems }
   }
   // home document -> the profile tag that owns it, for the reverse check below.
   const owners = new Map([...profiles].map(([tag, p]) => [p.home, tag]))
@@ -937,6 +953,7 @@ export function classifyRules({ rules, kernel, profiles, taxonomy }) {
             ' block and nowhere else; a tag here would be a second membership registry. Remove the' +
             ' tag, or remove the rule from the kernel table.'
         )
+        unresolved.add(id)
         continue
       }
       // From the row, never reconstructed. Rebuilding `label: 'kernel'` here is what put a
@@ -960,11 +977,13 @@ export function classifyRules({ rules, kernel, profiles, taxonomy }) {
           '; every rule outside the kernel needs exactly one on its definition line, after its' +
           ` enforcement class. Available: ${tagVocabulary(profiles, taxonomy)}.`
       )
+      unresolved.add(id)
       continue
     }
     const resolved = resolveTag(rule.tags[0], profiles, taxonomy)
     if (typeof resolved === 'string') {
       problems.push(`[${id}] ${at}: ${resolved}`)
+      unresolved.add(id)
       continue
     }
     // Registered `app:` / `lang:` profiles only. The registry guarantees their homes are not
@@ -979,6 +998,7 @@ export function classifyRules({ rules, kernel, profiles, taxonomy }) {
             ` profile's rules live in ${home}. A rule kept in a broadly-loaded document is read as` +
             ' binding however it is classified — move the rule, or reclassify it.'
         )
+        unresolved.add(id)
         continue
       }
     }
@@ -1006,7 +1026,7 @@ export function classifyRules({ rules, kernel, profiles, taxonomy }) {
       )
     }
   }
-  return { scopes, problems }
+  return { scopes, unresolved, problems }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1046,8 +1066,13 @@ export function loadRuleModel(srcDir) {
   const { ids: kernel, problems: kernelProblems } = parseKernel(srcDir, raw)
   const { profiles, problems: profileProblems } = parseProfiles(srcDir, taxonomy)
   const classify = { rules: raw, kernel, profiles, taxonomy }
-  const { scopes, problems: scopeProblems } = classifyRules(classify)
-  problems.push(...taxonomyProblems, ...kernelProblems, ...profileProblems, ...scopeProblems)
+  const { scopes, unresolved, problems: scopeProblems } = classifyRules(classify)
+  const ownershipProblems = [
+    ...taxonomyProblems,
+    ...kernelProblems,
+    ...profileProblems,
+    ...scopeProblems,
+  ]
 
   const rules = new Map()
   for (const [id, rule] of raw) {
@@ -1055,27 +1080,32 @@ export function loadRuleModel(srcDir) {
     rules.set(id, scope ? { ...rule, scope } : { ...rule })
   }
 
-  // Gate 9 asks "does this contract line's scope marker match the rule's layer", and an
-  // unclassified rule has no answer — so the classification has to be whole before it runs.
-  // Not gated on `problems` as a whole: a broken citation elsewhere in the doc set says
-  // nothing about whether the contracts are honest, and suppressing the check for it would
-  // hide a real failure behind an unrelated one.
-  const classified = !taxonomyProblems.length && !profileProblems.length && !scopeProblems.length
-
-  // The invariant, asserted rather than assumed. classifyRules() reports every rule it could
-  // not resolve, so a scopeless rule with no problem beside it means the two disagree — and
-  // that is exactly the state in which a consumer would read `rule.scope` as undefined and
-  // quietly treat the rule as belonging nowhere.
-  if (!problems.length) {
-    for (const [id, rule] of rules) {
-      if (!rule.scope?.kind) {
-        problems.push(
-          `[${id}] came out of the rule model with no resolved ownership scope, and nothing` +
-            ' reported why. Every rule has exactly one scope or a problem explaining its absence.'
-        )
-      }
-    }
+  // The invariant, asserted rather than assumed — and asserted unconditionally.
+  //
+  // classifyRules() names every rule it could not resolve, so a scopeless rule it did NOT
+  // name means the two disagree: the model would hand a consumer `rule.scope === undefined`
+  // with no sentence anywhere saying why, and the consumer would read the rule as belonging
+  // nowhere. That is a bug in the classifier, and it is exactly as much a bug when some
+  // unrelated citation elsewhere in the doc set also failed to parse — so this does not wait
+  // for a clean `problems` list before looking. `unresolved` keeps it from restating a
+  // failure classifyRules() has already explained for that rule.
+  for (const [id, rule] of rules) {
+    if (rule.scope?.kind || unresolved.has(id)) continue
+    ownershipProblems.push(
+      `[${id}] came out of the rule model with no resolved ownership scope, and nothing` +
+        ' reported why. Every rule has exactly one scope or a problem explaining its absence.'
+    )
   }
+  const complete = [...rules.values()].every((r) => r.scope?.kind)
+
+  // What `classified` claims: the ownership model is whole and every source it was built
+  // from parsed clean. All four sources count, kernel membership included — a duplicated
+  // kernel row can leave the membership SET intact, so every rule still resolves and the
+  // classification still rests on a registry the build has refused. Gate 9 reads this, and a
+  // flag that said "good enough" while one of its inputs was invalid would be a weaker claim
+  // than its name makes.
+  const classified = !ownershipProblems.length && complete
+  problems.push(...ownershipProblems)
   return { rules, registry, defsByFile, files, taxonomy, kernel, profiles, classified, problems }
 }
 
@@ -1782,10 +1812,17 @@ export function serializeIndex(srcDir, model) {
   // ── Rules by scope ─────────────────────────────────────────────────────────
   //
   // The tables further down are grouped by DEFINING DOCUMENT, which answers "what is in
-  // ARCHITECTURE.md" and not "what does a CLI project have to load" — and the second is the
+  // ARCHITECTURE.md" and not "which ownership layer owns this rule" — and the second is the
   // question ownership was introduced to answer. So the same rules are listed once more,
   // grouped the other way: one section per layer, in taxonomy order, with a subsection per
   // profile where the layer takes one.
+  //
+  // What this grouping is NOT is the load set. Ownership is one applicability axis, and the
+  // production baseline carries a second: its ARCHITECTURE.md rules are app-scale and its
+  // SYSTEM.md rules are system-scale, so a one-app repository loads part of that group and
+  // not the rest. CONVENTIONS.md says so, the prose above says so, and this section must not
+  // say otherwise — a view that presents itself as the complete answer to "what do I load"
+  // would overclaim in exactly the direction the layer definitions were written to avoid.
   //
   // Compact on purpose — ID, class and defining document, no statements. The statement is
   // one scroll away in the per-document table and one click away in the document itself, and
@@ -1813,11 +1850,20 @@ export function serializeIndex(srcDir, model) {
     '## Rules by scope',
     '',
     ...wrap(
-      'The same rules, grouped by the layer that owns them rather than by the document that ' +
-        'states them — which is the grouping a project reads when it is deciding what it has to ' +
-        'load. Each heading is the layer\'s **key**, the stable identifier the tooling resolves ' +
-        `every rule to; the human name is in the [table above](#ownership-layers). Statements are ` +
-        'in the per-document tables below, and the reasoning is in the document itself.'
+      'The same rules, grouped by the ownership layer that owns them rather than by the document ' +
+        "that states them. Each heading is the layer's **key**, the stable identifier the tooling " +
+        'resolves every rule to; the human name is in the [table above](#ownership-layers). ' +
+        'Statements are in the per-document tables below, and the reasoning is in the document ' +
+        'itself.'
+    ),
+    '',
+    ...wrap(
+      '**Ownership is one applicability axis, not the whole load decision.** A group here says ' +
+        'which layer or profile a rule belongs to, and nothing more. Production-baseline rules ' +
+        'are narrowed further by scale, as described above: the ones in ' +
+        `[\`${APP_SPINE}\`](./${APP_SPINE}) are app-scale and the ones in ` +
+        `[\`${SYSTEM_SPINE}\`](./${SYSTEM_SPINE}) are the baseline when several apps compose, so a ` +
+        'repository that ships one app loads part of that group and not the rest.'
     ),
     ''
   )

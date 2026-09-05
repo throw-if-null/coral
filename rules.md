@@ -53,11 +53,16 @@ layer below it is optional once its profile is loaded.
 
 ## Rules by scope
 
-The same rules, grouped by the layer that owns them rather than by the document that states them — which is
-the grouping a project reads when it is deciding what it has to load. Each heading is the layer's **key**,
-the stable identifier the tooling resolves every rule to; the human name is in the [table
-above](#ownership-layers). Statements are in the per-document tables below, and the reasoning is in the
-document itself.
+The same rules, grouped by the ownership layer that owns them rather than by the document that states them.
+Each heading is the layer's **key**, the stable identifier the tooling resolves every rule to; the human
+name is in the [table above](#ownership-layers). Statements are in the per-document tables below, and the
+reasoning is in the document itself.
+
+**Ownership is one applicability axis, not the whole load decision.** A group here says which layer or
+profile a rule belongs to, and nothing more. Production-baseline rules are narrowed further by scale, as
+described above: the ones in [`ARCHITECTURE.md`](./ARCHITECTURE.md) are app-scale and the ones in
+[`SYSTEM.md`](./SYSTEM.md) are the baseline when several apps compose, so a repository that ships one app
+loads part of that group and not the rest.
 
 ### kernel
 
