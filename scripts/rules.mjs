@@ -259,7 +259,7 @@ const LAYER_TAG_RE = /^`\{([a-z][a-z0-9-]*)(:…)?\}`$/
  *            surface: string, scoped: boolean, readBy: string, why: string}} Layer
  *
  * `kind` is the row's stable machine key; `label` is presentation text. They are separate
- * columns on purpose — see LAYER_KIND_RE.
+ * columns on purpose — see LAYER_KIND_CELL_RE.
  */
 
 /**
