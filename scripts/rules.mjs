@@ -207,7 +207,10 @@ const LAYER_COLUMNS = 7
 //
 // So the registry states it, and the parser validates it structurally: a code span holding
 // one lowercase hyphen-separated token, unique across the table. `kernel`, `app-profile`,
-// `runtime-agent-profile`. The set stays open — a seventh layer is a seventh row.
+// `runtime-agent-profile`. The set stays open — a seventh layer is a seventh row, and nothing
+// here enumerates the valid ones. What IS pinned lives in the tests: the keys already
+// published are held as a required subset, so an existing one cannot be renamed unnoticed
+// while a new one still needs no code change.
 //
 // Matched whole, like the tag cell beside it, and for the same reason. Reading the cell as
 // "strip the backticks, then check what is left" REPAIRS malformed syntax instead of
