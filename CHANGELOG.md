@@ -25,8 +25,14 @@ Rule IDs are append-only (`[VER-1]`): never renumbered, never recycled, never re
 checked-in record of every published ID and its enforcement class, and the build fails on any drift
 between it and the documents. Regenerate with `npm run rules:lock` and record the change here.
 
-A project states the version it targets in its `CORAL.md` (`[VER-3]`). Upgrading is a deliberate act: read
-the entries between your target and the new version, satisfy the added rules, and re-audit.
+A project states the version it targets in its `CORAL.md` (`[VER-3]`), and how much of that version it
+adopts (`[VER-6]`). Upgrading is a deliberate act: read the entries between your target and the new
+version, satisfy the added rules **in the layers you have adopted**, and re-audit.
+
+**The Unreleased section below is not a version anybody can target.** `VERSION` holds the latest
+**released** Coral; the heading beneath names the **working** version — the rule set these documents
+currently describe, which ships when the batch is cut. A rule you find under Unreleased is not in any
+release, and a project pinning `VERSION` does not owe it yet.
 
 ---
 
@@ -197,8 +203,10 @@ nine from that same block, so membership has one source and a change to it lands
 file.
 
 **"Kernel" does not mean "most important."** `[TRUST-1]` matters more to a running system than any of the
-nine. The classification answers *why Coral imposes a rule, and at what strength* — an unmarked rule is
-not optional.
+nine. The classification answers *why Coral imposes a rule, and at what strength*, and an unmarked rule
+is not a weaker one — once a project has adopted the layer that contributes it, it binds exactly as hard.
+(That last clause is `[VER-6]`'s doing, further down this entry: at the time the kernel landed, every
+non-kernel rule was assumed to bind every project.)
 
 **`[MODEL-1]`'s contract line was missing `adapter`, and that one is not cosmetic.** The canonical
 definition has named five categories since `[MODEL-4]` landed in 0.6.0; the Agent Execution Contract in

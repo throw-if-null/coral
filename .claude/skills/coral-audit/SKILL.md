@@ -16,10 +16,13 @@ description: >
 > Written against **Coral 0.6.0**. Audit a project against the version its
 > `CORAL.md` declares, not against this one (`[VER-3]`).
 >
-> **This skill already implements `[VER-6]`, which is unreleased and ships in 0.7.0.**
-> A project targeting 0.6.0 or earlier has no adoption declaration and is not wrong for
-> it: audit it against its own version's applicability semantics, not against the ones
-> below. Delete this note when 0.7.0 is cut.
+> **"Written against" names the latest *released* Coral — the only version a project can
+> target. It is not a claim that everything below exists in 0.6.0.** This skill already
+> implements `[VER-6]`, which is **unreleased** and ships in 0.7.0: `CORAL.md` adoption
+> declarations, the undeclared-normative-surface finding, and scale filtering are all
+> 0.7.0 behaviour. A project targeting 0.6.0 or earlier has no adoption declaration and is
+> not wrong for it — audit it against its own version's applicability semantics, not
+> against the ones below. Delete this note when 0.7.0 is cut.
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not
@@ -77,9 +80,9 @@ to dependency repos too — use them (boundary rule 3).
 audit to perform.** It is the project's adherence record, and every field changes what counts as a
 finding:
 
-- **`targets: <version>`** — audit against *that* version, not the latest (`[VER-3]`). A rule added after
-  the declared target is not yet binding on this project; note it as an upgrade consideration, not a
-  divergence.
+- **`targets: <version>`** — audit against *that* version, never against the newest Coral you happen to
+  have (`[VER-3]`). A rule added after the declared target is not yet binding on this project; note it as
+  an upgrade consideration, not a divergence. A rule that is only in an unreleased Coral binds nobody.
 - **`scales`** — which architectural scales the repository is written at. A project that declares only
   `app` does not owe system-scale rules (`[CHAN-*]`, `[SYS-TEST-*]`, `[ORCH-4..6]`), whatever it adopts.
 - **`adopts`** — the non-kernel ownership scopes the project has taken on (`[VER-6]`). **This is the
@@ -113,8 +116,8 @@ This is the headline finding, and it replaces the conformance verdict rather tha
 > Coral rules apply to it is undefined. A conformance verdict is not available until a human records one
 > (`[VER-6]`).
 
-Auditing against the current version anyway is exactly the behaviour `[VER-6]` exists to stop. So is
-guessing: "it looks like a CLI, so I audited the CLI profile", "there are two services here, so I applied
+Auditing it against whatever version you happen to have loaded is exactly the behaviour `[VER-6]` exists
+to stop. So is guessing: "it looks like a CLI, so I audited the CLI profile", "there are two services here, so I applied
 the system-scale rules", "an unrecognised profile name, so I skipped that layer".
 
 What you **may** do — and should — is propose one. Read the repository, say which scales and which scopes
@@ -270,8 +273,8 @@ session; heaviness is intentional — the planner needs full context. Include:
   (big-bang vs strangler), sequencing, and task breakdown — none of which belong here.
 
 ## Do NOT
-- Audit a repository with no valid `CORAL.md` against the current version, or against any set you chose
-  yourself. Report the undeclared normative surface and propose a declaration instead.
+- Audit a repository with no valid `CORAL.md` against whatever version you happen to have loaded, or
+  against any set you chose yourself. Report the undeclared normative surface and propose a declaration instead.
 - Treat an inferred adoption set as normative — including one a human agrees with in the session. A
   proposed surface can carry a clearly labelled hypothetical assessment; only a declaration recorded in
   `CORAL.md` can carry a conformance verdict.

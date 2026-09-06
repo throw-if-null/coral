@@ -287,8 +287,31 @@ covering, and some rules will turn out to be wrong. A project therefore needs to
 follows, and to record where it knowingly differs — otherwise "conforms to Coral" is not a checkable
 claim.
 
-The version lives in `VERSION`; what changed lives in [`CHANGELOG.md`](./CHANGELOG.md), recorded per rule
-ID.
+What changed lives in [`CHANGELOG.md`](./CHANGELOG.md), recorded per rule ID.
+
+### Two versions: released and working
+
+`[VER-3]` makes version identity part of applicability, and `[VER-6]` makes it part of the record
+schema too, so it has to be said exactly which version is meant. Coral has two at any moment, and they
+are not interchangeable:
+
+- the **latest released version** is what `VERSION` holds. It moves when a batch is cut, not when a
+  commit lands — that is what the Unreleased section of the changelog is for. **This is the only version
+  a consuming project can target**, because it is the only one that is published and frozen. A worked
+  example or a skill that says *"Written against **Coral x.y.z**"* names this one: the marker tells a
+  reader which Coral the page is good for, and a reader can only pin a release.
+- the **working version** is the rule set the documents in the tree currently describe. Between releases
+  that is a successor to `VERSION`, named by the changelog's Unreleased heading — `## Unreleased —
+  0.7.0`. Live development docs on `main` therefore describe a version nobody has released yet, and a
+  rule that is in them may not be in any release. A `targets:` line in an adherence record is resolved
+  against this one, which is why records kept *inside* this repository may name it and a project outside
+  cannot.
+
+When a batch changes no rule, the Unreleased heading names no version and the two are the same.
+
+Everything mechanical follows from that split: `scripts/version.mjs` reads both, the canonical rule
+model carries the working version as its identity, and every applicability resolution compares a
+record's target against it. See [What applies to a project](#what-applies-to-a-project).
 
 **`[VER-1]` `[auto]` `{governance}`** — Rule IDs are append-only: never renumbered, never recycled, never
 removed. A withdrawn rule keeps its ID and is marked retired in place.
@@ -493,8 +516,10 @@ Coral improves**, which is what stops it becoming a forty-entry graveyard.
 And **`revisit when` is a condition, not a date.** Dates are theatre; everyone renews them. *"When a third
 slice needs this"* or *"when we split the shared datastore"* is a trigger someone will actually hit.
 
-Coral itself targets the version in `VERSION`; the worked examples and the audit skill each state the
-version they were written against, which is the cheapest available test that this convention is usable.
+The worked examples and the audit skill each state the **latest released** Coral they were written
+against, which is the cheapest available test that this convention is usable. A page that already
+implements a rule from the unreleased working version says so in prose rather than declaring a version
+nobody can pin.
 
 ---
 
@@ -589,9 +614,21 @@ answered by whoever is reading, which is not a stable set at all.
 
 ### Everything else
 
-Non-kernel rules are **not optional** — kernel membership classifies *why Coral imposes a rule, and at
-what strength*, not whether it is normative. An `[auto]` rule outside the kernel still fails the build.
-Every other Coral rule is one or more of:
+**Non-kernel does not mean weak, and it does not mean advisory.** Kernel membership classifies *why
+Coral imposes a rule, and at what strength* — never how hard it binds once it binds. A non-kernel rule
+is fully normative for a project that has adopted the layer or profile contributing it, at a scale where
+that rule applies. Once applicable, an `[auto]` rule outside the kernel is enforced exactly as an
+`[auto]` kernel rule is, and a `[review]` one takes the same judgment.
+
+What differs is **how a rule enters a project's normative surface**, and that is a separate axis from
+strength. The kernel enters without a decision. Everything else — the production baseline included —
+enters because the project's `CORAL.md` says so (`[VER-6]`,
+[What applies to a project](#what-applies-to-a-project)). So "non-kernel" says nothing about whether a
+given project owes the rule; it says the project's own declaration answers that, and until it does, the
+rule is not part of that project's surface at all. Publishing a rule here is not what makes it bite.
+
+With that distinction held, here is *why* each remaining rule is outside the kernel. Every one is one or
+more of:
 
 - **a refinement of a kernel constraint** — `[STRUCT-1]` and `[STRUCT-2]` refine locality (where the
   slice and its tests physically sit), as does `[GROW-2]` (answer file growth inside the slice, never
@@ -619,7 +656,8 @@ Every other Coral rule is one or more of:
 
 Concurrency, idempotency, error handling, caching, security, channel semantics and observability are
 load-bearing Coral rules. They are not kernel rules, and importance is not the reason either way: Coral
-states them at the strength it does because the *system* needs them, not because of who typed them.
+states them at the strength it does because the *system* needs them, not because of who typed them. A
+project that adopts the production baseline owes every one of them as hard as it owes `[MODEL-1]`.
 
 That list says *why* a rule is not kernel. [Ownership layers](#ownership-layers), below, says something
 narrower and machine-readable: which projects have to load it.
@@ -1039,7 +1077,8 @@ None of the following is a defensible default, and none of them is implemented:
 - a missing `adopts` means the current production baseline;
 - inspect the repository and adopt whichever app profile looks plausible;
 - an unregistered profile name means an empty profile;
-- an absent `CORAL.md` means "audit against everything in the current version".
+- an absent `CORAL.md` means "audit against everything in whatever version the auditor happens to have
+  loaded".
 
 A project may adopt **no** optional layer and run on the kernel alone. It writes `adopts: {}` and means
 it. **Silence is not that decision**, and no tool may read it as one — a tool that infers a likely
@@ -1100,5 +1139,7 @@ Read in this order:
 Looking a rule up rather than reading through: [`rules.md`](./rules.md) lists all of them on one page,
 grouped by document, each ID linking to its definition.
 
-Supporting files: `VERSION` (what this is), [`CHANGELOG.md`](./CHANGELOG.md) (what changed, per rule ID),
+Supporting files: `VERSION` (the latest released version — the working version these documents describe
+is named by the changelog's Unreleased heading, [above](#two-versions-released-and-working)),
+[`CHANGELOG.md`](./CHANGELOG.md) (what changed, per rule ID),
 and `rules.lock` (every published rule ID and class, checked in so `[VER-1]` can be enforced).

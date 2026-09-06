@@ -50,9 +50,15 @@ goodwill.
 ## Versioning, and how a project records where it differs
 
 Coral is versioned because it will be **incomplete**: rules get missed, patterns need covering, and some
-rules turn out to be wrong. The current version is in `VERSION`; what changed is in
-[`CHANGELOG.md`](./CHANGELOG.md), recorded per rule ID. Rule IDs are append-only — never renumbered,
-recycled, or removed — and `rules.lock` is the checked-in record the build enforces that against.
+rules turn out to be wrong. What changed is in [`CHANGELOG.md`](./CHANGELOG.md), recorded per rule ID.
+Rule IDs are append-only — never renumbered, recycled, or removed — and `rules.lock` is the checked-in
+record the build enforces that against.
+
+**Two versions, and the difference matters now that version identity is part of applicability.** The
+**latest released** version is in `VERSION`, and it is the only one a project can target. The **working**
+version is the rule set these documents currently describe, named by the changelog's Unreleased heading;
+between releases it is a successor to `VERSION`, so **`main` describes rules that are not in any release
+yet**. [`CONVENTIONS.md`](./CONVENTIONS.md#two-versions-released-and-working) spells the split out.
 
 A consuming project keeps a **`CORAL.md`** in its root. It is the one file that answers *what rules apply
 here*, and it carries three things:

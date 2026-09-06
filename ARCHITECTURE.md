@@ -982,7 +982,7 @@ a profile-scoped rule as unconditional. Each **citation resolves**, this documen
 system rule, and every link fragment reaches a real anchor. And the **published set is stable**: no rule
 ID removed or silently reclassified, the generated [rule index](./rules.md) still matching the registry it
 indexes, the worked `CORAL.md` in `CONVENTIONS.md` still resolving through the applicability resolver, and
-every worked example declaring the current Coral version. Malformed metadata fails the build
+every worked example declaring the latest released Coral version. Malformed metadata fails the build
 rather than being skipped, because a skipped rule is one that quietly leaves a layer while the page still
 reads correctly. Separately, [`tools/coral-lint`](./tools/coral-lint/README.md) implements a growing subset
 of Tier 1 against a target repository — advisory rather than blocking until it can resolve that
