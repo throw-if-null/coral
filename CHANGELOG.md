@@ -599,6 +599,17 @@ codebase, which is precisely why it is an opt-in layer.
   categories: `[MODEL-1]` fixes a classification *space*, so every unit of code fits one of the five, but
   an app need not contain an instance of each — the same correction is made in `CONVENTIONS.md`, whose
   comparison-table header no longer calls its rules "optional" while one of them (`[XCUT-1]`) is kernel.
+
+  Finally the **slogans**, which is where the leak had been longest. `index.md`'s hero read *"Code grouped
+  by what it does, not by what kind of code it is"* and both front pages opened with *"one capability,
+  owned end to end, **in one place**"* — a physical-grouping claim used as the definition of Coral, and one
+  a kernel-only project need not satisfy. The unconditional principle is now **one trigger, one owning
+  capability, end to end**, in the hero, in `index.md`'s organising-principle sentence and in `README.md`'s
+  opening; the grouping line is kept but moved into the production-baseline paragraph it belongs to, under
+  the heading claim that *ownership is not the same as physical colocation*. The kernel's defended
+  **locality** property is restated the same way — "everything a change needs is owned by one slice"
+  rather than "sits in one place" — with the baseline named as the layer that turns ownership into
+  colocation.
 - **Navigation makes the subordination visible.** The sidebar groups pages as *Coral core — applies to
   every Coral codebase*, *Production baseline — optional, adopted explicitly*, *The System — optional, at
   system scale*, and the two profile groups, so the production baseline cannot read as another name for

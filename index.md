@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Coral Architecture
-  text: Code grouped by what it does, not by what kind of code it is
+  text: One trigger, one owning capability, end to end
   tagline: Rules for CLIs, backends, web apps, libraries and tools — and for how several
     of them compose into a system.
   image:
@@ -17,19 +17,19 @@ Coral is a set of rules for organising code in a repository. It is written to be
 agents as well as by people, so the rules are stated explicitly, numbered, and most of them are
 checkable by a program rather than by argument.
 
-The organising principle is one sentence: **one capability, owned end to end, in one place.**
+The organising principle is one sentence: **one trigger, one owning capability, end to end.**
 
-A capability is one thing the software does — one command, one HTTP endpoint, one event handler. Coral's
-unconditional part is about **ownership**: one trigger is answered by one unit that owns the whole of
-answering it, and every unit of code has one of five known roles.
+A capability is one thing the software does — one command, one HTTP endpoint, one event handler. The
+unconditional part of Coral is about **ownership**: whatever answers that trigger owns the whole of
+answering it — parsing, validating, doing the work, returning the result, and the tests that prove it —
+and every unit of code has one of five known roles.
 
-The familiar alternative — all the request handlers in one directory, all the database code in another —
-groups code by what kind of code it is. Coral's **production baseline** rules that out, and prescribes how
-capability ownership shows up in the directory and package structure: packages named for the capability
-or concern they own, no global `handlers` / `services` / `repositories` layer, tests beside the code they
-verify. That layer is [optional and adopted explicitly](/PRODUCTION), and most projects that want Coral
-want it — but a project can own its triggers end to end without taking on Coral's opinion about what the
-directories are called.
+**Ownership is not the same as physical colocation**, and Coral separates the two deliberately. *Where*
+that owned behavior sits — **code grouped by what it does, not by what kind of code it is**: packages
+named for the capability or concern they own, no global `handlers` / `services` / `repositories` layer,
+tests beside the code they verify — is Coral's **production baseline**. It is
+[optional and adopted explicitly](/PRODUCTION), and most projects that want Coral want it; but a project
+can own its triggers end to end without taking on Coral's opinion about what the directories are called.
 
 ## What that looks like
 
@@ -96,7 +96,8 @@ arrow around and you have a `repositories` layer, where one shared package decid
 gets.*
 
 The italicised additions above are [production baseline](/PRODUCTION) rules. A project that has not
-adopted that layer still has all five categories; it simply owes none of the discipline in italics.
+adopted that layer still classifies every unit of code with the same five categories; it simply owes none
+of the discipline in italics.
 
 There is a sixth thing most codebases have, and it is not one of the five: a directory named for nothing
 in particular — `utils`, `shared`, `common`, `services`, `helpers`. Coral calls that a **forbidden

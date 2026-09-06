@@ -305,9 +305,9 @@ app is the run-time one.)
 constraints are there to protect four properties, each of which is a property of *this* way of working
 rather than of software in general:
 
-- **Context-window economy** — a slice (or an app) holds everything it needs in one place, so an agent
-  can load the *complete* relevant world into one context and reason without missing a cross-file
-  dependency.
+- **Context-window economy** — a slice (or an app) owns everything it needs, so an agent can load the
+  *complete* relevant world into one context and reason without missing a cross-file dependency. (The
+  production baseline goes further and puts it all in one *place*; the kernel asks for the ownership.)
 - **Bounded blast radius** — a change touches one slice (or one app), so the reviewer's audit
   surface is bounded and the diff stays legible.
 - **Deterministic placement** — "where does this go?" collapses to "find or make the feature package."
@@ -647,7 +647,7 @@ rule can be tested against, plus drift — the failure the vocabulary already na
 
 | Property | What it keeps true | Operating-model property |
 |---|---|---|
-| **locality** | everything a change needs sits in one place | context-window economy |
+| **locality** | everything a change needs is owned by one slice | context-window economy |
 | **bounded context** | what an agent must load in order to be correct is finite and knowable | context-window economy |
 | **deterministic placement** | "where does this go?" has one answer | deterministic placement |
 | **reviewability** | the architectural decision is visible in the diff a human reads | bounded blast radius |
