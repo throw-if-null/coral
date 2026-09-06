@@ -1,6 +1,6 @@
 # Worked example: a Go API capability slice (one endpoint, end to end)
 
-> Written against **Coral 0.6.0**.
+> Written against **Coral 0.7.0**.
 
 The [CLI example](./cli-slice) shows a slice in a language that imposes nothing, so each slice is one file.
 This one is the harder case: **a complete Coral slice in Go, where the language forces one capability

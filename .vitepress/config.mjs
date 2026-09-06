@@ -21,8 +21,7 @@ import {
   ADHERENCE_EXAMPLE_END,
   ADHERENCE_EXAMPLE_START,
   ADHERENCE_FILE,
-  parseAdherenceRecord,
-  resolveApplicability,
+  resolveAdherence,
 } from '../scripts/applicability.mjs'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -281,22 +280,28 @@ if (fs.existsSync(spineAbs)) {
 if (model.classified) problems.push(...checkContractScopes(SRC, rules))
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Gate 10 — the documented adherence record is one the resolver accepts.
+// Gate 10 — every adherence record this repository publishes actually resolves.
 //
-// CONVENTIONS.md prints a whole `CORAL.md` as a worked example, and every consuming
-// project copies it. A machine-readable format whose only published example the machine
-// has never read has one untested user, and it is the most important one: the example
-// names ownership keys, profile names and scales, and all three are registry values that
-// can be renamed here without the example following.
+// Two kinds, and both matter for the same reason. CONVENTIONS.md prints a whole
+// `CORAL.md` as a worked EXAMPLE, and every consuming project copies it. `tools/coral-lint`
+// keeps a REAL one, because it is a Coral CLI and PO-04 says a project declares what it
+// adopts. Each names ownership keys, profile names and scales — all registry values that
+// can be renamed here without the record following — and each declares a target version,
+// which between releases is not the version in `VERSION`.
 //
-// So the build parses it with the same resolver a project's tooling would use and
-// resolves it against this version's rule model. `[VER-6]` is the rule this enforces for
-// consuming projects; this is Coral holding its own documentation to it.
+// A machine-readable format whose published records the machine has never read has one
+// untested user, and it is the most important one. So the build resolves them with the same
+// resolver a project's tooling would use. `[VER-6]` is the rule this enforces for consuming
+// projects; this is Coral holding its own files to it.
+//
+// The real records are DISCOVERED rather than listed, so a second one is covered by
+// existing rather than by somebody remembering this gate.
 //
 // Only runs once the model is classified — resolving an adoption against a taxonomy the
 // build has already refused produces a second complaint about the first failure.
 // ─────────────────────────────────────────────────────────────────────────────
 if (model.classified) {
+  const records = []
   const conventions = fs.readFileSync(path.join(SRC, 'CONVENTIONS.md'), 'utf8')
   const open = conventions.indexOf(ADHERENCE_EXAMPLE_START)
   const close = conventions.indexOf(ADHERENCE_EXAMPLE_END)
@@ -307,15 +312,17 @@ if (model.classified) {
         ' and an unmarked one is an example nothing checks.'
     )
   } else {
-    const version = fs.readFileSync(path.join(SRC, 'VERSION'), 'utf8').trim()
-    const { declaration, problems: recordProblems } = parseAdherenceRecord(
-      conventions.slice(open, close)
-    )
-    const resolution = resolveApplicability(declaration, model, { version })
-    for (const p of [...recordProblems, ...resolution.problems]) {
-      problems.push(
-        `the worked \`${ADHERENCE_FILE}\` in CONVENTIONS.md is not a record a project could use: ${p}`
-      )
+    records.push([
+      `the worked \`${ADHERENCE_FILE}\` in CONVENTIONS.md`,
+      conventions.slice(open, close),
+    ])
+  }
+  for (const rel of DOC_FILES.filter((f) => path.basename(f) === ADHERENCE_FILE)) {
+    records.push([rel, fs.readFileSync(path.join(SRC, rel), 'utf8')])
+  }
+  for (const [where, text] of records) {
+    for (const p of resolveAdherence(text, model).problems) {
+      problems.push(`${where} is not a record a project could use: ${p}`)
     }
   }
 }
@@ -421,7 +428,10 @@ export default withMermaid(defineConfig({
   description: 'A fractal, capability-first architecture — agents write, humans review.',
   base: BASE,
   lastUpdated: true,
-  srcExclude: ['README.md'], // repo landing page, not a rendered site page
+  // Not rendered site pages. README.md is the repo landing page; a `CORAL.md` is a
+  // project's own adherence record — data the build reads (Gate 10) rather than
+  // documentation the site publishes.
+  srcExclude: ['README.md', '**/CORAL.md'],
   head: [
     ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: asset('favicon-32.png') }],
     ['link', { rel: 'icon', type: 'image/png', href: asset('logo.png') }],

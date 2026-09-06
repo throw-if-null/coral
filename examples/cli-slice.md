@@ -1,6 +1,6 @@
 # Worked example: a CLI capability slice (two commands, end to end)
 
-> Written against **Coral 0.6.0**.
+> Written against **Coral 0.7.0**.
 
 The [Go example](./go-api-slice) shows a slice in a language that *forces* a capability across several
 packages. This one shows the opposite: **a CLI in Python, where nothing forces banding, so a slice is one

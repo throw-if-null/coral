@@ -30,7 +30,7 @@ the entries between your target and the new version, satisfy the added rules, an
 
 ---
 
-## Unreleased
+## Unreleased — 0.7.0
 
 A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
 the batch is cut. **The batch takes the highest level of the entries in it — currently major**, because
@@ -129,9 +129,46 @@ build resolves `CONVENTIONS.md`'s own worked example through it (a tenth gate), 
 machine-readable format the machine has never read has one untested user. `yaml` is a new direct
 dependency; writing a YAML parser by hand would have been the worse of the two costs.
 
-**Resolving the target version is out of scope here.** The resolver composes from the rule model it is
-handed and refuses a model whose version does not match the declaration. Fetching an older Coral to build
-that model is a separate problem and is not solved in this change.
+**Applicability is resolved version-first, and the model now says which Coral it is.** `[VER-6]` is itself
+versioned, so a record targeting a release from before it legitimately has no `adopts` block — and
+demanding one would apply the new rule retroactively to every existing project. The target is therefore
+read before any field is required, and a record for another release is answered with *"load that
+release's applicability semantics"* rather than *"your record is missing a field"*. Resolving the target
+against a model that could not identify itself was the same bug one level up, so the rule model carries a
+`version` and the resolver compares against it unconditionally; there is no opt-out to forget.
+
+**That version is the working one, not the last release.** `VERSION` moves when a batch is cut, which is
+right for a release marker and wrong for an identity: between releases these documents are not the rule
+set `VERSION` names. The Unreleased heading now names the version this tree would ship as — `##
+Unreleased — 0.7.0`, beside the compatibility statement that already decides the bump — and everything
+that identifies the documents reads that. It is why the worked `CORAL.md`, the audit skill and the three
+examples declare **0.7.0** while `VERSION` still holds `0.6.0`: a page declaring the last release while
+sitting next to `[VER-6]` was describing a 0.6.0 that never existed. A prose-only batch names no version,
+the working version stays the released one, and nothing moves.
+
+**An invalid resolution cannot be consumed as a rule set.** Fail-closed applicability was a usage
+convention — a partial `selected` came back beside a list of problems, and ignoring the problems was the
+easy thing to write. It is now structural: a resolution is `{ok: true, selected, …}` or
+`{ok: false, problems, diagnostic}`, the invalid branch carries **no `selected` at all**, and
+`effectiveRulesAt()` throws on one rather than answering emptily. One valid adoption plus one typo'd
+profile name yields no consumable surface.
+
+**`coral-lint` fails closed rather than judging what a project owes.** Every rule it checks —
+`[BUCKET-1]`, `[CONFIG-2]`, `[CONC-1]`, the `[LIB-*]` pair — is production-baseline or app-profile, so
+none of them binds a project that has not adopted that layer. Running the whole static registry regardless
+is precisely the failure `[VER-6]` names, arriving from the tool rather than from the documents: a project
+declaring `adopts: {}` is kernel-only and does not owe `[BUCKET-1]`. Until the tool can resolve a
+declaration it produces a **configuration error** (its own exit code, distinct from findings) and no
+findings at all. `--ignore-applicability` still runs everything, and labels the result advisory on both
+channels — `"conformance": false` in the JSON. It is no longer described as a blocking gate in either
+README. `coral-lint` also gains a real `CORAL.md` of its own, which Coral's build resolves with the real
+resolver.
+
+**Two things this deliberately does not do.** Fetching an older Coral to build its rule model is a
+separate problem: the resolver composes from the model it is handed and refuses one whose version does not
+match. And giving `coral-lint` a resolved surface needs a YAML dependency it does not have plus an
+ownership/scale export `rules.lock` deliberately does not carry — `coral_lint/applicability.py` is the
+seam that task fills, and `coverage.UNIMPLEMENTED` records why `[VER-6]` is not checked.
 
 **The Coral kernel is named, and `[MODEL-1]`'s contract line is corrected. Patch-level: no rule was
 added, tightened, loosened, or retired, and no ID or enforcement class moved.**

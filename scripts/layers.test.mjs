@@ -339,7 +339,7 @@ test('a [guide] statement keeps its brace AND class syntax through serializeInde
     '',
   ].join('\n')
   const page = inTree(
-    { [PROFILES_FILE]: conventions, 'appendix/widget.md': widget },
+    { VERSION: '9.9.9\n', [PROFILES_FILE]: conventions, 'appendix/widget.md': widget },
     (dir) => {
       const model = loadRuleModel(dir)
       assert.deepEqual(model.problems, [])

@@ -39,17 +39,22 @@ import {
   ADHERENCE_EXAMPLE_START,
   ADHERENCE_FILE,
   adherenceBlock,
+  adherenceTarget,
   effectiveRulesAt,
   loadApplicability,
   parseAdherenceRecord,
   pathApplies,
   pathProblem,
+  resolveAdherence,
   resolveApplicability,
   selectableScopes,
 } from './applicability.mjs'
+import { coralVersion } from './version.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
-const VERSION = fs.readFileSync(path.join(REPO, 'VERSION'), 'utf8').trim()
+// The WORKING version, not the released one: these tests resolve records against the model
+// this tree describes, which between releases is not the rule set `VERSION` names.
+const VERSION = coralVersion(REPO).working
 
 // ── a fixture repository ─────────────────────────────────────────────────────
 //
@@ -130,9 +135,14 @@ const conventions = ({ layers = LAYER_ROWS, scales = SCALE_ROWS, profiles = PROF
  * layer, two audiences — and it is built into the fixture rather than asserted about
  * the real documents, so a test about it says something about the mechanism.
  */
+const FIXTURE_VERSION = '9.9.9'
+
 function fixture(overrides = {}) {
-  const { layers, scales, profiles, extra = {} } = overrides
+  const { layers, scales, profiles, version = FIXTURE_VERSION, extra = {} } = overrides
   return {
+    // The version identity of the fixture's rule model. Records are resolved against it, so
+    // a test can build a model for a DIFFERENT release simply by naming one.
+    VERSION: `${version}\n`,
     'CONVENTIONS.md': conventions({ layers, scales, profiles }),
     'ARCHITECTURE.md': [
       '# Unit',
@@ -199,21 +209,27 @@ const record = (declaration) =>
   ['# Coral adherence', '', '```yaml coral', stringify(declaration).trimEnd(), '```', ''].join('\n')
 
 /** Parse and resolve in one step, against the fixture model unless told otherwise. */
-function resolve(declaration, { model = MODEL, version } = {}) {
-  const parsed = parseAdherenceRecord(record(declaration))
-  const resolution = resolveApplicability(parsed.declaration, model, { version })
-  resolution.problems.unshift(...parsed.problems)
-  return resolution
-}
+const resolve = (declaration, { model = MODEL } = {}) => resolveAdherence(record(declaration), model)
 
 /** The selected rule IDs, sorted — the value every composition test compares. */
 const selectedIds = (resolution) => [...resolution.selected].sort()
 
 /** A declaration that adopts nothing, for tests that vary one field. */
-const kernelOnly = { targets: '9.9.9', scales: ['small'], adopts: {} }
+const kernelOnly = { targets: FIXTURE_VERSION, scales: ['small'], adopts: {} }
 
+/** A resolution asserted VALID. `ok` is checked, not just the problem list. */
 const clean = (resolution) => {
   assert.deepEqual(resolution.problems, [])
+  assert.equal(resolution.ok, true, 'a problem-free resolution must be usable')
+  return resolution
+}
+
+/** A resolution asserted INVALID, and asserted to expose no normative surface. */
+function invalid(resolution) {
+  assert.equal(resolution.ok, false, `expected an invalid resolution: ${resolution.problems}`)
+  assert.ok(resolution.problems.length)
+  assert.equal(resolution.selected, undefined, 'an invalid resolution exposed a `selected` set')
+  assert.throws(() => effectiveRulesAt(resolution, 'src/anything.go'), TypeError)
   return resolution
 }
 
@@ -275,12 +291,12 @@ test('two profiles of one layer compose by union', () => {
 })
 
 test('an unregistered profile of a registered layer is an error, not an empty profile', () => {
-  const r = resolve({ ...kernelOnly, adopts: { 'shape-profile': ['widgett'] } })
+  const r = invalid(resolve({ ...kernelOnly, adopts: { 'shape-profile': ['widgett'] } }))
   assert.ok(
     r.problems.some((p) => /`widgett` is not a registered/.test(p)),
     r.problems.join('\n')
   )
-  assert.ok(!r.selected.has('WID-1'))
+  assert.ok(!r.diagnostic.selected.has('WID-1'))
 })
 
 test('an unregistered language binding is an error too', () => {
@@ -400,32 +416,34 @@ test('a taxonomy with a non-kernel conformance layer is refused rather than gues
 // ── 14. fail closed ──────────────────────────────────────────────────────────
 
 test('a record with no `adopts` block fails rather than defaulting', () => {
-  const r = resolve({ targets: '9.9.9', scales: ['small'] })
+  const r = invalid(resolve({ targets: FIXTURE_VERSION, scales: ['small'] }))
   assert.ok(
     r.problems.some((p) => /`adopts` must be a mapping/.test(p)),
     r.problems.join('\n')
   )
-  assert.equal(r.selected.size, 0, 'a failed declaration must select nothing at all')
+  assert.equal(r.diagnostic.selected.size, 0, 'a failed declaration must select nothing at all')
 })
 
 test('an absent CORAL.md is an undeclared normative surface, not "audit against everything"', () => {
-  const r = inTree({ 'README.md': '# nothing here\n' }, (dir) => loadApplicability(dir, MODEL))
+  const r = invalid(inTree({ 'README.md': '# nothing here\n' }, (dir) => loadApplicability(dir, MODEL)))
   assert.ok(
     r.problems.some((p) => /undeclared normative surface/.test(p)),
     r.problems.join('\n')
   )
-  assert.equal(r.selected.size, 0)
+  assert.equal(r.diagnostic.selected.size, 0)
 })
 
 test('a CORAL.md with no machine-readable block fails the same way', () => {
-  const r = inTree({ [ADHERENCE_FILE]: '# Coral adherence\n\nWe follow Coral, mostly.\n' }, (dir) =>
-    loadApplicability(dir, MODEL)
+  const r = invalid(
+    inTree({ [ADHERENCE_FILE]: '# Coral adherence\n\nWe follow Coral, mostly.\n' }, (dir) =>
+      loadApplicability(dir, MODEL)
+    )
   )
   assert.ok(
     r.problems.some((p) => /holds no ```yaml coral block/.test(p)),
     r.problems.join('\n')
   )
-  assert.equal(r.selected.size, 0)
+  assert.equal(r.diagnostic.selected.size, 0)
 })
 
 test('`adopts: {}` is a decision and is accepted; silence is not the same decision', () => {
@@ -446,37 +464,39 @@ test('two `yaml coral` blocks in one record is an error, not a first-one-wins', 
     '```',
     '',
   ].join('\n')
-  const { declaration, problems } = parseAdherenceRecord(text)
+  const { declaration, problems } = parseAdherenceRecord(text, FIXTURE_VERSION)
   assert.equal(declaration, null)
   assert.ok(problems.some((p) => /holds 2 ```yaml coral blocks/.test(p)), problems.join('\n'))
 })
 
 test('a missing or unknown scale fails closed', () => {
-  const none = resolve({ targets: '9.9.9', scales: [], adopts: {} })
+  const none = invalid(resolve({ targets: FIXTURE_VERSION, scales: [], adopts: {} }))
   assert.ok(none.problems.some((p) => /`scales` must be a non-empty list/.test(p)))
-  const wrong = resolve({ ...kernelOnly, scales: ['enormous'], adopts: { 'base-rules': true } })
+  const wrong = invalid(
+    resolve({ ...kernelOnly, scales: ['enormous'], adopts: { 'base-rules': true } })
+  )
   assert.ok(
     wrong.problems.some((p) => /`enormous` is not an architectural scale/.test(p)),
     wrong.problems.join('\n')
   )
-  assert.ok(!wrong.selected.has('BASE-1'), 'an unrecognised scale silently selected rules')
+  assert.ok(!wrong.diagnostic.selected.has('BASE-1'), 'an unrecognised scale selected rules')
 })
 
 test('a field the record does not have is an error, not a typo nobody sees', () => {
-  const r = resolve({ ...kernelOnly, adoptss: { 'base-rules': true } })
+  const r = invalid(resolve({ ...kernelOnly, adoptss: { 'base-rules': true } }))
   assert.ok(
     r.problems.some((p) => /`adoptss` is not a field/.test(p)),
     r.problems.join('\n')
   )
 })
 
-test('the target version is resolved before composition, not after', () => {
-  const r = resolve(kernelOnly, { version: '1.2.3' })
-  assert.ok(
-    r.problems.some((p) => /Resolve the target version first/.test(p)),
-    r.problems.join('\n')
+test('an exception to a rule that IS selected is fine — the stale check is not a blanket ban', () => {
+  const r = clean(
+    resolve(
+      withEntries({ exceptions: [{ rule: 'BASE-1', path: 'internal/billing' }] })
+    )
   )
-  assert.equal(r.selected.size, 0)
+  assert.equal(r.exceptions.length, 1)
 })
 
 // ── 15-16. adding to Coral changes nothing until a project adopts ────────────
@@ -612,18 +632,16 @@ test('the same rule still applies outside the exception\'s path', () => {
 })
 
 test('an exception to a rule the project has not selected is rejected as stale', () => {
-  const r = resolve(
-    withEntries({ exceptions: [{ rule: 'GAD-1', path: 'internal/gadgets' }] })
-  )
+  const r = invalid(resolve(withEntries({ exceptions: [{ rule: 'GAD-1', path: 'internal/gadgets' }] })))
   assert.ok(
     r.problems.some((p) => /is not in this project's selected rule set/.test(p)),
     r.problems.join('\n')
   )
-  assert.equal(r.exceptions.length, 0, 'a stale entry was kept as a dormant override')
+  assert.equal(r.diagnostic.exceptions.length, 0, 'a stale entry was kept as a dormant override')
 })
 
 test('an exception to a rule Coral does not define at all is rejected', () => {
-  const r = resolve(withEntries({ exceptions: [{ rule: 'GHOST-1', path: 'internal/x' }] }))
+  const r = invalid(resolve(withEntries({ exceptions: [{ rule: 'GHOST-1', path: 'internal/x' }] })))
   assert.ok(
     r.problems.some((p) => /does not define/.test(p)),
     r.problems.join('\n')
@@ -631,7 +649,7 @@ test('an exception to a rule Coral does not define at all is rejected', () => {
 })
 
 test('an exception with no path is rejected', () => {
-  const r = resolve(withEntries({ exceptions: [{ rule: 'BASE-1' }] }))
+  const r = invalid(resolve(withEntries({ exceptions: [{ rule: 'BASE-1' }] })))
   assert.ok(
     r.problems.some((p) => /names no path/.test(p)),
     r.problems.join('\n')
@@ -655,18 +673,18 @@ test('a project extension applies only inside its scope', () => {
 })
 
 test('an extension may not carry a Coral rule ID', () => {
-  const r = resolve(withEntries({ extensions: [extension({ rule: 'BASE-1' })] }))
+  const r = invalid(resolve(withEntries({ extensions: [extension({ rule: 'BASE-1' })] })))
   assert.ok(
     r.problems.some((p) => /is a Coral rule\. An extension adds a rule Coral does not/.test(p)),
     r.problems.join('\n')
   )
-  assert.equal(r.extensions.length, 0)
+  assert.equal(r.diagnostic.extensions.length, 0)
 })
 
 test('an extension may not reuse a Coral family name', () => {
   // The collision [VER-4] describes: `BASE-99` is free today and is Coral's tomorrow,
   // and then two documents hold one citation with nothing saying which is meant.
-  const r = resolve(withEntries({ extensions: [extension({ rule: 'BASE-99' })] }))
+  const r = invalid(resolve(withEntries({ extensions: [extension({ rule: 'BASE-99' })] })))
   assert.ok(
     r.problems.some((p) => /reuses the Coral family `BASE`/.test(p)),
     r.problems.join('\n')
@@ -674,16 +692,20 @@ test('an extension may not reuse a Coral family name', () => {
 })
 
 test('an extension without the [VER-5] path is rejected', () => {
-  const r = resolve(withEntries({ extensions: [{ rule: 'ACME-1', statement: 'do the thing' }] }))
+  const r = invalid(
+    resolve(withEntries({ extensions: [{ rule: 'ACME-1', statement: 'do the thing' }] }))
+  )
   assert.ok(
     r.problems.some((p) => /names no path/.test(p)),
     r.problems.join('\n')
   )
-  assert.equal(r.extensions.length, 0)
+  assert.equal(r.diagnostic.extensions.length, 0)
 })
 
 test('an extension that states no rule is rejected', () => {
-  const r = resolve(withEntries({ extensions: [{ rule: 'ACME-1', path: 'internal/billing' }] }))
+  const r = invalid(
+    resolve(withEntries({ extensions: [{ rule: 'ACME-1', path: 'internal/billing' }] }))
+  )
   assert.ok(
     r.problems.some((p) => /states no rule/.test(p)),
     r.problems.join('\n')
@@ -799,9 +821,118 @@ test('an unclosed block is an error, not half a record', () => {
 })
 
 test('a block that is not valid YAML says so', () => {
-  const { declaration, problems } = parseAdherenceRecord('```yaml coral\n\tadopts: [\n```\n')
+  const { declaration, problems } = parseAdherenceRecord(
+    '```yaml coral\n\tadopts: [\n```\n',
+    FIXTURE_VERSION
+  )
   assert.equal(declaration, null)
   assert.ok(problems.some((p) => /not valid YAML/.test(p)), problems.join('\n'))
+})
+
+// ── version first, schema second ─────────────────────────────────────────────
+//
+// `[VER-6]` is itself versioned. A record written for a release that predates it has no
+// adoption block and is not wrong for lacking one, so the target has to be readable — and
+// acted on — before any field is required. Getting this backwards applies the new rule
+// retroactively to every existing project, which is the failure `[VER-3]` names.
+
+/** A pre-VER-6 `CORAL.md`: a target and the entries, and nothing this release added. */
+const LEGACY_RECORD = [
+  '# Coral adherence',
+  '',
+  '```yaml coral',
+  'targets: "9.8.0"',
+  '',
+  'exceptions:',
+  '  - rule: BASE-1',
+  '    path: internal/billing',
+  '    reason: two slices co-own the invoice table',
+  '```',
+  '',
+].join('\n')
+
+test('a pre-VER-6 record has its target identified without `scales` or `adopts`', () => {
+  const { targets, problems } = adherenceTarget(LEGACY_RECORD)
+  assert.deepEqual(problems, [])
+  assert.equal(targets, '9.8.0')
+})
+
+test('a pre-VER-6 record is not reported as violating [VER-6]', () => {
+  // The whole point. The answer is "load that release's semantics", not "your record is
+  // missing a field that release never had".
+  const r = invalid(resolveAdherence(LEGACY_RECORD, MODEL))
+  const said = r.problems.join('\n')
+  assert.match(said, /targets Coral 9\.8\.0/)
+  assert.match(said, /Load Coral 9\.8\.0's rule set and its applicability semantics/)
+  assert.doesNotMatch(said, /`adopts`/)
+  assert.doesNotMatch(said, /`scales`/)
+  assert.doesNotMatch(said, /VER-6/)
+})
+
+test('the release that introduces the declaration DOES require `scales` and `adopts`', () => {
+  // Same file, same parser, target moved onto the model's own version. Now the fields are
+  // owed, and the complaint names them.
+  const current = LEGACY_RECORD.replace('9.8.0', FIXTURE_VERSION)
+  const r = invalid(resolveAdherence(current, MODEL))
+  const said = r.problems.join('\n')
+  assert.match(said, /`scales` must be a non-empty list/)
+  assert.match(said, /`adopts` must be a mapping/)
+  assert.doesNotMatch(said, /Load Coral/)
+})
+
+test('any target other than the model\'s own is refused the same way, older or newer', () => {
+  for (const target of ['0.1.0', '9.8.0', '9.9.8', '10.0.0']) {
+    const r = invalid(resolveAdherence(LEGACY_RECORD.replace('9.8.0', target), MODEL))
+    assert.match(r.problems.join('\n'), new RegExp(`targets Coral ${target.replace(/\./g, '\\.')}`))
+  }
+  // …and the identity that decides it is the model's, not a caller's opinion.
+  const older = fixtureModel({ version: '9.8.0' })
+  assert.equal(older.version, '9.8.0')
+  const r = invalid(resolveAdherence(record(kernelOnly), older))
+  assert.match(r.problems.join('\n'), /targets Coral 9\.9\.9, and this is the Coral 9\.8\.0 model/)
+})
+
+test('a record cannot be validated against an unidentified release', () => {
+  // Not a reported problem — a thrown precondition. An optional version check is one a
+  // caller forgets, and forgetting it is how a project gets audited against rules its
+  // target predates.
+  assert.throws(() => parseAdherenceRecord(record(kernelOnly)), TypeError)
+  assert.throws(() => parseAdherenceRecord(record(kernelOnly), 'latest'), TypeError)
+  const declaration = parseAdherenceRecord(record(kernelOnly), FIXTURE_VERSION).declaration
+  assert.ok(declaration)
+  assert.throws(() => resolveApplicability(declaration, { ...MODEL, version: undefined }), TypeError)
+  assert.throws(() => resolveApplicability(declaration, { ...MODEL, version: '' }), TypeError)
+})
+
+// ── an invalid resolution is not consumable ──────────────────────────────────
+
+test('one valid selection plus one invalid one yields no consumable normative surface', () => {
+  // The shape that made the old API dangerous: everything about this declaration is fine
+  // except one profile name, so a partially-populated `selected` would look entirely normal
+  // beside a problem list a caller might not read.
+  const r = resolve({
+    ...kernelOnly,
+    adopts: { 'base-rules': true, 'shape-profile': ['widget', 'widgett'] },
+  })
+  assert.equal(r.ok, false)
+  assert.equal(r.selected, undefined, 'an invalid resolution exposed a normative rule set')
+  assert.ok(r.problems.some((p) => /`widgett` is not a registered/.test(p)))
+  // the partial answer survives, spelled so it cannot be mistaken for the surface
+  assert.ok(r.diagnostic.selected.has('BASE-1'))
+  assert.ok(r.diagnostic.selected.has('WID-1'))
+})
+
+test('effectiveRulesAt refuses an invalid resolution rather than answering emptily', () => {
+  // An empty effective set would read as "this path owes nothing", which is a different and
+  // equally wrong claim from "nobody has said what this path owes".
+  const r = resolve({ ...kernelOnly, adopts: { 'shape-profile': ['widgett'] } })
+  assert.throws(
+    () => effectiveRulesAt(r, 'internal/billing/invoice.go'),
+    (e) => e instanceof TypeError && /names no normative rule set/.test(e.message)
+  )
+  assert.throws(() => effectiveRulesAt(undefined, 'x.go'), TypeError)
+  // and the diagnostic set cannot be smuggled in as one either
+  assert.throws(() => effectiveRulesAt(r.diagnostic, 'x.go'), TypeError)
 })
 
 // ── the real documents ───────────────────────────────────────────────────────
@@ -901,10 +1032,10 @@ test("CONVENTIONS.md's worked CORAL.md example is a record the resolver accepts"
   const start = text.indexOf(ADHERENCE_EXAMPLE_START)
   const end = text.indexOf(ADHERENCE_EXAMPLE_END)
   assert.ok(start !== -1 && end > start, 'the adherence example is not marked in CONVENTIONS.md')
-  const { declaration, problems } = parseAdherenceRecord(text.slice(start, end))
+  const { declaration, problems } = parseAdherenceRecord(text.slice(start, end), VERSION)
   assert.deepEqual(problems, [])
   assert.equal(declaration.targets, VERSION)
-  const r = resolveApplicability(declaration, REAL, { version: VERSION })
+  const r = clean(resolveApplicability(declaration, REAL))
   assert.deepEqual(r.problems, [])
   // and it demonstrates what the section says it demonstrates
   assert.deepEqual(declaration.scales, ['app'])

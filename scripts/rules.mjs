@@ -18,6 +18,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { coralVersion } from './version.mjs'
+
 // id grammar: FAMILY(-SUBFAMILY)*-N   e.g. SCOPE-3, SYS-TEST-1, WEB-6, VER-1
 export const ID_CORE = '[A-Z][A-Z-]*-\\d+'
 export const INLINE_ID_RE = new RegExp(`^\\[(${ID_CORE})\\]$`)
@@ -1278,18 +1280,25 @@ export function classifyRules({ rules, kernel, profiles, taxonomy }) {
  * Parse the documents into the canonical rule model.
  *
  * @param {string} srcDir
+ * `version` is the model's IDENTITY, and it is the working version rather than the released
+ * one — the rule set these documents describe, which between releases is not the same thing
+ * as what `VERSION` holds. Everything that resolves a project's declared target compares
+ * against it, so a model that could not identify itself would let a project be audited
+ * against rules its target predates. See scripts/version.mjs.
+ *
  * @returns {{rules: Map<string,{page:string,line:number,cls:string|undefined,
  *              tags:string[],scale:string|undefined,scope?:Scope}>,
  *            registry: Map<string,string>, defsByFile: Map<string,Array<{id:string,cls:string}>>,
  *            files: string[], taxonomy: Layer[], scales: Scale[], kernel: Set<string>,
- *            profiles: Map<string,{home:string,covers:string}>,
+ *            profiles: Map<string,{home:string,covers:string}>, version: string|null,
  *            classified: boolean, problems: string[]}}
  *
  * When `problems` is empty, every rule in `rules` has a `scope` and that scope has a `kind`,
- * and every rule has a `scale` naming a registered one.
+ * every rule has a `scale` naming a registered one, and `version` identifies the model.
  */
 export function loadRuleModel(srcDir) {
   const { registry, rules: raw, defsByFile, problems, files } = parseRules(srcDir)
+  const { working: version, problems: versionProblems } = coralVersion(srcDir)
   const { taxonomy, problems: taxonomyProblems } = parseLayers(srcDir)
   const { scales, problems: scaleProblems } = parseScales(srcDir)
   const { ids: kernel, problems: kernelProblems } = parseKernel(srcDir, raw)
@@ -1303,6 +1312,9 @@ export function loadRuleModel(srcDir) {
     ...profileProblems,
     ...scopeProblems,
   ]
+  // The identity is an ownership-grade fact: a model that cannot say which Coral it is
+  // cannot be composed against, so it must not come back `classified`.
+  ownershipProblems.push(...versionProblems)
 
   // Scale rides on the rule beside ownership, resolved once here. Every consumer reads
   // `rule.scale`; none of them repeats `rule.page === SYSTEM_SPINE`, which is the shape the
@@ -1349,6 +1361,7 @@ export function loadRuleModel(srcDir) {
     scales,
     kernel,
     profiles,
+    version,
     classified,
     problems,
   }

@@ -984,8 +984,9 @@ ID removed or silently reclassified, the generated [rule index](./rules.md) stil
 indexes, the worked `CORAL.md` in `CONVENTIONS.md` still resolving through the applicability resolver, and
 every worked example declaring the current Coral version. Malformed metadata fails the build
 rather than being skipped, because a skipped rule is one that quietly leaves a layer while the page still
-reads correctly. Separately, [`tools/coral-lint`](./tools/coral-lint/README.md) enforces a growing subset
-of Tier 1 against a target repository.
+reads correctly. Separately, [`tools/coral-lint`](./tools/coral-lint/README.md) implements a growing subset
+of Tier 1 against a target repository — advisory rather than blocking until it can resolve that
+project's `[VER-6]` declaration, because every rule it checks is one a project has to adopt.
 
 **Tier 1 — static checks (deterministic, blocking).** One per `[auto]` rule **defined in this document**;
 each appendix carries its own, and each check cites the rule ID it enforces so a failure points back here. Some of these ship as

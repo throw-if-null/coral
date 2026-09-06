@@ -37,6 +37,7 @@ import {
   parseLayers,
   serializeIndex,
 } from './rules.mjs'
+import { coralVersion } from './version.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
 
@@ -127,6 +128,9 @@ function fixture(overrides = {}) {
     extra = {},
   } = overrides
   return {
+    // The model carries a version identity, so a fixture tree needs one — without it the
+    // model cannot say which Coral it is, and nothing can be resolved against it.
+    VERSION: '9.9.9\n',
     [PROFILES_FILE]: conventions({ layers, scales, profiles, kernel, defs: conventionDefs }),
     'ARCHITECTURE.md': ['# App', '', ...spine, ''].join('\n'),
     'appendix/widget.md': [
@@ -639,6 +643,28 @@ const STABLE_KINDS = [
 // `CORAL.md` names them, so a rename is a break for every manifest. A required subset, so a
 // third scale stays a registry edit.
 const STABLE_SCALES = ['app', 'system']
+
+test('the model identifies itself as the version its documents describe, not the last release', () => {
+  // The identity every applicability resolution is checked against. Between releases these
+  // are different versions, and saying they are the same is how an unreleased rule gets
+  // presented to a project as a rule of the release before it.
+  const { released, working, unreleased } = coralVersion(REPO)
+  assert.match(REAL.version, /^\d+\.\d+\.\d+$/)
+  assert.equal(REAL.version, working)
+  if (unreleased) {
+    assert.notEqual(working, released, 'an unreleased batch must not claim the released version')
+  }
+})
+
+test('a tree that cannot say which Coral it is does not come back classified', () => {
+  const m = inTree({ ...fixture(), VERSION: 'main\n' }, loadRuleModel)
+  assert.ok(
+    m.problems.some((p) => /is not a three-part version/.test(p)),
+    m.problems.join('\n')
+  )
+  assert.equal(m.classified, false)
+  assert.equal(m.version, null)
+})
 
 test('every published scale keeps its stable machine identity', () => {
   const actual = new Set(REAL.scales.map((sc) => sc.key))

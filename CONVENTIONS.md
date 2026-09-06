@@ -374,8 +374,8 @@ the scales it adopts them at. A Coral rule is applicable to that project only th
 or through that declaration at the rule's scale.
 
 `[VER-3]` pins *which Coral*; this pins *how much of it*. Both are needed, and neither implies the
-other: two projects on 0.6.0 can owe different rule sets, and the difference is a decision somebody
-made rather than a property of the repository the rules are published from. Without the declaration the
+other: two projects on the same version can owe different rule sets, and the difference is a decision
+somebody made rather than a property of the repository the rules are published from. Without the declaration the
 question "what rules apply here?" has no answer that does not involve guessing — and guessing has only
 bad options. Auditing against everything Coral publishes charges a CLI for HTTP status codes and a
 one-app repository for channel versioning. Inferring the answer from the repository's contents makes
@@ -427,7 +427,7 @@ answer. An agent that read only half would have a wrong picture of what is permi
 
 ```yaml coral
 # Which Coral this project is audited against ([VER-3]).
-targets: "0.6.0"
+targets: "0.7.0"
 
 # Which architectural scales this repository is written at. One deployable app, so
 # `app` alone — there is no channel here for a system-scale rule to bind.
@@ -1007,6 +1007,22 @@ only question asked of them — *does this entry cover this source file?*
 - An exception naming a rule the project has **not** selected is **rejected as stale**, not kept. It
   excuses nothing today, and it would start excusing something the day the project adopts that layer,
   with nobody deciding that. Adopting the layer is when that decision gets made.
+
+### The target version comes first
+
+`[VER-6]` is itself a versioned rule, and that has a consequence worth stating plainly: **a project
+targeting a Coral release from before `[VER-6]` has no adoption declaration, and is not wrong for it.**
+Its `CORAL.md` was written against a version where the field did not exist.
+
+So the order is fixed. A tool reads `targets` first, using nothing the record has not always had. Then it
+loads *that* version's rule set **and that version's record schema**. Only then does it check the fields
+that version requires. Reversing the two — enforcing today's schema and reporting a missing `adopts` —
+applies `[VER-6]` retroactively to every project that has not upgraded, which is the drift `[VER-3]`
+exists to prevent, committed by the tool that enforces it.
+
+The answer for such a record is *"load the applicability semantics of the version it targets"*, never
+*"this record is invalid"*. Whether an older Coral can be fetched is a separate problem; refusing to
+answer is still the correct answer, and it is a different refusal from the one below.
 
 ### Fail closed
 

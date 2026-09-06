@@ -16,10 +16,17 @@
 // statement, validates every name in it against the rule model for that version, and
 // resolves the set. Two properties make it worth having as code rather than as prose:
 //
-//   · it FAILS CLOSED. A missing declaration, an unknown ownership key, an unregistered
-//     profile, an unknown scale, an exception to a rule the project never selected —
-//     every one of them is a reported problem, and none of them has a default. There is
-//     no path through this file that guesses what a project meant.
+//   · it FAILS CLOSED, structurally. A missing declaration, an unknown ownership key, an
+//     unregistered profile, an unknown scale, an exception to a rule the project never
+//     selected — every one is a reported problem, none has a default, and an invalid
+//     resolution carries no `selected` field at all. Fail-closed cannot be a convention
+//     each caller remembers; it has to be a shape they cannot misuse.
+//   · it is VERSION-FIRST. The target is read before any schema is enforced, because
+//     `[VER-6]` is itself versioned: a record written for a release that predates it has
+//     no adoption block, and demanding one would apply the rule retroactively. A record
+//     for another release is refused as "load that release's semantics", never as an
+//     invalid record. This module is the applicability semantics of the ONE version it
+//     ships in, and it says so rather than pretending to be lenient across releases.
 //   · it is a SET UNION with no ordering. Declaration order carries no meaning, a thing
 //     selected twice is selected once, and no layer wins over another. Two Coral rules
 //     that contradict each other are a defect in Coral, and hidden precedence here would
@@ -65,6 +72,23 @@ const BLOCK_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/
 const ENTRY_ID_RE = new RegExp(`^${ID_CORE}$`)
 // The family half of an ID: everything before the final `-N`. `SYS-TEST-1` -> `SYS-TEST`.
 const FAMILY_RE = new RegExp(`^(${ID_CORE.replace('-\\d+', '')})-\\d+$`)
+
+// A three-part version, the only form `targets` may take.
+const VERSION_RE = /^\d+\.\d+\.\d+$/
+
+/**
+ * The one sentence said whenever a record and a model are for different Coral releases.
+ *
+ * Written once because two callers say it — the parser, before it enforces a schema, and the
+ * resolver, before it composes — and because what it must NOT say is as important as what it
+ * does: not "your record is invalid", which would blame the project for a rule its target
+ * predates, but "resolve the target first", which is the actual next step.
+ */
+const versionMismatch = (targets, version) =>
+  `this record targets Coral ${targets}, and this is the Coral ${version} model. Load Coral` +
+  ` ${targets}'s rule set and its applicability semantics before auditing against it ([VER-3])` +
+  ` — including its record schema, which may not have had every field ${version} requires. A` +
+  ' project does not acquire a rule, or a required field, by standing still.'
 
 // The two shapes an `adopts` value may take, decided by the layer rather than by the
 // value: a layer that registers profiles is adopted by naming them, a layer with a fixed
@@ -206,39 +230,88 @@ const stringList = (v) => (Array.isArray(v) && v.every((x) => typeof x === 'stri
 const isMapping = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 /**
- * Parse and shape-check an adherence record.
+ * The version an adherence record targets, read WITHOUT requiring anything else of it.
  *
- * This layer knows nothing about Coral's vocabulary — it validates that the record IS a
- * record: the block parses as YAML, the required keys are present, and every value has
- * the type its key promises. Whether `cli` is a registered profile is
- * resolveApplicability()'s question, because only that function has the rule model.
+ * This is the first step of every path through this module, and the ordering is the whole
+ * point. `[VER-6]` is itself versioned: it did not exist before the release that introduced
+ * it, so a record targeting an earlier Coral legitimately carries no `adopts` block, and
+ * reporting that absence as a `[VER-6]` violation applies the rule retroactively — the exact
+ * thing `[VER-3]` exists to prevent. The target has to be readable before any schema is
+ * enforced, so that the answer for such a record is *"load that release's applicability
+ * semantics"* rather than *"your record is missing a field"*.
  *
- * The split matters for the error a reader gets. "your YAML has a list where a boolean
- * belongs" and "`clii` is not a registered app profile" are different mistakes with
- * different fixes, and a single pass that reported both as "invalid declaration" would
- * make the first one look like the second.
+ * It therefore requires only what every adherence record has ever had: one machine-readable
+ * block, holding a mapping, naming a target version.
  *
  * @param {string} text the whole `CORAL.md`
- * @returns {{declaration: Declaration|null, problems: string[]}}
+ * @returns {{targets: string|null, problems: string[]}}
  */
-export function parseAdherenceRecord(text) {
+export function adherenceTarget(text) {
   const { body, problems } = adherenceBlock(text)
-  if (body === null) return { declaration: null, problems }
-
+  if (body === null) return { targets: null, problems }
   let doc
   try {
     doc = parseYaml(body)
   } catch (e) {
     problems.push(`the \`\`\`yaml coral block is not valid YAML: ${e.message}`)
-    return { declaration: null, problems }
+    return { targets: null, problems }
   }
   if (!isMapping(doc)) {
-    problems.push(
-      'the ```yaml coral block must be a mapping with `targets`, `scales` and `adopts` at the top' +
-        ' level.'
-    )
-    return { declaration: null, problems }
+    problems.push('the ```yaml coral block must be a mapping, and it must name a `targets` version.')
+    return { targets: null, problems }
   }
+  // A YAML scalar `0.6` parses as a number and would silently become "0.6", so the type is
+  // checked rather than coerced.
+  if (typeof doc.targets !== 'string' || !VERSION_RE.test(doc.targets)) {
+    problems.push(
+      '`targets` must name the Coral version this project is audited against, as a quoted' +
+        ' three-part version ([VER-3]) — `targets: "0.6.0"`. Without it there is no way to know' +
+        ' which rule set, or which record schema, this file is written against.'
+    )
+    return { targets: null, problems }
+  }
+  return { targets: doc.targets, problems }
+}
+
+/**
+ * Parse and shape-check an adherence record written for `version`.
+ *
+ * **Version first, schema second.** The target is read by adherenceTarget() before anything
+ * else is required of the file, and a record targeting a different Coral is refused on that
+ * ground alone — with no complaint about fields that release may never have had. This module
+ * implements the record schema of exactly one Coral version, the one it ships in; reading a
+ * record from another release means loading that release's semantics, which is a different
+ * copy of this file and not a lenient mode of this one.
+ *
+ * Past that gate it knows nothing about Coral's *vocabulary* — it validates that the record
+ * IS a record: the required keys are present and every value has the type its key promises.
+ * Whether `cli` is a registered profile is resolveApplicability()'s question, because only
+ * that function has the rule model. The split matters for the error a reader gets: "your YAML
+ * has a list where a boolean belongs" and "`clii` is not a registered app profile" are
+ * different mistakes with different fixes.
+ *
+ * @param {string} text the whole `CORAL.md`
+ * @param {string} version the Coral version whose record schema to enforce — required, so a
+ *   record can never be validated against an unidentified one.
+ * @returns {{declaration: Declaration|null, targets: string|null, problems: string[]}}
+ */
+export function parseAdherenceRecord(text, version) {
+  if (typeof version !== 'string' || !VERSION_RE.test(version)) {
+    throw new TypeError(
+      'parseAdherenceRecord(text, version): `version` is required and must be a three-part' +
+        ' version. A record schema belongs to a Coral release; validating one against an' +
+        ' unidentified release is how a rule gets applied to a project that predates it.'
+    )
+  }
+  const { targets, problems } = adherenceTarget(text)
+  if (targets === null) return { declaration: null, targets: null, problems }
+  if (targets !== version) {
+    problems.push(versionMismatch(targets, version))
+    return { declaration: null, targets, problems }
+  }
+
+  // Safe: adherenceTarget() has already parsed the same block into a mapping.
+  const doc = parseYaml(adherenceBlock(text).body)
 
   const KNOWN = ['targets', 'scales', 'adopts', 'exceptions', 'extensions']
   for (const key of Object.keys(doc)) {
@@ -248,16 +321,6 @@ export function parseAdherenceRecord(text) {
           ' nothing else — a misspelled field that was quietly ignored is a decision nobody made.'
       )
     }
-  }
-
-  // `targets` — required, and a string. A YAML scalar `0.6` parses as a number and would
-  // silently become "0.6", so the type is checked rather than coerced.
-  const targets = doc.targets
-  if (typeof targets !== 'string' || !/^\d+\.\d+\.\d+$/.test(targets)) {
-    problems.push(
-      '`targets` must name the Coral version this project is audited against, as a quoted' +
-        ' three-part version ([VER-3]) — `targets: "0.6.0"`.'
-    )
   }
 
   // `scales` — required, non-empty. Which architectural sizes the project is written at.
@@ -307,8 +370,8 @@ export function parseAdherenceRecord(text) {
   const exceptions = entries('exceptions')
   const extensions = entries('extensions')
 
-  if (problems.length) return { declaration: null, problems }
-  return { declaration: { targets, scales, adopts, exceptions, extensions }, problems }
+  if (problems.length) return { declaration: null, targets, problems }
+  return { declaration: { targets, scales, adopts, exceptions, extensions }, targets, problems }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -398,33 +461,60 @@ export function pathApplies(scope, target) {
  * The kernel is added unconditionally and is NOT scale-filtered: it is the one layer that
  * binds without a decision, so it cannot be narrowed by one either.
  *
- * @param {Declaration} declaration
- * @param {ReturnType<import('./rules.mjs').loadRuleModel>} model the rule model for the
- *   version the declaration targets. Resolving the target version is the CALLER's job and
- *   happens first: applying current-main rules to a project pinned to an older release is
- *   the failure `[VER-3]` exists to prevent, and this function cannot detect it from a
- *   model alone. Pass `version` to have the mismatch checked.
- * @param {{version?: string}} [options]
- * @returns {{selected: Set<string>, adopted: Map<string,boolean|string[]>, scales: Set<string>,
- *            exceptions: Entry[], extensions: Entry[], problems: string[]}}
+ * **The result is discriminated, and that is load-bearing.** A valid resolution is
+ * `{ok: true, …}` and carries `selected`; an invalid one is `{ok: false, problems, diagnostic}`
+ * and carries **no `selected` at all**. Fail-closed applicability is the property PO-04 exists
+ * to establish, and a shape that hands back a plausible-looking rule set beside a list of
+ * problems makes ignoring the problems the easy thing to write — one valid adoption plus one
+ * typo'd profile name would otherwise produce a populated set that nobody declared. The
+ * partial answer is still returned, under `diagnostic`, because a tool should be able to say
+ * what the project *would* have owed; it is spelled differently so it cannot be mistaken for
+ * the normative surface, and effectiveRulesAt() refuses it outright.
  *
- * **A non-empty `problems` makes the whole result diagnostic, not normative.** A caller that
- * ignores it and audits against `selected` anyway has audited against a set nobody declared —
- * which is the failure this module exists to prevent, arriving one layer later. The partial
- * selection is returned rather than emptied so a tool can say *what* the project would have
- * owed had the record been valid; it is never the surface to report findings against.
+ * @param {Declaration|null} declaration
+ * @param {ReturnType<import('./rules.mjs').loadRuleModel>} model the rule model to compose
+ *   from. It must carry its own `version`, and the declaration's target is compared against
+ *   it unconditionally — there is no opt-out, because "resolve the target version first" is a
+ *   precondition and an optional check is one a caller forgets. Building the model for an
+ *   older release is the caller's job and is not solved here.
+ * @returns {{ok: true, version: string, selected: Set<string>,
+ *            adopted: Map<string,boolean|string[]>, scales: Set<string>,
+ *            exceptions: Entry[], extensions: Entry[], problems: []}
+ *          | {ok: false, version: string|null, problems: string[], diagnostic: object}}
  */
-export function resolveApplicability(declaration, model, options = {}) {
+export function resolveApplicability(declaration, model) {
+  const version = model?.version
+  if (typeof version !== 'string' || !VERSION_RE.test(version)) {
+    throw new TypeError(
+      'resolveApplicability(declaration, model): the model must carry a `version` identifying' +
+        ' the Coral release it is the rule set of. loadRuleModel() sets it. Composing against an' +
+        ' unidentified model is how a project gets audited against rules its target predates.'
+    )
+  }
   const problems = []
   const selected = new Set()
   const adopted = new Map()
   const scales = new Set()
   const exceptions = []
   const extensions = []
-  // One live result object, returned from every exit. An early failure returns it half-
-  // filled rather than returning a different shape, so a caller never has to branch on which
-  // kind of failure it got before it can read `problems`.
-  const resolved = () => ({ selected, adopted, scales, exceptions, extensions, problems })
+  // The two exits. `invalid()` deliberately does not carry `selected`: reading it off a
+  // failed resolution should be impossible, not merely discouraged.
+  const invalid = () => ({
+    ok: false,
+    version,
+    problems,
+    diagnostic: { selected, adopted, scales, exceptions, extensions },
+  })
+  const valid = () => ({
+    ok: true,
+    version,
+    selected,
+    adopted,
+    scales,
+    exceptions,
+    extensions,
+    problems,
+  })
 
   if (!declaration) {
     problems.push(
@@ -433,15 +523,11 @@ export function resolveApplicability(declaration, model, options = {}) {
         ' configuration finding to fix rather than a licence to audit against everything Coral' +
         ' publishes ([VER-6]).'
     )
-    return resolved()
+    return invalid()
   }
-  if (options.version && declaration.targets !== options.version) {
-    problems.push(
-      `the project targets Coral ${declaration.targets}, but this rule model is Coral` +
-        ` ${options.version}. Resolve the target version first and compose from that version's` +
-        ' rules ([VER-3]) — a project does not acquire a rule by standing still.'
-    )
-    return resolved()
+  if (declaration.targets !== version) {
+    problems.push(versionMismatch(declaration.targets, version))
+    return invalid()
   }
 
   // ── scales ────────────────────────────────────────────────────────────────
@@ -648,7 +734,7 @@ export function resolveApplicability(declaration, model, options = {}) {
     extensions.push({ ...entry, rule: id, path: normalizePath(entry.path.trim()) })
   })
 
-  return resolved()
+  return problems.length ? invalid() : valid()
 }
 
 /** How a rule's ownership reads in an error message: `app profile · cli`, `production baseline`. */
@@ -671,12 +757,26 @@ function scopeDescription(model, id) {
  * everywhere else — removing it globally would let one deliberate trade-off quietly
  * become a project-wide policy.
  *
- * @param {ReturnType<typeof resolveApplicability>} resolution
+ * **Refuses an invalid resolution outright.** The alternative — reading `diagnostic.selected`
+ * when `ok` is false — is the one mistake that turns a reported configuration problem back
+ * into a normative-looking rule set, and it should not be reachable by forgetting a check. A
+ * throw rather than an empty answer, because an empty effective set reads as "this path owes
+ * nothing", which is a different and equally wrong claim.
+ *
+ * @param {ReturnType<typeof resolveApplicability>} resolution a VALID resolution (`ok: true`)
  * @param {string} target a repo-relative source path
  * @returns {{coral: string[], suppressed: string[], extensions: string[]}} sorted, so the
  *   result is a function of the declaration's content and not of its order.
+ * @throws {TypeError} if the resolution is invalid
  */
 export function effectiveRulesAt(resolution, target) {
+  if (!resolution?.ok) {
+    throw new TypeError(
+      'effectiveRulesAt(): this resolution is not valid, so it names no normative rule set —' +
+        ` there is nothing in force at \`${target}\` to report. Fix the declaration first:\n` +
+        (resolution?.problems ?? ['no resolution was produced at all']).map((p) => `  - ${p}`).join('\n')
+    )
+  }
   const suppressed = new Set()
   for (const e of resolution.exceptions) {
     if (pathApplies(e.path, target)) suppressed.add(e.rule)
@@ -694,8 +794,45 @@ export function effectiveRulesAt(resolution, target) {
 }
 
 /**
- * Read a project's adherence record and resolve it — the whole path, for a caller that
- * has a directory rather than a string.
+ * Resolve an adherence record's text against a rule model — the whole path in one call.
+ *
+ * The ordering the two steps have to be in: read the target, refuse a record for another
+ * release on that ground alone, enforce this release's schema, then compose. Callers that
+ * hand-roll the sequence are the ones that get it backwards, so there is one function that
+ * does not.
+ *
+ * @param {string} text the whole `CORAL.md`
+ * @param {ReturnType<import('./rules.mjs').loadRuleModel>} model
+ * @returns {ReturnType<typeof resolveApplicability>}
+ */
+export function resolveAdherence(text, model) {
+  // Throws if the model cannot identify itself — the precondition, checked before anything
+  // is read off the file.
+  const { declaration, problems } = parseAdherenceRecord(text, model?.version)
+  if (!declaration) {
+    // The parser has already said exactly what is wrong, and the resolver's
+    // "no adherence declaration … ([VER-6])" must NOT be stacked on top of it. For a record
+    // written against an earlier release that sentence would be a `[VER-6]` finding against a
+    // project whose target predates `[VER-6]` — the retroactive application this ordering
+    // exists to prevent, reintroduced by an error message.
+    return {
+      ok: false,
+      version: model.version,
+      problems,
+      diagnostic: {
+        selected: new Set(),
+        adopted: new Map(),
+        scales: new Set(),
+        exceptions: [],
+        extensions: [],
+      },
+    }
+  }
+  return resolveApplicability(declaration, model)
+}
+
+/**
+ * Read a project's adherence record from disk and resolve it.
  *
  * A missing file is the headline failure this module exists to make loud. It is reported
  * with the same sentence a malformed one gets, because they are the same situation from
@@ -703,15 +840,10 @@ export function effectiveRulesAt(resolution, target) {
  *
  * @param {string} projectDir
  * @param {ReturnType<import('./rules.mjs').loadRuleModel>} model
- * @param {{version?: string}} [options]
+ * @returns {ReturnType<typeof resolveApplicability>}
  */
-export function loadApplicability(projectDir, model, options = {}) {
+export function loadApplicability(projectDir, model) {
   const abs = path.join(projectDir, ADHERENCE_FILE)
-  if (!fs.existsSync(abs)) {
-    return resolveApplicability(null, model, options)
-  }
-  const { declaration, problems } = parseAdherenceRecord(fs.readFileSync(abs, 'utf8'))
-  const resolution = resolveApplicability(declaration, model, options)
-  resolution.problems.unshift(...problems)
-  return resolution
+  if (!fs.existsSync(abs)) return resolveApplicability(null, model)
+  return resolveAdherence(fs.readFileSync(abs, 'utf8'), model)
 }
