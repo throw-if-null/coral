@@ -1165,16 +1165,25 @@ So the selection is written down. **`CORAL-CONTRACT.md` is a generated file in t
 the project's complete normative Coral surface, and nothing else.** An agent that loads only that file
 knows every Coral requirement the project is answerable to, without opening a Coral document.
 
+**The command runs from a Coral checkout, not from the project.** It is an npm script in this repository,
+and Coral deliberately supports projects that are not Node projects at all — so the consuming repository is
+named by `--project` rather than being where the command lives. The checkout must be the one describing the
+version the project targets, because a record is only ever resolved against the release it names:
+
 ```bash
+# from a Coral checkout describing the version the project targets
 npm run contract:generate -- --project /path/to/project
 ```
 
 Write it somewhere else with `--out <file>`, or to standard output with `--stdout`. Generate against a
-different Coral checkout with `--coral <dir>`. `--help` prints the rest.
+different Coral checkout with `--coral <dir>`. `--help` prints the rest. The generated file repeats the
+invocation in its own header, naming the Coral version the checkout must describe.
 
 **`CORAL.md` is the source; `CORAL-CONTRACT.md` is the output.** Editing the contract edits nothing: the
 next generation overwrites it. Change the declaration and regenerate. There is no second manifest —
-`CORAL.md` remains the only file a project writes by hand.
+`CORAL.md` remains the only file a project writes by hand, and `--out` refuses a destination named
+`CORAL.md` for that reason: writing the contract over the record would destroy the decisions the contract
+is derived from.
 
 What the contract contains:
 
@@ -1199,17 +1208,39 @@ still binds everywhere outside its path; the decision is recorded separately wit
   - Revisit when: the reconciliation slice lands
 ```
 
-An agent working under `internal/billing` reads that and stops re-reporting a settled decision; an agent
-working anywhere else sees `[STATE-5]` in the rule list and applies it. **Extensions** are rendered the
-same way, with the project rule's statement as the normative content and `path: "."` reading as the whole
-repository.
+An agent working under `internal/billing` reads that and stops re-reporting a settled decision. It is told
+two further things in the same breath, and both matter: if the entry's **`Revisit when`** condition has been
+met it surfaces the exception for human re-evaluation rather than treating the decision as permanent — that
+field exists to bring a decision back, and an instruction to never raise the rule again would make every
+revisit condition dead text; and outside the path the Coral rule applies normally, which is why it is still
+in the rule list. **Extensions** are rendered the same way, with the project rule's statement as the
+normative content and `path: "."` reading as the whole repository.
 
-Two properties the file is required to have. It is **deterministic**: the same Coral model and the same
-`CORAL.md` produce byte-identical output, there is no timestamp, and reordering the declaration without
-changing its meaning changes nothing — so a contract is reviewable in a diff and belongs in version
-control. And generation **fails closed**: an invalid rule model, an unparsable record, an unregistered
-profile, an unknown scale or a target-version mismatch produces an error and *no file*. There is no
-partial contract, and no fallback to "all Coral rules".
+**Record values are rendered as one line.** A `reason`, a `statement` or a `revisit when` may be written as
+a multi-line YAML scalar; the contract collapses it to a single line and escapes a leading `#`, `-` or
+other block marker. No word is dropped, and the generated document's structure stays the generator's — a
+project string can never open a section or a rule entry in the file an agent trusts. This is the same
+convention the block already follows: the fields are the record, and [the prose below the
+block](#coral-md-—-the-project-s-adherence-record) carries the long form.
+
+Three properties the file is required to have.
+
+It is **deterministic**: the same Coral model and the same `CORAL.md` produce byte-identical output, there
+is no timestamp, and reordering the declaration without changing its meaning changes nothing — so a
+contract is reviewable in a diff and belongs in version control. Ordering is total, down to the rendered
+text of a decision, because two exceptions may name one rule at one path.
+
+Generation **fails closed**: an invalid rule model, an unparsable record, an unregistered profile, an
+unknown scale or a target-version mismatch produces an error and *no file*. There is no partial contract,
+and no fallback to "all Coral rules".
+
+And **a failed regeneration leaves no stale contract behind.** This is the half that only shows up on the
+second run: a contract generated yesterday, a declaration edited into something that does not resolve, and
+an error message printed beside a file that still claims to be the project's complete normative surface.
+The operator is told; the next agent is not. So a failed run deletes the contract it had previously written
+— and only that, identified by its own heading, never a file the generator did not produce. A successful
+run publishes by writing beside the destination and renaming onto it, so the destination holds the old
+contract or the new one and never half of either.
 
 One thing it deliberately does not solve: **acquiring the version a project targets.** A `CORAL.md` whose
 `targets` names a release other than the one the Coral checkout describes is refused with the version-first

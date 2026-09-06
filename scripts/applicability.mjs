@@ -390,6 +390,9 @@ export function parseAdherenceRecord(text, version) {
 // amendment to file — so the root path is refused for the same reason `**` is.
 // ─────────────────────────────────────────────────────────────────────────────
 const GLOB_CHARS = /[*?[\]{}]/
+// C0 and C1 control characters, newline and tab included. See pathProblem().
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/
 
 // The whole repository, written the one way. `.` and `./` mean it; an empty path does not —
 // see pathProblem(), where a missing path stays a missing decision rather than becoming this.
@@ -430,6 +433,17 @@ export function pathProblem(p, { allowRoot = false } = {}) {
       ' and it is not read as one.'
   }
   const raw = p.trim()
+  // A path is written by a human, printed in a diagnostic, and rendered into a generated
+  // execution contract, and all three are line-oriented. A path carrying a line break or a
+  // control character therefore cannot be shown anywhere without changing what it names —
+  // the same objection the glob refusal below makes, one class of character over. Refused
+  // rather than rendered ambiguously; a directory named this way is renamed, not excused.
+  if (CONTROL_CHARS.test(raw)) {
+    return 'names a path containing a line break or a control character. A path is written,' +
+      ' printed and rendered on one line, and one that cannot be shown without changing what it' +
+      ' names is a path no reader and no tool can check. Write the subtree plainly —' +
+      ' `internal/billing`.'
+  }
   if (GLOB_CHARS.test(raw)) {
     return `names the path \`${raw}\`, which is a pattern rather than a place. A path is a` +
       ' repo-relative directory and matches that directory and everything under it; patterns' +

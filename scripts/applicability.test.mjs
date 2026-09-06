@@ -901,6 +901,19 @@ test('path forms that cannot be decided are refused rather than interpreted', ()
   }
 })
 
+test('a path carrying a line break or a control character is refused', () => {
+  // A path is written by a human, printed in a diagnostic and rendered into a generated
+  // execution contract, and all three are line-oriented. One that cannot be shown without
+  // changing what it names is refused for the same reason a glob is: nothing can check it.
+  for (const bad of ['internal/bil\nling', 'internal/\tbilling', 'internal/bill\u0000ing']) {
+    assert.match(pathProblem(bad), /line break or a control character/, JSON.stringify(bad))
+  }
+  // Ordinary awkward characters stay legal — a backtick is a POSIX filename character, and
+  // the contract generator renders it rather than the record refusing it.
+  assert.equal(pathProblem('internal/bi`ll'), null)
+  assert.equal(pathProblem('internal/bill ing'), null)
+})
+
 test('the repository root is a path only where the record type allows it', () => {
   // The asymmetry, at the level it is decided. Declining a Coral rule everywhere is a
   // statement about the rule; adding a project rule everywhere is a statement about the

@@ -92,12 +92,16 @@ normative Coral surface — every applicable `[auto]` and `[review]` rule, plus 
 extensions — so an agent loads that file and no Coral document.
 
 ```bash
+# from a Coral checkout describing the version the project targets
 npm run contract:generate -- --project /path/to/project
 ```
 
-It is generated, never edited: `CORAL.md` stays the only file a project writes by hand. Rules from a
-scale, layer or profile the project has not adopted leave no trace in it, output is byte-identical for the
-same inputs, and an unresolvable declaration produces an error and no file rather than a partial one.
+The command lives here, in the Coral checkout, and the consuming repository is named by `--project` —
+Coral supports projects that are not Node projects at all. The output is generated, never edited: `CORAL.md`
+stays the only file a project writes by hand. Rules from a scale, layer or profile the project has not
+adopted leave no trace in it, and output is byte-identical for the same inputs. An unresolvable declaration
+produces an error and no contract — including no *stale* contract, since a failed regeneration removes the
+one the previous run wrote rather than leaving a file that looks current.
 [`CONVENTIONS.md`](./CONVENTIONS.md#the-generated-execution-contract) documents it.
 
 ## The linter

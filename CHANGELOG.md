@@ -447,12 +447,40 @@ record carries — enough for an agent under that path to recognize a settled de
 it. Paths render as subtrees, never as globs, because `[VER-5]` paths are not a pattern language.
 
 Output is **deterministic**: no timestamp, sorted by rule ID and then by path, and byte-identical when a
-declaration is reordered without changing its meaning — so a contract is reviewable in a diff. Generation
-**fails closed**: an invalid rule model, an unparsable record, an unregistered profile, an unknown scale or
-a target-version mismatch produces an error and *no file*. Never a partial contract, never a fallback to
-every Coral rule, and never the diagnostic selection an invalid resolution carries. Acquiring the release a
-project targets is explicitly not solved here — a mismatch is refused with the existing version-first
-semantics.
+declaration is reordered without changing its meaning — so a contract is reviewable in a diff. The ordering
+is total down to the rendered text of a decision, because `(path, rule)` is not a key: two exceptions may
+name one rule at one path with different metadata, and a stable sort over an equal key would let the YAML's
+order reach the bytes.
+
+**The generated document's structure is the generator's, never the project's.** `[VER-5]` puts no grammar
+on a `reason` or a `statement`, and a YAML block scalar makes a multi-line value ordinary — interpolated
+raw, a `statement` whose second line reads `## Accepted exceptions` invents a section in the one file an
+agent is told to trust. Record values are collapsed to a single line and a leading block marker is escaped,
+so no word is dropped and no project string can open a heading, a list item or a rule entry. Paths are
+rendered as code spans that survive a backtick in a directory name. One path form is now refused upstream
+instead: **an entry path may not contain a line break or a control character**, on the same ground the glob
+refusal already stands on — a path is written, printed and rendered on one line, and one that cannot be
+shown without changing what it names is a path nothing can check.
+
+Generation **fails closed**, and that is a claim about the destination and not only about the return value.
+An invalid rule model, an unparsable record, an unregistered profile, an unknown scale or a target-version
+mismatch produces an error and *no file* — never a partial contract, never a fallback to every Coral rule,
+never the diagnostic selection an invalid resolution carries. **A failed regeneration also removes the
+contract the previous run wrote.** That failure only appears on the second run: yesterday's contract, a
+declaration edited into something that does not resolve, and an error printed beside a file that still
+claims to be the project's complete normative surface — the operator is told and the next agent is not.
+Only a file this generator produced is removed, identified by its own heading, so an `--out` destination
+holding something else is left alone. A successful run publishes by writing beside the destination and
+renaming onto it, so the destination holds the old contract or the new one and never half of either, and a
+filesystem error is reported through the same problem list as a configuration error rather than thrown.
+`--out` refuses a destination named `CORAL.md`: the record is the editable source and the contract is
+derived from it, and writing one over the other destroys the decisions the contract is made of.
+
+Acquiring the release a project targets is explicitly not solved here — a mismatch is refused with the
+existing version-first semantics. What did change is that the invocation says so: the generated header
+names the Coral version the checkout must describe and states that the command runs from that checkout,
+with `--project` naming the consuming repository. Coral supports projects that are not Node projects, so
+"run `npm run contract:generate`" had to say where.
 
 **One `CORAL.md` record that resolved before is now refused: an exception naming a `[guide]` rule.** There
 is nothing for it to excuse — a guide is in no contract and is never a finding — so the entry recorded a
@@ -461,6 +489,14 @@ place it mattered: either dropped from the generated contract or carried there a
 does not list. It is now a reported problem, checked before the stale-entry test so the message does not
 advise adopting a layer that would change nothing. The resolver itself is unreleased and ships in this same
 batch, so no released Coral accepted such a record and no existing project's target is affected.
+
+The **exception instruction in the generated contract** is worded to keep `revisit_when` alive. An earlier
+draft said "do not raise it again", which settles an active decision and also tells the agent to ignore the
+one field whose whole purpose is to bring the decision back. The contract now says three things instead:
+while the exception is applicable, do not report the underlying rule as an unresolved violation and do not
+re-litigate the decision; if its `Revisit when` condition has been met, surface the exception for human
+re-evaluation rather than treating the decision as permanent; and outside the path the Coral rule applies
+normally, which is why it is still in the rule list.
 
 ---
 

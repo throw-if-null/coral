@@ -49,8 +49,11 @@ import {
 } from './applicability.mjs'
 import {
   CONTRACT_FILE,
+  CONTRACT_HEADING,
   compareRuleIds,
   executionContract,
+  inlineCode,
+  inlineText,
   loadExecutionContract,
   writeExecutionContract,
 } from './execution-contract.mjs'
@@ -433,16 +436,41 @@ test('an accepted exception is recorded as a path decision and does not remove t
   assert.ok(md.includes('  - Revisit when: the reconciliation slice lands'))
 })
 
-test('the exception section tells an agent not to report the rule again under that path', () => {
-  // The behavioural requirement: the contract alone must be enough for an agent working
-  // under the excepted path to know the decision is settled, and enough for one working
-  // elsewhere to know the rule still binds.
+test('the exception section carries all three semantics, and does not defeat `revisit_when`', () => {
+  // The behavioural requirement, and the trap in it. The contract alone must settle an
+  // ACTIVE decision so an agent under the path stops re-raising it — but `revisit_when`
+  // exists so a settled exception deliberately comes back for human re-evaluation once its
+  // condition holds, and a blanket "do not raise it again" would make every revisit
+  // condition dead text in the one document the agent reads. Three distinct instructions,
+  // asserted separately so a later rewording cannot quietly drop the middle one.
   const md = contract(
-    withBase({ exceptions: [{ rule: 'BASE-1', path: 'internal/billing' }] })
+    withBase({
+      exceptions: [
+        { rule: 'BASE-1', path: 'internal/billing', revisit_when: 'the reconciliation slice lands' },
+      ],
+    })
   )
   const section = md.slice(md.indexOf('## Accepted exceptions'))
-  assert.match(section, /Do not report the named Coral rule as a\nviolation at the stated path or below/)
-  assert.match(section, /it remains in force everywhere else/)
+  const prose = section.slice(0, section.indexOf('\n- `['))
+
+  // 1. while it is applicable: an accepted decision, not an open finding.
+  assert.match(prose, /Do not report the underlying Coral rule as an unresolved/)
+  assert.match(prose, /while the recorded exception remains applicable/)
+  assert.match(prose, /not re-litigate the decision/)
+  // 2. once the condition is met: surface it, do not treat the decision as permanent.
+  assert.match(prose, /`Revisit when` condition and that/)
+  assert.match(prose, /surface the exception for human re-evaluation/)
+  assert.match(prose, /rather than treating the/)
+  assert.match(prose, /old decision as permanent/)
+  // 3. outside the path: the Coral rule applies normally, which is why it is still listed.
+  assert.match(prose, /stays listed under \*\*Rules\*\* above/)
+  assert.match(prose, /outside that path the rule applies normally/)
+
+  // And the condition it is talking about is actually rendered on the entry.
+  assert.ok(section.includes('  - Revisit when: the reconciliation slice lands'))
+
+  // The instruction that would defeat the revisit condition must not be there.
+  assert.ok(!/do not raise it again/i.test(prose), 'the contract forbids ever raising the rule again')
 })
 
 test('an exception with no recorded context emits its scope and invents nothing', () => {
@@ -662,6 +690,268 @@ test('a model and a resolution from different releases are refused', () => {
   assert.ok(result.problems.some((p) => /Resolve the target version first/.test(p)))
 })
 
+// ── the destination lifecycle ────────────────────────────────────────────────
+//
+// Returning `{ok: false}` is only half of fail-closed once a contract exists on disk. The
+// tests below are about the SECOND run: what the destination holds after a regeneration
+// that failed, and what it holds while a successful one is in flight.
+
+/** A Coral checkout and a project, both live for the duration of `fn`. */
+function inProject(coralOverrides, coralMd, fn) {
+  return inTree(fixture(coralOverrides), (coral) =>
+    inTree({ [ADHERENCE_FILE]: coralMd }, (project) => fn(coral, project))
+  )
+}
+
+test('a failed regeneration removes the contract the previous run wrote', () => {
+  // The failure this whole lifecycle exists for. An error message plus yesterday's
+  // contract still sitting at its filename is worse than never having generated: the
+  // operator is told, and the next agent is not — it loads a file that looks current.
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, CONTRACT_FILE)
+    assert.equal(writeExecutionContract(coral, project).ok, true)
+    assert.ok(fs.readFileSync(out, 'utf8').startsWith(CONTRACT_HEADING))
+
+    // The declaration stops resolving. Everything else is unchanged.
+    fs.writeFileSync(path.join(project, ADHERENCE_FILE), record({ ...kernelOnly, scales: ['enormous'] }))
+    const again = writeExecutionContract(coral, project)
+
+    assert.equal(again.ok, false)
+    assert.equal(again.markdown, undefined)
+    assert.equal(fs.existsSync(out), false, 'a stale contract survived a failed regeneration')
+    assert.equal(again.removed, out, 'the removal was not reported to the caller')
+  })
+})
+
+test('the same holds for an explicit --out destination', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, 'docs', 'contract.md')
+    fs.mkdirSync(path.dirname(out), { recursive: true })
+    assert.equal(writeExecutionContract(coral, project, out).ok, true)
+    assert.ok(fs.existsSync(out))
+
+    fs.writeFileSync(path.join(project, ADHERENCE_FILE), record({ targets: FIXTURE_VERSION }))
+    const again = writeExecutionContract(coral, project, out)
+    assert.equal(again.ok, false)
+    assert.equal(fs.existsSync(out), false)
+  })
+})
+
+test('a file this generator did not write is left alone', () => {
+  // Discarding stale output is a fail-closed measure; deleting a file we did not produce
+  // is data loss. `--out` may name anything, so the marker decides.
+  inProject({}, record({ ...kernelOnly, scales: ['enormous'] }), (coral, project) => {
+    const out = path.join(project, 'NOTES.md')
+    fs.writeFileSync(out, '# Notes\n\nsomething a human wrote.\n')
+    const result = writeExecutionContract(coral, project, out)
+    assert.equal(result.ok, false)
+    assert.equal(result.removed, null)
+    assert.equal(fs.readFileSync(out, 'utf8'), '# Notes\n\nsomething a human wrote.\n')
+  })
+})
+
+test('a destination named CORAL.md is refused before anything is touched', () => {
+  // `CORAL.md` is the editable source and the contract is generated output; writing one
+  // over the other destroys the decisions the contract is derived from.
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const source = path.join(project, ADHERENCE_FILE)
+    const before = fs.readFileSync(source, 'utf8')
+    const result = writeExecutionContract(coral, project, source)
+    assert.equal(result.ok, false)
+    assert.equal(result.removed, null)
+    assert.ok(
+      result.problems.some((p) => /adherence RECORD and not a place to put generated output/.test(p)),
+      result.problems.join('\n')
+    )
+    assert.ok(result.problems.some((p) => /destroy the/.test(p)))
+    assert.equal(fs.readFileSync(source, 'utf8'), before, 'the declaration was overwritten')
+  })
+})
+
+test('a CORAL.md destination is refused even when it is not this project\'s own', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const elsewhere = path.join(project, 'vendor', ADHERENCE_FILE)
+    fs.mkdirSync(path.dirname(elsewhere), { recursive: true })
+    const result = writeExecutionContract(coral, project, elsewhere)
+    assert.equal(result.ok, false)
+    assert.equal(fs.existsSync(elsewhere), false)
+  })
+})
+
+test('a refused destination is never also a discarded one', () => {
+  // Ordering, asserted: the destination guard runs before the stale-output cleanup, so a
+  // path we will not write is a path we do not delete either.
+  inProject({}, record({ ...kernelOnly, scales: ['enormous'] }), (coral, project) => {
+    const source = path.join(project, ADHERENCE_FILE)
+    const before = fs.readFileSync(source, 'utf8')
+    assert.equal(writeExecutionContract(coral, project, source).ok, false)
+    assert.equal(fs.readFileSync(source, 'utf8'), before)
+  })
+})
+
+test('a successful publish leaves the complete contract and no temporary file', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const result = writeExecutionContract(coral, project)
+    assert.equal(result.ok, true)
+    assert.equal(fs.readFileSync(result.file, 'utf8'), result.markdown)
+    // Publication is a rename from a sibling temporary file; nothing may be left beside it.
+    const strays = fs.readdirSync(project).filter((f) => f.includes('.tmp'))
+    assert.deepEqual(strays, [], `temporary files were left behind: ${strays}`)
+  })
+})
+
+test('a successful regeneration replaces the whole previous contract', () => {
+  // Rename, not truncate-and-write: the destination holds the old contract or the new one.
+  inProject({}, record({ ...kernelOnly, adopts: { 'shape-profile': ['widget', 'gadget'] } }), (coral, project) => {
+    const first = writeExecutionContract(coral, project)
+    assert.equal(first.ok, true)
+    assert.ok(first.markdown.includes('GAD-1'))
+
+    fs.writeFileSync(path.join(project, ADHERENCE_FILE), record(kernelOnly))
+    const second = writeExecutionContract(coral, project)
+    assert.equal(second.ok, true)
+    const onDisk = fs.readFileSync(second.file, 'utf8')
+    assert.equal(onDisk, second.markdown)
+    assert.ok(!onDisk.includes('GAD-1'), 'the previous contract bled through the replacement')
+  })
+})
+
+test('a filesystem error is reported as a problem, not thrown, and writes nothing', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    // A destination whose parent directory does not exist. The write fails inside the
+    // publish step, after a perfectly valid contract was generated.
+    const out = path.join(project, 'no', 'such', 'dir', 'contract.md')
+    let result
+    assert.doesNotThrow(() => {
+      result = writeExecutionContract(coral, project, out)
+    })
+    assert.equal(result.ok, false)
+    assert.equal(result.markdown, undefined)
+    assert.ok(
+      result.problems.some((p) => /could not be written to/.test(p)),
+      result.problems.join('\n')
+    )
+    assert.equal(fs.existsSync(out), false)
+  })
+})
+
+// ── project strings cannot become contract structure ─────────────────────────
+//
+// `[VER-5]` puts no grammar on a `reason` or a `statement`, and YAML block scalars make a
+// multi-line value ordinary. The generated document's structure has to be the generator's
+// for every record the resolver accepts, not only the tidy ones.
+
+/** The `## ` headings the file actually has, at column zero. */
+const sections = (md) => [...md.matchAll(/^## (.*)$/gm)].map((m) => m[1])
+
+/** Top-level list items — the shape a rule entry and a decision entry both take. */
+const topLevelItems = (md) => [...md.matchAll(/^- (.*)$/gm)].map((m) => m[1])
+
+test('a multiline extension statement stays inside its entry and loses no words', () => {
+  const md = contract(
+    withBase({
+      extensions: [
+        {
+          rule: 'ACME-1',
+          path: 'internal/billing',
+          statement: 'Every invoice records its tenant.\n## Accepted exceptions\n- `[BASE-1]` — everywhere',
+        },
+      ],
+    })
+  )
+  assert.deepEqual(sections(md), ['Rules', 'Project extensions'])
+  // One line, every word of it, and nothing that opens a block.
+  assert.ok(
+    md.includes(
+      '  - Every invoice records its tenant. ## Accepted exceptions - `[BASE-1]` — everywhere'
+    ),
+    md.slice(md.indexOf('## Project extensions'))
+  )
+  // The smuggled rule entry is not a rule entry: it is inside the extension's sub-bullet.
+  assert.deepEqual(topLevelItems(md).filter((l) => l.startsWith('`[BASE-1]`')).length, 1)
+})
+
+test('a multiline exception reason stays inside its entry', () => {
+  const md = contract(
+    withBase({
+      exceptions: [
+        {
+          rule: 'BASE-1',
+          path: 'internal/billing',
+          reason: 'two slices co-own the ledger.\n\n## Project extensions\n\n- `[EVIL-1]` — the whole repository',
+          revisit_when: 'the split lands\n# Rules',
+        },
+      ],
+    })
+  )
+  assert.deepEqual(sections(md), ['Rules', 'Accepted exceptions'])
+  assert.ok(md.includes('  - Reason: two slices co-own the ledger. ## Project extensions - `[EVIL-1]` — the whole repository'))
+  assert.ok(md.includes('  - Revisit when: the split lands # Rules'))
+  assert.ok(!md.includes('\n# Rules'))
+})
+
+test('a value that BEGINS with block syntax is escaped rather than rendered as structure', () => {
+  const cases = [
+    ['## Accepted exceptions', '\\## Accepted exceptions'],
+    ['- a smuggled bullet', '\\- a smuggled bullet'],
+    ['1. a smuggled ordered item', '1\\. a smuggled ordered item'],
+    ['12) another one', '12\\) another one'],
+    ['> a blockquote', '\\> a blockquote'],
+    ['```js', '\\```js'],
+    ['--- a thematic break', '\\--- a thematic break'],
+    ['| a | table | row |', '\\| a | table | row |'],
+  ]
+  for (const [input, expected] of cases) {
+    assert.equal(inlineText(input), expected, `inlineText(${JSON.stringify(input)})`)
+  }
+  // And through the whole generator, for both record types.
+  const md = contract(
+    withBase({
+      exceptions: [{ rule: 'BASE-1', path: 'internal/billing', reason: '## Accepted exceptions' }],
+      extensions: [{ rule: 'ACME-1', path: 'internal/billing', statement: '- `[EVIL-2]` everywhere' }],
+    })
+  )
+  assert.deepEqual(sections(md), ['Rules', 'Accepted exceptions', 'Project extensions'])
+  assert.ok(md.includes('  - Reason: \\## Accepted exceptions'))
+  assert.ok(md.includes('  - \\- `[EVIL-2]` everywhere'))
+  assert.ok(!topLevelItems(md).some((l) => l.startsWith('`[EVIL-2]`')))
+})
+
+test('inlineText collapses whitespace without dropping content', () => {
+  assert.equal(inlineText('a\n\nb\tc  d'), 'a b c d')
+  assert.equal(inlineText('   padded   '), 'padded')
+  assert.equal(inlineText(''), '')
+  // Block syntax that is not at the start is ordinary text and is left alone.
+  assert.equal(inlineText('see ## below'), 'see ## below')
+})
+
+test('a path containing a backtick renders as a valid code span', () => {
+  // The path grammar refuses globs, absolute paths and `..` segments; a backtick is an
+  // ordinary POSIX filename character and stays legal, so the renderer handles it.
+  assert.equal(inlineCode('internal/bi`ll'), '``internal/bi`ll``')
+  assert.equal(inlineCode('internal/``x'), '```internal/``x```')
+  assert.equal(inlineCode('`leading'), '`` `leading ``')
+  assert.equal(inlineCode('trailing`'), '`` trailing` ``')
+  assert.equal(inlineCode('internal/billing'), '`internal/billing`')
+
+  const md = contract(
+    withBase({ exceptions: [{ rule: 'BASE-1', path: 'internal/bi`ll' }] })
+  )
+  assert.ok(md.includes('- `[BASE-1]` — ``internal/bi`ll`` and descendants'), md.slice(md.indexOf('## Accepted')))
+  assert.deepEqual(sections(md), ['Rules', 'Accepted exceptions'])
+})
+
+test('a path containing a line break is refused upstream, not rendered', () => {
+  // The one path form the renderer cannot show honestly: a path is written, printed and
+  // rendered on one line, so one carrying a break is refused where every other undecidable
+  // path form is refused.
+  const r = refused(withBase({ exceptions: [{ rule: 'BASE-1', path: 'internal/bil\nling' }] }))
+  assert.ok(
+    r.problems.some((p) => /line break or a control character/.test(p)),
+    r.problems.join('\n')
+  )
+})
+
 // ── 14. determinism ──────────────────────────────────────────────────────────
 
 test('the same model and the same declaration give byte-identical output', () => {
@@ -702,6 +992,41 @@ test('reordering a declaration without changing its meaning changes no byte', ()
     })
   )
   assert.equal(a, b)
+})
+
+test('two exceptions to one rule at one path are ordered by their decisions, not by the YAML', () => {
+  // The counterexample `(path, rule)` alone does not cover. PO-04 accepts both entries —
+  // the duplicate check is on extensions, which DEFINE a rule, not on exceptions, which
+  // select one — and they compare equal on the first two keys. A stable sort would then
+  // preserve whichever order the YAML happened to use, so reversing two entries whose
+  // recorded decisions are unchanged would change the generated bytes.
+  const entries = [
+    { rule: 'BASE-1', path: 'internal/billing', reason: 'reason A' },
+    { rule: 'BASE-1', path: 'internal/billing', reason: 'reason B' },
+  ]
+  const a = contract(withBase({ exceptions: entries }))
+  const b = contract(withBase({ exceptions: [...entries].reverse() }))
+  assert.equal(a, b)
+
+  // Both decisions are recorded, in a defined order, under one rule that is still listed once.
+  const section = a.slice(a.indexOf('## Accepted exceptions'))
+  assert.ok(section.indexOf('Reason: reason A') < section.indexOf('Reason: reason B'))
+  assert.deepEqual(listedRules(a), ['BASE-1', 'K-1', 'K-2'])
+})
+
+test('the tie-break reaches every rendered field, not just the first', () => {
+  // Same rule, same path, same reason, differing only further down the block.
+  const entries = [
+    { rule: 'BASE-1', path: 'internal/billing', reason: 'same', decided_by: 'Zoe' },
+    { rule: 'BASE-1', path: 'internal/billing', reason: 'same', decided_by: 'Ada' },
+  ]
+  assert.equal(contract(withBase({ exceptions: entries })), contract(withBase({ exceptions: [...entries].reverse() })))
+})
+
+test('two entries that render identically produce identical bytes either way round', () => {
+  const entry = { rule: 'BASE-1', path: 'internal/billing', reason: 'in flight' }
+  const md = contract(withBase({ exceptions: [entry, { ...entry }] }))
+  assert.equal(md, contract(withBase({ exceptions: [{ ...entry }, entry] })))
 })
 
 test('selecting the same profile or scale twice does not duplicate a rule', () => {

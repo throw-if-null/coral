@@ -7,10 +7,11 @@
 // what applies lives further up still, in the applicability resolver. A CLI that
 // interpreted a declaration would be a fourth place to look for that answer.
 //
-// Fail-closed here means two things and both matter: a non-zero exit, and NOTHING
-// WRITTEN. A generator that emits a partial file and then reports an error leaves a
-// document on disk that reads like a contract, and the next agent to open it has no way
-// to know it is not one.
+// Fail-closed here means three things and all of them matter: a non-zero exit, nothing
+// partial written, and NO STALE CONTRACT LEFT AT THE DESTINATION. A generator that
+// reports an error while yesterday's contract sits there unchanged has told the operator
+// and lied to the next agent, which loads a file that looks current. The lifecycle is
+// implemented in writeExecutionContract(); this reports what it did.
 // ─────────────────────────────────────────────────────────────────────────────
 import path from 'node:path'
 import process from 'node:process'
@@ -69,9 +70,18 @@ function parseArgs(argv) {
   return opts
 }
 
-function fail(problems) {
+function fail(problems, removed) {
   console.error(`\n[contract] no contract was generated — ${problems.length} problem(s):\n`)
   for (const p of problems) console.error(`  - ${p}`)
+  // Said out loud, because it is a change to the working tree made by a command that
+  // failed. The alternative is worse: leaving a contract that describes an earlier
+  // declaration and looks exactly like a current one.
+  if (removed) {
+    console.error(
+      `\n[contract] removed the previously generated contract at` +
+        ` ${path.relative(process.cwd(), removed) || removed} — it described an earlier declaration.`
+    )
+  }
   console.error('')
   process.exit(1)
 }
@@ -95,7 +105,7 @@ if (opts.stdout) {
   process.stdout.write(result.markdown)
 } else {
   const result = writeExecutionContract(opts.coral, opts.project, opts.out)
-  if (!result.ok) fail(result.problems)
+  if (!result.ok) fail(result.problems, result.removed)
   const { rules, exceptions, extensions } = result.counts
   console.log(`[contract] wrote ${path.relative(process.cwd(), result.file) || result.file}`)
   console.log(
