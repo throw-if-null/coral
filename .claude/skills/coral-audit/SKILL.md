@@ -53,9 +53,11 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
    several). Finding the pieces is not enough — connect them.
 5. **The verdict is conformance to the SELECTED surface — and bugs are not the verdict.** The audit
    answers *is this a Coral app?*, and "a Coral app" means one that satisfies the rules its own `CORAL.md`
-   resolves to. There is no fixed list of characteristics that makes a repository conformant, and treating
-   one as fixed is how this skill produces findings against rules the project never took on. Four tiers,
-   and they are decided by the declaration, never by the code's shape:
+   resolves to — so the answer is `yes` / `partly` / `no` / **`indeterminate`**, the last for when an
+   applicable rule could not be verified at all (the report contract spells the four out). There is no
+   fixed list of characteristics that makes a repository conformant, and treating one as fixed is how this
+   skill produces findings against rules the project never took on. Four tiers, and they are decided by
+   the declaration, never by the code's shape:
 
    - **kernel** — always counts, for every Coral project, with nothing to adopt and nothing to decline.
      Ten rules, and they audit against three different things. Against the **source**: capability slicing
@@ -250,12 +252,20 @@ membership rather than trusting this list — it is the single source, and this 
 Both bind every Coral project. Neither is decidable from the final state of a repository, and inferring
 them from it breaks boundary rule 3 (*verify; do not infer*):
 
-- **`[AGENT-4]`** — "an agent never authors an exception or an extension." Whether a `CORAL.md` entry
-  *reads* as human-written is not evidence of who wrote it: an agent writes fluent prose and a human
-  writes terse mechanical prose. Only **provenance** decides it — commit authorship and trailers, PR
-  review, session history. Evidence that an agent authored or committed an entry supports a finding;
-  evidence of human authorship or review supports compliance; the entry's existence and its style
-  establish neither.
+- **`[AGENT-4]`** — "an agent never authors an exception or an extension; a human **decides and
+  records** the decision." Whether a `CORAL.md` entry *reads* as human-written is not evidence of who
+  wrote it: an agent writes fluent prose and a human writes terse mechanical prose. Only **provenance**
+  decides it, and the rule has two halves that different evidence establishes:
+  - **decided** — a human made the call. A review thread, an issue, a PR discussion can show this.
+  - **recorded** — a human committed the entry. Only commit authorship and history show this.
+
+  **Human review does not establish the second half.** An agent that writes the exception into `CORAL.md`
+  violates `[AGENT-4]` even if a human approves the PR afterwards — the rule reserves the recording, not
+  only the reasoning, and its commentary is explicit: *propose the wording if asked; never commit it.* So
+  an agent-authored commit of an entry is a finding whatever review followed it; an agent proposing
+  wording that a human then commits is compliant. Where either half is unestablished, `[AGENT-4]` is
+  unverified. This is not a demand for forensic certainty — it is a refusal to read "a human reviewed
+  this" as "a human decided and recorded this."
 - **`[AGENT-2]`** — "flag an ambiguous architectural decision rather than guessing." A missing `REVIEW:`
   marker does not show that an ambiguity existed, that an agent resolved it, or that it was not escalated
   in a PR, a review thread or a session and settled there. An **unresolved** `REVIEW:`/`FLAG:` marker is
@@ -268,6 +278,11 @@ shape of the final code. Where that evidence is unavailable — the usual case f
 existing repository — say so: report them as **not verifiable from the available evidence**, which is
 neither a finding nor an assumed pass. An audit that quietly passes a rule it could not check is making
 the same unverified claim as one that quietly fails it.
+
+**And carry that into the verdict.** These two are kernel, so they are applicable to every project; an
+applicable rule left unverified means full conformance has not been *established*, whatever the rest of
+the audit found. The verdict for a repository with no divergences and no provenance is **indeterminate**,
+not `yes` — see the report contract below.
 
 The order below is the baseline's:
 - fit: is this a command/request-shaped app the model actually covers, or a dense coupled domain it
@@ -353,11 +368,26 @@ session; heaviness is intentional — the planner needs full context. Include:
   production baseline is not adopted, so `[BUCKET-*]`, `[ERR-*]`, `[STATE-*]`, `[CONC-*]`, `[CONFIG-*]`
   and `[ROOT-*]` were not audited." Name any **applicable rule you could not verify** here too, with the
   evidence that was missing — `[AGENT-2]` and `[AGENT-4]` normally land here, because provenance is rarely
-  available to an outside audit. A rule reported as unverified is neither a finding nor a pass, and saying
-  which ones they are is what keeps a clean verdict honest. If the declaration was missing or invalid, this
-  section says so and the report stops at a proposed declaration instead of a verdict.
-- A **conformance verdict**, led with: *is this a Coral app?* (yes / partly / no) in one paragraph, with
-  the structural thesis — what shape the code actually is versus a capability-sliced app.
+  available to an outside audit. A rule reported as unverified is neither a finding nor a pass — so listing
+  it here is not enough on its own: an applicable rule left unverified makes the verdict **indeterminate**
+  rather than `yes`, and this section is where the reader sees which rules that rests on. If the
+  declaration was missing or invalid, this section says so and the report stops at a proposed declaration
+  instead of a verdict.
+- A **conformance verdict**, led with: *is this a Coral app?* in one paragraph, with the structural
+  thesis — what shape the code actually is versus a capability-sliced app. Four answers, because
+  "unverified is neither a finding nor a pass" has to reach the verdict or it means nothing:
+  - **yes** — every applicable rule was verified and none diverges.
+  - **partly** — real divergences were found, and substantial Coral structure remains.
+  - **no** — fundamental structural divergence.
+  - **indeterminate** — no divergence was found among the rules you could check, but one or more
+    **applicable** rules could not be verified, so full conformance is not established. Name them.
+
+  **An absence of findings is not a `yes` while an applicable rule is unverified.** `[AGENT-2]` and
+  `[AGENT-4]` are kernel, so they are always applicable, and provenance is often unavailable — which makes
+  `indeterminate` the honest answer for many outside audits, not an evasion. Say what *was* established:
+  "no divergence in the source and record surface; `[AGENT-2]` and `[AGENT-4]` not verifiable without
+  commit or session provenance, so full conformance is not established." `partly` is the wrong word for
+  it — that reports a divergence you found, and you did not find one.
 - A **conformance findings table**, ranked by distance-from-Coral (note which Coral rule each breaks).
 - Per finding: *what · where (file:line) · which Coral rule it diverges from · why it's a divergence ·
   target state (what the Coral form looks like)*. Be thorough.
@@ -415,6 +445,10 @@ session; heaviness is intentional — the planner needs full context. Include:
 - Decide `[AGENT-2]` or `[AGENT-4]` from prose style, from a missing `REVIEW:` marker, or from the final
   shape of the code. They are decidable only from provenance; without it, report them as not verifiable —
   neither a finding nor a pass.
+- Read "a human reviewed it" as "a human decided **and recorded** it" for `[AGENT-4]`. An agent-authored
+  commit of an exception or an extension is a finding however it was reviewed.
+- Return `yes` while an applicable rule is unverified. That is `indeterminate`, and the report says which
+  rules it rests on.
 - Rule a behavioral / contract trade-off (delivery semantics, effect ordering) "wrong" when you cannot
   see the reasons — flag it for a human and check for an explanatory comment instead.
 - Publish a candid audit of an internal repo to a public or shared site.

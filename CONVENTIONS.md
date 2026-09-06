@@ -298,8 +298,8 @@ by serving one of four properties:
 - **Self-verification** — every slice, and every app across the channel, exposes an observable contract the
   agent can assert against by running it, closing the loop without trusting internal state.
 
-Nine of Coral's rules owe their presence, or their strictness, to this division of labour; the rest are
-stated at the strength they are for reasons that survive a human author. Which nine, and how to tell them
+Ten of Coral's rules owe their presence, or their strictness, to this division of labour; the rest are
+stated at the strength they are for reasons that survive a human author. Which ten, and how to tell them
 apart, is the [Coral kernel](#the-coral-kernel) below.
 
 **`[AGENT-1]` `[guide]` `{governance}`** — Prefer the structure that minimizes an agent's placement and

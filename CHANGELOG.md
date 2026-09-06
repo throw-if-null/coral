@@ -651,7 +651,13 @@ from a repository's final state — an entry that reads as human-written is not 
 and a missing `REVIEW:` marker is not evidence that no ambiguity was escalated. The skill now audits them
 only where provenance (commit authorship, review, session history, an unresolved marker) establishes how
 the decision was made, and reports them as *not verifiable* otherwise — neither a finding nor an assumed
-pass, named in the report's audited-surface section beside the layers that were not adopted. Its
+pass, named in the report's audited-surface section beside the layers that were not adopted. For
+`[AGENT-4]` the evidence model is split, because the rule reserves both halves: review or discussion can
+show a human **decided**, only commit provenance can show a human **recorded**, and an agent-authored
+commit of an entry is a finding however it was reviewed. Because both rules are kernel and therefore
+always applicable, "unverified" reaches the verdict: it gains a fourth value, **indeterminate**, for a
+repository where nothing diverges among the rules that could be checked but an applicable rule could not
+be checked at all. An absence of findings is no longer allowed to read as `yes`. Its
 judge/flag/note rule is made conditional on applicability too:
 structure, naming and placement are judged where a rule in the *selected* surface decides them, and
 observed rather than convicted where the deciding rule belongs to a layer the project declined — the same
