@@ -527,6 +527,55 @@ does not list. It is now a reported problem, checked before the stale-entry test
 advise adopting a layer that would change nothing. The resolver itself is unreleased and ships in this same
 batch, so no released Coral accepted such a record and no existing project's target is affected.
 
+**The production baseline is separated from the Coral kernel in the documents, not only in the model. No
+rule changed.** This is a documentation and model-boundary change: **no rule ID was added, retired,
+reclassified, or restated**, no enforcement class moved, no ownership tag moved, no architectural scale
+moved, and no rule's normative first sentence was edited. The same `CORAL.md` resolves to the same set of
+applicable rule IDs before and after, because applicability was already decided by the resolver from
+`scope.kind` and `scale` and never by document layout. `rules.lock` changes only in its third column,
+which records where a rule is **defined**: seventy rules moved page, and none changed ID or class.
+
+The applicability model was already right — the kernel applies implicitly, `production-baseline` is opt-in
+under `[VER-6]`, and a generated `CORAL-CONTRACT.md` carries only the applicable surface. The document
+structure was not. `ARCHITECTURE.md` held five kernel rules and seventy `{baseline}` ones in twenty-two
+interleaved sections, so "read the Coral app spine" meant "read the production baseline", and general
+production-engineering policy — error taxonomy, transaction scope, retry semantics, cache invalidation,
+concurrency strategy, forbidden package names, trust boundaries — read as a *consequence* of the
+agents-write / humans-review operating model. It is not one. Its justification survives a human-authored
+codebase, which is precisely why it is an opt-in layer.
+
+- **[`PRODUCTION.md`](./PRODUCTION.md) is new** and holds the app-scale production baseline: all seventy
+  `{baseline}` rules previously defined in `ARCHITECTURE.md`, with the commentary needed to understand
+  them, its own Agent Execution Contract wrapped in a single `coral:scope:baseline` marker, the change
+  algorithm, and the per-rule Tier 1 enforcement mapping.
+- **`ARCHITECTURE.md` is now the kernel-facing app architecture**: `[MODEL-1]`, `[BOUND-2]`, `[XCUT-1]`,
+  `[COMPOSE-1]`, `[TEST-1]`, the `[SCOPE-*]` governance rules that state where Coral fits, the shape of an
+  app, the operating model, and the enforcement philosophy. Its contract is five lines and carries no
+  scope marker, because every line in it binds without being adopted.
+- **`SYSTEM.md` keeps its rules and its scale**, and now says which layer each section belongs to.
+  `[CHAN-*]`, `[ORCH-1..3]` and `[SYS-TEST-*]` are labelled the production baseline at system scale;
+  `[ORCH-4..6]` are labelled the runtime-agent profile; the document states in both directions that
+  **neither adoption implies the other**, and that it holds no kernel rule.
+- **Kernel-facing prose no longer smuggles baseline policy.** The site index said "every rule in the set
+  traces back" to the agent-author operating model, which stopped being true when ownership layers were
+  introduced; that causal claim is now made about the kernel alone, and the illustrations that presuppose
+  baseline policy (`[BUCKET-1]`, colocated tests, root crosscuts) say so where they appear.
+- **Navigation makes the subordination visible.** The sidebar groups pages as *Coral core — applies to
+  every Coral codebase*, *Production baseline — optional, adopted explicitly*, *The System — optional, at
+  system scale*, and the two profile groups, so the production baseline cannot read as another name for
+  Coral.
+
+**A structural guard keeps it that way.** `CONVENTIONS.md` gains a **core-document registry**
+(`coral:core`) naming the pages a project reads before adopting anything — today `CONVENTIONS.md` and
+`ARCHITECTURE.md` — and the build refuses any rule defined in one of them whose ownership layer has the
+`opt-in` **surface**. It is stated in terms the layer registry already owns, so the tooling holds no
+opinion about which layer the production baseline is and carries **no second list of rule IDs**; a new
+opt-in layer is covered without an edit, and a new core document is one registry row. The registry is held
+to the same shape as the kernel, layer, scale and profile blocks — exactly one block, prose outside the
+markers, no duplicate or unknown document — because a guard whose own source can silently empty is not a
+guard. `PRODUCTION.md` is also registered as an app-scale spine, so the existing one-way dependency check
+(an app-scale spine never cites a system rule) covers it, and no profile may name it as its home.
+
 The **exception instruction in the generated contract** is worded to keep `revisit_when` alive. An earlier
 draft said "do not raise it again", which settles an active decision and also tells the agent to ignore the
 one field whose whole purpose is to bring the decision back. The contract now says three things instead:

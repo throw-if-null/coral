@@ -22,11 +22,25 @@ the agent-author / human-architect operating model — and
 [what applies to a project](./CONVENTIONS.md#what-applies-to-a-project), which is how a project declares
 how much of Coral it has taken on. The rest refer back to it instead of restating any of it.
 
-From there: [`ARCHITECTURE.md`](./ARCHITECTURE.md) is how to build one app,
-[`SYSTEM.md`](./SYSTEM.md) is how separately-built apps compose over a channel, [`appendix/`](./appendix)
-holds one document per **app profile** — CLI, backend, web, library, GitHub Action — plus the
-runtime-agent addendum, which an app of any shape adds when it calls a model at runtime. And
-[`examples/`](./examples) holds worked code — including
+From there, in the order a project actually decides things:
+
+1. [`ARCHITECTURE.md`](./ARCHITECTURE.md) — the kernel-facing app architecture: the shape of one app, and
+   the rules whose presence or strictness Coral justifies by its operating model. This binds a Coral
+   codebase without being adopted, and it is short.
+2. [`PRODUCTION.md`](./PRODUCTION.md) — the **production baseline** for one app, and the decision whether
+   to take it: package naming, buckets, state ownership, concurrency, idempotency, errors, config,
+   observability, contracts, trust, testing, growth. **Optional and subordinate** — Coral publishes it as
+   an opinionated production-engineering policy, and it applies only where a project's `CORAL.md` says
+   `production-baseline: true`. Its justification is that the software needs it, not that an agent wrote
+   it.
+3. [`SYSTEM.md`](./SYSTEM.md) — how separately-built apps compose over a channel. Optional as well, and
+   two independent opt-ins: the system-scale production baseline, and the runtime-agent orchestration
+   rules. Neither implies the other.
+4. [`appendix/`](./appendix) — one document per **app profile** (CLI, backend, web, library, GitHub
+   Action), plus the runtime-agent addendum an app of any shape adds when it calls a model at runtime.
+   Adopted by name.
+
+And [`examples/`](./examples) holds worked code — including
 [a real service reviewed against the rules](./examples/backend-review.md), which states where they would
 have been overkill.
 
@@ -35,6 +49,12 @@ their class, their ownership layer, their scale, and a one-line statement, group
 the documents (`npm run rules:index`) and the build fails if it falls behind them, because an index that
 can drift from what it indexes is worse than no index.
 
+**Only a small part of Coral is imposed because an agent writes the code.** That subset is the
+[kernel](./CONVENTIONS.md#the-coral-kernel) — ten rules, named and justified one at a time. General
+production-engineering policy is published separately, as the production baseline and the app profiles,
+and is adopted rather than inherited. The build enforces the separation structurally: an opt-in rule
+cannot be defined in a [core document](./CONVENTIONS.md#core-documents).
+
 Rules carry stable IDs like `[DUP-2]`, and three independent classifications: an **enforcement class**
 (`[auto]` / `[review]` / `[guide]`) saying how the rule is checked, an
 **[ownership layer](./CONVENTIONS.md#ownership-layers)** saying who has to read it — so a CLI is not asked
@@ -42,10 +62,10 @@ to reason about HTTP status codes or runtime-AI rules — and an
 **[architectural scale](./CONVENTIONS.md#architectural-scale)** saying whether it governs one app or
 several apps composing. On the live site every citation links to its definition. The build fails if a rule
 has no class or no layer, if a citation has no definition, if a rule is missing from its document's Agent
-Execution Contract, if a contract lists an opt-in rule without saying so, if a published rule ID has
-disappeared or been reclassified, if the rule index is stale, if the worked `CORAL.md` in `CONVENTIONS.md`
-stops resolving, or if a link fragment doesn't resolve — the docs' own drift control is structural, not
-goodwill.
+Execution Contract, if a contract lists an opt-in rule without saying so, if an opt-in rule is defined in
+a core document, if a published rule ID has disappeared or been reclassified, if the rule index is stale,
+if the worked `CORAL.md` in `CONVENTIONS.md` stops resolving, or if a link fragment doesn't resolve — the
+docs' own drift control is structural, not goodwill.
 
 ## Versioning, and how a project records where it differs
 

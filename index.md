@@ -53,6 +53,12 @@ shared parts constructed at startup. [An HTTP endpoint in Go](/examples/go-api-s
 case where a language's own rules — import cycles, code generation — force one capability to span more
 than one package, which stays legitimate as long as every package is named for that capability.
 
+The layout above shows a project that has taken Coral's [production baseline](/PRODUCTION) — the
+colocated tests, the root crosscuts, the absence of a `handlers`/`services`/`repositories` layer are its
+policy. The baseline is optional and adopted explicitly; what a Coral codebase owes without adopting
+anything is a much shorter list, and the section [below](#why-the-core-rules-are-shaped-this-way) says
+which part is which.
+
 ## The five kinds of code
 
 Every file above is one of five things, and knowing which one you are writing answers most questions
@@ -78,10 +84,12 @@ the adapter to the slice. Turn that arrow around and you have a `repositories` l
 package decides what every caller gets. Small apps often have none — the CLI above has none, because a
 `db.py` crosscut is enough.
 
-There is a sixth thing most codebases have, and Coral does not allow it: a directory named for nothing in
+There is a sixth thing most codebases have, and Coral discourages it: a directory named for nothing in
 particular — `utils`, `shared`, `common`, `services`, `helpers`. When code does not obviously belong to a
 slice, the answer is either a crosscut with a real name, or leaving the duplication alone. That rule is
-`[BUCKET-1]`, and it is one a linter can decide on its own.
+`[BUCKET-1]`, and it is one a linter can decide on its own. It belongs to the **production baseline** —
+an optional layer, described below — rather than to the core of Coral, because it is good engineering
+whoever writes the code.
 
 ## The same shape at three sizes
 
@@ -100,10 +108,11 @@ That is the whole vocabulary: eight nouns — slice, crosscut, adapter, composit
 contract, app, system, channel. [`CONVENTIONS.md`](/CONVENTIONS) defines each one precisely, and every other document
 refers back to it rather than restating it.
 
-## Why the rules are shaped this way
+## Why the core rules are shaped this way
 
 Coral assumes a coding agent writes most of the code and a person reviews it. Four consequences follow,
-and every rule in the set traces back to at least one of them.
+and they are what the **kernel** — the small set of rules Coral imposes on every Coral codebase — traces
+back to.
 
 **A slice fits in one context window.** An agent can read everything a change depends on at once, rather
 than discovering afterwards that it never loaded some of it.
@@ -118,9 +127,16 @@ a real database and asserts on the exit code and the `--json` payload — the sa
 tool depends on. An agent can run that and see whether the change worked, rather than reporting that it
 should have.
 
-Some of Coral's rules owe their presence, or the strictness Coral states them at, to those four
-consequences — remove the agent-author premise and Coral would substantially relax them. That subset is
-named and justified in [the Coral kernel](/CONVENTIONS#the-coral-kernel).
+A rule is a **kernel** rule when its presence, or the strictness Coral states it at, materially comes
+from those four consequences — remove the agent-author premise and Coral would substantially relax it.
+That subset is named and justified in [the Coral kernel](/CONVENTIONS#the-coral-kernel).
+
+**Most of what Coral publishes is not that, and does not claim to be.** Error taxonomies, transaction
+scope, retry semantics, cache invalidation, concurrency strategy, configuration, trust boundaries, HTTP
+status codes — these are load-bearing because the *software* needs them, and their justification survives
+a human-authored codebase. Coral publishes them as the **production baseline** and as per-app-type
+**profiles**: opinionated, coherent, and **optional**. A project takes them on deliberately, in its
+`CORAL.md`, or takes none of them and is still a Coral codebase.
 
 ## Where this does not fit
 
@@ -140,9 +156,13 @@ Otherwise, in order:
 - [`CONVENTIONS.md`](/CONVENTIONS) — the vocabulary, the rule numbering, the enforcement classes, how a
   project declares [how much of Coral applies to it](/CONVENTIONS#what-applies-to-a-project), and how it
   records where it knowingly deviates.
-- [`ARCHITECTURE.md`](/ARCHITECTURE) — how to build one app. The longest document, holding most of the
-  rules.
-- [`SYSTEM.md`](/SYSTEM) — how separately-built apps compose over a channel.
+- [`ARCHITECTURE.md`](/ARCHITECTURE) — the kernel-facing app architecture: the shape of one app, and the
+  rules that bind every Coral codebase without being adopted. Short.
+- [`PRODUCTION.md`](/PRODUCTION) — the **production baseline** for one app: the long, opinionated
+  production-engineering layer. Read it to decide whether you want it; it applies only once your
+  `CORAL.md` says so.
+- [`SYSTEM.md`](/SYSTEM) — how separately-built apps compose over a channel. Also optional, and two
+  independent opt-ins: the system-scale baseline, and the runtime-agent orchestration rules.
 - [Appendices](/appendix/cli) — one document per app profile: CLI, backend, web, library, GitHub Action —
   plus the runtime-agent addendum, which an app of any shape adds when it calls a model at runtime.
 - [Worked examples](/examples/cli-slice) — real code, in Python and Go.

@@ -2,8 +2,8 @@
 
 <!-- AGENT NOTE (not shown on the rendered site): this file is AUTHORITATIVE for the vocabulary, the
 rule-ID scheme, the enforcement classes, the ownership layers, the kernel, and the [AGENT-*] operating
-model. Load it before reasoning across documents; ARCHITECTURE.md and SYSTEM.md defer to it and must not
-redefine these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
+model. Load it before reasoning across documents; ARCHITECTURE.md, PRODUCTION.md and SYSTEM.md defer to
+it and must not redefine these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
 
 This file holds what every other document builds on, so none of them has to repeat it:
 
@@ -18,7 +18,8 @@ This file holds what every other document builds on, so none of them has to repe
 - **What applies to a project** — how a project declares the scopes it adopts, and how the rule set is
   composed from that declaration. ([below](#what-applies-to-a-project))
 
-The two spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how to build one app) and
+The spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (the kernel-facing app architecture),
+[`PRODUCTION.md`](./PRODUCTION.md) (the optional production baseline at app scale) and
 [`SYSTEM.md`](./SYSTEM.md) (how apps compose into a system) — refer back here instead of repeating any
 of it. That is the architecture practicing what it preaches: a concern used in many places is defined
 once and pointed to.
@@ -36,7 +37,7 @@ Eight nouns. Every document uses exactly these; there are no synonyms.
 | **adapter** | the infrastructure mechanics behind a port **a slice declared** — it implements that interface, is wired by the root, and owns no behavior (`store`, `s3`, `stripe`) | `[MODEL-4]` |
 | **composition root** | the thin entry point that registers slices, constructs crosscuts, and injects them. Holds no business logic | `[ROOT-*]` |
 | **published contract** | the surface others are allowed to depend on: a slice's public capability, a machine-readable output, an HTTP shape, a library API | `[CONTRACT-*]` |
-| **app** | one deployable unit: many slices, one composition root, one set of crosscuts | all of `ARCHITECTURE.md` |
+| **app** | one deployable unit: many slices, one composition root, one set of crosscuts | `ARCHITECTURE.md`, `PRODUCTION.md` |
 | **system** | several apps composed together | all of `SYSTEM.md` |
 | **channel** | the only coupling between apps — a published, versioned contract in one of three forms: sync API, event, or message bus | `[CHAN-*]` |
 
@@ -178,11 +179,11 @@ rule make findings unsearchable and let the two copies drift.
 **IDs are permanent.** They are never renumbered, never recycled, and never removed — see `[VER-1]`. That
 is why `[IDEM-6]` sits out of numeric order: it was appended rather than inserted.
 
-**The spines use separate families.** App families live in `ARCHITECTURE.md` and its appendices
-(`CLI-`, `BE-`, …); system families live in `SYSTEM.md` (`CHAN-`, `ORCH-`, `SYS-TEST-`). The dependency
-points **one way**: the app spine **never** cites a system rule, so the core app model stays
-independent of system concerns. The build enforces this rather than trusting it — `ARCHITECTURE.md` had
-been citing `[ORCH-1]` in prose until the gate was added. `SYSTEM.md` may cite app rules — it builds on them. An **appendix** may
+**The spines use separate families.** App families live in `ARCHITECTURE.md`, `PRODUCTION.md` and the
+appendices (`CLI-`, `BE-`, …); system families live in `SYSTEM.md` (`CHAN-`, `ORCH-`, `SYS-TEST-`). The
+dependency points **one way**: neither app-scale spine **ever** cites a system rule, so the app model
+stays loadable without system concerns. The build enforces this rather than trusting it —
+`ARCHITECTURE.md` had been citing `[ORCH-1]` in prose until the gate was added. `SYSTEM.md` may cite app rules — it builds on them. An **appendix** may
 cite system rules where its app type reproduces the system pattern internally: a microfrontend web app
 is a browser-scale system of panels over a channel, so `web.md` legitimately references `[CHAN-*]` /
 `[SYS-TEST-*]`.
@@ -219,8 +220,9 @@ Each document has two layers, and the build enforces the relationship between th
 Completeness is checked at build time, so a new rule cannot be added without wiring it into the
 contract. Reviewers walk the same contract and cite the same IDs; there is no separate review
 checklist to drift against. Every document carries one — the spines, this file for its `[AGENT-*]`
-and `[VER-*]` rules, and each appendix. An appendix contract **adds to** the app spine's rather than
-replacing it: building a CLI means loading `ARCHITECTURE.md`'s contract and `appendix/cli.md`'s.
+and `[VER-*]` rules, and each appendix. Contracts **add up** rather than replacing one another, and a
+project loads exactly the ones its `CORAL.md` adopts: building a CLI on the baseline means
+`ARCHITECTURE.md`'s contract (unconditional), plus `PRODUCTION.md`'s and `appendix/cli.md`'s.
 
 [`rules.md`](./rules.md) is the cross-document view — every rule, its class, and its one-line
 statement on one page. It is generated from these contracts, so it cannot drift from them.
@@ -784,10 +786,44 @@ rule is checked once they do.
 hard as the kernel's. Classifying `[BE-8]` as backend-only does not soften it; it says a library was
 never its audience.
 
+### Core documents
+
+Classifying a rule does not finish the loading problem, because **a rule defined in a universally-read
+document is encountered by everyone who reads that document**, whatever its tag says. The profile
+registry already acts on that: an `{app:cli}` rule must live in `appendix/cli.md`, and the registry may
+not name a spine as a profile's home. The same argument reaches one document further up.
+
+A **core document** is one a project reads without adopting anything: the vocabulary and the kernel, and
+nothing whose applicability depends on a decision. Only layers whose surface is `conformance` or
+`governance` may define rules there. An `opt-in` rule — a production-baseline rule, an app-profile rule, a
+runtime-agent rule — defined in a core document would be published to every reader as though it were
+unconditional, so the build refuses it.
+
+<!-- coral:core:start -->
+
+| Document | Defines | Justified by |
+|---|---|---|
+| `CONVENTIONS.md` | the vocabulary, the kernel block, the registries, and the rules that govern Coral itself | every Coral reader needs it before any adoption decision is meaningful |
+| `ARCHITECTURE.md` | the kernel's app-shaped rules and the framing they need | "conformant to Coral at app scale" has to be readable without loading an optional layer |
+
+<!-- coral:core:end -->
+
+The build reads that block, and holds it to the same shape as the other registries: exactly one block, no
+prose inside the markers, no duplicate or unknown document, and no row naming a document that cannot
+define rules. It is a list of **documents**, never of rule IDs — a table of individual rules would be a
+second classification of the thing `rule.scope` already answers, and it would need editing every time a
+rule was added.
+
+This is why [`PRODUCTION.md`](./PRODUCTION.md) exists as a document rather than as a section of
+[`ARCHITECTURE.md`](./ARCHITECTURE.md). The production baseline is opt-in, the app spine is core, and a
+reader who has not adopted the baseline must be able to finish the app spine without it. `SYSTEM.md` is
+deliberately **not** core: everything in it is opt-in — the system-scale production baseline, and the
+runtime-agent orchestration rules — and its contract marks which is which.
+
 ### Architectural scale
 
 Ownership does not finish the applicability question, and the production baseline is where it stops
-short. `[STATE-5]` is stated for **one app**, in [`ARCHITECTURE.md`](./ARCHITECTURE.md). `[CHAN-1]` is
+short. `[STATE-5]` is stated for **one app**, in [`PRODUCTION.md`](./PRODUCTION.md). `[CHAN-1]` is
 stated for **several apps composing**, in [`SYSTEM.md`](./SYSTEM.md) — channel contracts, orchestration
 topology, cross-app contract testing. One ownership layer, two audiences: a repository that ships one app
 has no channel to version and no topology to wire. The runtime-agent layer splits the same way, with
@@ -1157,7 +1193,7 @@ decides whether to move.
 
 Everything above answers *which rules apply*. This answers *how an agent gets them* — because knowing the
 answer is not the same as being able to load it. Coral's normative content is spread across
-`CONVENTIONS.md`, `ARCHITECTURE.md`, `SYSTEM.md`, one appendix per profile and a generated rule index, and
+`CONVENTIONS.md`, `ARCHITECTURE.md`, `PRODUCTION.md`, `SYSTEM.md`, one appendix per profile and a generated rule index, and
 **most of it does not apply to any given project**. An agent handed the repository has to redo the
 selection above, from prose, every session. That inference is exactly what `[VER-6]` exists to stop.
 
@@ -1330,13 +1366,18 @@ Read in this order:
 
 1. **`CONVENTIONS.md`** (this file) — the vocabulary, rule scheme, enforcement classes, ownership
    layers, operating model. The front door.
-2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the **app** spine: how to build one app. Its
-   [appendices](./ARCHITECTURE.md#appendix-index) instantiate it per app type (CLI, backend, web,
-   library, GitHub Action), plus the runtime-agent profile an app of any shape adds when it calls a
-   model at runtime.
-3. **[`SYSTEM.md`](./SYSTEM.md)** — the **system** spine: how apps compose over a channel. Builds on the
-   app spine; the app spine never cites it.
-4. **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python,
+2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the kernel-facing **app** spine: the shape of one app,
+   and the rules Coral would substantially relax without its operating model. A
+   [core document](#core-documents): it binds without being adopted.
+3. **[`PRODUCTION.md`](./PRODUCTION.md)** — the **production baseline** at app scale. **Optional**: read
+   it to decide whether to adopt it, and adopt it in `CORAL.md` before it binds anything.
+4. **[`SYSTEM.md`](./SYSTEM.md)** — the **system** spine: how apps compose over a channel. Optional too,
+   and two independent opt-ins — the system-scale production baseline, and the runtime-agent
+   orchestration rules. Builds on the app spine; no app-scale spine cites it.
+5. **[Appendices](./ARCHITECTURE.md#appendix-index)** — one **app profile** per app type (CLI, backend,
+   web, library, GitHub Action), plus the runtime-agent profile an app of any shape adds when it calls a
+   model at runtime. Each is adopted by name.
+6. **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python,
    one file each), [`examples/go-api-slice.md`](./examples/go-api-slice.md) (an HTTP slice in Go, where
    the language forces a capability across packages), and
    [`examples/backend-review.md`](./examples/backend-review.md) (the rules applied to a real service,
