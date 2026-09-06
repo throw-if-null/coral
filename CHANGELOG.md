@@ -607,9 +607,23 @@ codebase, which is precisely why it is an opt-in layer.
   capability, end to end**, in the hero, in `index.md`'s organising-principle sentence and in `README.md`'s
   opening; the grouping line is kept but moved into the production-baseline paragraph it belongs to, under
   the heading claim that *ownership is not the same as physical colocation*. The kernel's defended
-  **locality** property is restated the same way — "everything a change needs is owned by one slice"
-  rather than "sits in one place" — with the baseline named as the layer that turns ownership into
-  colocation.
+  **locality** property is restated the same way — with the baseline named as the layer that turns
+  ownership into colocation.
+
+  The four operating-model properties themselves were the last thing to correct, because they are the
+  kernel's own rationale and two of them described the shape produced *after* adopting the baseline.
+  "Deterministic placement — 'where does this go?' collapses to 'find or make the feature package'" made a
+  `[STRUCT-2]` container part of a kernel property; it now collapses to *"which of the five roles owns
+  it?"* (`[MODEL-1]`), with the mapping onto packages and directories named as baseline policy. "A slice
+  owns everything it needs" and "everything a change needs is owned by one slice" overstated `[BOUND-2]`,
+  which Coral's own model contradicts — a crosscut is a concern several slices need, and `[COMPOSE-1]`
+  exists so a slice can consume another's published capability. The property now says a slice owns the
+  complete behavior *specific to its trigger*, with what it needs from outside itself explicit through
+  `[XCUT-1]` and `[COMPOSE-1]`; the defended property becomes "one slice is the clear owner of a trigger's
+  behavior". Bounded blast radius no longer implies a crosscut or contract change is illegitimate, and
+  self-verification attributes its system-scale form to `[SYS-TEST-1]` rather than presenting it as a
+  kernel requirement — `SYSTEM.md` holds no kernel rule. `CONVENTIONS.md`'s remaining unqualified
+  references to feature packages are scoped to the baseline in the same pass.
 - **Navigation makes the subordination visible.** The sidebar groups pages as *Coral core — applies to
   every Coral codebase*, *Production baseline — optional, adopted explicitly*, *The System — optional, at
   system scale*, and the two profile groups, so the production baseline cannot read as another name for

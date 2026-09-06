@@ -73,7 +73,7 @@ conflating them is how an agent ends up publishing internals. Qualify it:
 | Phrase | Means | Consumed by |
 |---|---|---|
 | *a slice owns a capability* | one user-facing behavior | the app's users |
-| *a **feature package's** capability* | one domain area, and the state behind it | its own slices directly; anything else via a published capability |
+| *a **feature package's** capability* (production baseline) | one domain area, and the state behind it | its own slices directly; anything else via a published capability |
 | *a slice's **published** capability* | one exported function/entry point of that slice | sibling slices, via `[COMPOSE-1]` |
 | *an app's **published** capability* | one endpoint/event on the channel | other apps, via `[CHAN-1]` |
 
@@ -201,10 +201,12 @@ it must then be built — the port declared by the slice rather than by the adap
 crosscut injected and precisely named (`[XCUT-3]`, `[XCUT-2]`), the root kept thin (`[ROOT-1]`) — is the
 production baseline's, and none of it is needed to place the code.
 
-A slice lives *in* a **feature package**, and the two are not the same thing — this diagram used to label
-the slice box "a feature package", which is where the confusion started. The package groups the slices of
-one capability and owns the state behind them (`[STRUCT-2]`, `[STATE-5]`); the slice owns one trigger. The
-package is a container, not a category of code, which is why `[MODEL-1]` does not list it.
+Under the **production baseline**, slices are grouped into **feature packages**, and the two are not the
+same thing — this diagram used to label the slice box "a feature package", which is where the confusion
+started. The package groups the slices of one capability and owns the state behind them (`[STRUCT-2]`,
+`[STATE-5]`); the slice owns one trigger. The package is a container, not a category of code, which is why
+`[MODEL-1]` does not list it — and a project that has not adopted the baseline has the slice without
+owing the container.
 
 One shape repeats at every scale — slice, app, and system alike:
 
@@ -305,15 +307,23 @@ app is the run-time one.)
 constraints are there to protect four properties, each of which is a property of *this* way of working
 rather than of software in general:
 
-- **Context-window economy** — a slice (or an app) owns everything it needs, so an agent can load the
-  *complete* relevant world into one context and reason without missing a cross-file dependency. (The
-  production baseline goes further and puts it all in one *place*; the kernel asks for the ownership.)
-- **Bounded blast radius** — a change touches one slice (or one app), so the reviewer's audit
-  surface is bounded and the diff stays legible.
-- **Deterministic placement** — "where does this go?" collapses to "find or make the feature package."
-  Fewer degrees of freedom means fewer wrong guesses.
-- **Self-verification** — every slice, and every app across the channel, exposes an observable contract the
-  agent can assert against by running it, closing the loop without trusting internal state.
+- **Context-window economy** — one slice owns the complete behavior specific to its trigger, and what it
+  needs from outside itself is explicit: a shared concern promoted to a crosscut (`[XCUT-1]`), or another
+  slice's published capability (`[COMPOSE-1]`). The set an agent must load to be correct is therefore
+  bounded and knowable, rather than discovered halfway through. (The production baseline goes further and
+  puts that set in one *place*; the kernel asks that it be owned and explicit.)
+- **Bounded blast radius** — behavior specific to one trigger changes in the slice that owns it, so the
+  reviewer's audit surface is bounded and the diff stays legible. A change to a shared concern or a
+  published contract is legitimately wider; what the kernel prevents is *unbounded*, where a trigger's
+  behavior turns out to have been scattered.
+- **Deterministic architectural placement** — "where does this go?" collapses to "which of the five roles
+  owns it?" (`[MODEL-1]`), a finite question with a knowable answer rather than an open-ended one. Fewer
+  degrees of freedom means fewer wrong guesses. *How* that role then maps onto packages and directories
+  is production-baseline policy, not part of this property.
+- **Self-verification** — a slice exposes an observable contract the agent can assert against by running
+  it, closing the loop without trusting internal state (`[TEST-1]`). The same idea across a process
+  boundary is `[SYS-TEST-1]`, a production-baseline rule at system scale — the property is the kernel's,
+  the system-scale realization is adopted.
 
 **Everything else Coral publishes is justified some other way, and adopted separately.** Ten rules owe
 their presence, or their strictness, to this division of labour — which ten, and how to tell them apart,
@@ -647,9 +657,9 @@ rule can be tested against, plus drift — the failure the vocabulary already na
 
 | Property | What it keeps true | Operating-model property |
 |---|---|---|
-| **locality** | everything a change needs is owned by one slice | context-window economy |
+| **locality** | one slice is the clear owner of a trigger's behavior | context-window economy |
 | **bounded context** | what an agent must load in order to be correct is finite and knowable | context-window economy |
-| **deterministic placement** | "where does this go?" has one answer | deterministic placement |
+| **deterministic placement** | "which of the five roles owns this?" has one answer | deterministic architectural placement |
 | **reviewability** | the architectural decision is visible in the diff a human reads | bounded blast radius |
 | **self-verification** | the agent can close its own loop by running the thing | self-verification |
 | **drift prevention** | copies of one concern cannot silently diverge | drift (`[XCUT-4]`) |
