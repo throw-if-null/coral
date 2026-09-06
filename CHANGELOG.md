@@ -587,6 +587,18 @@ codebase, which is precisely why it is an opt-in layer.
   place" by it — that claim is scoped to the kernel, with the other 169 rules attributed to the software,
   the app shape or the runtime model instead. `index.md`'s adopted-baseline disclaimer moved **above** the
   worked directory layout, so a reader meets it before the layout rather than after.
+
+  A last pass separated **ownership from layout** on the front door. `index.md` said the alternative —
+  "all the request handlers in one directory, all the database code in another" — is something "Coral does
+  not do", and `README.md` said a capability's files sit together "rather than being spread across a
+  `handlers/`, a `services/` and a `repositories/` directory". The kernel says neither: `[BOUND-2]` and
+  `[MODEL-1]` govern *ownership* and *classification*, and the physical organization — package naming
+  (`[MODEL-2]`), directory structure (`[STRUCT-*]`), no catch-all buckets (`[BUCKET-*]`) — is production
+  baseline. Both pages now state the ownership principle unconditionally and attribute the layout policy
+  to the layer that carries it. `index.md` also no longer says "every Coral codebase has" all five
+  categories: `[MODEL-1]` fixes a classification *space*, so every unit of code fits one of the five, but
+  an app need not contain an instance of each — the same correction is made in `CONVENTIONS.md`, whose
+  comparison-table header no longer calls its rules "optional" while one of them (`[XCUT-1]`) is kernel.
 - **Navigation makes the subordination visible.** The sidebar groups pages as *Coral core — applies to
   every Coral codebase*, *Production baseline — optional, adopted explicitly*, *The System — optional, at
   system scale*, and the two profile groups, so the production baseline cannot read as another name for

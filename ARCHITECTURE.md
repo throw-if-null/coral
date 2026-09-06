@@ -172,17 +172,18 @@ baseline. The five are not peers in volume:
 | Category | What it owns | Volume |
 |---|---|---|
 | **slice** | one capability end to end — the trigger it answers, the work that answers it, its output, its tests | most of the code |
-| **crosscut** | one cross-cutting concern, held in one definition rather than copied per slice | few |
+| **crosscut** | one concern that several slices need | few |
 | **adapter** | the infrastructure-facing mechanics that connect behavior to an external system | one per external system that needs one; often none |
-| **composition root** | wiring and bootstrap: where slices are registered and crosscuts are constructed | exactly one |
+| **composition root** | the app's wiring and bootstrap boundary — where the parts are brought together and started | exactly one |
 | **published contract** | the surface others may depend on | one per slice/app that exposes anything |
 
 The table classifies; it does not prescribe, and it is deliberately thinner than the shape most Coral
 codebases have. Because `[MODEL-1]` is a kernel rule requiring every unit of code to be one of these five,
 a category defined by optional policy would make that policy binding by the back door. So the discipline
-stays with the rules: a crosscut *injected* rather than reached for (`[XCUT-3]`) and precisely named
-(`[XCUT-2]`), the root *thin* and free of business logic (`[ROOT-1]`), the **slice** declaring the port an
-adapter implements so the dependency runs adapter → slice (`[MODEL-4]`). Every one of those is
+stays with the rules: a crosscut *defined once and injected many* (`[MODEL-3]`, `[XCUT-3]`) rather than
+reached for, and precisely named (`[XCUT-2]`); the root *thin* and free of business logic (`[ROOT-1]`);
+the **slice** declaring the port an adapter implements so the dependency runs adapter → slice
+(`[MODEL-4]`). Every one of those is
 [production-baseline](./PRODUCTION.md) policy, binding a project that has adopted that layer, and none of
 them is needed to answer "which of the five is this?"
 

@@ -1,15 +1,17 @@
 # Coral Architecture
 
 A set of rules for organising code in a repository, written to be followed by coding agents as well as by
-people. The organising principle is one sentence: **one capability, owned end to end, in one place.**
-Everything one command or one endpoint needs sits together, its tests included, rather than being spread
-across a `handlers/`, a `services/` and a `repositories/` directory. The same shape applies to a CLI, a
-backend, a web app, a library, or a tool, and it composes from a single capability up to a whole system.
+people. The organising principle is one sentence: **one capability, owned end to end, in one place.** One
+command or one endpoint is answered by one unit that owns the whole of answering it, and every unit of
+code has one of five known roles. The same shape applies to a CLI, a backend, a web app, a library, or a
+tool, and it composes from a single capability up to a whole system.
 
-**That core is small.** The production discipline most people picture alongside it — no `utils` bucket,
-crosscuts injected rather than reached for, a fixed error taxonomy, transaction and retry policy, no
-shared database between apps — is Coral's **production baseline**: published as one coherent opinion, and
-adopted by a project explicitly rather than inherited by using Coral at all.
+**That core is small, and it is about ownership rather than layout.** Everything most people picture
+alongside it — the capability's files sitting together instead of spread across `handlers/`, `services/`
+and `repositories/`, tests beside the code they verify, no `utils` bucket, crosscuts injected rather than
+reached for, a fixed error taxonomy, transaction and retry policy, no shared database between apps — is
+Coral's **production baseline**: published as one coherent opinion, and adopted by a project explicitly
+rather than inherited by using Coral at all.
 
 **📖 Live docs:** https://coral.appsandtools.work — the guided version, with a worked
 directory layout, the five kinds of code, and where the architecture does not fit.

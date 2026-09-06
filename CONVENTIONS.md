@@ -47,7 +47,7 @@ table defines the vocabulary and nothing more — deliberately thinner than a re
 that smuggled optional policy into a noun would make that policy binding by the back door. So the
 discipline sits with the rules, not with the words:
 
-| The noun says | The optional rule then says |
+| The noun says | The governing rules then say |
 |---|---|
 | a **crosscut** is one concern several slices need | give it a precise, domain- or infrastructure-oriented name (`[XCUT-2]`); consume it through its published surface and **inject** anything holding config, a connection or per-trigger state (`[XCUT-3]`); promote to one only against a must-not-diverge invariant (`[XCUT-1]`, kernel) |
 | an **adapter** connects behavior to an external system | the **slice** declares the port and the adapter implements it, so the dependency runs adapter → slice, and the adapter owns no application behavior (`[MODEL-4]`) |
@@ -57,9 +57,10 @@ discipline sits with the rules, not with the words:
 Every rule in the right-hand column is **production baseline** except `[XCUT-1]`, and binds a project that
 has adopted that layer at the relevant scale ([What applies to a project](#what-applies-to-a-project)).
 The **Governed by** column above says where each noun's rules live; it does not say that all of them apply
-to you. A project can use every one of these nouns, correctly and conformantly, having adopted nothing but
-the kernel — and it will still have slices, crosscuts, adapters, a composition root and published
-contracts, because `[MODEL-1]` asks for the categories and not for the discipline.
+to you. A kernel-only project may use any of these categories, correctly and conformantly, without taking
+on the optional discipline attached to them — `[MODEL-1]` asks that every unit of code *fit* one of the
+five, not that a project contain an instance of each, and not that the categories be built the way the
+right-hand column describes.
 
 Two further terms name what a crosscut is *not*, and they are defined below the canonical slice, where
 there is a concrete crosscut to contrast them against: **forbidden bucket** and **drift**.
@@ -307,7 +308,7 @@ rather than of software in general:
 - **Context-window economy** — a slice (or an app) holds everything it needs in one place, so an agent
   can load the *complete* relevant world into one context and reason without missing a cross-file
   dependency.
-- **Bounded blast radius** — a change touches one directory (or one app), so the reviewer's audit
+- **Bounded blast radius** — a change touches one slice (or one app), so the reviewer's audit
   surface is bounded and the diff stays legible.
 - **Deterministic placement** — "where does this go?" collapses to "find or make the feature package."
   Fewer degrees of freedom means fewer wrong guesses.

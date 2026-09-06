@@ -19,10 +19,17 @@ checkable by a program rather than by argument.
 
 The organising principle is one sentence: **one capability, owned end to end, in one place.**
 
-A capability is one thing the software does — one command, one HTTP endpoint, one event handler.
-Everything that capability needs sits together, its tests included. The common alternative — all the
-request handlers in one directory, all the database code in another — groups code by what kind of code
-it is, and Coral does not do that.
+A capability is one thing the software does — one command, one HTTP endpoint, one event handler. Coral's
+unconditional part is about **ownership**: one trigger is answered by one unit that owns the whole of
+answering it, and every unit of code has one of five known roles.
+
+The familiar alternative — all the request handlers in one directory, all the database code in another —
+groups code by what kind of code it is. Coral's **production baseline** rules that out, and prescribes how
+capability ownership shows up in the directory and package structure: packages named for the capability
+or concern they own, no global `handlers` / `services` / `repositories` layer, tests beside the code they
+verify. That layer is [optional and adopted explicitly](/PRODUCTION), and most projects that want Coral
+want it — but a project can own its triggers end to end without taking on Coral's opinion about what the
+directories are called.
 
 ## What that looks like
 
@@ -61,9 +68,10 @@ than one package, which stays legitimate as long as every package is named for t
 ## The five kinds of code
 
 Every file above is one of five things, and knowing which one you are writing answers most questions
-about where to put it. **These five are the unconditional part** — every Coral codebase has them, whatever
-else it has adopted. How each one is then built is where the optional layer starts, and this section
-says which is which.
+about where to put it. **The five are the unconditional part** — in a Coral codebase every unit of code
+fits one of them, whatever else the project has adopted. That is a classification, not a checklist: a
+given app need not contain all five, and small ones usually do not. How each category is then *built* is
+where the optional layer starts, and this section says which is which.
 
 A **slice** is one capability, complete: `add.py`, `list.py`. Most of a codebase is slices.
 
@@ -129,7 +137,7 @@ back to.
 **A slice fits in one context window.** An agent can read everything a change depends on at once, rather
 than discovering afterwards that it never loaded some of it.
 
-**A change is confined to one directory.** The reviewer's job has a known size before they start reading.
+**A change is confined to one slice.** The reviewer's job has a known size before they start reading.
 
 **Placement is decided by the structure.** "Where does this go?" has one answer, so it stops consuming
 judgment — in the prompt and in review alike.
