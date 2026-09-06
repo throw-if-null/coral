@@ -38,6 +38,12 @@ UNIMPLEMENTED: dict[str, str] = {
              "block, resolve each entry's rule ID against rules.lock and each path against the tree, "
              "then suppress findings the project has an exception for. Until this lands, an approved "
              "exception is re-reported on every run",
+    "VER-6": "candidate, and the one that would decide which of these checks run at all: parse the "
+             "audited repo's CORAL.md adoption block and resolve it against the target version's "
+             "ownership and scale registries, then report an undeclared normative surface instead of "
+             "guessing. The Coral repo publishes that resolver already (scripts/applicability.mjs); "
+             "this tool cannot use it directly because it reads only rules.lock, which carries no "
+             "ownership or scale column",
 }
 
 

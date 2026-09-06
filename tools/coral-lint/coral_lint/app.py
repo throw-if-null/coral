@@ -12,7 +12,13 @@ import sys
 from pathlib import Path
 from typing import Sequence, TextIO
 
-from . import config as config_module, coverage, errors, layout as layout_module
+from . import (
+    applicability as applicability_module,
+    config as config_module,
+    coverage,
+    errors,
+    layout as layout_module,
+)
 from .checks import (
     ad_hoc_errors,
     ambient_config,
@@ -60,6 +66,9 @@ def _parser() -> argparse.ArgumentParser:
                    help="print which [auto] rules are implemented, and why the rest are not")
     p.add_argument("--warnings-as-errors", action="store_true",
                    help="fail on warnings too")
+    p.add_argument(applicability_module.OVERRIDE_FLAG, action="store_true",
+                   help="run every implemented check without resolving the project's "
+                        "[VER-6] declaration; output is advisory, not a conformance verdict")
     return p
 
 
@@ -78,6 +87,9 @@ def _select(rules: Sequence[str]) -> tuple:
 
 
 def _render_text(results: Sequence[CheckResult], out: TextIO, err: TextIO) -> None:
+    # The caveat leads, on the channel a human reads. A conformance disclaimer printed
+    # after a list of findings is one nobody has read by the time it matters.  [OBS-3]
+    print(applicability_module.ADVISORY_NOTICE, file=err)
     findings = [f for r in results for f in r.findings]
     for finding in sorted(findings, key=lambda f: f.sort_key):
         where = f"{finding.path}:{finding.line}" if finding.line else finding.path
@@ -137,6 +149,18 @@ def main(argv: Sequence[str], out: TextIO | None = None, err: TextIO | None = No
             # malformed invocation, and [CLI-8] gives usage its own exit code.
             raise errors.usage("path_not_found", f"not a directory: {args.path}")
 
+        # Applicability first, before a single check runs.  [VER-6]
+        #
+        # Every rule this tool implements is production-baseline or app-profile, so none
+        # of them binds a project that has not adopted that layer. Running them anyway
+        # would make a rule effective because the tool contains a check for it, which is
+        # the one thing [VER-6] exists to stop. Until the declaration can be resolved,
+        # the honest output is a configuration error, not findings.
+        advisory = getattr(args, applicability_module.OVERRIDE_FLAG.lstrip("-").replace("-", "_"))
+        if not advisory:
+            unresolved = applicability_module.resolve(repo)
+            raise errors.validation(unresolved.code, unresolved.message)
+
         checks = _select(args.rule)
         cfg = config_module.load(repo)
         lay = layout_module.discover(repo, cfg)
@@ -148,6 +172,10 @@ def main(argv: Sequence[str], out: TextIO | None = None, err: TextIO | None = No
 
     if args.json:
         payload = {
+            # First, and stated as data rather than as a note: a machine consumer must be
+            # able to tell a conformance verdict from an advisory run without reading prose.
+            "conformance": False,
+            "advisory_notice": applicability_module.ADVISORY_NOTICE,
             "config_source": cfg.source,
             "findings": [f.as_dict() for r in results for f in sorted(r.findings, key=lambda x: x.sort_key)],
             "checks": [

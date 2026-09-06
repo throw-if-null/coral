@@ -267,7 +267,16 @@ the independent-verifiability property (`[TEST-2]`, `[TEST-3]` at system scale).
 The **complete** normative checklist for system-scale work: every `[auto]` and `[review]` rule in this
 document. Sections 1–3 are the *why*; `[guide]` rules live only there.
 
+Every rule here is **system scale**: it binds a project that declares `system` among its scales, which
+means separately-built apps composing over a channel. A repository that ships one app has no channel to
+version and no topology to wire, and loads none of it. Within that, the rules below the
+`coral:scope:baseline` markers come with the **production baseline**, and `[ORCH-4..6]` come with the
+**runtime-agent profile** — two independent adoptions (`[VER-6]`), and this document holds no kernel
+rule.
+
 <!-- coral:contract:start -->
+
+<!-- coral:scope:baseline -->
 
 ### Crossing an app boundary
 - `[CHAN-1]` Cross an app boundary only through a published channel contract.
@@ -288,6 +297,8 @@ document. Sections 1–3 are the *why*; `[guide]` rules live only there.
 - `[ORCH-1]` Put topology in the orchestration layer; keep business logic out of the wiring.
 - `[ORCH-2]` Keep apps peer-agnostic: publish and consume capabilities, never hard-code peers.
 
+<!-- coral:scope:end -->
+
 <!-- coral:scope:runtime-agent -->
 
 ### Orchestration by an agent — only where a model chooses which capability to call
@@ -297,11 +308,15 @@ document. Sections 1–3 are the *why*; `[guide]` rules live only there.
 
 <!-- coral:scope:end -->
 
+<!-- coral:scope:baseline -->
+
 ### Contract testing
 - `[SYS-TEST-1]` Verify each side independently against the shared contract, not by booting both apps.
 - `[SYS-TEST-2]` Give every consumed channel relationship executable compatibility verification; consumer-driven contracts are one technique.
 - `[SYS-TEST-3]` Gate producer releases on provider verification against consumer contracts.
 - `[SYS-TEST-5]` Keep integrated end-to-end suites tiny; they backstop contract tests, never replace them.
+
+<!-- coral:scope:end -->
 
 <!-- coral:contract:end -->
 

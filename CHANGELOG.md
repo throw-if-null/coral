@@ -25,17 +25,183 @@ Rule IDs are append-only (`[VER-1]`): never renumbered, never recycled, never re
 checked-in record of every published ID and its enforcement class, and the build fails on any drift
 between it and the documents. Regenerate with `npm run rules:lock` and record the change here.
 
-A project states the version it targets in its `CORAL.md` (`[VER-3]`). Upgrading is a deliberate act: read
-the entries between your target and the new version, satisfy the added rules, and re-audit.
+A project states the version it targets in its `CORAL.md` (`[VER-3]`), and how much of that version it
+adopts (`[VER-6]`). Upgrading is a deliberate act: read the entries between your target and the new
+version, satisfy the added rules **in the layers you have adopted**, and re-audit.
+
+**The Unreleased section below is not a version anybody can target.** `VERSION` holds the latest
+**released** Coral; the heading beneath names the **working** version — the rule set these documents
+currently describe, which ships when the batch is cut. A rule you find under Unreleased is not in any
+release, and a project pinning `VERSION` does not owe it yet.
 
 ---
 
-## Unreleased
+## Unreleased — 0.7.0
 
 A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **The batch takes the highest level of the entries in it — currently minor**, because
-the ownership pass below loosens `[ORCH-4..6]` in applicability. Cutting this as a patch would tell a
-consuming project nothing changed for it, and something did.
+the batch is cut. **The batch takes the highest level of the entries in it — currently major**, because
+the applicability pass below adds `[VER-6]`. Adding a rule is a breaking change under `[VER-2]`: code —
+here, a project's `CORAL.md` — that conformed yesterday can fail today. Coral is still in `0.y.z`, so
+that major is cut as a **minor** bump (`0.6.0` → `0.7.0`) per semver's major-version-zero clause; the
+level of the change is major either way, and a consuming project reads it as one.
+
+**Coral rules become applicable by declaration, not by existing. `[VER-6]` is added, the production
+baseline becomes opt-in, and rules carry an architectural scale. Major under `[VER-2]`: a rule is added,
+and every consuming project's `CORAL.md` needs a new block before it resolves.**
+
+Coral publishes rules for CLIs, for browsers, for systems of several apps and for applications that call
+a model at runtime, and no project is the audience for all of them. Ownership layers named *who* each
+rule was for; nothing said which of those surfaces a given project had actually taken on. In practice the
+gap was filled by whoever was reading — an auditor against current `main`, an agent against whatever it
+happened to load — so a rule could become applicable to a project because it existed in this repository.
+It now becomes applicable through kernel membership or through the project's own declaration, and through
+nothing else.
+
+**`[VER-6]` `[auto]` is the new rule, and it is a kernel rule.** A project's `CORAL.md` declares the
+non-kernel Coral scopes it adopts and the scales it adopts them at; a Coral rule is applicable only
+through kernel membership or that declaration at the rule's scale. `[VER-3]` pins *which Coral*; this
+pins *how much of it*. It sits beside `[VER-3]` and `[VER-5]` in the kernel for the same reason they do:
+without it, what an agent is answerable to is not a decided set, and the four-part membership test is
+met — it is agent-justified, it defends bounded context and drift prevention, it is not general software
+correctness, and it is not downstream of another kernel rule.
+
+**The `CORAL.md` block gains `scales` and `adopts`.** Both name **ownership keys** and **scale keys** —
+the stable machine identities in `CONVENTIONS.md`'s registries — rather than tag spellings, document
+names or display labels, all of which may be reworded without a key moving:
+
+```yaml
+scales:
+  - app
+adopts:
+  production-baseline: true
+  app-profile:
+    - cli
+  language-binding: []
+  runtime-agent-profile: false
+```
+
+The kernel is implicit and cannot be listed. `framework-governance` is not an application conformance
+layer and is rejected if listed. A key that is absent is not adopted — which is what makes adding a
+profile or a layer to Coral a no-op for every existing project. A **missing or invalid** declaration is
+an error: the project has an undeclared normative surface, which is a configuration finding rather than
+permission to guess. `adopts: {}` is a different thing entirely, and a legitimate one: kernel only.
+
+**The production baseline is now `opt-in`, not `conformance`.** That is the reconciliation the rest of
+this entry needed. The taxonomy said the baseline was loaded by every Coral codebase while the model
+being built said a project chooses it; leaving both in place would have documented an option the
+contracts still treated as unconditional. Its row now reads `opt-in | profile-scoped`, the same
+combination `runtime-agent` already used, and the Agent Execution Contracts in `ARCHITECTURE.md` and
+`SYSTEM.md` mark their baseline lines with `coral:scope:baseline` accordingly. **No baseline rule's
+wording, ID, enforcement class or document changed** — what changed is that a contract no longer presents
+those rules to an agent as binding before anyone adopted them. The conformance surface is now the kernel
+alone.
+
+**Scale is a second applicability axis, and it is derived rather than declared per rule.** The baseline
+in `ARCHITECTURE.md` governs one app; the baseline in `SYSTEM.md` governs several apps composing. One
+ownership layer, two audiences — and the runtime-agent layer splits the same way, with `[AGENTIC-*]` at
+app scale and `[ORCH-4..6]` at system scale. A standalone CLI that adopts the baseline must not thereby
+owe channel versioning. A new `coral:scales` registry in `CONVENTIONS.md` maps a document to a scale, one
+row per scale plus one default row, and every rule inherits the scale of the document it is stated in.
+Scale is **not** a seventh ownership layer and not a third tag on a definition line: it is a fact about
+where the rule lives, resolved once into `rule.scale` so no consumer repeats `page === 'SYSTEM.md'`.
+
+**Composition is a set union with no precedence.** There is no "language binding beats app profile", no
+"more specific wins", no "last layer selected wins". Declaration order carries no meaning, selecting the
+same thing twice changes nothing, and no adopted layer can remove or weaken what another contributed.
+Two selected Coral rules that contradict each other are a **defect in Coral** and are surfaced as an
+amendment rather than resolved by a hidden rule here — resolving it locally would apply the same silent
+fix in every consuming project and leave the defect upstream.
+
+**Path scope differs between the two records at exactly one point: the repository root.** An exception
+scoped to `.` declines a Coral rule everywhere, which is a decision about the rule rather than about a
+place — that is an amendment, and it stays refused. An extension scoped to `.` adds a project rule
+everywhere, which is an ordinary thing for a project to need and none of Coral's business: an
+organisation-specific trace header, a metadata descriptor every capability publishes. Refusing that would
+leave a project inventing artificial subdirectories or filing an amendment for a rule Coral should never
+adopt, so `path: "."` is allowed on an extension and binds every path. A missing path is still a missing
+decision, never the root by omission.
+
+**A project rule ID has exactly one definition.** An extension *defines* its rule rather than selecting
+an already-canonical one, so two entries under one ID are two rules answering to one citation — and at a
+path both cover, a finding citing it names neither. Refused regardless of path, because differing paths
+are the case that looks most reasonable and is exactly as ambiguous: the definitions overlap wherever one
+path contains the other. Duplicate *exceptions* stay legal, and for the mirror reason — `[STATE-5]`
+already means one thing, so two path-scoped exceptions to it are two decisions about two places.
+
+**Version identity fails closed too.** A bare `## Unreleased` heading asserts the tree still describes the
+released version; **no** heading, or no changelog at all, asserts nothing, and reading that absence as
+"working equals released" would recreate the bug the identity was added to fix one deleted file later — a
+tree still holding unreleased rules while claiming the release before them. Both are now problems, and a
+model carrying either does not come back `classified`.
+
+**Exceptions and extensions are tightened, not redesigned.** `[VER-5]` already required both to name a
+scoped path; the worked example showed one for the exception and none for the extension, and the example
+is what people copy. It now shows both. Path semantics are stated so a tool can decide them: repo-relative
+subtree, matching that directory and everything beneath it, with glob forms refused rather than
+interpreted. An exception removes its rule **only** at the paths it covers, never globally. An exception naming a rule the project has not selected is **rejected as stale** rather than
+kept as a dormant override. An extension may not carry a Coral ID or reuse a Coral family (`[VER-4]`), so
+"extension" can never quietly mean "override": replacing a Coral requirement is an exception plus a
+project rule, two entries because it is two decisions.
+
+**The audit skill no longer audits a repository that has no `CORAL.md`.** That fallback was the exact
+behaviour `[VER-6]` forbids. Absence of a declaration is now a finding of its own, reported before any
+rule family is walked. The skill may still infer a likely adoption set — as a **recommendation for a
+human**, never as the normative surface it audits against.
+
+**What is implemented.** `scripts/applicability.mjs` is a pure resolver: it parses the record, validates
+every ownership key, profile name and scale against the rule model for the declared target version,
+resolves the selected rule IDs, and applies path-scoped exceptions and extensions. It reads the
+registries and hardcodes none of Coral's vocabulary, so a new profile or layer needs no code change. The
+build resolves `CONVENTIONS.md`'s own worked example through it (a tenth gate), because a documented
+machine-readable format the machine has never read has one untested user. `yaml` is a new direct
+dependency; writing a YAML parser by hand would have been the worse of the two costs.
+
+**Applicability is resolved version-first, and the model now says which Coral it is.** `[VER-6]` is itself
+versioned, so a record targeting a release from before it legitimately has no `adopts` block — and
+demanding one would apply the new rule retroactively to every existing project. The target is therefore
+read before any field is required, and a record for another release is answered with *"load that
+release's applicability semantics"* rather than *"your record is missing a field"*. Resolving the target
+against a model that could not identify itself was the same bug one level up, so the rule model carries a
+`version` and the resolver compares against it unconditionally; there is no opt-out to forget.
+
+**That version is the working one, not the last release.** `VERSION` moves when a batch is cut, which is
+right for a release marker and wrong for an identity: between releases these documents are not the rule
+set `VERSION` names, and calling them 0.6.0 described a 0.6.0 that never had `[VER-6]` in it. The
+Unreleased heading now names the version this tree would ship as — `## Unreleased — 0.7.0`, beside the
+compatibility statement that already decides the bump — and `loadRuleModel()` carries it as
+`model.version`. A prose-only batch names no version, the working version stays the released one, and
+nothing moves.
+
+**Two version markers, answering two questions.** A `targets:` line in a record this repository owns — the
+worked `CORAL.md`, `tools/coral-lint`'s — names the rule set it is resolved against, so it is the
+**working** version. A `Written against **Coral x.y.z**` line on an example or a skill says which Coral
+that page is good for, and the only Coral a reader can pin is one that has been cut, so it stays the
+**released** version. The audit skill is the one page where that is not self-evident, because it already
+implements `[VER-6]`; it says so in a note rather than moving its marker ahead of the release.
+
+**An invalid resolution cannot be consumed as a rule set.** Fail-closed applicability was a usage
+convention — a partial `selected` came back beside a list of problems, and ignoring the problems was the
+easy thing to write. It is now structural: a resolution is `{ok: true, selected, …}` or
+`{ok: false, problems, diagnostic}`, the invalid branch carries **no `selected` at all**, and
+`effectiveRulesAt()` throws on one rather than answering emptily. One valid adoption plus one typo'd
+profile name yields no consumable surface.
+
+**`coral-lint` fails closed rather than judging what a project owes.** Every rule it checks —
+`[BUCKET-1]`, `[CONFIG-2]`, `[CONC-1]`, the `[LIB-*]` pair — is production-baseline or app-profile, so
+none of them binds a project that has not adopted that layer. Running the whole static registry regardless
+is precisely the failure `[VER-6]` names, arriving from the tool rather than from the documents: a project
+declaring `adopts: {}` is kernel-only and does not owe `[BUCKET-1]`. Until the tool can resolve a
+declaration it produces a **configuration error** (its own exit code, distinct from findings) and no
+findings at all. `--ignore-applicability` still runs everything, and labels the result advisory on both
+channels — `"conformance": false` in the JSON. It is no longer described as a blocking gate in either
+README. `coral-lint` also gains a real `CORAL.md` of its own, which Coral's build resolves with the real
+resolver.
+
+**Two things this deliberately does not do.** Fetching an older Coral to build its rule model is a
+separate problem: the resolver composes from the model it is handed and refuses one whose version does not
+match. And giving `coral-lint` a resolved surface needs a YAML dependency it does not have plus an
+ownership/scale export `rules.lock` deliberately does not carry — `coral_lint/applicability.py` is the
+seam that task fills, and `coverage.UNIMPLEMENTED` records why `[VER-6]` is not checked.
 
 **The Coral kernel is named, and `[MODEL-1]`'s contract line is corrected. Patch-level: no rule was
 added, tightened, loosened, or retired, and no ID or enforcement class moved.**
@@ -58,8 +224,10 @@ nine from that same block, so membership has one source and a change to it lands
 file.
 
 **"Kernel" does not mean "most important."** `[TRUST-1]` matters more to a running system than any of the
-nine. The classification answers *why Coral imposes a rule, and at what strength* — an unmarked rule is
-not optional.
+nine. The classification answers *why Coral imposes a rule, and at what strength*, and an unmarked rule
+is not a weaker one — once a project has adopted the layer that contributes it, it binds exactly as hard.
+(That last clause is `[VER-6]`'s doing, further down this entry: at the time the kernel landed, every
+non-kernel rule was assumed to bind every project.)
 
 **`[MODEL-1]`'s contract line was missing `adapter`, and that one is not cosmetic.** The canonical
 definition has named five categories since `[MODEL-4]` landed in 0.6.0; the Agent Execution Contract in
@@ -98,7 +266,7 @@ add `[BE-*]` to an agentic backend either — a backend was always a backend, an
 `appendix/backend.md` ever excused an app for also calling a model; what changed is that the document set
 now says so structurally instead of leaving it to be inferred from a sidebar heading.
 
-Coral publishes 178 rules and no project is the audience for all of them. A CLI with no runtime model has
+Coral publishes rules for every app shape it covers, and no project is the audience for all of them. A CLI with no runtime model has
 no reason to read `[AGENTIC-*]`; a library has no reason to read HTTP status codes; a project that never
 edits Coral has no reason to read the rule-numbering discipline. Left unstated they arrive as one wall,
 and the reviewer's real budget — the `[review]` rules, spent one judgment at a time — goes on rules that

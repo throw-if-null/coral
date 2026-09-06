@@ -137,8 +137,9 @@ the rules surfaced, and three places where following Coral would have been waste
 
 Otherwise, in order:
 
-- [`CONVENTIONS.md`](/CONVENTIONS) — the vocabulary, the rule numbering, the enforcement classes, and how
-  a project records where it knowingly deviates.
+- [`CONVENTIONS.md`](/CONVENTIONS) — the vocabulary, the rule numbering, the enforcement classes, how a
+  project declares [how much of Coral applies to it](/CONVENTIONS#what-applies-to-a-project), and how it
+  records where it knowingly deviates.
 - [`ARCHITECTURE.md`](/ARCHITECTURE) — how to build one app. The longest document, holding most of the
   rules.
 - [`SYSTEM.md`](/SYSTEM) — how separately-built apps compose over a channel.
@@ -151,6 +152,14 @@ it, `[review]` if it needs a person's judgment, `[guide]` if it is rationale rat
 On this site each citation links to its definition, and the build fails if a citation has no definition, if
 a rule has no class, or if a published ID disappears — so the documents' internal consistency is checked
 rather than trusted.
+
+**Not all of it applies to you, and which part does is your decision, not ours.** A small set — the
+[kernel](/CONVENTIONS#the-coral-kernel) — applies to every Coral codebase. Everything else, the production
+baseline included, applies because a project's `CORAL.md` says it does: the app profiles it has taken on,
+whether it wants the baseline, whether it calls a model at runtime, and whether it is one app or several
+apps composing. Adding a rule or a profile here changes nothing for an existing project until that project
+adopts it. The rules for that are in
+[what applies to a project](/CONVENTIONS#what-applies-to-a-project).
 
 If you are looking for one rule rather than reading through, the [rule index](/rules) has every one of
 them on a single page — ID, class, and a one-line statement, generated from the documents themselves.

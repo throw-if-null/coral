@@ -28,6 +28,8 @@ import {
   PROFILES_END,
   PROFILES_FILE,
   PROFILES_START,
+  SCALES_END,
+  SCALES_START,
   classifyRules,
   extractStatements,
   groupByScope,
@@ -35,6 +37,7 @@ import {
   parseLayers,
   serializeIndex,
 } from './rules.mjs'
+import { coralVersion } from './version.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
 
@@ -55,6 +58,10 @@ const LAYER_ROWS = [
   '| shape profile | `shape-profile` | `{shape:…}` | opt-in | profile-scoped | shapes | a shape |',
   '| language binding | `language-binding` | `{lang:…}` | opt-in | profile-scoped | a lang | it |',
 ]
+const SCALE_HEADER = ['| Scale | Key | Stated in | Read by | Justified by |', '|---|---|---|---|---|']
+// One scale, and it is the default one. The fixtures here are about ownership; scale
+// composition has its own file (scripts/applicability.test.mjs) with a two-scale tree.
+const SCALE_ROWS = ['| here | `here` | — | everyone | the only size there is |']
 const PROFILE_HEADER = ['| Profile | Rules live in | What it covers |', '|---|---|---|']
 const PROFILE_ROWS = [
   '| `{shape:widget}` | `appendix/widget.md` | Widget-shaped applications. |',
@@ -64,7 +71,13 @@ const PROFILE_ROWS = [
 const KERNEL_HEADER = ['| Rule | Why | Properties |', '|---|---|---|']
 
 /** A CONVENTIONS.md holding all three registries, plus whatever definitions `defs` adds. */
-const conventions = ({ layers = LAYER_ROWS, profiles = PROFILE_ROWS, kernel = ['K-1'], defs = [] }) =>
+const conventions = ({
+  layers = LAYER_ROWS,
+  scales = SCALE_ROWS,
+  profiles = PROFILE_ROWS,
+  kernel = ['K-1'],
+  defs = [],
+}) =>
   [
     '# Conventions',
     '',
@@ -76,6 +89,13 @@ const conventions = ({ layers = LAYER_ROWS, profiles = PROFILE_ROWS, kernel = ['
     ...layers,
     '',
     LAYERS_END,
+    '',
+    SCALES_START,
+    '',
+    ...SCALE_HEADER,
+    ...scales,
+    '',
+    SCALES_END,
     '',
     KERNEL_START,
     '',
@@ -97,6 +117,7 @@ const conventions = ({ layers = LAYER_ROWS, profiles = PROFILE_ROWS, kernel = ['
 function fixture(overrides = {}) {
   const {
     layers,
+    scales,
     profiles,
     kernel = ['K-1'],
     conventionDefs = ['**`[K-1]` `[review]`** — the kernel one.'],
@@ -107,7 +128,13 @@ function fixture(overrides = {}) {
     extra = {},
   } = overrides
   return {
-    [PROFILES_FILE]: conventions({ layers, profiles, kernel, defs: conventionDefs }),
+    // The model carries a version identity, so a fixture tree states one. Both halves are
+    // required: `VERSION` is the release, and the changelog's Unreleased heading says whether
+    // the tree still describes it. A bare heading asserts that it does — an ABSENT heading is
+    // a missing statement, and the model refuses it rather than assuming.
+    VERSION: '9.9.9\n',
+    'CHANGELOG.md': '# Changelog\n\n## Unreleased\n',
+    [PROFILES_FILE]: conventions({ layers, scales, profiles, kernel, defs: conventionDefs }),
     'ARCHITECTURE.md': ['# App', '', ...spine, ''].join('\n'),
     'appendix/widget.md': [
       '# Widget',
@@ -161,6 +188,36 @@ test('a clean model gives every rule exactly one resolved scope', () => {
     assert.ok(rule.scope, `[${id}] has no scope`)
     assert.ok(rule.scope.kind, `[${id}] has no scope kind`)
   }
+})
+
+test('a clean model also gives every rule a resolved scale', () => {
+  // Scale is the second applicability axis and it rides on the rule, so no consumer has to
+  // ask which document a rule came from in order to know at what size it bites.
+  const { rules, scales } = cleanModel()
+  assert.deepEqual(scales.map((sc) => sc.key), ['here'])
+  for (const [id, rule] of rules) assert.equal(rule.scale, 'here', `[${id}] has no scale`)
+})
+
+test('a document with a scale row of its own overrides the default', () => {
+  const m = cleanModel({
+    scales: [
+      '| here | `here` | — | one unit | itself |',
+      '| there | `there` | `SPREAD.md` | many units | between them |',
+    ],
+    extra: {
+      'SPREAD.md': ['# Spread', '', '**`[FAR-1]` `[review]` `{base}`** — the far one.', ''].join('\n'),
+    },
+  })
+  assert.equal(m.rules.get('FAR-1').scale, 'there')
+  assert.equal(m.rules.get('BASE-1').scale, 'here')
+})
+
+test('a scale registry that fails to validate cannot leave the model `classified`', () => {
+  // Same posture as the kernel and profile registries: applicability now rests on this
+  // table too, so a model built over a rejected one must not present itself as sound.
+  const m = model({ scales: ['| there | `there` | `SPREAD.md` | many | between |'] })
+  assert.ok(m.problems.some((p) => /has no default row|is not a document/.test(p)), m.problems.join('\n'))
+  assert.equal(m.classified, false)
 })
 
 test('the resolved scope keeps kind, profile and tag as separate facts', () => {
@@ -558,7 +615,7 @@ const REAL = loadRuleModel(REPO)
 test('the repository model is clean and every rule in it has one scope', () => {
   assert.deepEqual(REAL.problems, [])
   assert.ok(REAL.classified)
-  assert.equal(REAL.rules.size, 178)
+  assert.equal(REAL.rules.size, 179)
   for (const [id, rule] of REAL.rules) {
     assert.ok(rule.scope, `[${id}] has no resolved scope`)
     assert.ok(rule.scope.kind, `[${id}] has no scope kind`)
@@ -584,6 +641,100 @@ const STABLE_KINDS = [
   'language-binding',
   'runtime-agent-profile',
 ]
+
+// The published scale keys, pinned for the same reason and on the same terms: a project's
+// `CORAL.md` names them, so a rename is a break for every manifest. A required subset, so a
+// third scale stays a registry edit.
+const STABLE_SCALES = ['app', 'system']
+
+test('the model identifies itself as the version its documents describe, not the last release', () => {
+  // The identity every applicability resolution is checked against. Between releases these
+  // are different versions, and saying they are the same is how an unreleased rule gets
+  // presented to a project as a rule of the release before it.
+  const { released, working, unreleased } = coralVersion(REPO)
+  assert.match(REAL.version, /^\d+\.\d+\.\d+$/)
+  assert.equal(REAL.version, working)
+  if (unreleased) {
+    assert.notEqual(working, released, 'an unreleased batch must not claim the released version')
+  }
+})
+
+test('a tree that cannot say which Coral it is does not come back classified', () => {
+  // Every way the identity can go missing, and none of them may resolve to a version. The
+  // dangerous one is the silent kind: a tree still holding unreleased rules while claiming
+  // the release before them lets a record targeting that release resolve against rules that
+  // were never in it — which is the whole failure the identity exists to prevent, arriving
+  // through a deleted file rather than through a bad comparison.
+  const cases = [
+    ['a malformed VERSION', { VERSION: 'main\n' }, /is not a three-part version/],
+    ['no VERSION at all', { VERSION: null }, /VERSION is missing/],
+    ['no CHANGELOG at all', { 'CHANGELOG.md': null }, /CHANGELOG\.md is missing/],
+    [
+      'a changelog with no Unreleased heading',
+      { 'CHANGELOG.md': '# Changelog\n\n## 9.9.9 — 2026-01-01\n' },
+      /has no `## Unreleased` heading/,
+    ],
+    [
+      'two Unreleased headings',
+      { 'CHANGELOG.md': '# Changelog\n\n## Unreleased\n\n## Unreleased — 9.9.10\n' },
+      /has 2 Unreleased headings/,
+    ],
+    [
+      'an Unreleased heading naming a version at or below the release',
+      { 'CHANGELOG.md': '# Changelog\n\n## Unreleased — 9.9.9\n' },
+      /is not above the released 9\.9\.9/,
+    ],
+  ]
+  for (const [what, overrides, expected] of cases) {
+    const tree = { ...fixture() }
+    for (const [rel, text] of Object.entries(overrides)) {
+      if (text === null) delete tree[rel]
+      else tree[rel] = text
+    }
+    const m = inTree(tree, loadRuleModel)
+    assert.ok(m.problems.some((p) => expected.test(p)), `${what}: ${m.problems.join('\n')}`)
+    assert.equal(m.version, null, `${what} still produced a version`)
+    assert.equal(m.classified, false, `${what} still came back classified`)
+  }
+})
+
+test('a bare `## Unreleased` is a statement, and the tree is the released version', () => {
+  // The one case that legitimately resolves to `working === released`: somebody wrote the
+  // heading and named no successor, which is the same claim a [VER-2] patch makes.
+  const m = cleanModel()
+  assert.equal(m.version, '9.9.9')
+  const { released, working, unreleased } = inTree(fixture(), coralVersion)
+  assert.equal(released, '9.9.9')
+  assert.equal(working, '9.9.9')
+  assert.equal(unreleased, false)
+})
+
+test('a named `## Unreleased — x.y.z` makes the tree its successor', () => {
+  const tree = { ...fixture(), 'CHANGELOG.md': '# Changelog\n\n## Unreleased — 9.10.0\n' }
+  const m = inTree(tree, loadRuleModel)
+  assert.deepEqual(m.problems, [])
+  assert.equal(m.version, '9.10.0')
+  assert.equal(inTree(tree, coralVersion).unreleased, true)
+})
+
+test('every published scale keeps its stable machine identity', () => {
+  const actual = new Set(REAL.scales.map((sc) => sc.key))
+  for (const key of STABLE_SCALES) assert.ok(actual.has(key), `missing stable scale \`${key}\``)
+})
+
+test('scale is resolved from the defining document, once, for every rule', () => {
+  // The claim the registry replaced: no consumer repeats `rule.page === 'SYSTEM.md'`, and
+  // the answer it would have given is the answer the model now carries.
+  const systemDoc = REAL.scales.find((sc) => sc.key === 'system')?.page
+  assert.ok(systemDoc, 'no document is registered at system scale')
+  for (const [id, rule] of REAL.rules) {
+    assert.equal(
+      rule.scale,
+      rule.page === systemDoc ? 'system' : 'app',
+      `[${id}] in ${rule.page} resolved to scale \`${rule.scale}\``
+    )
+  }
+})
 
 test('every published ownership kind keeps its stable machine identity', () => {
   const actual = new Set(REAL.taxonomy.map((layer) => layer.kind))
@@ -680,7 +831,8 @@ test('the by-scope section presents itself as one axis, not as the load set', ()
   const from = page.indexOf('## Rules by scope')
   const intro = page.slice(from, page.indexOf('### ', from))
   assert.match(intro, /one applicability axis, not the whole load decision/)
-  assert.match(intro, /narrowed further by scale/)
+  assert.match(intro, /adopted/)
+  assert.match(intro, /scales/)
   // and it does not tell a reader this grouping is what they load
   assert.doesNotMatch(intro, /what it has to load|the complete .*load|decid\w+ what to load/i)
 })

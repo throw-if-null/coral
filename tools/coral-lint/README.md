@@ -1,16 +1,54 @@
 # coral-lint — Tier 1 static checks
 
 The operational half of [Enforcement & Drift Control](../../ARCHITECTURE.md#enforcement-drift-control).
-Point it at a repository and it fails the build on the `[auto]` rules it can decide deterministically.
+It decides deterministically on the `[auto]` rules it implements.
 
 ```bash
 cd tools/coral-lint
-python3 -m coral_lint /path/to/repo          # human output; exit 1 if anything failed
-python3 -m coral_lint /path/to/repo --json   # stable machine contract on stdout
+python3 -m coral_lint /path/to/repo          # exit 2 today — see "Applicability" below
+python3 -m coral_lint /path/to/repo --ignore-applicability   # advisory findings; exit 1 if any
+python3 -m coral_lint /path/to/repo --json --ignore-applicability   # machine contract on stdout
 python3 -m coral_lint --coverage             # which rules run, and why the rest don't
 ```
 
 No dependencies, Python 3.11+, nothing to install.
+
+## Applicability — read this before treating it as a gate
+
+**This tool is not a blocking Coral conformance gate today, and it refuses to pretend to be one.**
+
+Under `[VER-6]`, a Coral rule binds a project through kernel membership or through that project's own
+`CORAL.md` declaration, and through nothing else. Every rule below is a **production-baseline** or
+**app-profile** rule — so none of them applies to a project that has not adopted that layer. A project
+declaring
+
+```yaml
+scales: [app]
+adopts: {}
+```
+
+is explicitly kernel-only and owes none of them; failing it on `[BUCKET-1]` would be a finding against a
+rule nobody adopted, which is exactly the failure `[VER-6]` exists to stop.
+
+This tool cannot resolve that declaration yet, so it **fails closed**: by default it produces a
+configuration error (exit `2`, distinct from the `1` findings use) and no findings at all. `--coverage`
+still works, because it reports what the tool implements rather than judging a project.
+
+`--ignore-applicability` runs every implemented check anyway. Its output is **advisory**, not a
+conformance verdict: the text form leads with a notice on `stderr` and `--json` carries
+`"conformance": false`. Use it as a code smell detector; do not gate a build on it, and do not report its
+output as Coral conformance.
+
+Two things stand between here and resolving a declaration properly, and both are deliberate decisions
+rather than missing code: the declaration is YAML and this tool has no dependencies, and mapping `adopts`
+to rule IDs needs each rule's ownership kind, profile and scale — which `rules.lock` deliberately does not
+carry, so that an ownership reshuffle cannot churn the file `[VER-1]` depends on. The Coral repository
+already implements the resolver (`scripts/applicability.mjs`); giving this tool a resolved surface to
+consume is the task that closes the gap. `coral_lint/applicability.py` is the seam it fills.
+
+`coral-lint` keeps its own `CORAL.md` in this directory, because it is a Coral CLI and a project declares
+what it adopts. It is a project record rather than a documentation page, so the site does not publish it. The Coral repository's build resolves that record with the real resolver, so it cannot drift
+from the registries it names.
 
 ## What it checks today
 

@@ -41,17 +41,22 @@ import {
   PROFILES_END,
   PROFILES_FILE,
   PROFILES_START,
-  SYSTEM_SPINE,
+  SCALES_END,
+  SCALES_START,
   SURFACES,
+  SYSTEM_SPINE,
   checkContractScopes,
   classifyRules,
+  defaultScaleOf,
   groupBySurface,
-  parseKernel,
   loadRuleModel,
+  parseKernel,
   parseLayers,
   parseProfiles,
   parseRules,
+  parseScales,
   resolveTag,
+  scaleOfPage,
   serializeIndex,
   stripDefinitionMetadata,
 } from './rules.mjs'
@@ -302,6 +307,14 @@ test('a [guide] statement keeps its brace AND class syntax through serializeInde
     '',
     LAYERS_END,
     '',
+    SCALES_START,
+    '',
+    '| Scale | Key | Stated in | Read by | Justified by |',
+    '|---|---|---|---|---|',
+    '| small | `small` | — | one unit | the unit itself |',
+    '',
+    SCALES_END,
+    '',
     KERNEL_START,
     '',
     '| Rule | Why | Properties |',
@@ -326,7 +339,12 @@ test('a [guide] statement keeps its brace AND class syntax through serializeInde
     '',
   ].join('\n')
   const page = inTree(
-    { [PROFILES_FILE]: conventions, 'appendix/widget.md': widget },
+    {
+      VERSION: '9.9.9\n',
+      'CHANGELOG.md': '# Changelog\n\n## Unreleased\n',
+      [PROFILES_FILE]: conventions,
+      'appendix/widget.md': widget,
+    },
     (dir) => {
       const model = loadRuleModel(dir)
       assert.deepEqual(model.problems, [])
@@ -1192,6 +1210,135 @@ test('a scope naming a tag no rule uses fails', () => {
   assert.ok(problems.some((p) => /which no rule is classified under/.test(p)), problems.join('\n'))
 })
 
+// ── the scale registry ───────────────────────────────────────────────────────
+//
+// Same posture as the ownership taxonomy, and the tests say the same things about it:
+// the key is a machine identity that may not be repaired into something nobody wrote,
+// a row that fails to parse is an error rather than a scale that quietly stops
+// existing, and there is exactly one default row. Synthetic vocabulary throughout —
+// `here`, `there`, `WIDE.md` — so renaming Coral's scales is a documents change.
+
+const SCALE_HEADER = ['| Scale | Key | Stated in | Read by | Justified by |', '|---|---|---|---|---|']
+
+/** Write a CONVENTIONS.md holding `body` between the scale markers, and parse it. */
+const parseScaleRegistry = (body, extra = {}) =>
+  inTree(
+    {
+      [PROFILES_FILE]: ['# Conventions', '', SCALES_START, ...body, SCALES_END, ''].join('\n'),
+      'WIDE.md': '# Wide\n',
+      ...extra,
+    },
+    parseScales
+  )
+
+const scaleRows = (rows) => parseScaleRegistry(['', ...SCALE_HEADER, ...rows, ''])
+
+test('a well-formed scale registry yields its scales and no problems', () => {
+  const { scales, problems } = scaleRows([
+    '| here | `here` | — | one unit | itself |',
+    '| there | `there` | `WIDE.md` | many units | between them |',
+  ])
+  assert.deepEqual(problems, [])
+  assert.deepEqual(
+    scales.map((sc) => [sc.key, sc.page]),
+    [
+      ['here', null],
+      ['there', 'WIDE.md'],
+    ]
+  )
+})
+
+test('scaleOfPage falls to the default row for every document no row claims', () => {
+  const { scales } = scaleRows([
+    '| here | `here` | — | one unit | itself |',
+    '| there | `there` | `WIDE.md` | many units | between them |',
+  ])
+  assert.equal(scaleOfPage('WIDE.md', scales), 'there')
+  assert.equal(scaleOfPage('ARCHITECTURE.md', scales), 'here')
+  assert.equal(scaleOfPage('appendix/anything.md', scales), 'here')
+  assert.equal(defaultScaleOf(scales).key, 'here')
+})
+
+test('a registry with no default row is refused — most rules would have no scale', () => {
+  const { problems } = scaleRows(['| there | `there` | `WIDE.md` | many units | between them |'])
+  assert.ok(problems.some((p) => /has no default row/.test(p)), problems.join('\n'))
+})
+
+test('a second default row is refused too', () => {
+  const { problems } = scaleRows([
+    '| here | `here` | — | one unit | itself |',
+    '| also | `also` | — | one unit | itself |',
+  ])
+  assert.ok(problems.some((p) => /is a second default scale/.test(p)), problems.join('\n'))
+})
+
+test('the scale key cell is matched whole, like a layer key', () => {
+  for (const cell of ['here', '`Here`', '`here scale`', '`here_scale`', '`{here}`', '`-here`']) {
+    const { scales, problems } = scaleRows([
+      '| here | `here` | — | one unit | itself |',
+      `| odd | ${cell} | \`WIDE.md\` | many | between |`,
+    ])
+    assert.ok(problems.some((p) => /is not a scale key|malformed scale row/.test(p)), cell)
+    assert.deepEqual(scales.map((sc) => sc.key), ['here'], `${cell} contributed a scale anyway`)
+  }
+})
+
+test('two scales cannot share a key, a name, or a document', () => {
+  const dupKey = scaleRows([
+    '| here | `here` | — | one | itself |',
+    '| other | `here` | `WIDE.md` | many | between |',
+  ])
+  assert.ok(dupKey.problems.some((p) => /declares the scale key `here` twice/.test(p)))
+  const dupName = scaleRows([
+    '| here | `here` | — | one | itself |',
+    '| here | `there` | `WIDE.md` | many | between |',
+  ])
+  assert.ok(dupName.problems.some((p) => /declares the scale name `here` twice/.test(p)))
+  const dupPage = scaleRows([
+    '| here | `here` | — | one | itself |',
+    '| there | `there` | `WIDE.md` | many | between |',
+    '| yonder | `yonder` | `WIDE.md` | many | between |',
+  ])
+  assert.ok(dupPage.problems.some((p) => /already claims/.test(p)), dupPage.problems.join('\n'))
+})
+
+test('a scale naming a document that does not exist is refused', () => {
+  const { problems } = scaleRows([
+    '| here | `here` | — | one | itself |',
+    '| there | `there` | `GHOST.md` | many | between |',
+  ])
+  assert.ok(problems.some((p) => /is not a document the/.test(p)), problems.join('\n'))
+})
+
+test('prose inside the scale block, or a malformed row, is an error and not a skip', () => {
+  const prose = parseScaleRegistry(['', ...SCALE_HEADER, '| here | `here` | — | one | itself |', 'and a note', ''])
+  assert.ok(prose.problems.some((p) => /is not a table row/.test(p)))
+  const short = scaleRows(['| here | `here` | — | one |'])
+  assert.ok(short.problems.some((p) => /malformed scale row/.test(p)))
+})
+
+test('two scale blocks in one file is an error, not a first-one-wins', () => {
+  const { problems } = inTree(
+    {
+      [PROFILES_FILE]: [
+        '# Conventions',
+        '',
+        SCALES_START,
+        ...SCALE_HEADER,
+        '| here | `here` | — | one | itself |',
+        SCALES_END,
+        SCALES_START,
+        ...SCALE_HEADER,
+        '| here | `here` | — | one | itself |',
+        SCALES_END,
+        '',
+      ].join('\n'),
+    },
+    parseScales
+  )
+  assert.ok(problems.some((p) => /must hold exactly one/.test(p)), problems.join('\n'))
+})
+
 // ── the real documents ───────────────────────────────────────────────────────
 
 test('every published rule lands in exactly one ownership layer', () => {
@@ -1244,10 +1391,14 @@ test('the generated index reconciles its own three subtotals', () => {
   const { rules } = model
   const page = serializeIndex(REPO, model)
   const n = String.raw`\*\*(\d+)`
+  // Whitespace-tolerant: the generated prose is greedy-wrapped, so a phrase may straddle a
+  // line break and a literal space would make this test fail on a reworded paragraph rather
+  // than on a subtotal that stopped reconciling.
+  const ws = (phrase) => phrase.split(' ').join(String.raw`\s+`)
   const [, a, b, c] = page.match(
     new RegExp(
-      `${n} form the conformance surface\\*\\*[\\s\\S]*?` +
-        `${n} govern Coral itself\\*\\*[\\s\\S]*?${n} are opt-in`
+      `${n}${ws(' form the conformance surface')}\\*\\*[\\s\\S]*?` +
+        `${n}${ws(' govern Coral itself')}\\*\\*[\\s\\S]*?${n}${ws(' are opt-in')}`
     )
   )
   assert.equal(Number(a) + Number(b) + Number(c), rules.size)

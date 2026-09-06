@@ -11,7 +11,7 @@
     "docs:preview": "vitepress preview",
     "check:anchors": "node scripts/check-anchors.mjs",
     "check:versions": "node scripts/check-versions.mjs",
-    "check:lint": "cd tools/coral-lint && python3 -m pytest -q && python3 -m coral_lint .",
+    "check:lint": "cd tools/coral-lint && python3 -m pytest -q && python3 -m coral_lint . --ignore-applicability",
     "build": "npm run docs:build",
     "rules:lock": "node scripts/rules-lock.mjs",
     "rules:index": "node scripts/rules-index.mjs"
@@ -31,6 +31,7 @@
     "mermaid": "^11.17.2",
     "vitepress": "^1.6.4",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "wrangler": "4.129.0"
+    "wrangler": "4.129.0",
+    "yaml": "^2.9.0"
   }
 }

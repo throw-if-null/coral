@@ -16,10 +16,11 @@ a scheduler, a solver. That limit is stated as a rule (`[SCOPE-2]`), not as a fo
 ## The documents
 
 Start with [`CONVENTIONS.md`](./CONVENTIONS.md). It defines the eight nouns every other document uses, the
-rule-ID scheme, the enforcement classes, the agents-write / humans-review operating model, and the
+rule-ID scheme, the enforcement classes, the agents-write / humans-review operating model, the
 [Coral kernel](./CONVENTIONS.md#the-coral-kernel) — the rules Coral would substantially relax without
-the agent-author / human-architect operating model; the rest refer back to it instead of restating any
-of it.
+the agent-author / human-architect operating model — and
+[what applies to a project](./CONVENTIONS.md#what-applies-to-a-project), which is how a project declares
+how much of Coral it has taken on. The rest refer back to it instead of restating any of it.
 
 From there: [`ARCHITECTURE.md`](./ARCHITECTURE.md) is how to build one app,
 [`SYSTEM.md`](./SYSTEM.md) is how separately-built apps compose over a channel, [`appendix/`](./appendix)
@@ -30,31 +31,51 @@ runtime-agent addendum, which an app of any shape adds when it calls a model at 
 have been overkill.
 
 To look a rule up rather than read for it, [`rules.md`](./rules.md) lists all of them on one page with
-their class, their ownership layer, and a one-line statement, grouped by document. It is generated from
+their class, their ownership layer, their scale, and a one-line statement, grouped by document. It is generated from
 the documents (`npm run rules:index`) and the build fails if it falls behind them, because an index that
 can drift from what it indexes is worse than no index.
 
-Rules carry stable IDs like `[DUP-2]`, and two independent classifications: an **enforcement class**
-(`[auto]` / `[review]` / `[guide]`) saying how the rule is checked, and an
+Rules carry stable IDs like `[DUP-2]`, and three independent classifications: an **enforcement class**
+(`[auto]` / `[review]` / `[guide]`) saying how the rule is checked, an
 **[ownership layer](./CONVENTIONS.md#ownership-layers)** saying who has to read it — so a CLI is not asked
-to reason about HTTP status codes or runtime-AI rules. On the live site every citation links to its
-definition. The build fails if a rule has no class or no layer, if a citation has no definition, if a rule
-is missing from its document's Agent Execution Contract, if a contract lists an opt-in rule without
-saying so, if a published rule ID has disappeared or been reclassified, if the rule index is stale, or if
-a link fragment doesn't resolve — the docs' own drift control is structural, not goodwill.
+to reason about HTTP status codes or runtime-AI rules — and an
+**[architectural scale](./CONVENTIONS.md#architectural-scale)** saying whether it governs one app or
+several apps composing. On the live site every citation links to its definition. The build fails if a rule
+has no class or no layer, if a citation has no definition, if a rule is missing from its document's Agent
+Execution Contract, if a contract lists an opt-in rule without saying so, if a published rule ID has
+disappeared or been reclassified, if the rule index is stale, if the worked `CORAL.md` in `CONVENTIONS.md`
+stops resolving, or if a link fragment doesn't resolve — the docs' own drift control is structural, not
+goodwill.
 
 ## Versioning, and how a project records where it differs
 
 Coral is versioned because it will be **incomplete**: rules get missed, patterns need covering, and some
-rules turn out to be wrong. The current version is in `VERSION`; what changed is in
-[`CHANGELOG.md`](./CHANGELOG.md), recorded per rule ID. Rule IDs are append-only — never renumbered,
-recycled, or removed — and `rules.lock` is the checked-in record the build enforces that against.
+rules turn out to be wrong. What changed is in [`CHANGELOG.md`](./CHANGELOG.md), recorded per rule ID.
+Rule IDs are append-only — never renumbered, recycled, or removed — and `rules.lock` is the checked-in
+record the build enforces that against.
 
-A consuming project keeps a **`CORAL.md`** in its root declaring the version it targets and two kinds of
-local divergence:
+**Two versions, and the difference matters now that version identity is part of applicability.** The
+**latest released** version is in `VERSION`, and it is the only one a project can target. The **working**
+version is the rule set these documents currently describe, named by the changelog's Unreleased heading;
+between releases it is a successor to `VERSION`, so **`main` describes rules that are not in any release
+yet**. [`CONVENTIONS.md`](./CONVENTIONS.md#two-versions-released-and-working) spells the split out.
 
-- an **Exception** — Coral has a rule; this project knowingly breaks it for a trade-off
-- an **Extension** — Coral has no rule; this project needs one; it stays local, under its own ID prefix
+A consuming project keeps a **`CORAL.md`** in its root. It is the one file that answers *what rules apply
+here*, and it carries three things:
+
+- the **Coral version** the project targets (`[VER-3]`)
+- **what it adopts** (`[VER-6]`) — the scales it is written at, and the non-kernel scopes it takes on. The
+  kernel applies without being declared; everything else, the production baseline included, applies
+  because this block says so. **A rule never becomes applicable just by existing in this repository**, so
+  adding a profile or a rule here changes nothing for a project until that project adopts it. A missing or
+  invalid declaration is a configuration finding, not a licence to audit against everything.
+- two kinds of local divergence, each scoped to a path:
+  - an **Exception** — Coral has a rule; this project knowingly breaks it for a trade-off, in one subtree
+  - an **Extension** — Coral has no rule; this project needs one; it stays local, under its own ID prefix
+
+Coral layers **compose by union**, with no precedence between them: no layer overrides another, and two
+Coral rules that contradict each other are a defect in Coral to be filed upstream rather than resolved
+locally.
 
 A third kind isn't recorded locally at all: an **Amendment** is when a Coral rule is *wrong or too
 narrow*, and it goes upstream as an issue or PR on this repo. An exception that recurs across projects is
@@ -68,16 +89,24 @@ isn't re-litigated by every agent that meets it. The full convention is in
 
 ## The linter
 
-[`tools/coral-lint/`](./tools/coral-lint/) is the Tier 1 gate: it fails the build on the `[auto]` rules a
-static check can decide. Eleven today — `[BUCKET-1]`, `[XCUT-2]`, `[STRUCT-1]`, `[ROOT-2]`, `[STATE-2]`,
-`[CONFIG-2]`, `[CONC-1]`, `[IDEM-2]`, `[ERR-2]`, plus `[LIB-3]` and `[LIB-5]` for published libraries —
-with every other `[auto]` rule listed under `--coverage` alongside a stated reason it isn't checked yet, so
-nothing is silently uncovered.
+[`tools/coral-lint/`](./tools/coral-lint/) implements Tier 1: the `[auto]` rules a static check can
+decide. Eleven today — `[BUCKET-1]`, `[XCUT-2]`, `[STRUCT-1]`, `[ROOT-2]`, `[STATE-2]`, `[CONFIG-2]`,
+`[CONC-1]`, `[IDEM-2]`, `[ERR-2]`, plus `[LIB-3]` and `[LIB-5]` for published libraries — with every other
+`[auto]` rule listed under `--coverage` alongside a stated reason it isn't checked yet, so nothing is
+silently uncovered.
+
+**It is not a blocking conformance gate today.** Every rule it checks is production-baseline or
+app-profile, so none of them binds a project that has not adopted that layer (`[VER-6]`), and the tool
+cannot resolve a project's declaration yet. So it **fails closed**: by default it reports a configuration
+error rather than findings, and `--ignore-applicability` produces output that is explicitly advisory
+rather than a conformance verdict.
+[Its README](./tools/coral-lint/README.md#applicability--read-this-before-treating-it-as-a-gate) says what
+closing that gap needs.
 
 ```bash
 cd tools/coral-lint
-python3 -m coral_lint /path/to/repo     # exit 1 on findings; --json for a stable machine contract
-python3 -m coral_lint --coverage        # what runs, and why the rest doesn't
+python3 -m coral_lint /path/to/repo --ignore-applicability   # advisory; exit 1 on findings
+python3 -m coral_lint --coverage                             # what runs, and why the rest doesn't
 ```
 
 No dependencies, Python 3.11+. `[BUCKET-1]` needs no configuration, so it is useful immediately; the rest

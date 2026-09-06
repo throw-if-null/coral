@@ -15,6 +15,14 @@ description: >
 
 > Written against **Coral 0.6.0**. Audit a project against the version its
 > `CORAL.md` declares, not against this one (`[VER-3]`).
+>
+> **"Written against" names the latest *released* Coral — the only version a project can
+> target. It is not a claim that everything below exists in 0.6.0.** This skill already
+> implements `[VER-6]`, which is **unreleased** and ships in 0.7.0: `CORAL.md` adoption
+> declarations, the undeclared-normative-surface finding, and scale filtering are all
+> 0.7.0 behaviour. A project targeting 0.6.0 or earlier has no adoption declaration and is
+> not wrong for it — audit it against its own version's applicability semantics, not
+> against the ones below. Delete this note when 0.7.0 is cut.
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not
@@ -68,21 +76,70 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
 A path to the repo (from the user's prompt or `args`). If none is given, ask which repo. You have access
 to dependency repos too — use them (boundary rule 3).
 
-**Read the repo's `CORAL.md` first, if it has one.** It is the project's adherence record and it changes
-what counts as a finding:
+**Read the repo's `CORAL.md` first. It decides what you are auditing against, and without it there is no
+audit to perform.** It is the project's adherence record, and every field changes what counts as a
+finding:
 
-- **Targets: Coral `<version>`** — audit against *that* version, not the latest (`[VER-3]`). A rule added
-  after the declared target is not yet binding on this project; note it as an upgrade consideration, not a
-  divergence.
-- **Extensions** — project-local rules Coral has no rule for. Treat them as binding: code that breaks a
-  declared extension is a finding, cited by its project ID.
-- **Exceptions** — Coral rules the project knowingly breaks. These are **accepted deviations**, not
-  findings. Report them in their own short section so the reader sees the standing debt, and flag any whose
-  stated `revisit when` condition now appears to be met.
+- **`targets: <version>`** — audit against *that* version, never against the newest Coral you happen to
+  have (`[VER-3]`). A rule added after the declared target is not yet binding on this project; note it as
+  an upgrade consideration, not a divergence. A rule that is only in an unreleased Coral binds nobody.
+- **`scales`** — which architectural scales the repository is written at. A project that declares only
+  `app` does not owe system-scale rules (`[CHAN-*]`, `[SYS-TEST-*]`, `[ORCH-4..6]`), whatever it adopts.
+- **`adopts`** — the non-kernel ownership scopes the project has taken on (`[VER-6]`). **This is the
+  audit's scope.** The kernel applies unconditionally. Everything else — the production baseline
+  included — applies only because this block says so, at the declared scales. A rule outside the selected
+  set is not a finding, and never becomes one because it exists in the Coral repository.
 
-If the repo has no `CORAL.md`, say so once: audit against the current version, and note that the project
-has no declared target or exception register. **Never write or edit `CORAL.md` yourself** (`[AGENT-4]`) —
-recommend the entry and let a human commit it.
+**Read `targets` before you require any of the rest.** `[VER-6]` is itself versioned: a record targeting a
+Coral release from before it was added legitimately has no `scales` and no `adopts`, and reporting that
+absence as a `[VER-6]` violation applies a rule to a project whose target predates it — which is what
+`[VER-3]` forbids. For such a project, load the applicability semantics of the version it targets and
+audit against those; do not audit it against this version's, and do not report its record as invalid.
+- **Extensions** — project-local rules Coral has no rule for, each scoped to a path. Treat them as
+  binding **within that path**: code that breaks a declared extension there is a finding, cited by its
+  project ID.
+- **Exceptions** — Coral rules the project knowingly breaks, each scoped to a path. Inside that path they
+  are **accepted deviations**, not findings. Outside it the rule still applies in full. Report them in
+  their own short section so the reader sees the standing debt, and flag any whose stated `revisit when`
+  condition now appears to be met.
+
+### No `CORAL.md`, or an invalid one — stop and report that
+
+**Do not audit a repository whose adoption declaration is missing, unparsable, or invalid, and do not
+substitute a default for it.** The project has an **undeclared normative surface**: which Coral rules bind
+it is nobody's stated decision, so any finding you produce is a finding against rules you chose on the
+project's behalf.
+
+This is the headline finding, and it replaces the conformance verdict rather than sitting beneath it:
+
+> **Undeclared normative surface.** This repository has no valid Coral adoption declaration, so which
+> Coral rules apply to it is undefined. A conformance verdict is not available until a human records one
+> (`[VER-6]`).
+
+Auditing it against whatever version you happen to have loaded is exactly the behaviour `[VER-6]` exists
+to stop. So is guessing: "it looks like a CLI, so I audited the CLI profile", "there are two services here, so I applied
+the system-scale rules", "an unrecognised profile name, so I skipped that layer".
+
+What you **may** do — and should — is propose one. Read the repository, say which scales and which scopes
+it looks like it needs and why, and write the declaration out in full as a **recommendation for a human**:
+
+- label it clearly as a proposal, never as the surface you audited against;
+- **never write or edit `CORAL.md` yourself** (`[AGENT-4]`) — recommend the entry and let a human commit
+  it.
+
+You may then, if it is useful, produce a **hypothetical assessment** against the proposed set — clearly
+labelled as such, headed by the declaration it assumes, and carrying **no conformance verdict**. A
+conformance verdict requires a declaration recorded in `CORAL.md`, and nothing else stands in for one.
+
+**A confirmation in this session does not.** `[VER-6]` says the project's `CORAL.md` declares its adopted
+surface, and the whole design is one file with one answer. A surface agreed in chat is a second source of
+applicability that no future agent, tool, or reviewer can read, that nobody can diff, and that disagrees
+with the file the next audit will load. Treat it as what it is — a human endorsing your proposal, which
+makes recording it likely, not already done. Say so, and say the verdict is waiting on the commit.
+
+The same applies to a declaration that is present but does not resolve: an unknown ownership key, an
+unregistered profile name, an unknown scale, or an exception naming a rule the project has not selected.
+Report the specific problem; do not repair it and do not work around it.
 
 ## Procedure
 
@@ -140,11 +197,24 @@ dimensions the conformance answer rests on. Do not treat them as warm-up:
   multi-step workflow becomes its own slice — `[COMPOSE-*]`
 - composition-root thinness & global state — `[ROOT-*]`
 
-This list is a priority order, not the whole rule set — the docs are authoritative. App-type families
-(`[WEB-*]`, `[BE-*]`, `[CLI-*]`, `[AGENTIC-*]`, …) are deliberately absent: step 1 already selects the
-appendix that applies, so a new app type needs no change here. Each spine's **Agent Execution Contract**
-is the complete list of `[auto]`/`[review]` rules for that document — use it as the checklist and this
-list as the order.
+**Walk only the families in the project's selected set.** The list above is a priority order over the
+production baseline; if the project has not adopted the baseline, most of it does not apply and the walk
+is short. App-type families (`[WEB-*]`, `[BE-*]`, `[CLI-*]`, `[AGENTIC-*]`, …) are deliberately absent
+from the order: the `adopts` block already says which profiles apply, so a new app type needs no change
+here. Each spine's **Agent Execution Contract** is the complete list of `[auto]`/`[review]` rules for that
+document — use it as the checklist, this list as the order, and the `coral:scope:` markers inside it to
+tell which of its lines the project actually adopted.
+
+Two families are never findings against a slice, for two different reasons, and neither is the whole
+`[VER-*]` family:
+
+- **framework governance** — `[VER-1]`, `[VER-2]`, `[VER-4]`, `[AGENT-1]`, `[AGENT-3]`, `[AGENT-5]`. These
+  bind the project's *decisions about Coral*, not its code, and are not adoptable into an application
+  conformance surface at all.
+- **the kernel's record rules** — `[VER-3]`, `[VER-5]`, `[VER-6]`. These are kernel rules and *do* bind
+  every Coral project unconditionally, but what they bind is `CORAL.md` itself: does it declare a target,
+  are its exceptions and extensions machine-readable and path-scoped, does it declare what it adopts.
+  Check them against that file, never against a slice.
 
 For base layers especially, also scrutinize: init error handling (panic vs return; partial-init), graceful
 shutdown (ordering, timeouts, exit codes, in-flight drain), concurrency / global-state safety (data
@@ -167,6 +237,10 @@ are recorded, not ranked as conformance findings.
 Write `CORAL_AUDIT.md` to the **audited repo's root** (private — never publish a candid internal audit to
 a public/shared site). It is a **heavy diagnostic briefing**, optimized as input to a separate planning
 session; heaviness is intentional — the planner needs full context. Include:
+- The **audited surface**, stated before anything else: the Coral version targeted, the scales declared,
+  and the scopes adopted — the set every finding below is measured against. If the declaration was
+  missing or invalid, this section says so and the report stops at a proposed declaration instead of a
+  verdict.
 - A **conformance verdict**, led with: *is this a Coral app?* (yes / partly / no) in one paragraph, with
   the structural thesis — what shape the code actually is versus a capability-sliced app.
 - A **conformance findings table**, ranked by distance-from-Coral (note which Coral rule each breaks).
@@ -199,6 +273,12 @@ session; heaviness is intentional — the planner needs full context. Include:
   (big-bang vs strangler), sequencing, and task breakdown — none of which belong here.
 
 ## Do NOT
+- Audit a repository with no valid `CORAL.md` against whatever version you happen to have loaded, or
+  against any set you chose yourself. Report the undeclared normative surface and propose a declaration instead.
+- Treat an inferred adoption set as normative — including one a human agrees with in the session. A
+  proposed surface can carry a clearly labelled hypothetical assessment; only a declaration recorded in
+  `CORAL.md` can carry a conformance verdict.
+- File a finding against a rule outside the project's selected set.
 - Prescribe the migration strategy, sequencing, or task breakdown (that is the planning session's job).
 - Assert a guarantee you did not verify in the dependency source.
 - Lead with a bug (security / correctness / reliability) or let one become the verdict — the verdict is
