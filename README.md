@@ -87,6 +87,27 @@ decides and records it. And it reads `CORAL.md` before escalating (`[AGENT-5]`),
 isn't re-litigated by every agent that meets it. The full convention is in
 [`CONVENTIONS.md`](./CONVENTIONS.md#versioning-and-local-deviations).
 
+From that declaration a project generates **`CORAL-CONTRACT.md`**: one Markdown file holding its complete
+normative Coral surface — every applicable `[auto]` and `[review]` rule, plus its own exceptions and
+extensions — so an agent loads that file and no Coral document.
+
+```bash
+# from a Coral checkout describing the version the project targets
+npm run contract:generate -- --project /path/to/project
+```
+
+The command lives here, in the Coral checkout, and the consuming repository is named by `--project` —
+Coral supports projects that are not Node projects at all. The rule model always comes from the checkout
+that runs the command, with no flag to point it elsewhere: the documents are only half of a release and the
+code that reads them is the other half, so generating for another Coral version means checking out that
+version and running its own `contract:generate`. The output is generated, never edited: `CORAL.md` stays the
+only file a project writes by hand. Rules from a scale, layer or profile the project has not
+adopted leave no trace in it, and output is byte-identical for the same inputs. An unresolvable declaration
+produces an error and no contract — including no *stale* contract, since a failed regeneration removes the
+one the previous run wrote rather than leaving a file that looks current. Only files this generator wrote
+are ever removed or replaced; anything else at the destination is refused, not overwritten.
+[`CONVENTIONS.md`](./CONVENTIONS.md#the-generated-execution-contract) documents it.
+
 ## The linter
 
 [`tools/coral-lint/`](./tools/coral-lint/) implements Tier 1: the `[auto]` rules a static check can

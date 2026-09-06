@@ -12,6 +12,7 @@ import {
   LOCK_FILE,
   SYSTEM_SPINE,
   checkContractScopes,
+  isNormative,
   loadRuleModel,
   parseLock,
   serializeIndex,
@@ -118,7 +119,7 @@ for (const [rel, defs] of defsByFile) {
     continue
   }
   const cited = new Set([...text.slice(start, end).matchAll(useRe())].map((m) => m[1]))
-  for (const d of defs.filter((d) => d.cls && d.cls !== 'guide' && !cited.has(d.id))) {
+  for (const d of defs.filter((d) => isNormative(d) && !cited.has(d.id))) {
     problems.push(
       `[${d.id}] (\`[${d.cls}]\`, defined in ${rel}) is missing from that document's Agent` +
         ' Execution Contract. Every [auto]/[review] rule must appear there, so the contract stays' +

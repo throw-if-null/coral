@@ -643,6 +643,48 @@ test('an exception to a rule the project has not selected is rejected as stale',
   assert.equal(r.diagnostic.exceptions.length, 0, 'a stale entry was kept as a dormant override')
 })
 
+test('an exception to a `[guide]` rule is rejected — there is nothing to excuse', () => {
+  // A guide is rationale, not instruction: it is in no Agent Execution Contract and is
+  // never reported as a violation, so an entry excusing one records a deviation nobody
+  // could have been in breach of. Left accepted it is worse than useless — it is a
+  // decision that either vanishes from a generated execution contract or appears there
+  // against a rule the contract does not list.
+  const model = fixtureModel({
+    extra: {
+      'appendix/rationale.md':
+        '# Rationale\n\n**`[BASE-9]` `[guide]` `{base}`** — the rationale one.\n',
+    },
+  })
+  const r = invalid(
+    resolve(withEntries({ exceptions: [{ rule: 'BASE-9', path: 'internal/billing' }] }), { model })
+  )
+  assert.ok(
+    r.problems.some((p) => /`BASE-9`, which is `\[guide\]` and is therefore not normative/.test(p)),
+    r.problems.join('\n')
+  )
+  assert.equal(r.diagnostic.exceptions.length, 0)
+  // And it is refused on THAT ground, not as a stale entry: the rule is selected, and
+  // "adopt the layer" would be advice that fixes nothing.
+  assert.ok(!r.problems.some((p) => /is not in this project's selected rule set/.test(p)))
+})
+
+test('an exception to a `[guide]` rule the project has NOT selected is still refused as a guide', () => {
+  const model = fixtureModel({
+    extra: {
+      'appendix/gadget.md':
+        '# Gadget\n\n**`[GAD-1]` `[auto]` `{shape:gadget}`** — the gadget one.\n' +
+        '**`[GAD-9]` `[guide]` `{shape:gadget}`** — the gadget rationale.\n',
+    },
+  })
+  const r = invalid(
+    resolve(withEntries({ exceptions: [{ rule: 'GAD-9', path: 'internal/x' }] }), { model })
+  )
+  assert.ok(
+    r.problems.some((p) => /not normative/.test(p)),
+    r.problems.join('\n')
+  )
+})
+
 test('an exception to a rule Coral does not define at all is rejected', () => {
   const r = invalid(resolve(withEntries({ exceptions: [{ rule: 'GHOST-1', path: 'internal/x' }] })))
   assert.ok(
@@ -857,6 +899,31 @@ test('path forms that cannot be decided are refused rather than interpreted', ()
   for (const good of ['internal/billing', 'src', 'a/b/c', './src/app']) {
     assert.equal(pathProblem(good), null, `\`${good}\` was rejected`)
   }
+})
+
+test('a path carrying a line break or a control character is refused', () => {
+  // A path is written by a human, printed in a diagnostic and rendered into a generated
+  // execution contract, and all three are line-oriented. One that cannot be shown without
+  // changing what it names is refused for the same reason a glob is: nothing can check it.
+  for (const bad of ['internal/bil\nling', 'internal/\tbilling', 'internal/bill\u0000ing']) {
+    assert.match(pathProblem(bad), /line break or a control character/, JSON.stringify(bad))
+  }
+  // Checked BEFORE the trim, which is the case that would otherwise pass silently: a
+  // trailing newline is exactly what `.trim()` removes, so a check that ran after it would
+  // resolve `internal/billing\n` as `internal/billing` — the same path under a different
+  // name, which is the renaming this refusal exists to prevent rather than an instance of
+  // it being caught.
+  for (const edge of ['internal/billing\n', '\tinternal/billing', 'internal/billing\r', '\ninternal/billing\n']) {
+    assert.match(pathProblem(edge), /line break or a control character/, JSON.stringify(edge))
+  }
+  assert.match(pathProblem('internal/billing\n'), /silently rename/)
+  // An entry carrying one is refused by the resolver, not normalized into a neighbour.
+  const r = invalid(resolve(withEntries({ exceptions: [{ rule: 'BASE-1', path: 'internal/billing\n' }] })))
+  assert.ok(r.problems.some((p) => /line break or a control character/.test(p)), r.problems.join('\n'))
+  // Ordinary awkward characters stay legal — a backtick is a POSIX filename character, and
+  // the contract generator renders it rather than the record refusing it.
+  assert.equal(pathProblem('internal/bi`ll'), null)
+  assert.equal(pathProblem('internal/bill ing'), null)
 })
 
 test('the repository root is a path only where the record type allows it', () => {

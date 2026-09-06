@@ -43,7 +43,7 @@ import path from 'node:path'
 
 import { parse as parseYaml } from 'yaml'
 
-import { GOVERNANCE, ID_CORE, OPT_IN, kernelLayerOf } from './rules.mjs'
+import { GOVERNANCE, GUIDE, ID_CORE, OPT_IN, isNormative, kernelLayerOf } from './rules.mjs'
 
 /** The file a consuming project keeps in its root. */
 export const ADHERENCE_FILE = 'CORAL.md'
@@ -390,6 +390,9 @@ export function parseAdherenceRecord(text, version) {
 // amendment to file — so the root path is refused for the same reason `**` is.
 // ─────────────────────────────────────────────────────────────────────────────
 const GLOB_CHARS = /[*?[\]{}]/
+// C0 and C1 control characters, newline and tab included. See pathProblem().
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/
 
 // The whole repository, written the one way. `.` and `./` mean it; an empty path does not —
 // see pathProblem(), where a missing path stays a missing decision rather than becoming this.
@@ -428,6 +431,25 @@ export function pathProblem(p, { allowRoot = false } = {}) {
     return 'names no path. Both record types are scoped to a path ([VER-5]): an entry with no path' +
       ' excuses a habit rather than a place. Silence is not the same decision as `path: "."`,' +
       ' and it is not read as one.'
+  }
+  // A path is written by a human, printed in a diagnostic, and rendered into a generated
+  // execution contract, and all three are line-oriented. A path carrying a line break or a
+  // control character therefore cannot be shown anywhere without changing what it names —
+  // the same objection the glob refusal below makes, one class of character over. Refused
+  // rather than rendered ambiguously; a directory named this way is renamed, not excused.
+  //
+  // Tested against the ORIGINAL string, before the trim below. Trimming first would delete
+  // exactly the characters this refuses whenever they sit at either end, so `internal/billing\n`
+  // would resolve quietly as `internal/billing` — a path silently renamed into a different
+  // one, which is the failure the rule exists to prevent rather than an instance of it being
+  // caught. Interior control characters would still be refused, which is what makes the
+  // omission the kind nobody notices.
+  if (CONTROL_CHARS.test(p)) {
+    return 'names a path containing a line break or a control character. A path is written,' +
+      ' printed and rendered on one line, and one that cannot be shown without changing what it' +
+      ' names is a path no reader and no tool can check. Nor is it trimmed away and resolved as' +
+      ' the path that is left: that would silently rename it. Write the subtree plainly —' +
+      ' `internal/billing`.'
   }
   const raw = p.trim()
   if (GLOB_CHARS.test(raw)) {
@@ -694,6 +716,26 @@ export function resolveApplicability(declaration, model) {
       problems.push(
         `${at} excepts \`${id}\`, which Coral ${declaration.targets} does not define. Check the ID,` +
           ' or the version this project targets.'
+      )
+      return
+    }
+    // A `[guide]` rule is rationale, not instruction: it appears in no Agent Execution
+    // Contract, it is never a finding, and there is therefore nothing for an exception to
+    // excuse. Accepting one would record a deviation from a rule nobody could have been in
+    // breach of — and it would be invisible in exactly the place it matters, because a
+    // generated execution contract lists the normative rules and would either omit the
+    // decision or carry a decision about a rule that is not in the file. Checked BEFORE the
+    // stale-entry test below, because "adopt the layer" is the wrong advice here: adopting
+    // the guide's layer would not make the exception mean anything.
+    if (!isNormative(model.rules.get(id))) {
+      const cls = model.rules.get(id).cls
+      const what = cls ? `is \`[${cls}]\`` : 'carries no enforcement class'
+      problems.push(
+        `${at} excepts \`${id}\`, which ${what} and is therefore not normative. A \`[${GUIDE}]\` is` +
+          ' rationale rather than instruction — it appears in no Agent Execution Contract and is' +
+          ' never reported as a violation — so an exception to it excuses nothing. Delete the entry;' +
+          ' if the intent was to record a trade-off, the prose below the block is where it belongs' +
+          ' ([VER-5]).'
       )
       return
     }

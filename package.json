@@ -14,7 +14,8 @@
     "check:lint": "cd tools/coral-lint && python3 -m pytest -q && python3 -m coral_lint . --ignore-applicability",
     "build": "npm run docs:build",
     "rules:lock": "node scripts/rules-lock.mjs",
-    "rules:index": "node scripts/rules-index.mjs"
+    "rules:index": "node scripts/rules-index.mjs",
+    "contract:generate": "node scripts/generate-contract.mjs"
   },
   "repository": {
     "type": "git",
