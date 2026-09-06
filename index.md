@@ -84,29 +84,35 @@ the adapter to the slice. Turn that arrow around and you have a `repositories` l
 package decides what every caller gets. Small apps often have none — the CLI above has none, because a
 `db.py` crosscut is enough.
 
-There is a sixth thing most codebases have, and Coral discourages it: a directory named for nothing in
-particular — `utils`, `shared`, `common`, `services`, `helpers`. When code does not obviously belong to a
-slice, the answer is either a crosscut with a real name, or leaving the duplication alone. That rule is
-`[BUCKET-1]`, and it is one a linter can decide on its own. It belongs to the **production baseline** —
-an optional layer, described below — rather than to the core of Coral, because it is good engineering
-whoever writes the code.
+There is a sixth thing most codebases have, and it is not one of the five: a directory named for nothing
+in particular — `utils`, `shared`, `common`, `services`, `helpers`. Coral calls that a **forbidden
+bucket**, and when code does not obviously belong to a slice the answer is either a crosscut with a real
+name, or leaving the duplication alone. The rule that actually *bans* one is `[BUCKET-1]`, which a linter
+can decide on its own — and it belongs to the **production baseline**, an optional layer described below,
+rather than to the core of Coral, because it is good engineering whoever writes the code.
 
 ## The same shape at three sizes
 
 An **app** is one deployable unit: many slices, one composition root, one set of crosscuts. A **system**
-is several apps. A **channel** is the only connection allowed between two apps — a published, versioned
-contract in one of three forms: a synchronous API, an event, or a message bus.
+is several apps. A **channel** is the pathway between two apps, and the contract governing what crosses
+it.
 
-Three rules hold at all three sizes:
+One shape repeats at all three sizes:
 
 1. Own your trigger end to end — the one request, command, or event you answer.
-2. Share only through a named crosscut or a published contract, never through a bucket and never by
-   reaching into another unit's internals.
-3. Cross a boundary only over a channel. Two apps never fuse and never share a database.
+2. Consume another unit through what it publishes, never by reaching into its internals; share a concern
+   by holding it in one definition rather than copying it.
+3. Between apps, that published surface is a channel.
 
 That is the whole vocabulary: eight nouns — slice, crosscut, adapter, composition root, published
 contract, app, system, channel. [`CONVENTIONS.md`](/CONVENTIONS) defines each one precisely, and every other document
 refers back to it rather than restating it.
+
+**The nouns are the vocabulary; the production discipline around them is a separate, optional decision.**
+"Never a `utils` bucket", "apps never share a database", "a channel is versioned and takes one of three
+forms", "crosscuts are injected rather than reached for" are real Coral rules — and they belong to the
+[production baseline](/PRODUCTION), which a project adopts explicitly. The
+[section below](#why-the-core-rules-are-shaped-this-way) draws the line.
 
 ## Why the core rules are shaped this way
 

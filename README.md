@@ -3,9 +3,13 @@
 A set of rules for organising code in a repository, written to be followed by coding agents as well as by
 people. The organising principle is one sentence: **one capability, owned end to end, in one place.**
 Everything one command or one endpoint needs sits together, its tests included, rather than being spread
-across a `handlers/`, a `services/` and a `repositories/` directory. Shared code exists only where it is
-named and passed in. The same shape applies to a CLI, a backend, a web app, a library, or a tool, and it
-composes from a single capability up to a whole system.
+across a `handlers/`, a `services/` and a `repositories/` directory. The same shape applies to a CLI, a
+backend, a web app, a library, or a tool, and it composes from a single capability up to a whole system.
+
+**That core is small.** The production discipline most people picture alongside it — no `utils` bucket,
+crosscuts injected rather than reached for, a fixed error taxonomy, transaction and retry policy, no
+shared database between apps — is Coral's **production baseline**: published as one coherent opinion, and
+adopted by a project explicitly rather than inherited by using Coral at all.
 
 **📖 Live docs:** https://coral.appsandtools.work — the guided version, with a worked
 directory layout, the five kinds of code, and where the architecture does not fit.

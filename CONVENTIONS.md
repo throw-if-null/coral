@@ -32,17 +32,27 @@ Eight nouns. Every document uses exactly these; there are no synonyms.
 
 | Noun | What it is | Governed by |
 |---|---|---|
-| **slice** | one capability, owned end to end: its trigger, parsing, validation, behavior, state access, output, and tests | `[BOUND-*]` `[MODEL-1]` |
-| **crosscut** | a cross-cutting concern — defined **once**, precisely named, and **injected** into the slices that use it (`config`, `errors`, `db`, `money`) | `[XCUT-*]` |
-| **adapter** | the infrastructure mechanics behind a port **a slice declared** — it implements that interface, is wired by the root, and owns no behavior (`store`, `s3`, `stripe`) | `[MODEL-4]` |
-| **composition root** | the thin entry point that registers slices, constructs crosscuts, and injects them. Holds no business logic | `[ROOT-*]` |
+| **slice** | one capability, owned end to end — the trigger it answers, the work that answers it, the output it returns, and its tests | `[BOUND-*]` `[MODEL-1]` |
+| **crosscut** | a concern several slices need, held in **one** definition rather than copied into each of them (`config`, `errors`, `db`, `money`) | `[XCUT-*]` |
+| **adapter** | the infrastructure mechanics behind a port **a slice declared** — it implements that interface rather than defining it (`store`, `s3`, `stripe`) | `[MODEL-4]` |
+| **composition root** | the app's wiring and bootstrap boundary: the one place slices are registered and crosscuts are constructed and handed to them | `[ROOT-*]` |
 | **published contract** | the surface others are allowed to depend on: a slice's public capability, a machine-readable output, an HTTP shape, a library API | `[CONTRACT-*]` |
 | **app** | one deployable unit: many slices, one composition root, one set of crosscuts | `ARCHITECTURE.md`, `PRODUCTION.md` |
 | **system** | several apps composed together | all of `SYSTEM.md` |
-| **channel** | the only coupling between apps — a published, versioned contract in one of three forms: sync API, event, or message bus | `[CHAN-*]` |
+| **channel** | the pathway between two apps, and the contract governing what crosses it | `[CHAN-*]` |
+
+**The nouns name shapes; the rules say how to build them, and most of those rules are optional.** This
+table defines the vocabulary and nothing more. The disciplines a reader may expect to find in it —
+a crosscut is *injected* rather than reached for (`[XCUT-3]`), the root holds *no business logic*
+(`[ROOT-1]`), an adapter is wired by the root and owns no behavior (`[MODEL-4]`), apps communicate *only*
+through a channel and never share a datastore (`[CHAN-1]`, `[CHAN-3]`), a channel is *versioned* and takes
+one of three *forms* (`[CHAN-4]`, `[CHAN-2]`) — are **production-baseline** rules, and they bind a project
+that has adopted that layer ([What applies to a project](#what-applies-to-a-project)). The **Governed by**
+column says where each noun's rules live; it does not say that all of them apply to you. A project can
+use every one of these nouns, correctly and conformantly, having adopted nothing but the kernel.
 
 Two further terms name what a crosscut is *not*, and they are defined below the canonical slice, where
-there is an injected crosscut to contrast them against: **forbidden bucket** and **drift**.
+there is a concrete crosscut to contrast them against: **forbidden bucket** and **drift**.
 
 ### "Capability" is scale-relative — always say which scale
 
@@ -56,8 +66,10 @@ conflating them is how an agent ends up publishing internals. Qualify it:
 | *a slice's **published** capability* | one exported function/entry point of that slice | sibling slices, via `[COMPOSE-1]` |
 | *an app's **published** capability* | one endpoint/event on the channel | other apps, via `[CHAN-1]` |
 
-A slice's published capability is **not** automatically an app's published capability. Crossing a
-process boundary requires a channel contract (`[CHAN-1]`), not a re-export.
+A slice's published capability is **not** automatically an app's published capability: the two are
+consumed by different audiences, over different boundaries, and a re-export is not a promotion. What a
+project must then *do* about the process boundary — cross it only through a published channel contract —
+is `[CHAN-1]`, a production-baseline rule at system scale.
 
 ### A channel is a published contract at app scale
 
@@ -67,19 +79,35 @@ pathway *between* two apps, and the contract that governs it.
 
 Both exist because a channel carries something a contract cannot: **delivery semantics**. A contract states
 the shape; the channel states whether that shape arrives once or twice, in order or not, consistently or
-eventually (`[CHAN-5]`, `[CHAN-9]`, `[CHAN-10]`). That half of the noun has no meaning at slice scale, where
-a call either returns or raises.
+eventually. That half of the noun has no meaning at slice scale, where a call either returns or raises.
 
-A message bus is one of a channel's three forms, **not** its definition (`[CHAN-2]`) — two apps talking over
-plain HTTP are using a channel.
+A channel is not a *broker*: two apps talking over plain HTTP are using one. That is the misreading the
+noun exists to prevent, and it holds however much of Coral a project has adopted.
+
+**What Coral then requires of a channel is optional policy, all of it.** The three permitted forms
+(`[CHAN-2]`), backward-compatible versioning (`[CHAN-4]`), at-least-once delivery and its idempotency
+obligation (`[CHAN-5]`), ordering (`[CHAN-9]`) and the absence of a transactional view across apps
+(`[CHAN-10]`) are production-baseline rules at **system** scale. They bind a repository that composes
+several apps *and* has adopted the baseline; a project that has done neither still uses the word `channel`
+to mean this.
 
 ---
 
 ## The canonical slice
 
-Everything else in this document set exists to make code look like this. Read it before the rules; the
-rules are the reasons it is shaped this way. It is language-neutral — this exact capability is written out
-in real Python in [`examples/cli-slice.md`](./examples/cli-slice.md).
+**The kernel shape is one sentence:** one capability, owned end to end, tests included, consumed by other
+code only through what it publishes (`[MODEL-1]`, `[BOUND-2]`, `[COMPOSE-1]`, `[TEST-1]`). That is what
+Coral asks of every codebase that calls itself Coral, and it is deliberately short.
+
+> **The listing below is a slice as a project that has adopted the [production
+> baseline](./PRODUCTION.md) writes one.** It is the kernel shape *plus* a set of opinions the baseline
+> supplies — injected crosscuts, a six-category error taxonomy, one effect at the edge, the root doing the
+> rendering, colocated tests against real storage, an effect-truthful verb. Each of those is a rule in
+> [`PRODUCTION.md`](./PRODUCTION.md) and applies where a project's `CORAL.md` adopts that layer. A
+> kernel-only project's slices satisfy the sentence above and may look nothing like this listing.
+
+Read it before the rules; the rules are the reasons it is shaped this way. It is language-neutral — this
+exact capability is written out in real Python in [`examples/cli-slice.md`](./examples/cli-slice.md).
 
 ```
 expense/add                                    # one slice = one capability
@@ -107,53 +135,73 @@ expense/add                                    # one slice = one capability
     assert queryExpenses().contains(food, 12.50)   # real storage
 ```
 
-Five properties make it canonical: parse/validate/compute are **pure**; the single effect sits at the
-**edge**; crosscuts are **injected**, never reached for; the slice **raises** taxonomy errors and
-lets the root render them; the test asserts the **observable contract** against real storage. The verb
-`add` truthfully signals a non-idempotent operation.
+**Two of its properties are the kernel's**, and hold for any Coral codebase: `expense/add` owns one
+capability from its trigger to its output (`[BOUND-2]`), and its behavior is asserted at that entry point
+against what a caller can actually observe (`[TEST-1]`).
 
-`money`, `db` and `errors` above are crosscuts: each has a precise name, is constructed once at the root,
-and arrives as `deps`. That is what makes the two remaining terms legible, because both are named for
-missing exactly those properties:
+**Five are the production baseline's**, and are what makes the listing look the way it does:
+parse/validate/compute are **pure** (`[EFFECT-1]`); the single effect sits at the **edge**
+(`[EFFECT-2]`); crosscuts are **injected**, never reached for (`[XCUT-3]`); the slice **raises** taxonomy
+errors and lets the root render them (`[ERR-1]`, `[ERR-3]`); the test runs against real temporary storage
+(`[TEST-2]`, `[TEST-4]`). The verb `add` truthfully signals a non-idempotent operation (`[IDEM-1]`). A
+project that has not adopted the baseline owes none of these.
+
+`money`, `db` and `errors` above are crosscuts: each names one concern and is defined once. That is what
+makes the two remaining vocabulary terms legible, because both are named for the shape a crosscut is not:
 
 - A **forbidden bucket** is a would-be crosscut with no precise name and no injection discipline —
-  `utils`, `shared`, `common`, `services`, `helpers`, generic `models`. `[BUCKET-1]`
-- **Drift** is what happens when a crosscut is re-implemented per slice instead of injected: the
-  copies diverge, and the divergence is a bug. `[XCUT-4]`
+  `utils`, `shared`, `common`, `services`, `helpers`, generic `models`. The *term* is vocabulary; the
+  *prohibition* on creating one is `[BUCKET-1]`, a production-baseline rule.
+- **Drift** is what happens when one concern is re-implemented per slice instead of held in one
+  definition: the copies diverge, and the divergence is a bug. Naming it is what lets `[XCUT-1]` state its
+  second prong — a crosscut must enforce something that would be a bug if it diverged — and `[XCUT-4]`
+  develops the point in the baseline.
 
 ---
 
 ## Placing new code
 
-Almost every placement question is one of six outcomes. Five are legitimate categories of code
-(`[MODEL-1]`); the sixth is the failure mode.
+Almost every placement question is one of six outcomes. Five are the categories of code `[MODEL-1]`
+recognises — a kernel rule, so the question has these five answers for every Coral codebase. The sixth is
+the shape none of them covers.
 
 ```mermaid
 flowchart TD
   Q{"new code —<br/>what is it?"}
   Q -->|"owns one capability<br/>end to end"| SLICE["<b>SLICE</b><br/>one trigger, owned end to end"]
-  Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| XC["<b>CROSSCUT</b><br/>defined once, injected"]
+  Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| XC["<b>CROSSCUT</b><br/>one definition, not a copy per slice"]
   Q -->|"infrastructure behind a port<br/>a slice declared"| AD["<b>ADAPTER</b><br/>implements, never defines"]
-  Q -->|"registers, constructs,<br/>injects — no logic"| ROOT["<b>COMPOSITION ROOT</b><br/>the entry point"]
+  Q -->|"wiring and bootstrap"| ROOT["<b>COMPOSITION ROOT</b><br/>the entry point"]
   Q -->|"a surface others<br/>depend on"| CT["<b>PUBLISHED CONTRACT</b><br/>the stable shape"]
-  Q -->|"none of these —<br/>just 'shared stuff'"| BAD["⛔ <b>FORBIDDEN BUCKET</b><br/>utils / services / … — don't"]
+  Q -->|"none of these —<br/>just 'shared stuff'"| BAD["⚠ <b>FORBIDDEN BUCKET</b><br/>utils / services / … — no sixth category"]
   class BAD bad
   classDef bad fill:#fdecec,stroke:#d23,color:#900
 ```
 
 When more than one fits, or none cleanly does, **flag it** (`[AGENT-2]`) rather than guess.
 
+`[MODEL-1]` says there is no sixth category, which is why "just shared stuff" has no box of its own. The
+stronger claim — *do not create or expand* `utils` / `services` / `helpers` / `common` / generic `models`,
+enforceable by a linter — is `[BUCKET-1]`, a **production-baseline** rule, and a project owes it once it
+has adopted that layer.
+
 A slice lives *in* a **feature package**, and the two are not the same thing — this diagram used to label
 the slice box "a feature package", which is where the confusion started. The package groups the slices of
 one capability and owns the state behind them (`[STRUCT-2]`, `[STATE-5]`); the slice owns one trigger. The
 package is a container, not a category of code, which is why `[MODEL-1]` does not list it.
 
-The same three rules hold at every scale — slice, app, and system alike:
+One shape repeats at every scale — slice, app, and system alike:
 
-1. **Own your trigger end to end** — the one request, command, or event you answer.
-2. **Share only through a named crosscut or a published contract** — never a bucket, never a reach
-   into internals.
-3. **Cross a boundary only over a channel** — apps never fuse and never share a datastore.
+1. **Own your trigger end to end** — the one request, command, or event you answer. (`[BOUND-2]`, kernel)
+2. **Consume other units through what they publish**, never by reaching into their internals.
+   (`[COMPOSE-1]`, kernel; sharing through a named crosscut rather than a copy is `[XCUT-1]`, also kernel)
+3. **Between apps, that surface is a channel** — the contract governing what crosses the process
+   boundary.
+
+The first two bind every Coral codebase. The third is the vocabulary; the policy that gives it teeth —
+apps communicate *only* through a channel and never share a datastore — is `[CHAN-1]` and `[CHAN-3]`, and
+those are **production-baseline** rules at **system** scale. A one-app repository has no channel at all,
+and a project that has not adopted the baseline is not held to them.
 
 ```mermaid
 flowchart LR
@@ -1030,6 +1078,15 @@ Four properties follow from it being a union, and all four are load-bearing:
 - **selecting the same thing twice is selecting it once.**
 - **presence is never a selector.** Registering a profile in Coral makes it *selectable*, not selected.
 - **there is no precedence between Coral layers.** No layer overrides, weakens, or replaces another.
+
+**Selection is not the same as self-containment, and Coral does not yet guarantee the second.** The union
+above decides which rules a project owes. It does not promise that every selected rule is *readable*
+without the layers the project declined: a rule's statement may cite a rule from an unselected layer, and
+the resolver will not notice. There is one such case today — `[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]` cite
+production-baseline rules, so adopting the runtime-agent profile alone yields a contract that refers
+outward ([`SYSTEM.md`](./SYSTEM.md) says so where those rules are defined). The fix is to rewrite those
+statements, which is a versioned rule change; the fix is **not** to make one adoption imply another, which
+would put the applicability model back where `[VER-6]` found it.
 
 ### Two worked selections
 

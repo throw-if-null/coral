@@ -19,12 +19,23 @@ and `[SYS-TEST-*]`. The dependency points one way — this document cites app ru
 > the **production baseline at system scale** — the same optional layer as
 > [`PRODUCTION.md`](./PRODUCTION.md), taken by `production-baseline: true` at the `system` scale.
 > `[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]` are the **runtime-agent profile**, taken by
-> `runtime-agent-profile: true`. **Neither adoption implies the other**: a system with no model at
-> runtime owes nothing in [§2's harness subsection](#orchestration-by-an-agent-runtime-agent-profile),
-> and a system that runs an orchestrating agent without the baseline owes `[ORCH-4..6]` and none of
-> `[CHAN-*]`. Every section heading below says which layer it belongs to, and the
+> `runtime-agent-profile: true`. **Neither adoption selects the other**: adopting the runtime-agent
+> profile brings `[ORCH-4..6]` and no `[CHAN-*]` rule, and adopting the baseline brings `[CHAN-*]` and no
+> `[ORCH-4..6]`. Every section heading below says which layer it belongs to, and the
 > [contract](#agent-execution-contract-system) marks the same split with `coral:scope` markers
 > (`[VER-6]`).
+>
+> **Selecting them separately is not the same as reading them separately, and today they are not
+> separable in the second sense.** `[ORCH-5]`'s own statement says the harness's tools *are* the apps'
+> published channel capabilities (`[CHAN-1]`) and leans on `[CHAN-7]` and `[CHAN-8]` for tracing and
+> authentication; `[ORCH-6]` reaches for `[SYS-TEST-1]`; `[ORCH-4]` reaches for `[CONFIG-1]`. All four are
+> production-baseline rules. So a system that adopts the runtime-agent profile **without** the baseline
+> gets a contract whose rules refer to rules it has not taken on. That is a defect in how `[ORCH-4..6]`
+> are written, not a hidden adoption — the resolver selects nothing extra, and Coral will not repair it by
+> making one layer drag in the other. Making these three self-contained means changing published rule
+> statements, which is a versioned change and is tracked as follow-up work rather than smuggled in here.
+> **In practice, adopt the production baseline alongside the runtime-agent profile at system scale until
+> that lands.**
 
 **Defining tension:** the channel is the *only* coupling between apps. Keep it thin, explicit, and versioned;
 never let two apps share a datastore or reach into each other's internals. The same properties that make
@@ -290,12 +301,18 @@ Every rule here is **system scale**: it binds a project that declares `system` a
 means separately-built apps composing over a channel. A repository that ships one app has no channel to
 version and no topology to wire, and loads none of it.
 
-**Every line is opt-in, and there are two independent opt-ins.** The lines under
+**Every line is opt-in, and there are two separately selected opt-ins.** The lines under
 `coral:scope:baseline` come with the **production baseline** — the same layer
 [`PRODUCTION.md`](./PRODUCTION.md) carries at app scale, taken here at the `system` scale. The lines under
-`coral:scope:runtime-agent` come with the **runtime-agent profile**. Adopting either says nothing about
+`coral:scope:runtime-agent` come with the **runtime-agent profile**. Selecting either selects nothing of
 the other (`[VER-6]`), and this document holds **no kernel rule** — the unconditional app-scale surface is
 in [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+
+**A runtime-agent-only selection is not yet a self-contained rule set.** `[ORCH-4]`, `[ORCH-5]` and
+`[ORCH-6]` cite `[CHAN-1]`, `[CHAN-7]`, `[CHAN-8]`, `[SYS-TEST-1]` and `[CONFIG-1]`, all production
+baseline, so taking the profile alone yields a contract that refers outward to rules the project has not
+adopted — see the note at the top of this document. Take the baseline with it until those statements are
+rewritten.
 
 <!-- coral:contract:start -->
 

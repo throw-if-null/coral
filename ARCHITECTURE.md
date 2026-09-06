@@ -17,10 +17,16 @@ adopted anything.
 directory layout, forbidden buckets, error taxonomy, transactions, retries, caching, concurrency
 strategy, configuration, observability, trust boundaries — is the **production baseline**, an
 [optional layer](./CONVENTIONS.md#ownership-layers) a project adopts explicitly. It lives in
-[`PRODUCTION.md`](./PRODUCTION.md). **Nothing in this document's normative surface depends on it**: the
-Agent Execution Contract below lists no rule defined there, and where the prose cites one it is pointing
-at it or labelling an illustration as baseline policy, never asking for it. A reader can understand the
-Coral kernel without loading it.
+[`PRODUCTION.md`](./PRODUCTION.md). **This document's Agent Execution Contract lists no rule defined
+there**, so adopting Coral does not oblige a project to any of it, and a reader can understand the Coral
+kernel without loading it. Where the prose below cites a baseline rule it is pointing at it or labelling
+an illustration, never asking for it.
+
+One exception is worth naming rather than glossing: `[TEST-1]`'s statement cites `[BOUND-1]` for the
+phrase "observable contract", and `[BOUND-1]` is now a baseline `[guide]` rule. `[TEST-1]` is actionable
+without it — a guide is rationale and never a gate — but the citation is a genuine loose end from this
+split, and closing it means editing a published rule's normative sentence, which is a versioned change
+rather than a documentation one.
 
 App-type specifics live in the appendices under [`appendix/`](#appendix-index). How separate apps compose
 into a system lives in [`SYSTEM.md`](./SYSTEM.md). Worked code lives in
@@ -49,12 +55,14 @@ cross-references.
 
 ## The shape of an app
 
-> **This illustration shows a codebase that has adopted the production baseline.** The five categories,
-> the slice boundary and the published contract are kernel; the *specific* naming and placement policy it
-> demonstrates — feature-package names, colocated tests, `db`/`config`/`errors` as root crosscuts, the
-> absence of a `handlers`/`services`/`repositories` layer — comes from
-> [`PRODUCTION.md`](./PRODUCTION.md) and binds only a project that has adopted it. Rule citations below
-> that resolve to that document are pointing at the optional layer, not at a kernel requirement.
+> **This illustration, and the commentary under it, show a codebase that has adopted the production
+> baseline.** The five categories, the slice boundary and the published contract are kernel. Everything
+> more specific — feature-package names, colocated tests, `db`/`config`/`errors` as root crosscuts
+> constructed once and injected, a root that holds no behavior of its own, the absence of a
+> `handlers`/`services`/`repositories` layer — comes from [`PRODUCTION.md`](./PRODUCTION.md) and binds
+> only a project that has adopted it. Every rule cited below that resolves to that document is pointing at
+> the optional layer, not at a kernel requirement, and a kernel-only app may be laid out quite
+> differently.
 
 One picture before the rules. An expense tracker with four
 capabilities, written without file extensions or a fixed language — the language binding fixes whether a
@@ -155,16 +163,23 @@ Knowing which category you are writing answers most placement questions.
 **`[MODEL-1]` `[review]`** — Every unit of code is a **slice**, a **crosscut**, an **adapter**, the
 **composition root**, or a **published contract**.
 
-There is no sixth category. Something that is none of these is a [forbidden
-bucket](./PRODUCTION.md#_6-forbidden-buckets-bucket) (`[BUCKET-1]`). The five are not peers in volume:
+There is no sixth category — that is the kernel claim, and it is what makes "where does this go?" a
+closed question. Coral's name for the shape that fits none of them is a **forbidden bucket**; the rule
+*against creating one* is [`[BUCKET-1]`](./PRODUCTION.md#_6-forbidden-buckets-bucket), production
+baseline. The five are not peers in volume:
 
 | Category | What it owns | Volume |
 |---|---|---|
-| **slice** | one capability end to end — definition, parsing, validation, behavior, state access, output, tests | most of the code |
-| **crosscut** | one cross-cutting concern, defined once and injected | few, precisely named |
+| **slice** | one capability end to end — the trigger it answers, the work that answers it, its output, its tests | most of the code |
+| **crosscut** | one cross-cutting concern, held in one definition rather than copied per slice | few |
 | **adapter** | the infrastructure mechanics behind a port a slice declared | one per port that needs one; often none |
-| **composition root** | registration, construction, injection, bootstrap | exactly one, thin |
+| **composition root** | wiring and bootstrap: where slices are registered and crosscuts are constructed | exactly one |
 | **published contract** | the surface others may depend on | one per slice/app that exposes anything |
+
+The table classifies; it does not prescribe. How each category must then be built — a crosscut *injected*
+rather than reached for (`[XCUT-3]`), the root *thin* and free of business logic (`[ROOT-1]`), an adapter
+*wired by the root* and holding no behavior (`[MODEL-4]`), a precise name on every crosscut (`[XCUT-2]`) —
+is [production-baseline](./PRODUCTION.md) policy, and binds a project that has adopted that layer.
 
 ---
 
@@ -178,8 +193,12 @@ one action run, a public API function — and the discipline for scheduled and b
 production-baseline rules (`[BOUND-1]`, `[BOUND-3]`, `[BOUND-4]`, `[BOUND-5]`) in
 [`PRODUCTION.md`](./PRODUCTION.md#_3-the-slice-boundary-bound).
 
-**Anatomy of one slice.** A pure core (parse → validate → compute), effects at the edge (persist /
-render), a stable published contract, and injected crosscuts:
+**Anatomy of one slice, as the production baseline shapes it.** The kernel says a slice owns one
+trigger end to end and publishes a contract; the internal arrangement below — a pure core
+(parse → validate → compute), the effect at the edge, rendering after it, crosscuts arriving by
+injection — is [`PRODUCTION.md`](./PRODUCTION.md) policy (`[EFFECT-1]`, `[EFFECT-2]`, `[EFFECT-3]`,
+`[XCUT-3]`), shown here because it is the arrangement most Coral projects will recognise. A kernel-only
+project satisfies `[BOUND-2]` without owing any of it:
 
 ```mermaid
 flowchart LR
@@ -199,16 +218,17 @@ flowchart LR
 
 ## 5. Cross-Cutting Concerns (Crosscuts)  `[XCUT-*]`
 
-A crosscut is the *legitimate* form of sharing — not an exception to "no shared buckets" but a
-different category with its own discipline.
+A crosscut is the *legitimate* form of sharing — a category of its own rather than a hole in the
+placement model. What discipline it then owes is the baseline's (`[XCUT-2]`, `[XCUT-3]`, `[XCUT-5]`); what
+follows is the gate on becoming one at all.
 
 **`[XCUT-1]` `[review]`** — Promote something to a crosscut only if it is **both** genuinely
 cross-cutting (consumed by two or more slices) **and** enforcing an invariant or convention that must
 not diverge.
 
 The second prong is the real gate. Shared *similarity* is not enough (`[DUP-2]`): the thing must enforce
-something that would be a **bug** if it diverged — money parsing, period/date format, the error
-taxonomy, connection management, a domain entity's identity rules. Two consumers is a floor, not a
+something that would be a **bug** if it diverged — money parsing, period/date format, an error
+taxonomy where the project has one (`[ERR-1]`), connection management, a domain entity's identity rules. Two consumers is a floor, not a
 trigger; a thing consumed by twenty slices that carries no invariant is still a bucket.
 
 The normal moment to promote is when a *second* consumer appears for logic currently inline in one
