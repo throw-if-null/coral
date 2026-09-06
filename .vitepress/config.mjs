@@ -17,6 +17,13 @@ import {
   serializeIndex,
   useRe,
 } from '../scripts/rules.mjs'
+import {
+  ADHERENCE_EXAMPLE_END,
+  ADHERENCE_EXAMPLE_START,
+  ADHERENCE_FILE,
+  parseAdherenceRecord,
+  resolveApplicability,
+} from '../scripts/applicability.mjs'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rule-ID registry, deep-link plugin, and the doc-integrity gates.
@@ -26,7 +33,7 @@ import {
 // link to the page that defines it — operationalizing the citation system on the
 // web. Parsing lives in ../scripts/rules.mjs so the lockfile writer shares it.
 //
-// Nine gates run here, each guarding a claim the documents make about themselves:
+// Ten gates run here, each guarding a claim the documents make about themselves:
 //   1. every rule definition carries exactly one enforcement class
 //   2. every rule-ID citation resolves to a definition
 //   3. every [auto]/[review] rule appears in its document's Agent Execution
@@ -37,6 +44,7 @@ import {
 //   7. the kernel cites existing rules and defines none of them
 //   8. every rule outside the kernel carries exactly one ownership layer
 //   9. a contract marks the rules that are opt-in, so it cannot list them as unconditional
+//  10. the worked CORAL.md in CONVENTIONS.md is a record the applicability resolver accepts
 // Two more run outside this file: link fragments in scripts/check-anchors.mjs
 // (post-build, because heading ids only exist once markdown-it has rendered them),
 // and declared example versions in scripts/check-versions.mjs.
@@ -271,6 +279,46 @@ if (fs.existsSync(spineAbs)) {
 // marker match this rule's layer", and an unclassified rule has no answer.
 // ─────────────────────────────────────────────────────────────────────────────
 if (model.classified) problems.push(...checkContractScopes(SRC, rules))
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gate 10 — the documented adherence record is one the resolver accepts.
+//
+// CONVENTIONS.md prints a whole `CORAL.md` as a worked example, and every consuming
+// project copies it. A machine-readable format whose only published example the machine
+// has never read has one untested user, and it is the most important one: the example
+// names ownership keys, profile names and scales, and all three are registry values that
+// can be renamed here without the example following.
+//
+// So the build parses it with the same resolver a project's tooling would use and
+// resolves it against this version's rule model. `[VER-6]` is the rule this enforces for
+// consuming projects; this is Coral holding its own documentation to it.
+//
+// Only runs once the model is classified — resolving an adoption against a taxonomy the
+// build has already refused produces a second complaint about the first failure.
+// ─────────────────────────────────────────────────────────────────────────────
+if (model.classified) {
+  const conventions = fs.readFileSync(path.join(SRC, 'CONVENTIONS.md'), 'utf8')
+  const open = conventions.indexOf(ADHERENCE_EXAMPLE_START)
+  const close = conventions.indexOf(ADHERENCE_EXAMPLE_END)
+  if (open === -1 || close <= open) {
+    problems.push(
+      `CONVENTIONS.md must mark its worked \`${ADHERENCE_FILE}\` example with` +
+        ` ${ADHERENCE_EXAMPLE_START} and ${ADHERENCE_EXAMPLE_END}. The build resolves that example,` +
+        ' and an unmarked one is an example nothing checks.'
+    )
+  } else {
+    const version = fs.readFileSync(path.join(SRC, 'VERSION'), 'utf8').trim()
+    const { declaration, problems: recordProblems } = parseAdherenceRecord(
+      conventions.slice(open, close)
+    )
+    const resolution = resolveApplicability(declaration, model, { version })
+    for (const p of [...recordProblems, ...resolution.problems]) {
+      problems.push(
+        `the worked \`${ADHERENCE_FILE}\` in CONVENTIONS.md is not a record a project could use: ${p}`
+      )
+    }
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 5 — the rule index is current.

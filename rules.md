@@ -1,6 +1,6 @@
 # Rule index
 
-Every rule Coral publishes, in one place: **178 rules** across 9 documents — 28 `[auto]`, 121 `[review]`,
+Every rule Coral publishes, in one place: **179 rules** across 9 documents — 29 `[auto]`, 121 `[review]`,
 29 `[guide]`. Each ID links to its definition, where the reasoning lives; the statement here is only the
 one-line form.
 
@@ -18,24 +18,25 @@ Every rule belongs to exactly one **ownership layer**: the narrowest surface tha
 separate axis from the enforcement class — a rule is *both* `app profile · cli` *and* `[auto]`. Ownership
 answers *who has to load this rule*; the class answers *how it is checked*.
 
-They answer to three audiences rather than stacking into one number. **97 form the conformance surface** —
-kernel plus production baseline — what a Coral codebase is built and audited against before any profile is
-added, 69 of them `[review]`. **9 govern Coral itself** and sit outside that surface entirely: no
-application source code satisfies or violates them. Coral-aware humans, agents and tooling read them when
-interpreting a rule, consulting the adherence record, or changing how a project relates to Coral. The other
-**72 are opt-in** — 50 `[review]` — and load only where their profile is selected, so a CLI with no runtime
-model never reads an `[AGENTIC-*]` rule and a library never reads an HTTP status code.
+They answer to three audiences rather than stacking into one number. **10 form the conformance surface** —
+kernel — the rules that apply without a project deciding anything, 8 of them `[review]`. **9 govern Coral
+itself** and sit outside that surface entirely: no application source code satisfies or violates them.
+Coral-aware humans, agents and tooling read them when interpreting a rule, consulting the adherence record,
+or changing how a project relates to Coral. The other **160 are opt-in** — 111 `[review]` — and reach a
+project only where its `CORAL.md` adopts the layer they belong to, so a CLI that has not adopted the
+runtime-agent profile never reads an `[AGENTIC-*]` rule and a library never reads an HTTP status code.
 
-Scale narrows the conformance surface further. 18 of those 97 are stated at *system* scale in
-[`SYSTEM.md`](./SYSTEM.md) — channel contracts, topology, cross-app contract testing — and a repository
-that ships one app has no channel to version and no topology to wire. They are the baseline **when several
-apps compose**, not a reason for a single-app project to load them.
+**Opt-in is the normal case, and the production baseline is opt-in too.** Coral publishes it for every
+codebase that wants it, and a project still says so: a rule becomes applicable through kernel membership or
+through the project's own declaration, and never because it exists in the Coral repository (`[VER-6]`). How
+a project declares what it adopts, and how the set is composed from that, is in
+[`CONVENTIONS.md`](./CONVENTIONS.md#what-applies-to-a-project).
 
 | Layer | Rules | `[auto]` | `[review]` | `[guide]` | Loaded by |
 | --- | --- | --- | --- | --- | --- |
-| kernel | 9 | 1 | 8 | 0 | every Coral codebase |
+| kernel | 10 | 2 | 8 | 0 | every Coral codebase |
 | framework governance | 9 | 2 | 2 | 5 | Coral-aware humans, agents and tooling — never audited against application source |
-| production baseline | 88 | 12 | 61 | 15 | every Coral codebase, at the scale the rule is stated for |
+| production baseline | 88 | 12 | 61 | 15 | projects that adopt it, at the scales they adopt |
 | app profile · backend | 8 | 1 | 7 | 0 | projects with an app of that shape |
 | app profile · cli | 11 | 5 | 4 | 2 | projects with an app of that shape |
 | app profile · gh-action | 12 | 2 | 9 | 1 | projects with an app of that shape |
@@ -48,8 +49,26 @@ apps compose**, not a reason for a single-app project to load them.
 [`CONVENTIONS.md`](./CONVENTIONS.md#the-coral-kernel), where each member is mapped to the property it
 defends. Every other rule carries its layer as a `{tag}` on its own definition line, and the profiles those
 tags may name are registered in [`CONVENTIONS.md`](./CONVENTIONS.md#ownership-layers). Kernel membership
-answers *why Coral imposes a rule, and at what strength*; it does not mean the rule matters more, and no
-layer below it is optional once its profile is loaded.
+answers *why Coral imposes a rule, and at what strength*; it does not mean the rule matters more, and an
+adopted layer binds exactly as hard as the kernel does.
+
+## Scale
+
+Ownership does not finish the applicability question. A rule is also stated at one **architectural scale**,
+and an adopted layer contributes only its rules at the scales a project declares. The production baseline
+is where this bites: it is the baseline for **one app** and, separately, the baseline for **several apps
+composing**, and a repository that ships one app has no channel to version and no topology to wire. The
+runtime-agent profile splits the same way.
+
+Scale is derived from the document a rule is stated in — one row per scale in
+[`CONVENTIONS.md`](./CONVENTIONS.md#architectural-scale), plus a default that covers every other document —
+so it is a fact about where the rule lives rather than a third marker on its definition line. Kernel rules
+are not narrowed by scale: they bind without a decision, so a scale declaration cannot decline them.
+
+| Scale | Rules | Stated in | Read by |
+| --- | --- | --- | --- |
+| app | 158 | every other document | every project — one deployable unit, its slices, its crosscuts, its root |
+| system | 21 | [`SYSTEM.md`](./SYSTEM.md) | projects where separately-built apps compose over a channel |
 
 ## Rules by scope
 
@@ -59,137 +78,138 @@ name is in the [table above](#ownership-layers). Statements are in the per-docum
 reasoning is in the document itself.
 
 **Ownership is one applicability axis, not the whole load decision.** A group here says which layer or
-profile a rule belongs to, and nothing more. Production-baseline rules are narrowed further by scale, as
-described above: the ones in [`ARCHITECTURE.md`](./ARCHITECTURE.md) are app-scale and the ones in
-[`SYSTEM.md`](./SYSTEM.md) are the baseline when several apps compose, so a repository that ships one app
-loads part of that group and not the rest.
+profile a rule belongs to, and nothing more. Two things narrow it further: a layer applies only where the
+project has **adopted** it, and an adopted layer contributes only its rules at the **scales** the project
+declares — which is why the Scale column is in every table below. A one-app repository that adopts the
+production baseline takes the app-scale part of that group and not the rest.
 
 ### kernel
 
-9 rules — kernel.
+10 rules — kernel.
 
-| Rule | Class | Defined in |
-| --- | --- | --- |
-| `[AGENT-2]` | `[review]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
-| `[AGENT-4]` | `[review]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
-| `[BOUND-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[COMPOSE-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[MODEL-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[TEST-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[VER-3]` | `[review]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
-| `[VER-5]` | `[auto]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
-| `[XCUT-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| Rule | Class | Scale | Defined in |
+| --- | --- | --- | --- |
+| `[AGENT-2]` | `[review]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[AGENT-4]` | `[review]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[BOUND-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[COMPOSE-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[MODEL-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[TEST-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[VER-3]` | `[review]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[VER-5]` | `[auto]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[VER-6]` | `[auto]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[XCUT-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 
 ### framework-governance
 
 9 rules — framework governance.
 
-| Rule | Class | Defined in |
-| --- | --- | --- |
-| `[AGENT-1]` | `[guide]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
-| `[AGENT-3]` | `[guide]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
-| `[AGENT-5]` | `[review]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
-| `[SCOPE-1]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[SCOPE-2]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[SCOPE-4]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[VER-1]` | `[auto]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
-| `[VER-2]` | `[review]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
-| `[VER-4]` | `[auto]` | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| Rule | Class | Scale | Defined in |
+| --- | --- | --- | --- |
+| `[AGENT-1]` | `[guide]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[AGENT-3]` | `[guide]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[AGENT-5]` | `[review]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[SCOPE-1]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[SCOPE-2]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[SCOPE-4]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[VER-1]` | `[auto]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[VER-2]` | `[review]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
+| `[VER-4]` | `[auto]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
 
 ### production-baseline
 
 88 rules — production baseline.
 
-| Rule | Class | Defined in |
-| --- | --- | --- |
-| `[BOUND-1]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BOUND-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BOUND-4]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BOUND-5]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BUCKET-1]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BUCKET-2]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CHAN-1]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[CHAN-10]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[CHAN-2]` | `[guide]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[CHAN-3]` | `[auto]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[CHAN-4]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[CHAN-5]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[CHAN-6]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[CHAN-7]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[CHAN-8]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[CHAN-9]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[COMPOSE-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[COMPOSE-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[COMPOSE-4]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-1]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-4]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-5]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONFIG-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONFIG-2]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONFIG-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONFIG-4]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONTRACT-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONTRACT-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[DUP-1]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[DUP-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[DUP-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[DUP-4]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[EFFECT-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[EFFECT-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[EFFECT-3]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[EFFECT-4]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ERR-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ERR-2]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ERR-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ERR-4]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[GROW-1]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[GROW-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[GROW-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-2]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-4]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-5]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-6]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[MODEL-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[MODEL-3]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[MODEL-4]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[OBS-1]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[OBS-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[OBS-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ORCH-1]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[ORCH-2]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[ORCH-3]` | `[guide]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[ROOT-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ROOT-2]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ROOT-3]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[SCOPE-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-2]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-3]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-4]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-5]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-6]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-7]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STRUCT-1]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STRUCT-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STRUCT-3]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[SYS-TEST-1]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[SYS-TEST-2]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[SYS-TEST-3]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[SYS-TEST-4]` | `[guide]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[SYS-TEST-5]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[TEST-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[TEST-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[TEST-4]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[TRUST-1]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[TRUST-2]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[XCUT-2]` | `[auto]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[XCUT-3]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[XCUT-4]` | `[guide]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[XCUT-5]` | `[review]` | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| Rule | Class | Scale | Defined in |
+| --- | --- | --- | --- |
+| `[BOUND-1]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[BOUND-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[BOUND-4]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[BOUND-5]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[BUCKET-1]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[BUCKET-2]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CHAN-1]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[CHAN-10]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[CHAN-2]` | `[guide]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[CHAN-3]` | `[auto]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[CHAN-4]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[CHAN-5]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[CHAN-6]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[CHAN-7]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[CHAN-8]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[CHAN-9]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[COMPOSE-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[COMPOSE-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[COMPOSE-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONC-1]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONC-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONC-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONC-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONC-5]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONFIG-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONFIG-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONFIG-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONFIG-4]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONTRACT-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[CONTRACT-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[DUP-1]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[DUP-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[DUP-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[DUP-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[EFFECT-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[EFFECT-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[EFFECT-3]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[EFFECT-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[ERR-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[ERR-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[ERR-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[ERR-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[GROW-1]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[GROW-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[GROW-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[IDEM-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[IDEM-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[IDEM-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[IDEM-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[IDEM-5]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[IDEM-6]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[MODEL-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[MODEL-3]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[MODEL-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[OBS-1]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[OBS-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[OBS-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[ORCH-1]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[ORCH-2]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[ORCH-3]` | `[guide]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[ROOT-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[ROOT-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[ROOT-3]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[SCOPE-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STATE-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STATE-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STATE-3]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STATE-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STATE-5]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STATE-6]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STATE-7]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STRUCT-1]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STRUCT-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[STRUCT-3]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[SYS-TEST-1]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[SYS-TEST-2]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[SYS-TEST-3]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[SYS-TEST-4]` | `[guide]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[SYS-TEST-5]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[TEST-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[TEST-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[TEST-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[TRUST-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[TRUST-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[XCUT-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[XCUT-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[XCUT-4]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[XCUT-5]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 
 ### app-profile
 
@@ -199,92 +219,92 @@ loads part of that group and not the rest.
 
 8 rules — `{app:backend}`.
 
-| Rule | Class | Defined in |
-| --- | --- | --- |
-| `[BE-1]` | `[review]` | [`appendix/backend.md`](./appendix/backend.md) |
-| `[BE-2]` | `[review]` | [`appendix/backend.md`](./appendix/backend.md) |
-| `[BE-3]` | `[review]` | [`appendix/backend.md`](./appendix/backend.md) |
-| `[BE-4]` | `[review]` | [`appendix/backend.md`](./appendix/backend.md) |
-| `[BE-5]` | `[auto]` | [`appendix/backend.md`](./appendix/backend.md) |
-| `[BE-6]` | `[review]` | [`appendix/backend.md`](./appendix/backend.md) |
-| `[BE-7]` | `[review]` | [`appendix/backend.md`](./appendix/backend.md) |
-| `[BE-8]` | `[review]` | [`appendix/backend.md`](./appendix/backend.md) |
+| Rule | Class | Scale | Defined in |
+| --- | --- | --- | --- |
+| `[BE-1]` | `[review]` | app | [`appendix/backend.md`](./appendix/backend.md) |
+| `[BE-2]` | `[review]` | app | [`appendix/backend.md`](./appendix/backend.md) |
+| `[BE-3]` | `[review]` | app | [`appendix/backend.md`](./appendix/backend.md) |
+| `[BE-4]` | `[review]` | app | [`appendix/backend.md`](./appendix/backend.md) |
+| `[BE-5]` | `[auto]` | app | [`appendix/backend.md`](./appendix/backend.md) |
+| `[BE-6]` | `[review]` | app | [`appendix/backend.md`](./appendix/backend.md) |
+| `[BE-7]` | `[review]` | app | [`appendix/backend.md`](./appendix/backend.md) |
+| `[BE-8]` | `[review]` | app | [`appendix/backend.md`](./appendix/backend.md) |
 
 #### cli
 
 11 rules — `{app:cli}`.
 
-| Rule | Class | Defined in |
-| --- | --- | --- |
-| `[CLI-1]` | `[review]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-10]` | `[auto]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-11]` | `[auto]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-2]` | `[review]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-3]` | `[auto]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-4]` | `[review]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-5]` | `[guide]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-6]` | `[auto]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-7]` | `[guide]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-8]` | `[auto]` | [`appendix/cli.md`](./appendix/cli.md) |
-| `[CLI-9]` | `[review]` | [`appendix/cli.md`](./appendix/cli.md) |
+| Rule | Class | Scale | Defined in |
+| --- | --- | --- | --- |
+| `[CLI-1]` | `[review]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-10]` | `[auto]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-11]` | `[auto]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-2]` | `[review]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-3]` | `[auto]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-4]` | `[review]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-5]` | `[guide]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-6]` | `[auto]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-7]` | `[guide]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-8]` | `[auto]` | app | [`appendix/cli.md`](./appendix/cli.md) |
+| `[CLI-9]` | `[review]` | app | [`appendix/cli.md`](./appendix/cli.md) |
 
 #### gh-action
 
 12 rules — `{app:gh-action}`.
 
-| Rule | Class | Defined in |
-| --- | --- | --- |
-| `[GHA-1]` | `[review]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-10]` | `[auto]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-11]` | `[review]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-12]` | `[review]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-2]` | `[review]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-3]` | `[auto]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-4]` | `[review]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-5]` | `[review]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-6]` | `[review]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-7]` | `[review]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-8]` | `[guide]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
-| `[GHA-9]` | `[review]` | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| Rule | Class | Scale | Defined in |
+| --- | --- | --- | --- |
+| `[GHA-1]` | `[review]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-10]` | `[auto]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-11]` | `[review]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-12]` | `[review]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-2]` | `[review]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-3]` | `[auto]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-4]` | `[review]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-5]` | `[review]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-6]` | `[review]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-7]` | `[review]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-8]` | `[guide]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
+| `[GHA-9]` | `[review]` | app | [`appendix/gh-action.md`](./appendix/gh-action.md) |
 
 #### library
 
 13 rules — `{app:library}`.
 
-| Rule | Class | Defined in |
-| --- | --- | --- |
-| `[LIB-1]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-10]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-11]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-12]` | `[guide]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-13]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-2]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-3]` | `[auto]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-4]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-5]` | `[auto]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-6]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-7]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-8]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
-| `[LIB-9]` | `[review]` | [`appendix/library.md`](./appendix/library.md) |
+| Rule | Class | Scale | Defined in |
+| --- | --- | --- | --- |
+| `[LIB-1]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-10]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-11]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-12]` | `[guide]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-13]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-2]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-3]` | `[auto]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-4]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-5]` | `[auto]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-6]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-7]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-8]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
+| `[LIB-9]` | `[review]` | app | [`appendix/library.md`](./appendix/library.md) |
 
 #### web
 
 12 rules — `{app:web}`.
 
-| Rule | Class | Defined in |
-| --- | --- | --- |
-| `[WEB-1]` | `[review]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-10]` | `[review]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-11]` | `[review]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-12]` | `[review]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-2]` | `[guide]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-3]` | `[review]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-4]` | `[auto]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-5]` | `[review]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-6]` | `[guide]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-7]` | `[review]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-8]` | `[auto]` | [`appendix/web.md`](./appendix/web.md) |
-| `[WEB-9]` | `[auto]` | [`appendix/web.md`](./appendix/web.md) |
+| Rule | Class | Scale | Defined in |
+| --- | --- | --- | --- |
+| `[WEB-1]` | `[review]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-10]` | `[review]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-11]` | `[review]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-12]` | `[review]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-2]` | `[guide]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-3]` | `[review]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-4]` | `[auto]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-5]` | `[review]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-6]` | `[guide]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-7]` | `[review]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-8]` | `[auto]` | app | [`appendix/web.md`](./appendix/web.md) |
+| `[WEB-9]` | `[auto]` | app | [`appendix/web.md`](./appendix/web.md) |
 
 ### language-binding
 
@@ -294,28 +314,28 @@ loads part of that group and not the rest.
 
 16 rules — runtime-agent profile.
 
-| Rule | Class | Defined in |
-| --- | --- | --- |
-| `[AGENTIC-1]` | `[guide]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-10]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-11]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-12]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-13]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-2]` | `[guide]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-3]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-4]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-5]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-6]` | `[guide]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-7]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-8]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[AGENTIC-9]` | `[review]` | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
-| `[ORCH-4]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[ORCH-5]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
-| `[ORCH-6]` | `[review]` | [`SYSTEM.md`](./SYSTEM.md) |
+| Rule | Class | Scale | Defined in |
+| --- | --- | --- | --- |
+| `[AGENTIC-1]` | `[guide]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-10]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-11]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-12]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-13]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-2]` | `[guide]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-3]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-4]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-5]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-6]` | `[guide]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-7]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-8]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[AGENTIC-9]` | `[review]` | app | [`appendix/agentic-app.md`](./appendix/agentic-app.md) |
+| `[ORCH-4]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[ORCH-5]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[ORCH-6]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 
 ## Coral Architecture — Conventions
 
-10 rules — [`CONVENTIONS.md`](./CONVENTIONS.md)
+11 rules — [`CONVENTIONS.md`](./CONVENTIONS.md)
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
@@ -329,6 +349,7 @@ loads part of that group and not the rest.
 | `[VER-3]` | `[review]` | kernel | State the Coral version a project targets; audit against that version. |
 | `[VER-4]` | `[auto]` | framework governance | Namespace a project's own rule IDs by project prefix; never reuse a Coral family name. |
 | `[VER-5]` | `[auto]` | kernel | Record exceptions and extensions in `CORAL.md` as machine-readable entries naming a rule ID and a scoped path. |
+| `[VER-6]` | `[auto]` | kernel | Declare in `CORAL.md` which non-kernel Coral scopes the project adopts, and at which scales. |
 
 ## Coral Architecture — the App
 

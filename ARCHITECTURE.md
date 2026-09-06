@@ -836,16 +836,31 @@ The **complete** normative checklist: every `[auto]` and `[review]` rule in this
 Load this as your working contract; sections 1–21 are the *why*, and `[guide]` rules live only there.
 Reviewers walk this same list and cite the same IDs.
 
+Most of it is the **production baseline**, which a project adopts explicitly (`[VER-6]`); the
+`coral:scope:baseline` markers below say which lines those are, and the build fails if one is misplaced.
+The lines outside those markers are [kernel](./CONVENTIONS.md#the-coral-kernel) rules and bind without
+being adopted. Everything here is **app scale**: one deployable app. Rules for several apps composing
+are in [`SYSTEM.md`](./SYSTEM.md).
+
 <!-- coral:contract:start -->
 
 ### Placement & naming
 - `[MODEL-1]` Every unit of code is a slice, a crosscut, an adapter, the composition root, or a published contract.
+
+<!-- coral:scope:baseline -->
+
 - `[MODEL-2]` Name every package for the capability or concern it owns, never for its technical role.
 - `[MODEL-4]` An adapter implements a slice-declared port: infrastructure only, arrow inward, wired by the root, no behavior.
 - `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages; the package owns its capability's state.
 - `[STRUCT-3]` Keep root-level crosscuts rare and precisely named.
 - `[STRUCT-1]` Colocate tests, or mirror the package structure where colocation is impossible.
+
+<!-- coral:scope:end -->
+
 - `[BOUND-2]` One request/trigger — or a very tight pair — per slice, owned end to end.
+
+<!-- coral:scope:baseline -->
+
 - `[BOUND-3]` Use the boundary form the appendix fixes; do not invent a new one.
 - `[BOUND-5]` A scheduled/background trigger is a slice: observable outcome, overlap-safe, tested.
 - `[ROOT-1]` Keep the root thin: register, construct, inject, bootstrap. No business logic.
@@ -854,11 +869,22 @@ Reviewers walk this same list and cite the same IDs.
 ### Forbidden moves
 - `[BUCKET-1]` Do not create or expand `shared`/`common`/`utils`/`helpers`/`services`/`repository`/generic `models`.
 - `[DUP-2]` Do not extract on similarity alone; similarity is not a shared concept.
+
+<!-- coral:scope:end -->
+
 - `[COMPOSE-1]` Do not reach into another slice's internals; depend on its published capability.
+
+<!-- coral:scope:baseline -->
+
 - `[CONFIG-2]` No slice reads the environment, a config file, or a global settings object directly.
+
+<!-- coral:scope:end -->
 
 ### The sharing decision
 - `[XCUT-1]` Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant.
+
+<!-- coral:scope:baseline -->
+
 - `[XCUT-2]` Give every crosscut a precise domain or infrastructure name.
 - `[XCUT-3]` Inject crosscuts; consume their published surface, never their internals.
 - `[XCUT-5]` A domain entity may be a crosscut only as type + invariants — never its queries or storage.
@@ -908,8 +934,13 @@ Reviewers walk this same list and cite the same IDs.
 - `[TRUST-1]` Validate and authorize untrusted input at the boundary.
 - `[TRUST-2]` State the app's trust boundary explicitly, however minimal.
 
+<!-- coral:scope:end -->
+
 ### Testing
 - `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.
+
+<!-- coral:scope:baseline -->
+
 - `[TEST-2]` Prefer integration and end-to-end tests over isolated unit tests.
 - `[TEST-3]` Unit tests are a scalpel; never duplicate integration coverage; never extract just to test.
 - `[TEST-4]` Assert contract, errors, idempotency, transactions, authorization, and diagnostics where relevant.
@@ -918,6 +949,8 @@ Reviewers walk this same list and cite the same IDs.
 - `[SCOPE-3]` When features converge on one dense concept, give it its own app behind a published contract.
 - `[GROW-2]` Answer file growth by splitting inside the slice, never with a global abstraction.
 - `[GROW-3]` Treat domain densification as a split signal, not a refactor-into-a-shared-core signal.
+
+<!-- coral:scope:end -->
 
 <!-- coral:contract:end -->
 
@@ -940,15 +973,16 @@ first line of drift control is structural: a genuine crosscut (`[XCUT]`) has one
 drift. The tiers below are the backstop for what slips past it.
 
 Two things are checked today. This repository enforces its **own** consistency at build time, in four
-groups. Each rule is **classified**: exactly one enforcement class, and exactly one ownership layer —
-kernel membership read only from `CONVENTIONS.md`'s kernel block, every other rule tagged on its own
-definition line against a registered profile. Each document is **complete and honestly scoped**: every
-`[auto]`/`[review]` rule appears in its Agent Execution Contract, and a contract marks its opt-in groups
-so it cannot present a profile-scoped rule as unconditional. Each **citation resolves**, this document
-cites no
+groups. Each rule is **classified**: exactly one enforcement class, exactly one ownership layer, and one
+architectural scale — kernel membership read only from `CONVENTIONS.md`'s kernel block, every other rule
+tagged on its own definition line against a registered profile, and scale read from the registered
+document it is stated in. Each document is **complete and honestly scoped**: every `[auto]`/`[review]`
+rule appears in its Agent Execution Contract, and a contract marks its opt-in groups so it cannot present
+a profile-scoped rule as unconditional. Each **citation resolves**, this document cites no
 system rule, and every link fragment reaches a real anchor. And the **published set is stable**: no rule
 ID removed or silently reclassified, the generated [rule index](./rules.md) still matching the registry it
-indexes, every worked example declaring the current Coral version. Malformed metadata fails the build
+indexes, the worked `CORAL.md` in `CONVENTIONS.md` still resolving through the applicability resolver, and
+every worked example declaring the current Coral version. Malformed metadata fails the build
 rather than being skipped, because a skipped rule is one that quietly leaves a layer while the page still
 reads correctly. Separately, [`tools/coral-lint`](./tools/coral-lint/README.md) enforces a growing subset
 of Tier 1 against a target repository.

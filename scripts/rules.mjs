@@ -236,10 +236,16 @@ const SCOPE_WORDS = { unscoped: false, 'profile-scoped': true }
 // `{governance}` to `{framework-governance}` changes a TAG; the row still says `governance`
 // in its Surface column, so the nine rules stay in the same group and no generated total
 // silently empties. A typo in the column fails the build instead.
-export const SURFACES = ['conformance', 'governance', 'opt-in']
+// Named rather than spelled inline, because two consumers outside this file switch on them:
+// the contract-scope gate below, and the applicability resolver, which has to know which
+// surface a project may adopt and which one is never audited against application source.
+// A second copy of either string is a vocabulary that can drift from the closed set.
+export const CONFORMANCE = 'conformance'
+export const GOVERNANCE = 'governance'
 // The one surface whose rules a project selects rather than inherits. Contract scope has to
 // agree with it row by row — see the check in parseLayers().
-const OPT_IN = 'opt-in'
+export const OPT_IN = 'opt-in'
+export const SURFACES = [CONFORMANCE, GOVERNANCE, OPT_IN]
 
 // tag grammar: lowercase token, optionally `family:profile`  e.g. baseline, app:cli, lang:go
 export const TAG_CORE = '[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?'
@@ -521,6 +527,224 @@ export function parseLayers(srcDir) {
     )
   }
   return { taxonomy, problems }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Architectural scale — the second applicability axis.
+//
+// Ownership answers *who has to load a rule*. It does not finish the question, and
+// PO-02 found the gap in the layer that spans both answers: the production baseline
+// states `[STATE-5]` for one app in ARCHITECTURE.md and `[CHAN-1]` for several apps
+// composing in SYSTEM.md. One ownership kind, two audiences. The runtime-agent layer
+// has the same shape — `[AGENTIC-*]` is one app's business and `[ORCH-4..6]` is the
+// system's — so a standalone CLI that adopts either layer must not thereby acquire
+// topology rules for a topology it does not have.
+//
+// Scale is deliberately NOT a seventh ownership layer. Ownership says why a rule
+// exists and how narrowly; scale says at what size it bites, and the two vary
+// independently. What makes it derivable rather than a third tag on every definition
+// line is that Coral already states scale structurally: a document is written at one
+// scale, and every rule in it inherits that. So the registry below maps a document to
+// a scale, one row per scale, with exactly one DEFAULT row — written `—`, the same
+// idiom the kernel row uses in the ownership table — covering every document no other
+// row claims.
+//
+// Read from CONVENTIONS.md for the same reason the layers are: a scale hardcoded here
+// would be a second authority for a documented fact, and `rule.page === SYSTEM_SPINE`
+// scattered across consumers is that second authority spelled out once per consumer.
+// Every consumer reads `rule.scale`.
+// ─────────────────────────────────────────────────────────────────────────────
+export const SCALES_START = '<!-- coral:scales:start -->'
+export const SCALES_END = '<!-- coral:scales:end -->'
+export const SCALES_FILE = 'CONVENTIONS.md'
+const SCALE_COLUMNS = 5
+// Same grammar and the same whole-cell match as a layer key, for the same reason: a
+// scale key is what a project's adoption declaration names, so it must not be
+// repairable into a key nobody wrote.
+const SCALE_KEY_CELL_RE = /^`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`$/
+// The document a scale is stated in, as a code span. One document per row.
+const SCALE_PAGE_CELL_RE = /^`([^`|]+)`$/
+// The default row's document cell. An em dash so a reader sees "every other document"
+// rather than an empty cell that might be an omission.
+const NO_DOCUMENT = '—'
+
+/**
+ * @typedef {{label: string, key: string, page: string|null, readBy: string, why: string}} Scale
+ *
+ * `page` is the document whose rules are stated at this scale, or null for the one
+ * DEFAULT row that covers every document no other row claims.
+ */
+
+/** The scale every unclaimed document falls to. Exactly one row is it. */
+export const defaultScaleOf = (scales) => scales.find((s) => s.page === null)
+
+/**
+ * The scale a document's rules are stated at. Total by construction: a document either
+ * has a row of its own or falls to the default one.
+ *
+ * @returns {string|undefined} the scale key, or undefined against an invalid registry
+ */
+export function scaleOfPage(page, scales) {
+  return (scales.find((s) => s.page === page) ?? defaultScaleOf(scales))?.key
+}
+
+/**
+ * Parse and validate the architectural-scale registry in CONVENTIONS.md.
+ *
+ * Same posture as the ownership taxonomy: an unrecognised line, a duplicate key, label
+ * or document, a malformed key, the wrong column count, a document that does not exist,
+ * or anything other than exactly one default row is an error. A registry that decides
+ * applicability must not have a shape in which a scale can fall out unnoticed.
+ *
+ * @returns {{scales: Scale[], problems: string[]}}
+ */
+export function parseScales(srcDir) {
+  const problems = []
+  const scales = []
+  const abs = path.join(srcDir, SCALES_FILE)
+  if (!fs.existsSync(abs)) {
+    problems.push(`${SCALES_FILE} is missing — it is where the scale registry is defined.`)
+    return { scales, problems }
+  }
+  const text = fs.readFileSync(abs, 'utf8')
+  const count = (marker) => text.split(marker).length - 1
+  const starts = count(SCALES_START)
+  const ends = count(SCALES_END)
+  if (starts !== 1 || ends !== 1) {
+    problems.push(
+      `${SCALES_FILE} must hold exactly one ${SCALES_START} block (found ${starts} start marker(s)` +
+        ` and ${ends} end marker(s)). Two registries would leave one of them silently unread.`
+    )
+    return { scales, problems }
+  }
+  const start = text.indexOf(SCALES_START)
+  const end = text.indexOf(SCALES_END)
+  if (end < start) {
+    problems.push(`${SCALES_FILE} has ${SCALES_END} before ${SCALES_START}.`)
+    return { scales, problems }
+  }
+
+  const SHAPE =
+    'Each row is  | Scale | machine key | `document.md` or — | read by | justified by |'
+  const block = text.slice(start + SCALES_START.length, end)
+  const markerLine = text.slice(0, start).split('\n').length
+  const known = new Set(docFiles(srcDir))
+  let header = false
+  let delim = false
+
+  block.split('\n').forEach((line, i) => {
+    const at = `${SCALES_FILE}:${markerLine + i}`
+    const trimmed = line.trim()
+    if (!trimmed) return
+    if (!trimmed.startsWith('|')) {
+      problems.push(
+        `${at} is inside the scale registry but is not a table row. The block holds the registry` +
+          ` and nothing else — prose belongs outside the markers. ${SHAPE}`
+      )
+      return
+    }
+    const cells = tableCells(trimmed)
+    if (!header) {
+      header = true
+      if (!cells || cells.length !== SCALE_COLUMNS || cells.some((c) => !c.trim())) {
+        problems.push(
+          `${at}: the scale registry's header must have exactly ${SCALE_COLUMNS} non-empty` +
+            ` columns, matching its rows. ${SHAPE}`
+        )
+      }
+      return
+    }
+    if (!delim) {
+      delim = true
+      if (!cells || cells.length !== SCALE_COLUMNS || !cells.every((c) => DELIM_CELL_RE.test(c))) {
+        problems.push(
+          `${at}: expected the header delimiter row with exactly ${SCALE_COLUMNS} columns here.`
+        )
+      }
+      return
+    }
+    if (!cells || cells.length !== SCALE_COLUMNS || cells.some((c) => !c.trim())) {
+      problems.push(
+        `${at} is a malformed scale row, so the scale it declares cannot be read. ${SHAPE}`
+      )
+      return
+    }
+    const [rawLabel, rawKey, rawPage, readBy, why] = cells.map((c) => c.trim())
+    const label = rawLabel.replace(/\*\*/g, '')
+    const keyCell = SCALE_KEY_CELL_RE.exec(rawKey)
+    if (!keyCell) {
+      problems.push(
+        `${at}: ${rawKey} is not a scale key. A project's adoption declaration names scales by` +
+          ' this key, so it is written as a code span holding one lowercase hyphen-separated' +
+          ' token — ``app``, ``system`` — and not as the label, which is presentation text.'
+      )
+      return
+    }
+    const key = keyCell[1]
+    let page = null
+    if (rawPage === NO_DOCUMENT) {
+      if (scales.some((s) => s.page === null)) {
+        problems.push(
+          `${at} is a second default scale. Exactly one row covers every document no other row` +
+            ` claims, and it is written with \`${NO_DOCUMENT}\` in the document column —` +
+            ' two of them would leave the scale of most rules undecidable.'
+        )
+        return
+      }
+    } else {
+      const m = SCALE_PAGE_CELL_RE.exec(rawPage)
+      if (!m) {
+        problems.push(
+          `${at}: ${rawPage} is not a document. Write the document a scale's rules are stated in` +
+            ` as a code span — \`\`${SYSTEM_SPINE}\`\` — or \`${NO_DOCUMENT}\` for the default row.`
+        )
+        return
+      }
+      page = m[1]
+      if (!known.has(page)) {
+        problems.push(
+          `${at} states scale \`${key}\` as living in \`${page}\`, which is not a document the` +
+            ' rule registry reads.'
+        )
+        return
+      }
+      const claimed = scales.find((s) => s.page === page)
+      if (claimed) {
+        problems.push(
+          `${at} claims \`${page}\` for scale \`${key}\`, which \`${claimed.key}\` already claims.` +
+            ' A document is written at one scale, and every rule in it inherits that one.'
+        )
+        return
+      }
+    }
+    if (scales.some((s) => s.key === key)) {
+      problems.push(
+        `${at} declares the scale key \`${key}\` twice. One row per key — two scales sharing one` +
+          ' key are one scale to every consumer that switches on a resolved scale.'
+      )
+      return
+    }
+    if (scales.some((s) => s.label === label)) {
+      problems.push(`${at} declares the scale name \`${label}\` twice. One row per scale.`)
+      return
+    }
+    scales.push({ label, key, page, readBy, why })
+  })
+
+  if (!header || !delim) {
+    problems.push(
+      `${SCALES_FILE}'s scale registry is not a table. It must open with a header row and its` +
+        ` delimiter. ${SHAPE}`
+    )
+  } else if (!scales.length) {
+    problems.push(`${SCALES_FILE}'s scale registry has a header but no scales. ${SHAPE}`)
+  } else if (!defaultScaleOf(scales)) {
+    problems.push(
+      `${SCALES_FILE}'s scale registry has no default row. One scale covers every document no` +
+        ` other row claims, and it is written with \`${NO_DOCUMENT}\` in the document column.`
+    )
+  }
+  return { scales, problems }
 }
 
 /**
@@ -1055,32 +1279,39 @@ export function classifyRules({ rules, kernel, profiles, taxonomy }) {
  *
  * @param {string} srcDir
  * @returns {{rules: Map<string,{page:string,line:number,cls:string|undefined,
- *              tags:string[],scope?:Scope}>,
+ *              tags:string[],scale:string|undefined,scope?:Scope}>,
  *            registry: Map<string,string>, defsByFile: Map<string,Array<{id:string,cls:string}>>,
- *            files: string[], taxonomy: Layer[], kernel: Set<string>,
+ *            files: string[], taxonomy: Layer[], scales: Scale[], kernel: Set<string>,
  *            profiles: Map<string,{home:string,covers:string}>,
  *            classified: boolean, problems: string[]}}
  *
- * When `problems` is empty, every rule in `rules` has a `scope` and that scope has a `kind`.
+ * When `problems` is empty, every rule in `rules` has a `scope` and that scope has a `kind`,
+ * and every rule has a `scale` naming a registered one.
  */
 export function loadRuleModel(srcDir) {
   const { registry, rules: raw, defsByFile, problems, files } = parseRules(srcDir)
   const { taxonomy, problems: taxonomyProblems } = parseLayers(srcDir)
+  const { scales, problems: scaleProblems } = parseScales(srcDir)
   const { ids: kernel, problems: kernelProblems } = parseKernel(srcDir, raw)
   const { profiles, problems: profileProblems } = parseProfiles(srcDir, taxonomy)
   const classify = { rules: raw, kernel, profiles, taxonomy }
   const { scopes, unresolved, problems: scopeProblems } = classifyRules(classify)
   const ownershipProblems = [
     ...taxonomyProblems,
+    ...scaleProblems,
     ...kernelProblems,
     ...profileProblems,
     ...scopeProblems,
   ]
 
+  // Scale rides on the rule beside ownership, resolved once here. Every consumer reads
+  // `rule.scale`; none of them repeats `rule.page === SYSTEM_SPINE`, which is the shape the
+  // second authority took before the registry existed.
   const rules = new Map()
   for (const [id, rule] of raw) {
     const scope = scopes.get(id)
-    rules.set(id, scope ? { ...rule, scope } : { ...rule })
+    const scale = scaleOfPage(rule.page, scales)
+    rules.set(id, scope ? { ...rule, scale, scope } : { ...rule, scale })
   }
 
   // The invariant, asserted rather than assumed — and asserted unconditionally.
@@ -1109,7 +1340,18 @@ export function loadRuleModel(srcDir) {
   // than its name makes.
   const classified = !ownershipProblems.length && complete
   problems.push(...ownershipProblems)
-  return { rules, registry, defsByFile, files, taxonomy, kernel, profiles, classified, problems }
+  return {
+    rules,
+    registry,
+    defsByFile,
+    files,
+    taxonomy,
+    scales,
+    kernel,
+    profiles,
+    classified,
+    problems,
+  }
 }
 
 /**
@@ -1679,7 +1921,7 @@ export function extractStatements(srcDir, rules) {
  * @param {ReturnType<typeof loadRuleModel>} model
  */
 export function serializeIndex(srcDir, model) {
-  const { rules, defsByFile, taxonomy, profiles } = model
+  const { rules, defsByFile, taxonomy, scales, profiles } = model
   const statements = extractStatements(srcDir, rules)
   const kernelLayer = kernelLayerOf(taxonomy)
   const count = (c) => [...rules.values()].filter((r) => r.cls === c).length
@@ -1726,12 +1968,22 @@ export function serializeIndex(srcDir, model) {
         ` ${LAYERS_FILE}'s ${LAYERS_START} block must name one of: ${SURFACES.join(', ')}.`
     )
   }
-  // Architectural scale, derived from the defining document rather than from the layer: the
-  // baseline in SYSTEM.md is the baseline WHEN SEVERAL APPS COMPOSE. A one-app repository has
-  // no channel to contract-test, so counting those as rules it must load would overclaim.
-  const atSystemScale = conformance
-    .flatMap((g) => g.ids)
-    .filter((id) => rules.get(id).page === SYSTEM_SPINE)
+  // The second applicability axis, read off the rule rather than recomputed from its page.
+  // An adopted layer contributes only its rules at the scales a project declares, so the
+  // per-scale totals are part of "how much of Coral applies to me" and not a footnote:
+  // the production baseline is the baseline for ONE APP in ARCHITECTURE.md and the baseline
+  // for SEVERAL APPS COMPOSING in SYSTEM.md, and most projects want only the first.
+  const byScale = scales.map((sc) => ({
+    ...sc,
+    ids: [...rules].filter(([, r]) => r.scale === sc.key).map(([id]) => id),
+  }))
+  const scaleCovered = byScale.reduce((n, sc) => n + sc.ids.length, 0)
+  if (scaleCovered !== rules.size) {
+    throw new Error(
+      `[coral] the scale registry covers ${scaleCovered} of ${rules.size} rules. Every document` +
+        ` either has a row in ${SCALES_FILE}'s ${SCALES_START} block or falls to the default one.`
+    )
+  }
 
   const out = [
     '# Rule index',
@@ -1768,25 +2020,25 @@ export function serializeIndex(srcDir, model) {
     ...wrap(
       'They answer to three audiences rather than stacking into one number. ' +
         `**${sum(conformance, 'total')} form the conformance surface** — ` +
-        `${conformance.map((r) => r.label).join(' plus ')} — what a Coral codebase is built and ` +
-        'audited against before any ' +
-        `profile is added, ${sum(conformance, 'review')} of them \`[review]\`. ` +
+        `${conformance.map((r) => r.label).join(' plus ')} — the rules that apply without a project ` +
+        `deciding anything, ${sum(conformance, 'review')} of them \`[review]\`. ` +
         `**${sum(governance, 'total')} govern Coral itself** and sit outside that surface ` +
         'entirely: no application source code satisfies or violates them. Coral-aware humans, ' +
         'agents and tooling read them when interpreting a rule, consulting the adherence ' +
         'record, or changing how a project relates to Coral. The other ' +
-        `**${sum(optional, 'total')} are opt-in** — ${sum(optional, 'review')} \`[review]\` — and load ` +
-        'only where their profile is selected, so a CLI with no runtime model never reads an ' +
-        '`[AGENTIC-*]` rule and a library never reads an HTTP status code.'
+        `**${sum(optional, 'total')} are opt-in** — ${sum(optional, 'review')} \`[review]\` — and ` +
+        "reach a project only where its `CORAL.md` adopts the layer they belong to, so a CLI that " +
+        'has not adopted the runtime-agent profile never reads an `[AGENTIC-*]` rule and a library ' +
+        'never reads an HTTP status code.'
     ),
     '',
     ...wrap(
-      `Scale narrows the conformance surface further. ${atSystemScale.length} of those ` +
-        `${sum(conformance, 'total')} are stated at *system* scale in ` +
-        `[\`${SYSTEM_SPINE}\`](./${SYSTEM_SPINE}) — channel contracts, topology, cross-app contract ` +
-        'testing — and a repository that ships one app has no channel to version and no topology to ' +
-        'wire. They are the baseline **when several apps compose**, not a reason for a single-app ' +
-        'project to load them.'
+      '**Opt-in is the normal case, and the production baseline is opt-in too.** Coral publishes it ' +
+        'for every codebase that wants it, and a project still says so: a rule becomes applicable ' +
+        "through kernel membership or through the project's own declaration, and never because it " +
+        'exists in the Coral repository (`[VER-6]`). How a project declares what it adopts, and how ' +
+        'the set is composed from that, is in ' +
+        '[`CONVENTIONS.md`](./CONVENTIONS.md#what-applies-to-a-project).'
     ),
     '',
     '| Layer | Rules | `[auto]` | `[review]` | `[guide]` | Loaded by |',
@@ -1806,8 +2058,34 @@ export function serializeIndex(srcDir, model) {
         'the property it defends. Every other rule carries its layer as a `{tag}` on its own ' +
         'definition line, and the profiles those tags may name are registered in ' +
         '[`CONVENTIONS.md`](./CONVENTIONS.md#ownership-layers). Kernel membership answers *why Coral ' +
-        'imposes a rule, and at what strength*; it does not mean the rule matters more, and no ' +
-        'layer below it is optional once its profile is loaded.'
+        'imposes a rule, and at what strength*; it does not mean the rule matters more, and an ' +
+        'adopted layer binds exactly as hard as the kernel does.'
+    ),
+    '',
+    '## Scale',
+    '',
+    ...wrap(
+      'Ownership does not finish the applicability question. A rule is also stated at one ' +
+        '**architectural scale**, and an adopted layer contributes only its rules at the scales a ' +
+        'project declares. The production baseline is where this bites: it is the baseline for ' +
+        '**one app** and, separately, the baseline for **several apps composing**, and a repository ' +
+        'that ships one app has no channel to version and no topology to wire. The runtime-agent ' +
+        'profile splits the same way.'
+    ),
+    '',
+    ...wrap(
+      'Scale is derived from the document a rule is stated in — one row per scale in ' +
+        `[\`${SCALES_FILE}\`](./${SCALES_FILE}#architectural-scale), plus a default that covers ` +
+        'every other document — so it is a fact about where the rule lives rather than a third ' +
+        'marker on its definition line. Kernel rules are not narrowed by scale: they bind without ' +
+        'a decision, so a scale declaration cannot decline them.'
+    ),
+    '',
+    '| Scale | Rules | Stated in | Read by |',
+    '| --- | --- | --- | --- |',
+    ...byScale.map(
+      (sc) =>
+        `| ${sc.key} | ${sc.ids.length} | ${sc.page ? `[\`${sc.page}\`](./${sc.page})` : 'every other document'} | ${sc.readBy} |`
     ),
     '',
   ]
@@ -1862,22 +2140,22 @@ export function serializeIndex(srcDir, model) {
     '',
     ...wrap(
       '**Ownership is one applicability axis, not the whole load decision.** A group here says ' +
-        'which layer or profile a rule belongs to, and nothing more. Production-baseline rules ' +
-        'are narrowed further by scale, as described above: the ones in ' +
-        `[\`${APP_SPINE}\`](./${APP_SPINE}) are app-scale and the ones in ` +
-        `[\`${SYSTEM_SPINE}\`](./${SYSTEM_SPINE}) are the baseline when several apps compose, so a ` +
-        'repository that ships one app loads part of that group and not the rest.'
+        'which layer or profile a rule belongs to, and nothing more. Two things narrow it further: ' +
+        'a layer applies only where the project has **adopted** it, and an adopted layer ' +
+        'contributes only its rules at the **scales** the project declares — which is why the ' +
+        'Scale column is in every table below. A one-app repository that adopts the production ' +
+        'baseline takes the app-scale part of that group and not the rest.'
     ),
     ''
   )
   const scopeTable = (ids) => [
-    '| Rule | Class | Defined in |',
-    '| --- | --- | --- |',
+    '| Rule | Class | Scale | Defined in |',
+    '| --- | --- | --- | --- |',
     ...[...ids]
       .sort((a, b) => a.localeCompare(b))
       .map((id) => {
-        const { cls, page } = rules.get(id)
-        return `| \`[${id}]\` | \`[${cls}]\` | [\`${page}\`](./${page}) |`
+        const { cls, page, scale } = rules.get(id)
+        return `| \`[${id}]\` | \`[${cls}]\` | ${scale} | [\`${page}\`](./${page}) |`
       }),
     '',
   ]
