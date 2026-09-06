@@ -591,6 +591,17 @@ guard. `PRODUCTION.md` is also registered as an app-scale spine, so the existing
 guard catches a misplaced rule **definition**; it cannot see optional policy taught in ordinary prose,
 which is why the audit above was done by reading.
 
+**The guard runs in both directions**, because one direction is self-disabling. A core document may define
+no `opt-in` rule; and every document that **defines a kernel rule must be core**. Without the second,
+deleting the `ARCHITECTURE.md` row would leave the registry non-empty, silently stop the first check
+looking at that document, and leave five kernel rules outside the guard with every test still passing —
+disabling protection for the exact document PO-06 exists to protect. The reverse check is derived from the
+kernel block, already the single source of membership, so it introduces no second document list; the pair
+is what makes the registry's claim — *a reader of these documents has met the whole unconditional
+surface* — a checked invariant rather than an assertion. Both directions have synthetic coverage, and the
+repository tier now asserts that all ten kernel rules are defined in a core document and that every core
+document defines at least one rule.
+
 **Known limitation, recorded rather than fixed: selection independence is not self-containment.** The
 resolver is correct and unchanged — adopting a profile selects no production-baseline rule, and the tests
 hold it to that. What the union does not promise is that a selected rule can be *read* without the layers
@@ -632,7 +643,13 @@ baseline and profile findings count only where adopted at the relevant scale, an
 layer would have flagged is recorded in a new **Observations — outside the adopted surface** section as
 evidence for the adoption decision rather than as a violation. `PRODUCTION.md` is added to the
 authoritative rule-definition documents, with a note that in a release predating this split the same IDs
-are defined in `ARCHITECTURE.md`.
+are defined in `ARCHITECTURE.md`. Its judge/flag/note rule is made conditional on applicability too:
+structure, naming and placement are judged where a rule in the *selected* surface decides them, and
+observed rather than convicted where the deciding rule belongs to a layer the project declined — the same
+model as the verdict rule, since most structural answers (`[MODEL-2]`, `[BUCKET-1]`, `[ROOT-1]`,
+`[XCUT-2]`, `[XCUT-3]`, `[STATE-*]`) are baseline. Its kernel enumeration is completed to all ten rules,
+split by what each is audited against: source, `CORAL.md`, or the decision trail (`[AGENT-2]`,
+`[AGENT-4]`).
 
 The **exception instruction in the generated contract** is worded to keep `revisit_when` alive. An earlier
 draft said "do not raise it again", which settles an active decision and also tells the agent to ignore the

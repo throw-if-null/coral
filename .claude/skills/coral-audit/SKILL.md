@@ -58,10 +58,13 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
    and they are decided by the declaration, never by the code's shape:
 
    - **kernel** — always counts, for every Coral project, with nothing to adopt and nothing to decline.
-     Capability slicing and the five categories (`[MODEL-1]`), one trigger owned end to end (`[BOUND-2]`),
-     promotion to a crosscut gated on a must-not-diverge invariant (`[XCUT-1]`), consuming another slice
-     only through its published capability (`[COMPOSE-1]`), behavior-first tests at the entry point
-     (`[TEST-1]`), and the `CORAL.md` record rules (`[VER-3]`, `[VER-5]`, `[VER-6]`).
+     Ten rules, and they audit against three different things. Against the **source**: capability slicing
+     and the five categories (`[MODEL-1]`), one trigger owned end to end (`[BOUND-2]`), promotion to a
+     crosscut gated on a must-not-diverge invariant (`[XCUT-1]`), consuming another slice only through its
+     published capability (`[COMPOSE-1]`), behavior-first tests at the entry point (`[TEST-1]`). Against
+     **`CORAL.md`**: `[VER-3]`, `[VER-5]`, `[VER-6]`. Against **how architectural decisions were made**:
+     `[AGENT-2]` (ambiguity flagged, not guessed) and `[AGENT-4]` (a human authors every exception and
+     extension). Take the membership from `CONVENTIONS.md`'s kernel block, which is its single source.
    - **production baseline** — counts only where `production-baseline` is adopted, and only at the scales
      declared. This is where **no bucket packages** (`[BUCKET-*]`), **role-revealing package names**
      (`[MODEL-2]`), **precisely named and injected crosscuts** (`[XCUT-2]`, `[XCUT-3]`), **thin
@@ -85,19 +88,28 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
    rule *would* bite, and let it feed the one question that is actually open for that project — whether to
    adopt the baseline. An observation is not a finding, is not ranked with findings, and does not move the
    verdict.
-6. **Judge what's clearly wrong; flag what you can't adjudicate — and require it be documented.**
-   Conformance exists to make the code legible and maintainable for humans *and agents* — that is the
-   whole point of structure and naming, and it is why structural findings matter so much. So:
-   **(a) judge** structure / naming / placement — these have a context-independent right answer and
-   directly serve legibility; they are the conformance findings. **(b) flag** a consequential, non-obvious
-   *behavioral or contract* choice (delivery semantics, effect ordering, a deliberate deviation from the
-   obvious): it may be a valid trade-off whose reasons you cannot see — do NOT rule it wrong. Surface it
-   for a human to confirm, and check whether an explanatory **comment** captures the "why." An
-   undocumented murky decision is itself a maintainability gap (flag it as "confirm intent + document"); a
-   decision that IS commented is legible — just note it and credit the comment. In an agent-first codebase
-   this matters *more*, not less: the next agent cannot ask the author, so unwritten rationale is
-   invisible. **(c) note** outright defects with no deliberate-choice character (a security hole, a
-   nil-deref) as awareness notes. Rule what you can verify; flag what you can't.
+6. **Judge what an applicable rule decides; observe what none does; flag what you can't adjudicate.**
+   Conformance exists to make the code legible and maintainable for humans *and agents*, which is why
+   structural findings carry the verdict when they are in scope. Four moves, and the first two are
+   separated by applicability alone:
+   **(a) judge** structure / naming / placement **where a rule in the selected surface decides it** —
+   Coral's answer there is determinate and does not depend on the reader's taste, so a divergence is a
+   conformance finding and never a throwaway LOW. Most of these rules are production baseline
+   (`[MODEL-2]`, `[BUCKET-1]`, `[ROOT-1]`, `[XCUT-2]`, `[XCUT-3]`, `[STATE-*]`), so *which* structural
+   answers Coral has for this project is a fact about its `CORAL.md`, not about structure in general.
+   **(b) observe** the same thing when the rule that would decide it belongs to a layer the project has
+   not adopted. Coral has an opinion; this project has not taken it on. Record what you saw and which rule
+   would apply, and keep it out of the findings and the verdict (boundary rule 5).
+   **(c) flag** a consequential, non-obvious *behavioral or contract* choice (delivery semantics, effect
+   ordering, a deliberate deviation from the obvious) that the selected rules do not determine, or whose
+   intent you cannot establish: it may be a valid trade-off whose reasons you cannot see — do NOT rule it
+   wrong. Surface it for a human to confirm, and check whether an explanatory **comment** captures the
+   "why." An undocumented murky decision is itself a maintainability gap (flag it as "confirm intent +
+   document"); a decision that IS commented is legible — just note it and credit the comment. In an
+   agent-first codebase this matters *more*, not less: the next agent cannot ask the author, so unwritten
+   rationale is invisible. **(d) note** outright defects with no deliberate-choice character (a security
+   hole, a nil-deref) as awareness notes. Rule what an applicable rule decides and you can verify; observe
+   what is out of scope; flag what you can't adjudicate.
 7. **Read-only.** This skill reads and reports; it never modifies the audited code.
 
 ## Input
@@ -215,9 +227,25 @@ For each family, cite `file:line` and tag *earns-its-keep* vs *overkill*. The or
 order **over the production baseline**, which is the layer most projects adopt and where most of these
 families live; for a project that adopted it, the first two and the last two carry the verdict — capability
 slicing, placement/naming, and thin composition — so do not treat them as warm-up. For a project that did
-not, they are observations (boundary rule 5) and the walk is short: the kernel's own families are
-`[MODEL-1]`, `[BOUND-2]`, `[XCUT-1]`, `[COMPOSE-1]`, `[TEST-1]` and the `CORAL.md` record rules, and
-nothing else is in that project's surface:
+not, they are observations (boundary rule 5) and the walk is short. **What a kernel-only project is
+audited against, in full:**
+
+- against the **source** — `[MODEL-1]` (the five categories), `[BOUND-2]` (one trigger, owned end to end),
+  `[XCUT-1]` (promotion to a crosscut needs a must-not-diverge invariant), `[COMPOSE-1]` (published
+  capability, never internals), `[TEST-1]` (behavior-first at the entry point). Five rules; that is the
+  whole structural surface.
+- against **`CORAL.md`** — `[VER-3]` (a target is declared), `[VER-5]` (deviations are explicit and
+  path-scoped), `[VER-6]` (what it adopts is declared).
+- against the **way architectural decisions were made** — `[AGENT-2]` (an ambiguous architectural decision
+  is flagged for a human rather than guessed) and `[AGENT-4]` (only a human authors an exception or an
+  extension). These are kernel and they do bind, but what they bind is process and record: audit them by
+  asking whether ambiguity was escalated and whether the `CORAL.md` entries look human-authored, not by
+  grepping a slice.
+
+Ten rules, which is the whole kernel. Read the kernel block in `CONVENTIONS.md` for the current
+membership rather than trusting this list — it is the single source, and this is a reading aid.
+
+The order below is the baseline's:
 - fit: is this a command/request-shaped app the model actually covers, or a dense coupled domain it
   is weak for? does everything converge on one god-slice? — `[SCOPE-*]`
 - capability slicing, placement & role-revealing names: packages named for the capability or concern
@@ -259,10 +287,12 @@ Two families are never findings against a slice, for two different reasons, and 
 - **framework governance** — `[VER-1]`, `[VER-2]`, `[VER-4]`, `[AGENT-1]`, `[AGENT-3]`, `[AGENT-5]`. These
   bind the project's *decisions about Coral*, not its code, and are not adoptable into an application
   conformance surface at all.
-- **the kernel's record rules** — `[VER-3]`, `[VER-5]`, `[VER-6]`. These are kernel rules and *do* bind
-  every Coral project unconditionally, but what they bind is `CORAL.md` itself: does it declare a target,
-  are its exceptions and extensions machine-readable and path-scoped, does it declare what it adopts.
-  Check them against that file, never against a slice.
+- **the kernel's record and process rules** — `[VER-3]`, `[VER-5]`, `[VER-6]`, `[AGENT-2]`, `[AGENT-4]`.
+  These are kernel rules and *do* bind every Coral project unconditionally, but what they bind is
+  `CORAL.md` and the decisions around it: does it declare a target, are its exceptions and extensions
+  machine-readable and path-scoped, does it declare what it adopts, was an ambiguous architectural call
+  escalated rather than guessed, was each recorded deviation authored by a human. Check them against that
+  file and against the decision trail, never against a slice.
 
 For base layers especially, also scrutinize: init error handling (panic vs return; partial-init), graceful
 shutdown (ordering, timeouts, exit codes, in-flight drain), concurrency / global-state safety (data

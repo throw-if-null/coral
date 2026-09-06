@@ -45,8 +45,9 @@ import {
 //   8. every rule outside the kernel carries exactly one ownership layer
 //   9. a contract marks the rules that are opt-in, so it cannot list them as unconditional
 //  10. the worked CORAL.md in CONVENTIONS.md is a record the applicability resolver accepts
-//  11. no opt-in rule is defined in a core document — the production baseline stays a layer a
-//      project adopts, not something a reader of the app spine acquires by reading it
+//  11. the core boundary holds both ways: no opt-in rule is defined in a core document, and no
+//      kernel rule is defined outside one — the production baseline stays a layer a project
+//      adopts, and the unconditional surface stays where a reader of the core documents meets it
 // Two more run outside this file: link fragments in scripts/check-anchors.mjs
 // (post-build, because heading ids only exist once markdown-it has rendered them),
 // and declared example versions in scripts/check-versions.mjs.
@@ -286,10 +287,18 @@ for (const spine of APP_SPINES) {
 // separation does not depend on the next author remembering it.
 //
 // Checked against the layer's own `surface`, so the tooling holds no opinion about which
-// layer the production baseline is, and no second list of rule IDs. Its problems arrive in
-// `model.problems` with the rest of the classification — parseCoreDocuments() and
-// classifyRules() own it, which is what makes it unit-testable against a fixture tree
-// (scripts/model.test.mjs) rather than only reachable by breaking the real docs.
+// layer the production baseline is, and no second list of rule IDs.
+//
+// And checked the other way too, because one direction is self-disabling. Dropping
+// ARCHITECTURE.md from the registry would leave the block non-empty, stop the opt-in check
+// looking at it, and leave five kernel rules unguarded with every test still green. So a
+// document that DEFINES a kernel rule must be declared core — derived from the kernel block,
+// which is already the single source of membership, so it needs no document list of its own.
+//
+// Its problems arrive in `model.problems` with the rest of the classification —
+// parseCoreDocuments() and classifyRules() own it, which is what makes it unit-testable
+// against a fixture tree (scripts/model.test.mjs) rather than only reachable by breaking the
+// real docs.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────

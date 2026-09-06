@@ -1328,11 +1328,14 @@ export function parseProfiles(srcDir, taxonomy) {
  * profile's own document — see parseProfiles() for why the registry cannot name a spine as
  * one. The fixed `runtime-agent` layer carries no such requirement.
  *
- * And no rule from an OPT-IN layer, whichever one, may be defined in a core document. That
- * is the same leak one level up: a core document is read before any adoption decision, so a
- * rule kept there is published to every reader as unconditional however it is tagged. It is
- * checked against the layer's own `surface`, so it needs no knowledge of which layer the
- * production baseline is and no list of rule IDs.
+ * And the core boundary is checked in BOTH directions. No rule from an OPT-IN layer, whichever
+ * one, may be defined in a core document — a core document is read before any adoption
+ * decision, so a rule kept there is published to every reader as unconditional however it is
+ * tagged. And no KERNEL rule may be defined OUTSIDE one, because "core" claims to be where
+ * the unconditional surface is stated, and a claim that only holds while somebody remembers
+ * to keep a row in a table is not an invariant. Both directions read facts the registries
+ * already own — the layer's `surface`, and the kernel block's membership — so neither needs a
+ * list of rule IDs or a second opinion about which layer the production baseline is.
  *
  * The low-level classifier. It returns the scopes keyed by rule ID rather than attaching
  * them, so it stays testable against a hand-built registry; loadRuleModel() is what turns
@@ -1458,6 +1461,37 @@ export function classifyRules({ rules, kernel, profiles, taxonomy, core = new Ma
           ` \`${scopeLabel(scope)}\`. Only that profile's rules are defined there: a rule kept in a` +
           ' profile document is read only by projects that select the profile, whatever its layer' +
           ' says. Move the definition to a document its own layer is loaded from, or reclassify it.'
+      )
+    }
+  }
+
+  // The core boundary's other direction: a kernel rule's defining document must be core.
+  //
+  // Without this the guard is one-way and quietly self-disabling. Delete the ARCHITECTURE.md
+  // row from the core registry and nothing fails: the registry still has CONVENTIONS.md so it
+  // is not empty, the opt-in check simply stops looking at ARCHITECTURE.md, and the document
+  // PO-06 exists to protect is unguarded while every test still passes. The claim the registry
+  // makes — "these are the documents a project reads before adopting anything, and they hold
+  // the whole unconditional surface" — is only true if the unconditional rules are all IN
+  // them, and that half was asserted rather than checked.
+  //
+  // Derived from the kernel block, which is already the single source of membership, so
+  // adding a kernel rule to a new document requires that document to be declared core and
+  // requires no list here. Skipped when the registry produced nothing: parseCoreDocuments()
+  // has already reported why, and restating it once per kernel rule is the same failure told
+  // ten times.
+  if (core.size) {
+    for (const id of kernel) {
+      const rule = rules.get(id)
+      // A kernel row citing a rule that does not exist is parseKernel()'s complaint, not this
+      // one's.
+      if (!rule || core.has(rule.page)) continue
+      problems.push(
+        `[${id}] is a kernel rule but is defined in ${rule.page}, which is not a core document` +
+          ` (${CORE_FILE}'s ${CORE_START} block lists: ${[...core.keys()].join(', ')}). The kernel` +
+          ' binds every Coral project without being adopted, so a reader who has adopted nothing' +
+          ' must still meet it — which only holds if every kernel rule is stated in a document that' +
+          ' reader loads. Declare that document core, or move the rule.'
       )
     }
   }

@@ -537,6 +537,67 @@ test('a document declared core twice is refused rather than deduplicated', () =>
   )
 })
 
+test('a kernel rule defined outside a core document fails the model', () => {
+  // The guard's other direction. Without it the whole thing is self-disabling: drop the spine
+  // from the registry and the opt-in check simply stops looking at it, while the registry is
+  // still non-empty and every other assertion still passes.
+  const m = model({
+    kernel: ['K-1', 'SK-1'],
+    spine: [
+      '**`[SK-1]` `[review]`** — a kernel rule stated in a document nobody declared core.',
+      '**`[META-1]` `[review]` `{meta}`** — the governance one.',
+    ],
+  })
+  assert.ok(
+    m.problems.some((p) => /\[SK-1\] is a kernel rule but is defined in ARCHITECTURE\.md/.test(p)),
+    m.problems.join('\n')
+  )
+  assert.equal(m.classified, false)
+})
+
+test('declaring that document core is what makes it pass — no list in the tooling', () => {
+  // Same tree, one registry row added. That is the whole repair, and it is the property that
+  // keeps the invariant single-sourced: the kernel block says which rules are kernel, the core
+  // block says which documents are core, and the check is the join of the two.
+  const m = cleanModel({
+    kernel: ['K-1', 'SK-1'],
+    core: [
+      ...CORE_ROWS,
+      '| `ARCHITECTURE.md` | a kernel rule of its own | read before any adoption decision |',
+    ],
+    spine: [
+      '**`[SK-1]` `[review]`** — a kernel rule stated in a document declared core.',
+      '**`[META-1]` `[review]` `{meta}`** — the governance one.',
+    ],
+  })
+  assert.ok(m.classified)
+  assert.equal(m.rules.get('SK-1').scope.kind, 'core')
+})
+
+test('the two directions are independent — a core document still refuses an opt-in rule', () => {
+  // Both halves apply to the same document at once: ARCHITECTURE.md is core because it defines
+  // a kernel rule, and being core is what forbids the opt-in one beside it.
+  const m = model({
+    kernel: ['K-1', 'SK-1'],
+    layers: [...LAYER_ROWS, ...OPT_IN_LAYERS],
+    core: [
+      ...CORE_ROWS,
+      '| `ARCHITECTURE.md` | a kernel rule of its own | read before any adoption decision |',
+    ],
+    spine: [
+      '**`[SK-1]` `[review]`** — the kernel one, correctly placed.',
+      '**`[SNEAK-1]` `[review]` `{extra}`** — the opt-in one, incorrectly placed.',
+      '**`[META-1]` `[review]` `{meta}`** — the governance one.',
+    ],
+  })
+  assert.ok(
+    m.problems.some((p) => /\[SNEAK-1\].*core document/.test(p)),
+    m.problems.join('\n')
+  )
+  assert.ok(!m.problems.some((p) => /\[SK-1\]/.test(p)), m.problems.join('\n'))
+  assert.equal(m.classified, false)
+})
+
 test('a missing core registry is an error, not an empty set of core documents', () => {
   // The failure this registry exists to prevent runs through its own absence: with no block,
   // no document is core, the guard silently checks nothing, and the page still reads fine.
@@ -864,10 +925,8 @@ test('a named `## Unreleased — x.y.z` makes the tree its successor', () => {
 })
 
 test("Coral's core documents define nothing a project has to adopt", () => {
-  // The repository-tier form of the guard above, and the invariant PO-06 exists to create: a
-  // reader of CONVENTIONS.md and ARCHITECTURE.md has met the whole unconditional surface and
-  // no part of an optional one. Stated against `scope.surface` so it survives any rename of
-  // the layers involved.
+  // Half of the repository-tier invariant: nothing OPTIONAL is stated in a core document.
+  // Against `scope.surface`, so it survives any rename of the layers involved.
   assert.ok(REAL.core.size, 'the repository declares no core documents')
   for (const [id, rule] of REAL.rules) {
     if (!REAL.core.has(rule.page)) continue
@@ -875,6 +934,28 @@ test("Coral's core documents define nothing a project has to adopt", () => {
       rule.scope.surface,
       'opt-in',
       `[${id}] is opt-in and is defined in the core document ${rule.page}`
+    )
+  }
+})
+
+test('and every kernel rule is stated in one of them', () => {
+  // The other half, and the one that makes the pair mean what the registry claims: *a reader
+  // of the core documents has met the whole unconditional surface*. The first assertion alone
+  // does not pin that — dropping ARCHITECTURE.md from the registry would leave it passing over
+  // a smaller set while five kernel rules sat outside the guard entirely.
+  //
+  // Derived from the kernel block rather than from a document list held here, so a kernel rule
+  // stated in a new document fails until that document is declared core.
+  assert.equal(REAL.kernel.size, 10)
+  for (const id of REAL.kernel) {
+    const page = REAL.rules.get(id).page
+    assert.ok(REAL.core.has(page), `[${id}] is kernel but its defining document ${page} is not core`)
+  }
+  // and the registry holds no document that is neither: every core document earns its row.
+  for (const page of REAL.core.keys()) {
+    assert.ok(
+      [...REAL.rules.values()].some((r) => r.page === page),
+      `${page} is declared core but defines no rule`
     )
   }
 })

@@ -856,11 +856,20 @@ unconditional, so the build refuses it.
 
 <!-- coral:core:end -->
 
+**The boundary is checked in both directions**, and the second direction is what makes the first mean
+anything. A core document may define no `opt-in` rule; and **every document that defines a kernel rule
+must be a core document**. Without the second, the registry is self-disabling: delete a row and the first
+check simply stops looking at that document, while the block is still non-empty and everything still
+builds. The claim this section makes — *a reader of these documents has met the whole unconditional
+surface* — is only true if the unconditional rules are all inside them, so the build derives that from the
+[kernel block](#the-kernel-rules) rather than trusting it.
+
 The build reads that block, and holds it to the same shape as the other registries: exactly one block, no
 prose inside the markers, no duplicate or unknown document, and no row naming a document that cannot
 define rules. It is a list of **documents**, never of rule IDs — a table of individual rules would be a
 second classification of the thing `rule.scope` already answers, and it would need editing every time a
-rule was added.
+rule was added. Both checks read registries that already exist: the layer registry's `surface` column for
+one direction, the kernel block's membership for the other.
 
 This is why [`PRODUCTION.md`](./PRODUCTION.md) exists as a document rather than as a section of
 [`ARCHITECTURE.md`](./ARCHITECTURE.md). The production baseline is opt-in, the app spine is core, and a
