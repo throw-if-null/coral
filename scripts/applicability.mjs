@@ -43,7 +43,7 @@ import path from 'node:path'
 
 import { parse as parseYaml } from 'yaml'
 
-import { GOVERNANCE, ID_CORE, OPT_IN, kernelLayerOf } from './rules.mjs'
+import { GOVERNANCE, GUIDE, ID_CORE, OPT_IN, isNormative, kernelLayerOf } from './rules.mjs'
 
 /** The file a consuming project keeps in its root. */
 export const ADHERENCE_FILE = 'CORAL.md'
@@ -694,6 +694,26 @@ export function resolveApplicability(declaration, model) {
       problems.push(
         `${at} excepts \`${id}\`, which Coral ${declaration.targets} does not define. Check the ID,` +
           ' or the version this project targets.'
+      )
+      return
+    }
+    // A `[guide]` rule is rationale, not instruction: it appears in no Agent Execution
+    // Contract, it is never a finding, and there is therefore nothing for an exception to
+    // excuse. Accepting one would record a deviation from a rule nobody could have been in
+    // breach of — and it would be invisible in exactly the place it matters, because a
+    // generated execution contract lists the normative rules and would either omit the
+    // decision or carry a decision about a rule that is not in the file. Checked BEFORE the
+    // stale-entry test below, because "adopt the layer" is the wrong advice here: adopting
+    // the guide's layer would not make the exception mean anything.
+    if (!isNormative(model.rules.get(id))) {
+      const cls = model.rules.get(id).cls
+      const what = cls ? `is \`[${cls}]\`` : 'carries no enforcement class'
+      problems.push(
+        `${at} excepts \`${id}\`, which ${what} and is therefore not normative. A \`[${GUIDE}]\` is` +
+          ' rationale rather than instruction — it appears in no Agent Execution Contract and is' +
+          ' never reported as a violation — so an exception to it excuses nothing. Delete the entry;' +
+          ' if the intent was to record a trade-off, the prose below the block is where it belongs' +
+          ' ([VER-5]).'
       )
       return
     }

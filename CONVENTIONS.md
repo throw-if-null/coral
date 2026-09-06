@@ -443,6 +443,12 @@ have surfaced.
 **Drift is not an exception.** A deviation nobody chose is a finding to fix. Only a deliberate decision
 qualifies, or the register becomes a laundry for violations and the architecture becomes advisory.
 
+**An exception names an `[auto]` or a `[review]` rule.** A `[guide]` is rationale rather than instruction:
+it is in no Agent Execution Contract and is never reported as a violation, so there is nothing for an
+exception to excuse. An entry naming one is refused, because it records a deviation from a rule nobody
+could have been in breach of. If a guide's reasoning does not fit the project, the prose below the block
+is where that is written, and a rule that ought to be normative and is not is an amendment.
+
 ### `CORAL.md` — the project's adherence record
 
 One file, in the consuming project's root, holding both record types. One file rather than two because of
@@ -1146,6 +1152,69 @@ never by a release cut here — the same guarantee `[VER-3]` gives for the versi
 Adding a rule to a layer a project **has** adopted does reach it, and that is exactly why `[VER-2]` makes
 adding a rule a major change: the project reads the changelog between its target and the new version and
 decides whether to move.
+
+### The generated execution contract
+
+Everything above answers *which rules apply*. This answers *how an agent gets them* — because knowing the
+answer is not the same as being able to load it. Coral's normative content is spread across
+`CONVENTIONS.md`, `ARCHITECTURE.md`, `SYSTEM.md`, one appendix per profile and a generated rule index, and
+**most of it does not apply to any given project**. An agent handed the repository has to redo the
+selection above, from prose, every session. That inference is exactly what `[VER-6]` exists to stop.
+
+So the selection is written down. **`CORAL-CONTRACT.md` is a generated file in the project's root holding
+the project's complete normative Coral surface, and nothing else.** An agent that loads only that file
+knows every Coral requirement the project is answerable to, without opening a Coral document.
+
+```bash
+npm run contract:generate -- --project /path/to/project
+```
+
+Write it somewhere else with `--out <file>`, or to standard output with `--stdout`. Generate against a
+different Coral checkout with `--coral <dir>`. `--help` prints the rest.
+
+**`CORAL.md` is the source; `CORAL-CONTRACT.md` is the output.** Editing the contract edits nothing: the
+next generation overwrites it. Change the declaration and regenerate. There is no second manifest —
+`CORAL.md` remains the only file a project writes by hand.
+
+What the contract contains:
+
+- every applicable `[auto]` and `[review]` Coral rule, stated once, in rule-ID order, with the same
+  one-line statement its own document's Agent Execution Contract gives it;
+- the project's accepted **exceptions**, as path decisions;
+- the project's **extensions**, as path-scoped project rules.
+
+What it does not contain, and this is the point: a rule from a scale, a layer or a profile the project has
+not adopted leaves **no trace at all** — no rule, no heading, no "backend: not selected" line. `[guide]`
+rules are rationale rather than instruction and are never emitted, whether or not they were selected.
+
+**An exception is a path decision, not a deletion.** The excepted rule stays in the rule list, because it
+still binds everywhere outside its path; the decision is recorded separately with its scope and whatever
+`reason`, `decided_by`, `decided` and `revisit_when` the record carries:
+
+```markdown
+## Accepted exceptions
+
+- `[STATE-5]` — `internal/billing` and descendants
+  - Reason: two slices co-own the invoice table while the split is in flight
+  - Revisit when: the reconciliation slice lands
+```
+
+An agent working under `internal/billing` reads that and stops re-reporting a settled decision; an agent
+working anywhere else sees `[STATE-5]` in the rule list and applies it. **Extensions** are rendered the
+same way, with the project rule's statement as the normative content and `path: "."` reading as the whole
+repository.
+
+Two properties the file is required to have. It is **deterministic**: the same Coral model and the same
+`CORAL.md` produce byte-identical output, there is no timestamp, and reordering the declaration without
+changing its meaning changes nothing — so a contract is reviewable in a diff and belongs in version
+control. And generation **fails closed**: an invalid rule model, an unparsable record, an unregistered
+profile, an unknown scale or a target-version mismatch produces an error and *no file*. There is no
+partial contract, and no fallback to "all Coral rules".
+
+One thing it deliberately does not solve: **acquiring the version a project targets.** A `CORAL.md` whose
+`targets` names a release other than the one the Coral checkout describes is refused with the version-first
+semantics [above](#the-target-version-comes-first) — load that release and generate against it. Fetching it
+is separate work.
 
 ---
 

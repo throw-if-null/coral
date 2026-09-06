@@ -643,6 +643,48 @@ test('an exception to a rule the project has not selected is rejected as stale',
   assert.equal(r.diagnostic.exceptions.length, 0, 'a stale entry was kept as a dormant override')
 })
 
+test('an exception to a `[guide]` rule is rejected — there is nothing to excuse', () => {
+  // A guide is rationale, not instruction: it is in no Agent Execution Contract and is
+  // never reported as a violation, so an entry excusing one records a deviation nobody
+  // could have been in breach of. Left accepted it is worse than useless — it is a
+  // decision that either vanishes from a generated execution contract or appears there
+  // against a rule the contract does not list.
+  const model = fixtureModel({
+    extra: {
+      'appendix/rationale.md':
+        '# Rationale\n\n**`[BASE-9]` `[guide]` `{base}`** — the rationale one.\n',
+    },
+  })
+  const r = invalid(
+    resolve(withEntries({ exceptions: [{ rule: 'BASE-9', path: 'internal/billing' }] }), { model })
+  )
+  assert.ok(
+    r.problems.some((p) => /`BASE-9`, which is `\[guide\]` and is therefore not normative/.test(p)),
+    r.problems.join('\n')
+  )
+  assert.equal(r.diagnostic.exceptions.length, 0)
+  // And it is refused on THAT ground, not as a stale entry: the rule is selected, and
+  // "adopt the layer" would be advice that fixes nothing.
+  assert.ok(!r.problems.some((p) => /is not in this project's selected rule set/.test(p)))
+})
+
+test('an exception to a `[guide]` rule the project has NOT selected is still refused as a guide', () => {
+  const model = fixtureModel({
+    extra: {
+      'appendix/gadget.md':
+        '# Gadget\n\n**`[GAD-1]` `[auto]` `{shape:gadget}`** — the gadget one.\n' +
+        '**`[GAD-9]` `[guide]` `{shape:gadget}`** — the gadget rationale.\n',
+    },
+  })
+  const r = invalid(
+    resolve(withEntries({ exceptions: [{ rule: 'GAD-9', path: 'internal/x' }] }), { model })
+  )
+  assert.ok(
+    r.problems.some((p) => /not normative/.test(p)),
+    r.problems.join('\n')
+  )
+})
+
 test('an exception to a rule Coral does not define at all is rejected', () => {
   const r = invalid(resolve(withEntries({ exceptions: [{ rule: 'GHOST-1', path: 'internal/x' }] })))
   assert.ok(

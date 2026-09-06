@@ -87,6 +87,19 @@ decides and records it. And it reads `CORAL.md` before escalating (`[AGENT-5]`),
 isn't re-litigated by every agent that meets it. The full convention is in
 [`CONVENTIONS.md`](./CONVENTIONS.md#versioning-and-local-deviations).
 
+From that declaration a project generates **`CORAL-CONTRACT.md`**: one Markdown file holding its complete
+normative Coral surface — every applicable `[auto]` and `[review]` rule, plus its own exceptions and
+extensions — so an agent loads that file and no Coral document.
+
+```bash
+npm run contract:generate -- --project /path/to/project
+```
+
+It is generated, never edited: `CORAL.md` stays the only file a project writes by hand. Rules from a
+scale, layer or profile the project has not adopted leave no trace in it, output is byte-identical for the
+same inputs, and an unresolvable declaration produces an error and no file rather than a partial one.
+[`CONVENTIONS.md`](./CONVENTIONS.md#the-generated-execution-contract) documents it.
+
 ## The linter
 
 [`tools/coral-lint/`](./tools/coral-lint/) implements Tier 1: the `[auto]` rules a static check can

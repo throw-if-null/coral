@@ -24,6 +24,30 @@ import { coralVersion } from './version.mjs'
 export const ID_CORE = '[A-Z][A-Z-]*-\\d+'
 export const INLINE_ID_RE = new RegExp(`^\\[(${ID_CORE})\\]$`)
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Enforcement classes, and which of them are NORMATIVE.
+//
+// Three classes, and only two of them instruct. `[auto]` is machine-checkable and
+// `[review]` is a human judgment, so both are things a codebase can be held to;
+// `[guide]` is rationale, appears in no Agent Execution Contract, and is never a
+// pass/fail gate. CONVENTIONS.md says exactly that in prose.
+//
+// The vocabulary was spelled out in code rather than named once: the definition
+// parser held `auto|review|guide` inline, contract-completeness Gate 3 held
+// `cls !== 'guide'`, and the project execution contract needed that same test in a
+// third place. "Normative" is one fact about the rule model, so the rule model owns
+// it — every consumer asking gets the same answer, and adding a class is one list to
+// extend rather than a string to find in three files.
+export const AUTO = 'auto'
+export const REVIEW = 'review'
+export const GUIDE = 'guide'
+/** Every enforcement class a definition may carry, in increasing looseness. */
+export const CLASSES = [AUTO, REVIEW, GUIDE]
+/** The classes that instruct. A rule outside this set is rationale, never a finding. */
+export const NORMATIVE_CLASSES = [AUTO, REVIEW]
+/** Does this rule instruct? Takes the rule, not the string, because callers hold rules. */
+export const isNormative = (rule) => NORMATIVE_CLASSES.includes(rule?.cls)
+
 // A definition line opens with a bullet, bold, or both, then the ID code-span.
 // All three combinations occur: **`[SCOPE-1]`**, - `[BUCKET-1]`, - **`[CLI-1]`**.
 // The leading marker is required, not optional: a wrapped paragraph line can begin
@@ -835,7 +859,7 @@ function tagVocabulary(profiles, taxonomy) {
 // Whitespace and the `**` of a bolded ID or class — the only filler the slot allows.
 const SLOT_FILLER_RE = /^[\s*]+/
 const CODE_SPAN_RE = /^`([^`]*)`/
-const CLASS_SPAN_RE = /^\[(?:auto|review|guide)\]$/
+const CLASS_SPAN_RE = new RegExp(`^\\[(?:${CLASSES.join('|')})\\]$`)
 // A bare brace token, anchored: `/widgets/{id}` does not match, a leading `{id}` does.
 const BARE_TAG_RE = /^\{[A-Za-z0-9:_-]+\}/
 

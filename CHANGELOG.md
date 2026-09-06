@@ -411,6 +411,57 @@ scale, so a group there is not a load set. The document-oriented tables are
 unchanged, and `rules.lock` is byte-identical — ownership stays authoritative in the definitions, the
 kernel block and the taxonomy, and the lock stays the append-only record of published IDs and classes.
 
+**A project generates one file and an agent loads only that. Patch-level: no rule was added, tightened,
+loosened, or retired, and no ID, class, ownership layer or scale moved.**
+
+Applicability answered *which rules apply*; nothing answered *how the agent gets them*. The normative
+content is spread over `CONVENTIONS.md`, `ARCHITECTURE.md`, `SYSTEM.md`, one appendix per profile and a
+generated index, and most of it applies to no given project — so an agent handed the repository redid the
+selection from prose every session, which is the inference `[VER-6]` exists to end. `npm run
+contract:generate -- --project <dir>` now writes **`CORAL-CONTRACT.md`** into the project: every applicable
+`[auto]` and `[review]` Coral rule stated once, plus the project's own accepted exceptions and extensions,
+and nothing else. `CORAL.md` stays the only file a project writes by hand; the contract is generated and
+regenerated, never edited, and there is no second manifest.
+
+**It is a serialization layer over the existing resolvers and adds no applicability rule of its own.**
+`loadRuleModel()` still owns the rule set, `resolveAdherence()` the declaration, `resolution.selected` the
+selection after version, ownership and scale, and `extractStatements()` the canonical sentence of a rule.
+The generator inspects no tag, no contract-scope marker, no document name and no profile registry — a
+second implementation of the selection would be a second answer to *what applies here*, which is the
+failure the applicability pass was written to close.
+
+One judgment it does make, and it is a distinction the model did not previously have to state.
+`resolution.selected` answers *applicable*, which is **not** the same question as *normative*: a `[guide]`
+rule can be applicable and is still rationale rather than instruction — it appears in no Agent Execution
+Contract and is never reported as a violation. Guides are therefore filtered out of the contract, using
+`isNormative()` on the rule model rather than a class list spelled out a fourth time. `[auto]`, `[review]`
+and `[guide]` are now named constants there; the definition parser, contract-completeness Gate 3 and the
+generator all read the same one.
+
+**Absence is the property the file is for.** A scale, layer or profile the project has not adopted leaves
+*no trace* — no rule, no heading, and no "backend: not selected" line, because a line naming an unadopted
+profile is a rule surface arriving through a heading. An **exception is a path decision, not a deletion**:
+the excepted rule stays in the rule list, since it still binds outside its subtree, and the decision is
+recorded separately with its scope and whatever `reason`, `decided_by`, `decided` and `revisit_when` the
+record carries — enough for an agent under that path to recognize a settled decision and stop re-raising
+it. Paths render as subtrees, never as globs, because `[VER-5]` paths are not a pattern language.
+
+Output is **deterministic**: no timestamp, sorted by rule ID and then by path, and byte-identical when a
+declaration is reordered without changing its meaning — so a contract is reviewable in a diff. Generation
+**fails closed**: an invalid rule model, an unparsable record, an unregistered profile, an unknown scale or
+a target-version mismatch produces an error and *no file*. Never a partial contract, never a fallback to
+every Coral rule, and never the diagnostic selection an invalid resolution carries. Acquiring the release a
+project targets is explicitly not solved here — a mismatch is refused with the existing version-first
+semantics.
+
+**One `CORAL.md` record that resolved before is now refused: an exception naming a `[guide]` rule.** There
+is nothing for it to excuse — a guide is in no contract and is never a finding — so the entry recorded a
+deviation from a rule nobody could have been in breach of, and it would have been invisible in the one
+place it mattered: either dropped from the generated contract or carried there against a rule the contract
+does not list. It is now a reported problem, checked before the stale-entry test so the message does not
+advise adopting a layer that would change nothing. The resolver itself is unreleased and ships in this same
+batch, so no released Coral accepted such a record and no existing project's target is affected.
+
 ---
 
 ## 0.6.0 — 2026-08-18
