@@ -1176,7 +1176,11 @@ npm run contract:generate -- --project /path/to/project
 
 Write it somewhere else with `--out <file>`, or to standard output with `--stdout`. `--help` prints the
 rest. The generated file repeats the invocation in its own header, naming the Coral version the checkout
-must describe.
+must describe — and, because `--out` exists, saying that a contract kept anywhere other than the default
+`CORAL-CONTRACT.md` must be regenerated with that same `--out`. Following the bare command from inside a
+relocated contract would write a second one at the default location and leave the file being read stale.
+The header states this in general terms rather than repeating an absolute path, which would make the
+contract machine-specific.
 
 **There is no option to point the rule model at a different checkout, and that is a version-first
 requirement rather than a missing feature.** The documents are only half of a Coral release; the other half
@@ -1288,7 +1292,9 @@ Failures on the way in are part of the same lifecycle. A Coral checkout that can
 `CORAL.md`, a document removed mid-read: each is a configuration problem exactly as an unregistered profile
 is, reported in the same list rather than thrown, and each still clears a stale contract from the
 destination. A successful run publishes by writing beside the destination and renaming onto it, so the
-destination holds the old contract or the new one and never half of either.
+destination holds the old contract or the new one and never half of either. That temporary artifact is
+created exclusively under an unpredictable name, so a file already occupying the path is never truncated
+and never deleted — the ownership rule the destination follows, applied to its sibling.
 
 One thing it deliberately does not solve: **acquiring the version a project targets.** A `CORAL.md` whose
 `targets` names a release other than the one the Coral checkout describes is refused with the version-first

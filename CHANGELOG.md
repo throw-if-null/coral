@@ -491,6 +491,11 @@ ignores case, since `coral.md` and `Coral.md` name the same file as `CORAL.md` o
 macOS volume. A successful run publishes by writing beside the destination and
 renaming onto it, so the destination holds the old contract or the new one and never half of either, and a
 filesystem error is reported through the same problem list as a configuration error rather than thrown.
+The temporary artifact is created **exclusively**, under an unpredictable name: the first version used
+`.<name>.<pid>.tmp`, which is guessable, so a file already sitting there was truncated by the write and
+then deleted by the error path — the destination's ownership rule, missing from its sibling. Cleanup now
+removes only what the invocation itself created, and the random name never reaches the Markdown, so output
+stays byte-identical.
 `--out` refuses a destination named `CORAL.md`: the record is the editable source and the contract is
 derived from it, and writing one over the other destroys the decisions the contract is made of.
 
@@ -498,7 +503,10 @@ Acquiring the release a project targets is explicitly not solved here — a mism
 existing version-first semantics. What did change is that the invocation says so: the generated header
 names the Coral version the checkout must describe and states that the command runs from that checkout,
 with `--project` naming the consuming repository. Coral supports projects that are not Node projects, so
-"run `npm run contract:generate`" had to say where.
+"run `npm run contract:generate`" had to say where. It also qualifies the `--out` case: a contract kept
+somewhere other than the default `CORAL-CONTRACT.md` has to be regenerated with that same destination, or
+the bare command writes a second contract at the default location and leaves the one being read stale. The
+qualification is static — an absolute path in the Markdown would make the file machine-specific.
 
 **The rule model always comes from the checkout that is executing, and there is deliberately no flag to
 move it.** A `--coral <dir>` reads like the obvious way to generate for another release and is the thing

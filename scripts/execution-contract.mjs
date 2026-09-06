@@ -53,9 +53,9 @@
 // for the other half: a failed regeneration discards the stale contract, and a successful
 // one is published by rename rather than by truncating the destination.
 // ─────────────────────────────────────────────────────────────────────────────
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import process from 'node:process'
 
 import { ADHERENCE_FILE, ROOT_PATH, loadApplicability } from './applicability.mjs'
 import { extractStatements, isNormative, loadRuleModel } from './rules.mjs'
@@ -411,6 +411,15 @@ export function executionContract({ model, resolution, statements } = {}) {
     '',
     `    ${GENERATE_COMMAND} -- --project <path to this repository>`,
     '',
+    // `--out` is a supported mode, and the default invocation above is wrong for a contract
+    // stored anywhere else: following it would write a NEW file at the project root and
+    // leave the one being read untouched. The serializer does not know its own eventual
+    // pathname and should not learn — an absolute path baked into the Markdown would be
+    // machine-specific — so the case is qualified statically instead.
+    `If this contract is kept somewhere other than the project's default \`${CONTRACT_FILE}\`, pass`,
+    'that same destination again with `--out`, or the command will write a second contract at the',
+    'default location and leave this one stale.',
+    '',
     `- Coral: \`${model.version}\``,
     `- Scales: ${scales.map((s) => `\`${s}\``).join(', ')}`,
     `- Adopts: ${adopts.length ? adopts.join(', ') : 'nothing beyond the kernel'}`,
@@ -507,9 +516,9 @@ export function loadExecutionContract(coralDir, projectDir) {
     return executionContract({ model, resolution, statements })
   } catch (e) {
     // Reading the inputs is filesystem work, and every step of it can fail for reasons that
-    // are the operator's rather than the code's: a `--coral` path that does not exist, a
+    // are the operator's rather than the code's: a Coral checkout that is not there, a
     // `CORAL.md` that is not readable, a document removed between the walk and the read. A
-    // mistyped directory is a configuration problem exactly like an unregistered profile is,
+    // missing directory is a configuration problem exactly like an unregistered profile is,
     // and it belongs in the same problem list — an ENOENT stack trace is not an answer to
     // "which rules apply here", and worse, an exception escaping this function skips the
     // fail-closed lifecycle at the file boundary entirely.
@@ -672,23 +681,83 @@ function occupiedProblem(file) {
   }
 }
 
+/** How many names to try before giving up. A collision needs a UUID clash; two is generous. */
+const TEMP_ATTEMPTS = 8
+
+/**
+ * Create the temporary artifact publication renames from — EXCLUSIVELY.
+ *
+ * The destination is carefully protected by now, and for a while its sibling was not: the
+ * temporary path was `.<name>.<pid>.tmp`, which is predictable, so an unrelated file
+ * already sitting there was truncated by the write and then deleted by the error path.
+ * Every argument for not overwriting a file we do not own applies to that file too.
+ *
+ * So the name is unpredictable AND the create is exclusive — `wx` fails rather than
+ * truncates — which makes "this invocation never took a path it did not create" a property
+ * of the syscall rather than of the odds. Cleanup then removes only what this returned.
+ *
+ * Beside the destination, never in the system temp directory: a rename is atomic only
+ * within one filesystem, and `/tmp` is routinely a different one.
+ *
+ * The name is random and the contract is deterministic, which is not a contradiction: this
+ * path never reaches the Markdown, only the directory entry that exists for a moment
+ * between the write and the rename.
+ *
+ * @param {string} dir the destination's directory
+ * @param {string} base the destination's filename, used only to make the temp recognisable
+ * @param {() => string} unique injectable for testing the collision path; a UUID otherwise
+ * @returns {{path: string, fd: number}} an open descriptor for a file that did not exist
+ */
+export function createTempFile(dir, base, unique = randomUUID) {
+  let last = null
+  for (let attempt = 0; attempt < TEMP_ATTEMPTS; attempt++) {
+    last = path.join(dir, `.${base}.${unique()}.tmp`)
+    try {
+      return { path: last, fd: fs.openSync(last, 'wx') }
+    } catch (e) {
+      // Anything but "it is already there" is the caller's problem — a missing directory, a
+      // read-only volume — and is reported rather than retried.
+      if (e.code !== 'EEXIST') throw e
+    }
+  }
+  const err = new Error(
+    `could not create a temporary file beside \`${path.join(dir, base)}\`: ${TEMP_ATTEMPTS} candidate` +
+      ` names were already taken (last tried \`${last}\`).`
+  )
+  err.code = 'EEXIST'
+  throw err
+}
+
 /** Write `text` to `file` atomically. Returns a problem sentence, or null on success. */
 function publish(file, text) {
-  // Beside the destination, never in the system temp directory: a rename is atomic only
-  // within one filesystem, and `/tmp` is routinely a different one.
-  const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.tmp`)
+  let tmp = null
   try {
-    fs.writeFileSync(tmp, text)
-    fs.renameSync(tmp, file)
+    tmp = createTempFile(path.dirname(file), path.basename(file))
+    fs.writeFileSync(tmp.fd, text)
+    fs.closeSync(tmp.fd)
+    tmp.fd = null
+    fs.renameSync(tmp.path, file)
     return null
   } catch (e) {
-    // The temporary file is not a contract and must not be left looking like one.
-    try {
-      fs.rmSync(tmp, { force: true })
-    } catch {
-      /* nothing further to do: it carries no contract filename */
-    }
+    // Only ever the artifact this invocation created. `tmp` is null when createTempFile()
+    // itself failed, which is exactly when there is nothing of ours on disk to remove.
+    discardTemp(tmp)
     return `the contract could not be written to \`${file}\` (${e.message}).`
+  }
+}
+
+/** Close and remove a temporary artifact this invocation created. Never throws. */
+function discardTemp(tmp) {
+  if (!tmp) return
+  try {
+    if (tmp.fd !== null) fs.closeSync(tmp.fd)
+  } catch {
+    /* the descriptor is going away with the process either way */
+  }
+  try {
+    fs.rmSync(tmp.path, { force: true })
+  } catch {
+    /* nothing further to do: it carries no contract filename and no marker */
   }
 }
 

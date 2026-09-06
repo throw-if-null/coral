@@ -55,6 +55,7 @@ import {
   CONTRACT_MARKER,
   CONTRACT_PREAMBLE,
   compareRuleIds,
+  createTempFile,
   isGeneratedContract,
   executionContract,
   inlineCode,
@@ -1293,6 +1294,153 @@ test('a thrown generation with a clean cleanup rethrows the original error uncha
   inProject({}, record(kernelOnly), (coral, project) => {
     assert.throws(() => writeExecutionContract(undefined, project), (e) => e instanceof TypeError)
   })
+})
+
+// ── the temporary artifact is ours too ───────────────────────────────────────
+//
+// The destination is protected by ownership; for a while its SIBLING was not. The
+// temporary path used to be `.<name>.<pid>.tmp`, which is predictable, so a file already
+// sitting there was truncated by the write and then deleted by the error path — the same
+// data loss the marker exists to prevent, one filename over.
+
+/** Every `.tmp` sibling in a directory, with its contents. */
+const tmpSiblings = (dir) =>
+  Object.fromEntries(
+    fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.tmp'))
+      .map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')])
+  )
+
+test('a pre-existing temp-looking sibling is neither written nor deleted', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    // Exactly the name the old implementation would have chosen, plus the shapes around it.
+    const decoys = {
+      [`.${CONTRACT_FILE}.${process.pid}.tmp`]: 'someone else was here\n',
+      [`.${CONTRACT_FILE}.12345.tmp`]: 'and here\n',
+      [`.${CONTRACT_FILE}.${'0'.repeat(8)}-0000-0000-0000-000000000000.tmp`]: 'and here too\n',
+    }
+    for (const [name, body] of Object.entries(decoys)) {
+      fs.writeFileSync(path.join(project, name), body)
+    }
+
+    const ok = writeExecutionContract(coral, project)
+    assert.equal(ok.ok, true, ok.problems?.join('\n'))
+    assert.deepEqual(tmpSiblings(project), decoys, 'a successful publish disturbed a temp sibling')
+
+    // And on the failing path, where the old code ran an unconditional rmSync.
+    fs.writeFileSync(path.join(project, ADHERENCE_FILE), record({ ...kernelOnly, scales: ['enormous'] }))
+    const failed = writeExecutionContract(coral, project)
+    assert.equal(failed.ok, false)
+    assert.deepEqual(tmpSiblings(project), decoys, 'a failed publish deleted a temp sibling')
+  })
+})
+
+test('createTempFile creates a file that did not exist, beside the destination', () => {
+  inTree({ 'keep.md': '' }, (dir) => {
+    const tmp = createTempFile(dir, CONTRACT_FILE)
+    try {
+      assert.equal(path.dirname(tmp.path), dir, 'the temporary file is on another filesystem')
+      assert.ok(path.basename(tmp.path).startsWith(`.${CONTRACT_FILE}.`))
+      assert.ok(path.basename(tmp.path).endsWith('.tmp'))
+      assert.ok(fs.existsSync(tmp.path))
+      assert.equal(typeof tmp.fd, 'number')
+    } finally {
+      fs.closeSync(tmp.fd)
+      fs.rmSync(tmp.path)
+    }
+  })
+})
+
+test('two invocations never choose the same temporary path', () => {
+  inTree({ 'keep.md': '' }, (dir) => {
+    const a = createTempFile(dir, CONTRACT_FILE)
+    const b = createTempFile(dir, CONTRACT_FILE)
+    try {
+      assert.notEqual(a.path, b.path)
+    } finally {
+      for (const t of [a, b]) {
+        fs.closeSync(t.fd)
+        fs.rmSync(t.path)
+      }
+    }
+  })
+})
+
+test('an occupied temporary name is refused, not truncated', () => {
+  // The collision path, forced through the injectable name rather than by mocking `fs`.
+  // Exclusive creation is what makes "never took a path it did not create" a property of
+  // the syscall instead of a property of the odds.
+  inTree({ 'keep.md': '' }, (dir) => {
+    const first = createTempFile(dir, CONTRACT_FILE, () => 'fixed')
+    fs.writeFileSync(first.fd, 'the first invocation wrote this')
+    fs.closeSync(first.fd)
+
+    assert.throws(
+      () => createTempFile(dir, CONTRACT_FILE, () => 'fixed'),
+      (e) => e.code === 'EEXIST' && /candidate\s*names were already taken/.test(e.message)
+    )
+    assert.equal(fs.readFileSync(first.path, 'utf8'), 'the first invocation wrote this')
+    fs.rmSync(first.path)
+  })
+})
+
+test('createTempFile reports a failure that is not a collision rather than retrying it', () => {
+  assert.throws(
+    () => createTempFile(path.join(os.tmpdir(), 'coral-no-such-dir-4b21'), CONTRACT_FILE),
+    (e) => e.code === 'ENOENT'
+  )
+})
+
+test('a failed publish leaves no temporary artifact of its own behind', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    // A directory at the destination: the write succeeds, the rename does not.
+    const out = path.join(project, 'blocked')
+    fs.mkdirSync(out)
+    fs.writeFileSync(path.join(out, 'x'), 'occupied\n') // not generator-owned either way
+    const result = writeExecutionContract(coral, project, out)
+    assert.equal(result.ok, false)
+    assert.deepEqual(tmpSiblings(project), {}, 'a temporary artifact survived a failed publish')
+  })
+})
+
+test('the temporary name is random and the contract still is not', () => {
+  // The one place these could have collided: nothing about the temporary path may reach
+  // the Markdown, or output would stop being byte-identical run to run.
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const first = writeExecutionContract(coral, project)
+    const second = writeExecutionContract(coral, project)
+    assert.equal(first.ok, true)
+    assert.equal(second.ok, true)
+    assert.equal(first.markdown, second.markdown)
+    assert.equal(fs.readFileSync(second.file, 'utf8'), first.markdown)
+    assert.ok(!first.markdown.includes('.tmp'))
+  })
+})
+
+// ── the header regenerates the file you are actually reading ─────────────────
+
+test('the header tells a custom-output contract how to regenerate itself', () => {
+  // `--out` is supported, so the default invocation is wrong for a contract stored
+  // anywhere else: following it writes a NEW file at the project root and leaves the one
+  // being read untouched. The point of this artifact is that an agent needs no other
+  // document, so the qualification has to be in it.
+  const md = contract(kernelOnly)
+  const header = md.slice(0, md.indexOf('- Coral: '))
+  assert.match(header, /If this contract is kept somewhere other than the project's default/)
+  assert.ok(header.includes(`\`${CONTRACT_FILE}\``))
+  assert.match(header, /pass\s*that same destination again with `--out`/)
+  assert.match(header, /write a second contract at the/)
+  assert.match(header, /default location and leave this one stale/)
+})
+
+test('the header carries no machine-specific path', () => {
+  // Static qualification only: an absolute output path baked into the Markdown would make
+  // the contract non-portable and its bytes dependent on where it was generated.
+  const md = contract(kernelOnly)
+  assert.ok(!md.includes(os.tmpdir()), 'a machine path reached the contract')
+  assert.ok(!/^\s*\/[A-Za-z]/m.test(md.slice(0, md.indexOf('## Rules'))), 'an absolute path reached the header')
+  assert.equal(md, contract(kernelOnly))
 })
 
 // ── 14. determinism ──────────────────────────────────────────────────────────
