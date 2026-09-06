@@ -13,8 +13,13 @@ description: >
 
 # Coral repo audit
 
-> Written against **Coral 0.7.0**. Audit a project against the version its
+> Written against **Coral 0.6.0**. Audit a project against the version its
 > `CORAL.md` declares, not against this one (`[VER-3]`).
+>
+> **This skill already implements `[VER-6]`, which is unreleased and ships in 0.7.0.**
+> A project targeting 0.6.0 or earlier has no adoption declaration and is not wrong for
+> it: audit it against its own version's applicability semantics, not against the ones
+> below. Delete this note when 0.7.0 is cut.
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not

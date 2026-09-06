@@ -9,21 +9,27 @@
 // committed by the reference material itself, which is worse than committing it in
 // a consuming project because this is what people copy.
 //
-// The check is deliberately blunt: the declared version must EQUAL the version
-// these documents describe, not merely parse. A lagging declaration is the signal,
-// so tolerating a lag would remove the only information the marker carries. Bumping
-// it is therefore a claim — "I re-read this page against the current rules" — and
-// that claim is the point.
+// The check is deliberately blunt: the declared version must EQUAL the RELEASED
+// version, not merely parse. A lagging declaration is the signal, so tolerating a lag
+// would remove the only information the marker carries. Bumping it is therefore a
+// claim — "I re-read this page against the current rules" — and that claim is the
+// point.
 //
-// Which version that is, is the WORKING one, not the released one. Between releases
-// the documents are not the rule set `VERSION` names: the batch under Unreleased has
-// already changed them. A page declaring the last release while sitting beside rules
-// that release never had is the same lie this check exists to catch, one version
-// later — and it is the lie the audit skill was telling, since it requires `[VER-6]`
-// and said it was written against the release before it. So the moment a batch names
-// its next version in the changelog, every declaring page owes the re-read. A
-// prose-only batch names none, the working version stays the released one, and
-// nothing here moves.
+// Released, and not the working version the documents currently describe, because of
+// what this marker is FOR. It tells a reader which Coral a page is good for, and the
+// only Coral a reader can pin is one that has been cut: nobody's `CORAL.md` can target
+// an unreleased version. Tying the marker to the working version would instead demand
+// a re-read of every declaring page the moment a batch opens, which is friction
+// charged for a claim no reader can act on yet. The declarations move when the release
+// moves, which is also when the pages become newly wrong if nobody looked.
+//
+// That is a different question from the one `model.version` answers, and the two must
+// not be confused. `model.version` identifies the rule set these documents ARE — the
+// working version — and is what a `CORAL.md` is resolved against, so a `targets:` line
+// in a record this repository owns names that one. See scripts/version.mjs.
+//
+// A page that already implements an unreleased rule is the one place this is not
+// self-evident, and it says so in prose rather than by moving its marker early.
 // ─────────────────────────────────────────────────────────────────────────────
 import fs from 'node:fs'
 import path from 'node:path'
@@ -31,7 +37,7 @@ import path from 'node:path'
 import { coralVersion } from './version.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
-const { released, working: VERSION, unreleased, problems: versionProblems } = coralVersion(ROOT)
+const { released: VERSION, working, unreleased, problems: versionProblems } = coralVersion(ROOT)
 if (versionProblems.length) {
   console.error(`\n[versions] ${versionProblems.length} problem(s):\n`)
   for (const p of versionProblems) console.error(`  - ${p}`)
@@ -90,5 +96,5 @@ if (problems.length) {
   process.exit(1)
 }
 
-const state = unreleased ? ` (unreleased; ${released} is the last cut release)` : ''
+const state = unreleased ? ` (the released version; ${working} is unreleased and in progress)` : ''
 console.log(`[versions] OK — ${files.length} file(s) declare Coral ${VERSION}${state}.`)

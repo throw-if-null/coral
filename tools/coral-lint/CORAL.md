@@ -32,3 +32,9 @@ consumed as a command, and its published contract is the exit code, the channel 
 
 The Coral repository's own build resolves this record with the same resolver a consuming
 project would use, so it cannot drift from the registries it names.
+
+**`targets` names an unreleased version, and only a project living inside this repository
+may do that.** `0.7.0` is the rule set these documents currently describe; `VERSION` still
+holds the last cut release. This tool ships with those documents, so it targets what it is
+actually built against. A project outside this repository pins a version that has been
+released, because that is the only one it can read.

@@ -139,12 +139,18 @@ against a model that could not identify itself was the same bug one level up, so
 
 **That version is the working one, not the last release.** `VERSION` moves when a batch is cut, which is
 right for a release marker and wrong for an identity: between releases these documents are not the rule
-set `VERSION` names. The Unreleased heading now names the version this tree would ship as — `##
-Unreleased — 0.7.0`, beside the compatibility statement that already decides the bump — and everything
-that identifies the documents reads that. It is why the worked `CORAL.md`, the audit skill and the three
-examples declare **0.7.0** while `VERSION` still holds `0.6.0`: a page declaring the last release while
-sitting next to `[VER-6]` was describing a 0.6.0 that never existed. A prose-only batch names no version,
-the working version stays the released one, and nothing moves.
+set `VERSION` names, and calling them 0.6.0 described a 0.6.0 that never had `[VER-6]` in it. The
+Unreleased heading now names the version this tree would ship as — `## Unreleased — 0.7.0`, beside the
+compatibility statement that already decides the bump — and `loadRuleModel()` carries it as
+`model.version`. A prose-only batch names no version, the working version stays the released one, and
+nothing moves.
+
+**Two version markers, answering two questions.** A `targets:` line in a record this repository owns — the
+worked `CORAL.md`, `tools/coral-lint`'s — names the rule set it is resolved against, so it is the
+**working** version. A `Written against **Coral x.y.z**` line on an example or a skill says which Coral
+that page is good for, and the only Coral a reader can pin is one that has been cut, so it stays the
+**released** version. The audit skill is the one page where that is not self-evident, because it already
+implements `[VER-6]`; it says so in a note rather than moving its marker ahead of the release.
 
 **An invalid resolution cannot be consumed as a rule set.** Fail-closed applicability was a usage
 convention — a partial `selected` came back beside a list of problems, and ignoring the problems was the

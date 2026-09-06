@@ -476,6 +476,10 @@ project's tooling uses, and every key, profile name and scale in it is resolved 
 registries. A worked example of a machine-readable format that the machine has never read is a format
 with one untested user.
 
+Which is why its `targets` names the version **these documents currently describe**, and not necessarily
+the one in `VERSION` — between releases those differ, and a record is always resolved against the rule
+set it targets. Your project pins a released version.
+
 What `adopts` and `scales` mean, and how the rule set is composed from them, is in
 [What applies to a project](#what-applies-to-a-project). The short version: the kernel applies without
 being named, everything else applies because it is named here, and nothing applies because it exists in
