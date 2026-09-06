@@ -527,6 +527,81 @@ does not list. It is now a reported problem, checked before the stale-entry test
 advise adopting a layer that would change nothing. The resolver itself is unreleased and ships in this same
 batch, so no released Coral accepted such a record and no existing project's target is affected.
 
+**The production baseline is separated from the Coral kernel in the documents, not only in the model. No
+rule changed.** This is a documentation and model-boundary change: **no rule ID was added, retired,
+reclassified, or restated**, no enforcement class moved, no ownership tag moved, no architectural scale
+moved, and no rule's normative first sentence was edited. The same `CORAL.md` resolves to the same set of
+applicable rule IDs before and after, because applicability was already decided by the resolver from
+`scope.kind` and `scale` and never by document layout. `rules.lock` changes only in its third column,
+which records where a rule is **defined**: seventy rules moved page, and none changed ID or class.
+
+The applicability model was already right — the kernel applies implicitly, `production-baseline` is opt-in
+under `[VER-6]`, and a generated `CORAL-CONTRACT.md` carries only the applicable surface. The document
+structure was not. `ARCHITECTURE.md` held five kernel rules and seventy `{baseline}` ones in twenty-two
+interleaved sections, so "read the Coral app spine" meant "read the production baseline", and general
+production-engineering policy — error taxonomy, transaction scope, retry semantics, cache invalidation,
+concurrency strategy, forbidden package names, trust boundaries — read as a *consequence* of the
+agents-write / humans-review operating model. It is not one. Its justification survives a human-authored
+codebase, which is precisely why it is an opt-in layer.
+
+- **[`PRODUCTION.md`](./PRODUCTION.md) is new** and holds the app-scale production baseline: all seventy
+  `{baseline}` rules previously defined in `ARCHITECTURE.md`, with the commentary needed to understand
+  them, its own Agent Execution Contract wrapped in a single `coral:scope:baseline` marker, the change
+  algorithm, and the per-rule Tier 1 enforcement mapping.
+- **`ARCHITECTURE.md` is now the kernel-facing app architecture**: `[MODEL-1]`, `[BOUND-2]`, `[XCUT-1]`,
+  `[COMPOSE-1]`, `[TEST-1]`, the `[SCOPE-*]` governance rules that state where Coral fits, the shape of an
+  app, the operating model, and the enforcement philosophy. Its contract is five lines and carries no
+  scope marker, because every line in it binds without being adopted.
+- **`SYSTEM.md` keeps its rules and its scale**, and now says which layer each section belongs to.
+  `[CHAN-*]`, `[ORCH-1..3]` and `[SYS-TEST-*]` are labelled the production baseline at system scale;
+  `[ORCH-4..6]` are labelled the runtime-agent profile; the document states in both directions that
+  **neither adoption selects the other**, and that it holds no kernel rule.
+- **Kernel-facing prose no longer smuggles baseline policy.** The site index said "every rule in the set
+  traces back" to the agent-author operating model, which stopped being true when ownership layers were
+  introduced; that causal claim is now made about the kernel alone. The audit went further than the rule
+  definitions, because a core document can teach optional policy without defining a rule. `CONVENTIONS.md`'s
+  **vocabulary table** now defines the eight nouns without importing the discipline around them — a
+  crosscut is "one definition rather than a copy per slice" rather than "injected" (`[XCUT-3]`), a
+  composition root is the wiring and bootstrap boundary rather than "thin, no business logic" (`[ROOT-1]`),
+  a channel is the pathway and its contract rather than "the only coupling, versioned, in one of three
+  forms" (`[CHAN-1]`, `[CHAN-4]`, `[CHAN-2]`) — and a note under it names those rules as baseline. The
+  **canonical slice** no longer opens "everything else in this document set exists to make code look like
+  this": the kernel shape is stated in one sentence, and the listing is labelled as how a project that has
+  adopted the baseline writes a slice, with each of its five illustrated properties attributed to the rule
+  that requires it. **Placing new code** separates `[MODEL-1]`'s "there is no sixth category" from
+  `[BUCKET-1]`'s prohibition, and the three-rules-at-every-scale list no longer states `[CHAN-1]` and
+  `[CHAN-3]` as universal. `ARCHITECTURE.md`'s category table and its "anatomy of one slice" diagram are
+  labelled the same way, and `index.md` and `README.md` no longer present forbidden buckets, channel forms
+  or the no-shared-database rule as unconditional consequences of adopting Coral.
+- **Navigation makes the subordination visible.** The sidebar groups pages as *Coral core — applies to
+  every Coral codebase*, *Production baseline — optional, adopted explicitly*, *The System — optional, at
+  system scale*, and the two profile groups, so the production baseline cannot read as another name for
+  Coral.
+
+**A structural guard keeps it that way.** `CONVENTIONS.md` gains a **core-document registry**
+(`coral:core`) naming the pages a project reads before adopting anything — today `CONVENTIONS.md` and
+`ARCHITECTURE.md` — and the build refuses any rule defined in one of them whose ownership layer has the
+`opt-in` **surface**. It is stated in terms the layer registry already owns, so the tooling holds no
+opinion about which layer the production baseline is and carries **no second list of rule IDs**; a new
+opt-in layer is covered without an edit, and a new core document is one registry row. The registry is held
+to the same shape as the kernel, layer, scale and profile blocks — exactly one block, prose outside the
+markers, no duplicate or unknown document — because a guard whose own source can silently empty is not a
+guard. `PRODUCTION.md` is also registered as an app-scale spine, so the existing one-way dependency check
+(an app-scale spine never cites a system rule) covers it, and no profile may name it as its home. The
+guard catches a misplaced rule **definition**; it cannot see optional policy taught in ordinary prose,
+which is why the audit above was done by reading.
+
+**Known limitation, recorded rather than fixed: selection independence is not self-containment.**
+`[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]` cite `[CHAN-1]`, `[CHAN-7]`, `[CHAN-8]`, `[SYS-TEST-1]` and
+`[CONFIG-1]`, all production-baseline rules — `[ORCH-5]`'s own first sentence names `[CHAN-1]`. The
+resolver is correct and unchanged: adopting the runtime-agent profile selects no baseline rule. But the
+resulting contract refers outward to rules the project has not adopted, so a runtime-agent-only system is
+not yet a self-contained rule set. `SYSTEM.md` and `CONVENTIONS.md` now say so, and recommend adopting the
+baseline alongside it. The repair is to rewrite those statements, which is a **versioned rule change** and
+therefore out of scope for a documentation pass; making one adoption imply the other is explicitly not the
+repair. A second, smaller instance: `[TEST-1]`, a kernel rule, cites `[BOUND-1]`, now a baseline `[guide]`
+rule — noted in `ARCHITECTURE.md` at the same time.
+
 The **exception instruction in the generated contract** is worded to keep `revisit_when` alive. An earlier
 draft said "do not raise it again", which settles an active decision and also tells the agent to ignore the
 one field whose whole purpose is to bring the decision back. The contract now says three things instead:

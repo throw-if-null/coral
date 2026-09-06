@@ -124,7 +124,16 @@ export const useRe = () => new RegExp(String.raw`\`\[(${ID_CORE})\]\``, 'g')
 // are stated for several apps composing rather than for one app — two readers, so one name.
 export const APP_SPINE = 'ARCHITECTURE.md'
 export const SYSTEM_SPINE = 'SYSTEM.md'
-const SPINE = ['CONVENTIONS.md', APP_SPINE, SYSTEM_SPINE]
+// The app-scale production baseline. A spine in every sense that matters here — broadly
+// loaded, not a profile's document — so it is registry-pinned and ineligible as a profile
+// home, exactly like the other three. What it is NOT is a CORE document: PO-06 split it out
+// of ARCHITECTURE.md precisely so the app spine could be read without it. Core membership is
+// read from CONVENTIONS.md's own registry (see parseCoreDocuments), never from this list.
+export const PRODUCTION_SPINE = 'PRODUCTION.md'
+// The app-scale spines, in the order a reader meets them. Gate 6's one-way dependency binds
+// both: neither may cite a rule defined at system scale.
+export const APP_SPINES = [APP_SPINE, PRODUCTION_SPINE]
+const SPINE = ['CONVENTIONS.md', APP_SPINE, PRODUCTION_SPINE, SYSTEM_SPINE]
 const SKIP = new Set(['node_modules', 'public'])
 
 // A changelog RECORDS rules; it does not define them. But it quotes each new rule
@@ -553,6 +562,157 @@ export function parseLayers(srcDir) {
     )
   }
   return { taxonomy, problems }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Core documents — the pages a project reads before it has adopted anything.
+//
+// Ownership classification does not finish the loading problem, and .vitepress/config.mjs
+// has said so since Gate 8 was written: a rule defined in a universally-read document is
+// encountered by everyone who reads that document, whatever its tag says. The profile
+// registry acts on that in one direction — an `{app:cli}` rule must live in appendix/cli.md,
+// and the registry may not name a spine as a home. This is the same argument one document
+// further up.
+//
+// Before PO-06, ARCHITECTURE.md held five kernel rules and seventy `{baseline}` ones, so
+// "read the Coral app spine" meant "read the production baseline", and the baseline read as
+// a consequence of the agents-write / humans-review operating model rather than as an
+// opinion a project adopts. Moving them to PRODUCTION.md fixes today; this registry is what
+// keeps them out tomorrow.
+//
+// The invariant is stated once, in terms the layer registry already owns: a rule defined in
+// a core document must belong to a layer whose SURFACE is not `opt-in`. Nothing here knows
+// what the production baseline is, and nothing here lists a rule ID — both would be a second
+// classification beside `rule.scope`, and the second copy is the one that goes stale. Adding
+// a core document is a registry row; adding an opt-in layer needs no edit here at all.
+//
+// Read from CONVENTIONS.md for the reason every other registry is: a document name hardcoded
+// in the tooling would be a second authority for a documented fact.
+// ─────────────────────────────────────────────────────────────────────────────
+export const CORE_START = '<!-- coral:core:start -->'
+export const CORE_END = '<!-- coral:core:end -->'
+export const CORE_FILE = 'CONVENTIONS.md'
+const CORE_COLUMNS = 3
+// | `CONVENTIONS.md` | what it defines | why it is core |
+const CORE_ROW_RE = new RegExp(
+  String.raw`^\|\s*\`([^\`|]+)\`\s*\|([^|]*[^|\s][^|]*)\|([^|]*[^|\s][^|]*)\|$`
+)
+
+/**
+ * Parse and validate the core-document registry in CONVENTIONS.md.
+ *
+ * Same posture as the kernel, layer, scale and profile registries: exactly one block, prose
+ * outside the markers, a header and delimiter carrying the row shape, no duplicate rows, and
+ * every named document one that can actually define rules. A row that silently failed to
+ * parse would drop a document out of the guard while the table still read correctly.
+ *
+ * @param {string} srcDir
+ * @returns {{core: Map<string,{defines: string, why: string}>, problems: string[]}}
+ */
+export function parseCoreDocuments(srcDir) {
+  const problems = []
+  const core = new Map()
+  const abs = path.join(srcDir, CORE_FILE)
+  if (!fs.existsSync(abs)) {
+    problems.push(`${CORE_FILE} is missing — it is where the core-document registry lives.`)
+    return { core, problems }
+  }
+  const text = fs.readFileSync(abs, 'utf8')
+  const count = (marker) => text.split(marker).length - 1
+  const starts = count(CORE_START)
+  const ends = count(CORE_END)
+  if (starts !== 1 || ends !== 1) {
+    problems.push(
+      `${CORE_FILE} must hold exactly one ${CORE_START} block (found ${starts} start marker(s) and` +
+        ` ${ends} end marker(s)). Two registries would leave one of them silently unread.`
+    )
+    return { core, problems }
+  }
+  const start = text.indexOf(CORE_START)
+  const end = text.indexOf(CORE_END)
+  if (end < start) {
+    problems.push(`${CORE_FILE} has ${CORE_END} before ${CORE_START}.`)
+    return { core, problems }
+  }
+
+  const SHAPE = 'Each row is  | `document.md` | what it defines | why it is core |'
+  const known = new Set(docFiles(srcDir).filter((rel) => !DEFINES_NOTHING.has(rel)))
+  const block = text.slice(start + CORE_START.length, end)
+  const markerLine = text.slice(0, start).split('\n').length
+  let header = false
+  let delim = false
+  let rows = 0
+
+  block.split('\n').forEach((line, i) => {
+    const at = `${CORE_FILE}:${markerLine + i}`
+    const trimmed = line.trim()
+    if (!trimmed) return
+    if (!trimmed.startsWith('|')) {
+      problems.push(
+        `${at} is inside the core-document registry but is not a table row. The block holds the` +
+          ` registry and nothing else — prose belongs outside the markers. ${SHAPE}`
+      )
+      return
+    }
+    const cells = tableCells(trimmed)
+    if (!header) {
+      header = true
+      if (CORE_ROW_RE.test(trimmed)) {
+        problems.push(`${at}: the core-document registry's first row must be its header, not a document.`)
+      } else if (!cells || cells.length !== CORE_COLUMNS || cells.some((c) => !c.trim())) {
+        problems.push(
+          `${at}: the core-document registry's header must have exactly ${CORE_COLUMNS} non-empty` +
+            ` columns, matching its rows. ${SHAPE}`
+        )
+      }
+      return
+    }
+    if (!delim) {
+      delim = true
+      if (!cells || cells.length !== CORE_COLUMNS || !cells.every((c) => DELIM_CELL_RE.test(c))) {
+        problems.push(
+          `${at}: expected the header delimiter row with exactly ${CORE_COLUMNS} columns here.`
+        )
+      }
+      return
+    }
+    rows++
+    const row = CORE_ROW_RE.exec(trimmed)
+    if (!row) {
+      problems.push(
+        `${at} is a malformed core-document row, so the document it declares cannot be read.` +
+          ` ${SHAPE} — the document must be a code span, and there must be exactly` +
+          ` ${CORE_COLUMNS} non-empty columns.`
+      )
+      return
+    }
+    const [, page, defines, why] = row
+    if (core.has(page)) {
+      problems.push(
+        `${at} declares \`${page}\` core twice. One row per document: a second row is a copy that` +
+          ' can be edited without the first one moving.'
+      )
+      return
+    }
+    if (!known.has(page)) {
+      problems.push(
+        `${at} declares \`${page}\` core, which is not a document that can define rules. A core` +
+          ' document is one of the pages the rule registry reads.'
+      )
+      return
+    }
+    core.set(page, { defines: defines.trim(), why: why.trim() })
+  })
+
+  if (!header || !delim) {
+    problems.push(
+      `${CORE_FILE}'s core-document registry is not a table. It must open with a header row and its` +
+        ` delimiter. ${SHAPE}`
+    )
+  } else if (!rows) {
+    problems.push(`${CORE_FILE}'s core-document registry has a header but no documents. ${SHAPE}`)
+  }
+  return { core, problems }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1168,6 +1328,12 @@ export function parseProfiles(srcDir, taxonomy) {
  * profile's own document — see parseProfiles() for why the registry cannot name a spine as
  * one. The fixed `runtime-agent` layer carries no such requirement.
  *
+ * And no rule from an OPT-IN layer, whichever one, may be defined in a core document. That
+ * is the same leak one level up: a core document is read before any adoption decision, so a
+ * rule kept there is published to every reader as unconditional however it is tagged. It is
+ * checked against the layer's own `surface`, so it needs no knowledge of which layer the
+ * production baseline is and no list of rule IDs.
+ *
  * The low-level classifier. It returns the scopes keyed by rule ID rather than attaching
  * them, so it stays testable against a hand-built registry; loadRuleModel() is what turns
  * the result into the canonical rule objects consumers actually hold.
@@ -1179,7 +1345,7 @@ export function parseProfiles(srcDir, taxonomy) {
  *
  * @returns {{scopes: Map<string,Scope>, unresolved: Set<string>, problems: string[]}}
  */
-export function classifyRules({ rules, kernel, profiles, taxonomy }) {
+export function classifyRules({ rules, kernel, profiles, taxonomy, core = new Map() }) {
   const problems = []
   const scopes = new Map()
   const unresolved = new Set()
@@ -1255,6 +1421,22 @@ export function classifyRules({ rules, kernel, profiles, taxonomy }) {
         continue
       }
     }
+    // The core-document guard. Surface, not layer identity: `opt-in` is the property that
+    // makes a rule something a project decides about, and a core document is read before any
+    // such decision exists. PO-06 moved seventy `{baseline}` rules out of ARCHITECTURE.md for
+    // exactly this reason; without a check, the next one walks straight back in and reads as
+    // a consequence of the operating model rather than as an adopted opinion.
+    if (core.has(rule.page) && resolved.surface === OPT_IN) {
+      problems.push(
+        `[${id}] is \`${scopeLabel(resolved)}\`, an \`${OPT_IN}\` layer, but is defined in` +
+          ` ${rule.page} — a core document (${CORE_FILE}'s ${CORE_START} block). A core document is` +
+          ' read before a project has adopted anything, so a rule defined there is published to' +
+          ' every reader as unconditional whatever its tag says. Move the definition to a document' +
+          " that layer is loaded from, or reclassify it."
+      )
+      unresolved.add(id)
+      continue
+    }
     scopes.set(id, resolved)
   }
 
@@ -1314,7 +1496,8 @@ export function classifyRules({ rules, kernel, profiles, taxonomy }) {
  *              tags:string[],scale:string|undefined,scope?:Scope}>,
  *            registry: Map<string,string>, defsByFile: Map<string,Array<{id:string,cls:string}>>,
  *            files: string[], taxonomy: Layer[], scales: Scale[], kernel: Set<string>,
- *            profiles: Map<string,{home:string,covers:string}>, version: string|null,
+ *            profiles: Map<string,{home:string,covers:string}>,
+ *            core: Map<string,{defines:string,why:string}>, version: string|null,
  *            classified: boolean, problems: string[]}}
  *
  * When `problems` is empty, every rule in `rules` has a `scope` and that scope has a `kind`,
@@ -1327,13 +1510,15 @@ export function loadRuleModel(srcDir) {
   const { scales, problems: scaleProblems } = parseScales(srcDir)
   const { ids: kernel, problems: kernelProblems } = parseKernel(srcDir, raw)
   const { profiles, problems: profileProblems } = parseProfiles(srcDir, taxonomy)
-  const classify = { rules: raw, kernel, profiles, taxonomy }
+  const { core, problems: coreProblems } = parseCoreDocuments(srcDir)
+  const classify = { rules: raw, kernel, profiles, taxonomy, core }
   const { scopes, unresolved, problems: scopeProblems } = classifyRules(classify)
   const ownershipProblems = [
     ...taxonomyProblems,
     ...scaleProblems,
     ...kernelProblems,
     ...profileProblems,
+    ...coreProblems,
     ...scopeProblems,
   ]
   // The identity is an ownership-grade fact: a model that cannot say which Coral it is
@@ -1385,6 +1570,7 @@ export function loadRuleModel(srcDir) {
     scales,
     kernel,
     profiles,
+    core,
     version,
     classified,
     problems,

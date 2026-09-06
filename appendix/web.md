@@ -223,8 +223,9 @@ not be where your coverage lives.
 ## Agent Execution Contract (web)
 
 The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
-**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
-load both. Where the app also serves an API, [`backend.md`](./backend.md)'s contract applies to that half.
+**adds to** the app-scale contracts rather than replacing them —
+load [`ARCHITECTURE.md`](../ARCHITECTURE.md)'s, and [`PRODUCTION.md`](../PRODUCTION.md)'s if this project
+adopts the production baseline. Where the app also serves an API, [`backend.md`](./backend.md)'s contract applies to that half.
 `[guide]` rules are rationale and live only in the prose.
 
 <!-- coral:contract:start -->

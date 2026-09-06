@@ -159,8 +159,9 @@ the payload fields, so `[GHA-6]` is covered by a test rather than by care.
 ## Agent Execution Contract (GitHub Action)
 
 The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
-**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
-load both. `[guide]` rules are rationale and live only in the prose.
+**adds to** the app-scale contracts rather than replacing them —
+load [`ARCHITECTURE.md`](../ARCHITECTURE.md)'s, and [`PRODUCTION.md`](../PRODUCTION.md)'s if this project
+adopts the production baseline. `[guide]` rules are rationale and live only in the prose.
 
 Two entries carry more weight than the rest, because both defend against a platform fact you do not
 control: `[GHA-5]` (delivery is at-least-once) and `[GHA-6]` (the run is privileged and the payload is

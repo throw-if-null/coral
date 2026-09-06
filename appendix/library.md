@@ -167,8 +167,9 @@ actually enforces `[LIB-3]`.
 ## Agent Execution Contract (library)
 
 The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
-**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
-load both. `[guide]` rules are rationale and live only in the prose.
+**adds to** the app-scale contracts rather than replacing them —
+load [`ARCHITECTURE.md`](../ARCHITECTURE.md)'s, and [`PRODUCTION.md`](../PRODUCTION.md)'s if this project
+adopts the production baseline. `[guide]` rules are rationale and live only in the prose.
 
 One asymmetry to carry into the list: the consumer is the composition root (`[ROOT-3]`), so every entry
 that reads like "the root does it" in the spine means **somebody you will never meet does it**.

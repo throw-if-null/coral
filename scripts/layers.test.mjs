@@ -32,6 +32,8 @@ import test from 'node:test'
 
 import {
   APP_SPINE,
+  CORE_END,
+  CORE_START,
   CONTRACT_END,
   CONTRACT_START,
   KERNEL_END,
@@ -329,6 +331,14 @@ test('a [guide] statement keeps its brace AND class syntax through serializeInde
     ROW,
     '',
     PROFILES_END,
+    '',
+    CORE_START,
+    '',
+    '| Document | Defines | Justified by |',
+    '|---|---|---|',
+    '| `CONVENTIONS.md` | the registries and the kernel | everyone reads it |',
+    '',
+    CORE_END,
     '',
   ].join('\n')
   const widget = [

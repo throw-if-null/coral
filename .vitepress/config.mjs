@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import {
-  APP_SPINE,
+  APP_SPINES,
   CONTRACT_END,
   CONTRACT_START,
   INDEX_FILE,
@@ -33,18 +33,20 @@ import {
 // link to the page that defines it — operationalizing the citation system on the
 // web. Parsing lives in ../scripts/rules.mjs so the lockfile writer shares it.
 //
-// Ten gates run here, each guarding a claim the documents make about themselves:
+// Eleven gates run here, each guarding a claim the documents make about themselves:
 //   1. every rule definition carries exactly one enforcement class
 //   2. every rule-ID citation resolves to a definition
 //   3. every [auto]/[review] rule appears in its document's Agent Execution
 //      Contract, so the contract really is the complete normative surface
 //   4. no rule ID is ever removed, renumbered, or silently reclassified — [VER-1]
 //   5. rules.md, the generated index, matches the registry it claims to index
-//   6. the app spine cites no system rule — the dependency points one way
+//   6. the app-scale spines cite no system rule — the dependency points one way
 //   7. the kernel cites existing rules and defines none of them
 //   8. every rule outside the kernel carries exactly one ownership layer
 //   9. a contract marks the rules that are opt-in, so it cannot list them as unconditional
 //  10. the worked CORAL.md in CONVENTIONS.md is a record the applicability resolver accepts
+//  11. no opt-in rule is defined in a core document — the production baseline stays a layer a
+//      project adopts, not something a reader of the app spine acquires by reading it
 // Two more run outside this file: link fragments in scripts/check-anchors.mjs
 // (post-build, because heading ids only exist once markdown-it has rendered them),
 // and declared example versions in scripts/check-versions.mjs.
@@ -187,15 +189,18 @@ if (fs.existsSync(lockPath)) {
 // rule IDs and do not match — pointing at a family is how the spine is meant to
 // refer outward, per [SCOPE-4].
 //
+// BOTH app-scale spines are held to it. PO-06 moved the app-scale production baseline
+// into PRODUCTION.md, and a gate that still checked only ARCHITECTURE.md would have
+// stopped covering the seventy rules that actually do the citing.
+//
 // Appendices are deliberately exempt: CONVENTIONS.md permits them to cite system
 // rules where an app type reproduces the system pattern internally, which is why
 // web.md legitimately references [CHAN-*] and [SYS-TEST-1].
 // ─────────────────────────────────────────────────────────────────────────────
-const spineAbs = path.join(SRC, APP_SPINE)
-if (fs.existsSync(spineAbs)) {
-  const systemRules = new Set(
-    [...rules].filter(([, r]) => r.page === SYSTEM_SPINE).map(([id]) => id)
-  )
+const systemRules = new Set([...rules].filter(([, r]) => r.page === SYSTEM_SPINE).map(([id]) => id))
+for (const spine of APP_SPINES) {
+  const spineAbs = path.join(SRC, spine)
+  if (!fs.existsSync(spineAbs)) continue
   const leaked = new Set(
     [...fs.readFileSync(spineAbs, 'utf8').matchAll(useRe())]
       .map((m) => m[1])
@@ -203,8 +208,8 @@ if (fs.existsSync(spineAbs)) {
   )
   for (const id of [...leaked].sort()) {
     problems.push(
-      `${APP_SPINE} cites [${id}], which is defined in ${SYSTEM_SPINE}. The dependency points one` +
-        ' way (CONVENTIONS.md, "Rule IDs"): the app spine never cites a system rule, so the core app' +
+      `${spine} cites [${id}], which is defined in ${SYSTEM_SPINE}. The dependency points one` +
+        ' way (CONVENTIONS.md, "Rule IDs"): an app-scale spine never cites a system rule, so the app' +
         ' model stays loadable without system concerns. Refer to the family in prose ([ORCH-*]) or' +
         ' state the point without the citation.'
     )
@@ -264,6 +269,27 @@ if (fs.existsSync(spineAbs)) {
 //
 // The result is not a lookup table beside the rules: loadRuleModel() attaches each resolved
 // scope to its rule, so `rules.get(id).scope.kind` is the one place ownership is read from.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gate 11 — an opt-in rule is not defined in a core document.
+//
+// The observation in Gate 8 runs one document further up. A rule kept in a broadly-loaded
+// document is read as binding whatever its tag says, and the most broadly-loaded documents
+// of all are the ones a project reads BEFORE it has adopted anything: CONVENTIONS.md and
+// ARCHITECTURE.md, registered as core in CONVENTIONS.md's own `coral:core` block.
+//
+// Before PO-06 that was not a hypothetical. ARCHITECTURE.md held five kernel rules and
+// seventy `{baseline}` ones, and the production baseline consequently read as a consequence
+// of the agents-write / humans-review operating model rather than as an opinion a project
+// adopts. Splitting PRODUCTION.md out fixed the state; this makes it an invariant, so the
+// separation does not depend on the next author remembering it.
+//
+// Checked against the layer's own `surface`, so the tooling holds no opinion about which
+// layer the production baseline is, and no second list of rule IDs. Its problems arrive in
+// `model.problems` with the rest of the classification — parseCoreDocuments() and
+// classifyRules() own it, which is what makes it unit-testable against a fixture tree
+// (scripts/model.test.mjs) rather than only reachable by breaking the real docs.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -454,17 +480,42 @@ export default withMermaid(defineConfig({
     nav: [
       { text: 'Conventions', link: '/CONVENTIONS' },
       { text: 'App', link: '/ARCHITECTURE' },
+      { text: 'Production baseline', link: '/PRODUCTION' },
       { text: 'System', link: '/SYSTEM' },
       { text: 'Rule index', link: '/rules' },
       { text: 'Examples', link: '/examples/go-api-slice' },
     ],
+    // The sidebar is the reading flow, and after PO-06 it has to carry the applicability
+    // model too: what Coral asks of every codebase, then what a project may CHOOSE to adopt.
+    // A flat list of documents made the production baseline read as another name for Coral —
+    // which is exactly what the ownership layers say it is not.
     sidebar: [
-      { text: 'Conventions & vocabulary', link: '/CONVENTIONS' },
-      { text: 'The App', link: '/ARCHITECTURE' },
-      { text: 'The System', link: '/SYSTEM' },
-      { text: 'Rule index — all rules, one page', link: '/rules' },
       {
-        text: 'App profiles (by app type)',
+        text: 'Coral core — applies to every Coral codebase',
+        collapsed: false,
+        items: [
+          { text: 'Conventions & vocabulary', link: '/CONVENTIONS' },
+          { text: 'The App — kernel architecture', link: '/ARCHITECTURE' },
+          { text: 'Rule index — all rules, one page', link: '/rules' },
+        ],
+      },
+      {
+        // Opt-in, and named as such in the heading rather than only in the page: a reader
+        // scanning the sidebar has to be able to see that this is a decision, not a chapter.
+        text: 'Production baseline — optional, adopted explicitly',
+        collapsed: false,
+        items: [{ text: 'The App baseline', link: '/PRODUCTION' }],
+      },
+      {
+        // Its own group rather than a child of the baseline's: SYSTEM.md carries the
+        // system-scale baseline AND the runtime-agent orchestration rules, and filing it
+        // under either one would say that adopting that one brings the other.
+        text: 'The System — optional, at system scale',
+        collapsed: false,
+        items: [{ text: 'Apps composing over a channel', link: '/SYSTEM' }],
+      },
+      {
+        text: 'App profiles (by app type) — optional',
         collapsed: false,
         items: [
           { text: 'CLI', link: '/appendix/cli' },
@@ -475,8 +526,10 @@ export default withMermaid(defineConfig({
         ],
       },
       {
-        // Not an app type: an agentic backend loads the backend profile AND this one.
-        text: 'Runtime-agent profile',
+        // Not an app type: an agentic backend loads the backend profile AND this one. A
+        // separate group from the baseline because the two adoptions are independent —
+        // [ORCH-4..6] come with this profile and with no part of the baseline.
+        text: 'Runtime-agent profile — optional',
         collapsed: false,
         items: [{ text: 'Agentic App (LLM)', link: '/appendix/agentic-app' }],
       },

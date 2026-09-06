@@ -2,8 +2,8 @@
 
 <!-- AGENT NOTE (not shown on the rendered site): this file is AUTHORITATIVE for the vocabulary, the
 rule-ID scheme, the enforcement classes, the ownership layers, the kernel, and the [AGENT-*] operating
-model. Load it before reasoning across documents; ARCHITECTURE.md and SYSTEM.md defer to it and must not
-redefine these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
+model. Load it before reasoning across documents; ARCHITECTURE.md, PRODUCTION.md and SYSTEM.md defer to
+it and must not redefine these. Agent-only hints elsewhere use this same "AGENT NOTE" comment form. -->
 
 This file holds what every other document builds on, so none of them has to repeat it:
 
@@ -18,7 +18,8 @@ This file holds what every other document builds on, so none of them has to repe
 - **What applies to a project** — how a project declares the scopes it adopts, and how the rule set is
   composed from that declaration. ([below](#what-applies-to-a-project))
 
-The two spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how to build one app) and
+The spines — [`ARCHITECTURE.md`](./ARCHITECTURE.md) (the kernel-facing app architecture),
+[`PRODUCTION.md`](./PRODUCTION.md) (the optional production baseline at app scale) and
 [`SYSTEM.md`](./SYSTEM.md) (how apps compose into a system) — refer back here instead of repeating any
 of it. That is the architecture practicing what it preaches: a concern used in many places is defined
 once and pointed to.
@@ -31,17 +32,27 @@ Eight nouns. Every document uses exactly these; there are no synonyms.
 
 | Noun | What it is | Governed by |
 |---|---|---|
-| **slice** | one capability, owned end to end: its trigger, parsing, validation, behavior, state access, output, and tests | `[BOUND-*]` `[MODEL-1]` |
-| **crosscut** | a cross-cutting concern — defined **once**, precisely named, and **injected** into the slices that use it (`config`, `errors`, `db`, `money`) | `[XCUT-*]` |
-| **adapter** | the infrastructure mechanics behind a port **a slice declared** — it implements that interface, is wired by the root, and owns no behavior (`store`, `s3`, `stripe`) | `[MODEL-4]` |
-| **composition root** | the thin entry point that registers slices, constructs crosscuts, and injects them. Holds no business logic | `[ROOT-*]` |
+| **slice** | one capability, owned end to end — the trigger it answers, the work that answers it, the output it returns, and its tests | `[BOUND-*]` `[MODEL-1]` |
+| **crosscut** | a concern several slices need, held in **one** definition rather than copied into each of them (`config`, `errors`, `db`, `money`) | `[XCUT-*]` |
+| **adapter** | the infrastructure mechanics behind a port **a slice declared** — it implements that interface rather than defining it (`store`, `s3`, `stripe`) | `[MODEL-4]` |
+| **composition root** | the app's wiring and bootstrap boundary: the one place slices are registered and crosscuts are constructed and handed to them | `[ROOT-*]` |
 | **published contract** | the surface others are allowed to depend on: a slice's public capability, a machine-readable output, an HTTP shape, a library API | `[CONTRACT-*]` |
-| **app** | one deployable unit: many slices, one composition root, one set of crosscuts | all of `ARCHITECTURE.md` |
+| **app** | one deployable unit: many slices, one composition root, one set of crosscuts | `ARCHITECTURE.md`, `PRODUCTION.md` |
 | **system** | several apps composed together | all of `SYSTEM.md` |
-| **channel** | the only coupling between apps — a published, versioned contract in one of three forms: sync API, event, or message bus | `[CHAN-*]` |
+| **channel** | the pathway between two apps, and the contract governing what crosses it | `[CHAN-*]` |
+
+**The nouns name shapes; the rules say how to build them, and most of those rules are optional.** This
+table defines the vocabulary and nothing more. The disciplines a reader may expect to find in it —
+a crosscut is *injected* rather than reached for (`[XCUT-3]`), the root holds *no business logic*
+(`[ROOT-1]`), an adapter is wired by the root and owns no behavior (`[MODEL-4]`), apps communicate *only*
+through a channel and never share a datastore (`[CHAN-1]`, `[CHAN-3]`), a channel is *versioned* and takes
+one of three *forms* (`[CHAN-4]`, `[CHAN-2]`) — are **production-baseline** rules, and they bind a project
+that has adopted that layer ([What applies to a project](#what-applies-to-a-project)). The **Governed by**
+column says where each noun's rules live; it does not say that all of them apply to you. A project can
+use every one of these nouns, correctly and conformantly, having adopted nothing but the kernel.
 
 Two further terms name what a crosscut is *not*, and they are defined below the canonical slice, where
-there is an injected crosscut to contrast them against: **forbidden bucket** and **drift**.
+there is a concrete crosscut to contrast them against: **forbidden bucket** and **drift**.
 
 ### "Capability" is scale-relative — always say which scale
 
@@ -55,8 +66,10 @@ conflating them is how an agent ends up publishing internals. Qualify it:
 | *a slice's **published** capability* | one exported function/entry point of that slice | sibling slices, via `[COMPOSE-1]` |
 | *an app's **published** capability* | one endpoint/event on the channel | other apps, via `[CHAN-1]` |
 
-A slice's published capability is **not** automatically an app's published capability. Crossing a
-process boundary requires a channel contract (`[CHAN-1]`), not a re-export.
+A slice's published capability is **not** automatically an app's published capability: the two are
+consumed by different audiences, over different boundaries, and a re-export is not a promotion. What a
+project must then *do* about the process boundary — cross it only through a published channel contract —
+is `[CHAN-1]`, a production-baseline rule at system scale.
 
 ### A channel is a published contract at app scale
 
@@ -66,19 +79,35 @@ pathway *between* two apps, and the contract that governs it.
 
 Both exist because a channel carries something a contract cannot: **delivery semantics**. A contract states
 the shape; the channel states whether that shape arrives once or twice, in order or not, consistently or
-eventually (`[CHAN-5]`, `[CHAN-9]`, `[CHAN-10]`). That half of the noun has no meaning at slice scale, where
-a call either returns or raises.
+eventually. That half of the noun has no meaning at slice scale, where a call either returns or raises.
 
-A message bus is one of a channel's three forms, **not** its definition (`[CHAN-2]`) — two apps talking over
-plain HTTP are using a channel.
+A channel is not a *broker*: two apps talking over plain HTTP are using one. That is the misreading the
+noun exists to prevent, and it holds however much of Coral a project has adopted.
+
+**What Coral then requires of a channel is optional policy, all of it.** The three permitted forms
+(`[CHAN-2]`), backward-compatible versioning (`[CHAN-4]`), at-least-once delivery and its idempotency
+obligation (`[CHAN-5]`), ordering (`[CHAN-9]`) and the absence of a transactional view across apps
+(`[CHAN-10]`) are production-baseline rules at **system** scale. They bind a repository that composes
+several apps *and* has adopted the baseline; a project that has done neither still uses the word `channel`
+to mean this.
 
 ---
 
 ## The canonical slice
 
-Everything else in this document set exists to make code look like this. Read it before the rules; the
-rules are the reasons it is shaped this way. It is language-neutral — this exact capability is written out
-in real Python in [`examples/cli-slice.md`](./examples/cli-slice.md).
+**The kernel shape is one sentence:** one capability, owned end to end, tests included, consumed by other
+code only through what it publishes (`[MODEL-1]`, `[BOUND-2]`, `[COMPOSE-1]`, `[TEST-1]`). That is what
+Coral asks of every codebase that calls itself Coral, and it is deliberately short.
+
+> **The listing below is a slice as a project that has adopted the [production
+> baseline](./PRODUCTION.md) writes one.** It is the kernel shape *plus* a set of opinions the baseline
+> supplies — injected crosscuts, a six-category error taxonomy, one effect at the edge, the root doing the
+> rendering, colocated tests against real storage, an effect-truthful verb. Each of those is a rule in
+> [`PRODUCTION.md`](./PRODUCTION.md) and applies where a project's `CORAL.md` adopts that layer. A
+> kernel-only project's slices satisfy the sentence above and may look nothing like this listing.
+
+Read it before the rules; the rules are the reasons it is shaped this way. It is language-neutral — this
+exact capability is written out in real Python in [`examples/cli-slice.md`](./examples/cli-slice.md).
 
 ```
 expense/add                                    # one slice = one capability
@@ -106,53 +135,73 @@ expense/add                                    # one slice = one capability
     assert queryExpenses().contains(food, 12.50)   # real storage
 ```
 
-Five properties make it canonical: parse/validate/compute are **pure**; the single effect sits at the
-**edge**; crosscuts are **injected**, never reached for; the slice **raises** taxonomy errors and
-lets the root render them; the test asserts the **observable contract** against real storage. The verb
-`add` truthfully signals a non-idempotent operation.
+**Two of its properties are the kernel's**, and hold for any Coral codebase: `expense/add` owns one
+capability from its trigger to its output (`[BOUND-2]`), and its behavior is asserted at that entry point
+against what a caller can actually observe (`[TEST-1]`).
 
-`money`, `db` and `errors` above are crosscuts: each has a precise name, is constructed once at the root,
-and arrives as `deps`. That is what makes the two remaining terms legible, because both are named for
-missing exactly those properties:
+**Five are the production baseline's**, and are what makes the listing look the way it does:
+parse/validate/compute are **pure** (`[EFFECT-1]`); the single effect sits at the **edge**
+(`[EFFECT-2]`); crosscuts are **injected**, never reached for (`[XCUT-3]`); the slice **raises** taxonomy
+errors and lets the root render them (`[ERR-1]`, `[ERR-3]`); the test runs against real temporary storage
+(`[TEST-2]`, `[TEST-4]`). The verb `add` truthfully signals a non-idempotent operation (`[IDEM-1]`). A
+project that has not adopted the baseline owes none of these.
+
+`money`, `db` and `errors` above are crosscuts: each names one concern and is defined once. That is what
+makes the two remaining vocabulary terms legible, because both are named for the shape a crosscut is not:
 
 - A **forbidden bucket** is a would-be crosscut with no precise name and no injection discipline —
-  `utils`, `shared`, `common`, `services`, `helpers`, generic `models`. `[BUCKET-1]`
-- **Drift** is what happens when a crosscut is re-implemented per slice instead of injected: the
-  copies diverge, and the divergence is a bug. `[XCUT-4]`
+  `utils`, `shared`, `common`, `services`, `helpers`, generic `models`. The *term* is vocabulary; the
+  *prohibition* on creating one is `[BUCKET-1]`, a production-baseline rule.
+- **Drift** is what happens when one concern is re-implemented per slice instead of held in one
+  definition: the copies diverge, and the divergence is a bug. Naming it is what lets `[XCUT-1]` state its
+  second prong — a crosscut must enforce something that would be a bug if it diverged — and `[XCUT-4]`
+  develops the point in the baseline.
 
 ---
 
 ## Placing new code
 
-Almost every placement question is one of six outcomes. Five are legitimate categories of code
-(`[MODEL-1]`); the sixth is the failure mode.
+Almost every placement question is one of six outcomes. Five are the categories of code `[MODEL-1]`
+recognises — a kernel rule, so the question has these five answers for every Coral codebase. The sixth is
+the shape none of them covers.
 
 ```mermaid
 flowchart TD
   Q{"new code —<br/>what is it?"}
   Q -->|"owns one capability<br/>end to end"| SLICE["<b>SLICE</b><br/>one trigger, owned end to end"]
-  Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| XC["<b>CROSSCUT</b><br/>defined once, injected"]
+  Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| XC["<b>CROSSCUT</b><br/>one definition, not a copy per slice"]
   Q -->|"infrastructure behind a port<br/>a slice declared"| AD["<b>ADAPTER</b><br/>implements, never defines"]
-  Q -->|"registers, constructs,<br/>injects — no logic"| ROOT["<b>COMPOSITION ROOT</b><br/>the entry point"]
+  Q -->|"wiring and bootstrap"| ROOT["<b>COMPOSITION ROOT</b><br/>the entry point"]
   Q -->|"a surface others<br/>depend on"| CT["<b>PUBLISHED CONTRACT</b><br/>the stable shape"]
-  Q -->|"none of these —<br/>just 'shared stuff'"| BAD["⛔ <b>FORBIDDEN BUCKET</b><br/>utils / services / … — don't"]
+  Q -->|"none of these —<br/>just 'shared stuff'"| BAD["⚠ <b>FORBIDDEN BUCKET</b><br/>utils / services / … — no sixth category"]
   class BAD bad
   classDef bad fill:#fdecec,stroke:#d23,color:#900
 ```
 
 When more than one fits, or none cleanly does, **flag it** (`[AGENT-2]`) rather than guess.
 
+`[MODEL-1]` says there is no sixth category, which is why "just shared stuff" has no box of its own. The
+stronger claim — *do not create or expand* `utils` / `services` / `helpers` / `common` / generic `models`,
+enforceable by a linter — is `[BUCKET-1]`, a **production-baseline** rule, and a project owes it once it
+has adopted that layer.
+
 A slice lives *in* a **feature package**, and the two are not the same thing — this diagram used to label
 the slice box "a feature package", which is where the confusion started. The package groups the slices of
 one capability and owns the state behind them (`[STRUCT-2]`, `[STATE-5]`); the slice owns one trigger. The
 package is a container, not a category of code, which is why `[MODEL-1]` does not list it.
 
-The same three rules hold at every scale — slice, app, and system alike:
+One shape repeats at every scale — slice, app, and system alike:
 
-1. **Own your trigger end to end** — the one request, command, or event you answer.
-2. **Share only through a named crosscut or a published contract** — never a bucket, never a reach
-   into internals.
-3. **Cross a boundary only over a channel** — apps never fuse and never share a datastore.
+1. **Own your trigger end to end** — the one request, command, or event you answer. (`[BOUND-2]`, kernel)
+2. **Consume other units through what they publish**, never by reaching into their internals.
+   (`[COMPOSE-1]`, kernel; sharing through a named crosscut rather than a copy is `[XCUT-1]`, also kernel)
+3. **Between apps, that surface is a channel** — the contract governing what crosses the process
+   boundary.
+
+The first two bind every Coral codebase. The third is the vocabulary; the policy that gives it teeth —
+apps communicate *only* through a channel and never share a datastore — is `[CHAN-1]` and `[CHAN-3]`, and
+those are **production-baseline** rules at **system** scale. A one-app repository has no channel at all,
+and a project that has not adopted the baseline is not held to them.
 
 ```mermaid
 flowchart LR
@@ -178,11 +227,11 @@ rule make findings unsearchable and let the two copies drift.
 **IDs are permanent.** They are never renumbered, never recycled, and never removed — see `[VER-1]`. That
 is why `[IDEM-6]` sits out of numeric order: it was appended rather than inserted.
 
-**The spines use separate families.** App families live in `ARCHITECTURE.md` and its appendices
-(`CLI-`, `BE-`, …); system families live in `SYSTEM.md` (`CHAN-`, `ORCH-`, `SYS-TEST-`). The dependency
-points **one way**: the app spine **never** cites a system rule, so the core app model stays
-independent of system concerns. The build enforces this rather than trusting it — `ARCHITECTURE.md` had
-been citing `[ORCH-1]` in prose until the gate was added. `SYSTEM.md` may cite app rules — it builds on them. An **appendix** may
+**The spines use separate families.** App families live in `ARCHITECTURE.md`, `PRODUCTION.md` and the
+appendices (`CLI-`, `BE-`, …); system families live in `SYSTEM.md` (`CHAN-`, `ORCH-`, `SYS-TEST-`). The
+dependency points **one way**: neither app-scale spine **ever** cites a system rule, so the app model
+stays loadable without system concerns. The build enforces this rather than trusting it —
+`ARCHITECTURE.md` had been citing `[ORCH-1]` in prose until the gate was added. `SYSTEM.md` may cite app rules — it builds on them. An **appendix** may
 cite system rules where its app type reproduces the system pattern internally: a microfrontend web app
 is a browser-scale system of panels over a channel, so `web.md` legitimately references `[CHAN-*]` /
 `[SYS-TEST-*]`.
@@ -219,8 +268,9 @@ Each document has two layers, and the build enforces the relationship between th
 Completeness is checked at build time, so a new rule cannot be added without wiring it into the
 contract. Reviewers walk the same contract and cite the same IDs; there is no separate review
 checklist to drift against. Every document carries one — the spines, this file for its `[AGENT-*]`
-and `[VER-*]` rules, and each appendix. An appendix contract **adds to** the app spine's rather than
-replacing it: building a CLI means loading `ARCHITECTURE.md`'s contract and `appendix/cli.md`'s.
+and `[VER-*]` rules, and each appendix. Contracts **add up** rather than replacing one another, and a
+project loads exactly the ones its `CORAL.md` adopts: building a CLI on the baseline means
+`ARCHITECTURE.md`'s contract (unconditional), plus `PRODUCTION.md`'s and `appendix/cli.md`'s.
 
 [`rules.md`](./rules.md) is the cross-document view — every rule, its class, and its one-line
 statement on one page. It is generated from these contracts, so it cannot drift from them.
@@ -784,10 +834,44 @@ rule is checked once they do.
 hard as the kernel's. Classifying `[BE-8]` as backend-only does not soften it; it says a library was
 never its audience.
 
+### Core documents
+
+Classifying a rule does not finish the loading problem, because **a rule defined in a universally-read
+document is encountered by everyone who reads that document**, whatever its tag says. The profile
+registry already acts on that: an `{app:cli}` rule must live in `appendix/cli.md`, and the registry may
+not name a spine as a profile's home. The same argument reaches one document further up.
+
+A **core document** is one a project reads without adopting anything: the vocabulary and the kernel, and
+nothing whose applicability depends on a decision. Only layers whose surface is `conformance` or
+`governance` may define rules there. An `opt-in` rule — a production-baseline rule, an app-profile rule, a
+runtime-agent rule — defined in a core document would be published to every reader as though it were
+unconditional, so the build refuses it.
+
+<!-- coral:core:start -->
+
+| Document | Defines | Justified by |
+|---|---|---|
+| `CONVENTIONS.md` | the vocabulary, the kernel block, the registries, and the rules that govern Coral itself | every Coral reader needs it before any adoption decision is meaningful |
+| `ARCHITECTURE.md` | the kernel's app-shaped rules and the framing they need | "conformant to Coral at app scale" has to be readable without loading an optional layer |
+
+<!-- coral:core:end -->
+
+The build reads that block, and holds it to the same shape as the other registries: exactly one block, no
+prose inside the markers, no duplicate or unknown document, and no row naming a document that cannot
+define rules. It is a list of **documents**, never of rule IDs — a table of individual rules would be a
+second classification of the thing `rule.scope` already answers, and it would need editing every time a
+rule was added.
+
+This is why [`PRODUCTION.md`](./PRODUCTION.md) exists as a document rather than as a section of
+[`ARCHITECTURE.md`](./ARCHITECTURE.md). The production baseline is opt-in, the app spine is core, and a
+reader who has not adopted the baseline must be able to finish the app spine without it. `SYSTEM.md` is
+deliberately **not** core: everything in it is opt-in — the system-scale production baseline, and the
+runtime-agent orchestration rules — and its contract marks which is which.
+
 ### Architectural scale
 
 Ownership does not finish the applicability question, and the production baseline is where it stops
-short. `[STATE-5]` is stated for **one app**, in [`ARCHITECTURE.md`](./ARCHITECTURE.md). `[CHAN-1]` is
+short. `[STATE-5]` is stated for **one app**, in [`PRODUCTION.md`](./PRODUCTION.md). `[CHAN-1]` is
 stated for **several apps composing**, in [`SYSTEM.md`](./SYSTEM.md) — channel contracts, orchestration
 topology, cross-app contract testing. One ownership layer, two audiences: a repository that ships one app
 has no channel to version and no topology to wire. The runtime-agent layer splits the same way, with
@@ -995,6 +1079,15 @@ Four properties follow from it being a union, and all four are load-bearing:
 - **presence is never a selector.** Registering a profile in Coral makes it *selectable*, not selected.
 - **there is no precedence between Coral layers.** No layer overrides, weakens, or replaces another.
 
+**Selection is not the same as self-containment, and Coral does not yet guarantee the second.** The union
+above decides which rules a project owes. It does not promise that every selected rule is *readable*
+without the layers the project declined: a rule's statement may cite a rule from an unselected layer, and
+the resolver will not notice. There is one such case today — `[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]` cite
+production-baseline rules, so adopting the runtime-agent profile alone yields a contract that refers
+outward ([`SYSTEM.md`](./SYSTEM.md) says so where those rules are defined). The fix is to rewrite those
+statements, which is a versioned rule change; the fix is **not** to make one adoption imply another, which
+would put the applicability model back where `[VER-6]` found it.
+
 ### Two worked selections
 
 A standalone CLI. Every rule it owes comes from the kernel or from these four lines:
@@ -1157,7 +1250,7 @@ decides whether to move.
 
 Everything above answers *which rules apply*. This answers *how an agent gets them* — because knowing the
 answer is not the same as being able to load it. Coral's normative content is spread across
-`CONVENTIONS.md`, `ARCHITECTURE.md`, `SYSTEM.md`, one appendix per profile and a generated rule index, and
+`CONVENTIONS.md`, `ARCHITECTURE.md`, `PRODUCTION.md`, `SYSTEM.md`, one appendix per profile and a generated rule index, and
 **most of it does not apply to any given project**. An agent handed the repository has to redo the
 selection above, from prose, every session. That inference is exactly what `[VER-6]` exists to stop.
 
@@ -1330,13 +1423,18 @@ Read in this order:
 
 1. **`CONVENTIONS.md`** (this file) — the vocabulary, rule scheme, enforcement classes, ownership
    layers, operating model. The front door.
-2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the **app** spine: how to build one app. Its
-   [appendices](./ARCHITECTURE.md#appendix-index) instantiate it per app type (CLI, backend, web,
-   library, GitHub Action), plus the runtime-agent profile an app of any shape adds when it calls a
-   model at runtime.
-3. **[`SYSTEM.md`](./SYSTEM.md)** — the **system** spine: how apps compose over a channel. Builds on the
-   app spine; the app spine never cites it.
-4. **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python,
+2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** — the kernel-facing **app** spine: the shape of one app,
+   and the rules Coral would substantially relax without its operating model. A
+   [core document](#core-documents): it binds without being adopted.
+3. **[`PRODUCTION.md`](./PRODUCTION.md)** — the **production baseline** at app scale. **Optional**: read
+   it to decide whether to adopt it, and adopt it in `CORAL.md` before it binds anything.
+4. **[`SYSTEM.md`](./SYSTEM.md)** — the **system** spine: how apps compose over a channel. Optional too,
+   and two independent opt-ins — the system-scale production baseline, and the runtime-agent
+   orchestration rules. Builds on the app spine; no app-scale spine cites it.
+5. **[Appendices](./ARCHITECTURE.md#appendix-index)** — one **app profile** per app type (CLI, backend,
+   web, library, GitHub Action), plus the runtime-agent profile an app of any shape adds when it calls a
+   model at runtime. Each is adopted by name.
+6. **Worked examples** — [`examples/cli-slice.md`](./examples/cli-slice.md) (two CLI slices in Python,
    one file each), [`examples/go-api-slice.md`](./examples/go-api-slice.md) (an HTTP slice in Go, where
    the language forces a capability across packages), and
    [`examples/backend-review.md`](./examples/backend-review.md) (the rules applied to a real service,
