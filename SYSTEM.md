@@ -32,10 +32,15 @@ and `[SYS-TEST-*]`. The dependency points one way — this document cites app ru
 > production-baseline rules. So a system that adopts the runtime-agent profile **without** the baseline
 > gets a contract whose rules refer to rules it has not taken on. That is a defect in how `[ORCH-4..6]`
 > are written, not a hidden adoption — the resolver selects nothing extra, and Coral will not repair it by
-> making one layer drag in the other. Making these three self-contained means changing published rule
-> statements, which is a versioned change and is tracked as follow-up work rather than smuggled in here.
-> **In practice, adopt the production baseline alongside the runtime-agent profile at system scale until
-> that lands.**
+> making one layer drag in the other.
+>
+> **It is also not unique to these three.** 19 of Coral's 72 profile rules depend on a baseline rule in
+> their own statement, across every app profile — see
+> [the composition algebra](./CONVENTIONS.md#the-composition-algebra), which records the general gap and
+> the three possible repairs. Making any of them self-contained means changing published rule statements,
+> which is a versioned change and is tracked as follow-up model work rather than smuggled in here. **In
+> practice, adopt the production baseline alongside the runtime-agent profile at system scale until that
+> lands.**
 
 **Defining tension:** the channel is the *only* coupling between apps. Keep it thin, explicit, and versioned;
 never let two apps share a datastore or reach into each other's internals. The same properties that make

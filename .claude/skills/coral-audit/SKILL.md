@@ -2,13 +2,18 @@
 name: coral-audit
 description: >
   Audit a code repository against Coral Architecture to answer ONE question: is this a Coral app, and
-  where does it diverge? The verdict is architectural CONFORMANCE — capability slicing, cross-cutting
-  concerns placed as named crosscuts, no bucket packages, role-revealing names, published contracts,
-  thin composition. Structural / naming / cross-cutting-placement divergences ARE the findings;
-  security / correctness / reliability bugs are recorded as awareness notes for the team, never the
-  headline and never the answer. Use when asked to audit, review, or scrutinize a repo / service /
-  library for Coral alignment. Produces a heavy diagnostic report that seeds a SEPARATE planning session;
-  it does NOT plan the refactor or choose big-bang vs strangler — that is the later planning session.
+  where does it diverge? The verdict is architectural CONFORMANCE to the rule surface the project's own
+  CORAL.md resolves to — the Coral kernel unconditionally, plus the production baseline and the
+  app / runtime / language profiles that file explicitly adopts, at the scales it declares ([VER-6]).
+  Capability slicing, the five categories, published-capability composition and behavior-first testing are
+  kernel and always count; bucket packages, role-revealing package names, named and injected crosscuts,
+  thin composition, the error taxonomy and the rest of the production discipline are production-baseline
+  policy and count only where that layer is adopted. Structural / naming / cross-cutting-placement
+  divergences inside the selected surface ARE the findings; security / correctness / reliability bugs are
+  recorded as awareness notes for the team, never the headline and never the answer. Use when asked to
+  audit, review, or scrutinize a repo / service / library for Coral alignment. Produces a heavy diagnostic
+  report that seeds a SEPARATE planning session; it does NOT plan the refactor or choose big-bang vs
+  strangler — that is the later planning session.
 ---
 
 # Coral repo audit
@@ -46,16 +51,40 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
    dependency is unavailable, label the claim explicitly as an unverified inference.
 4. **Synthesize.** Cluster findings by root cause and name the linchpin (the one change that dissolves
    several). Finding the pieces is not enough — connect them.
-5. **The verdict is conformance — and bugs are not the verdict.** The audit answers *is this a Coral
-   app?* Substance = conformance to Coral: capability slicing, cross-cutting concerns placed as named
-   crosscuts, no bucket packages, role-revealing names, published contracts, thin composition. A
-   misplaced crosscut (e.g. error rendering living in `utils`) or a meaningless name (`pkg`, `utils`,
-   `middleware.go` — a name that tells you nothing but "it's a middleware") is a **real conformance
-   finding** — never file it as a throwaway LOW and move on. Only a genuinely cohesive unit's exact name
-   is cosmetic; say which is which, but don't use "don't flag every folder" as an excuse to wave off a
-   real bucket or a misplaced concern. Security / correctness / reliability defects, *however severe*, are
-   recorded in a separate **Notes for human awareness** section so the team knows — they do NOT become the
-   headline or the answer. Do not let a scary bug hijack the conformance question.
+5. **The verdict is conformance to the SELECTED surface — and bugs are not the verdict.** The audit
+   answers *is this a Coral app?*, and "a Coral app" means one that satisfies the rules its own `CORAL.md`
+   resolves to. There is no fixed list of characteristics that makes a repository conformant, and treating
+   one as fixed is how this skill produces findings against rules the project never took on. Four tiers,
+   and they are decided by the declaration, never by the code's shape:
+
+   - **kernel** — always counts, for every Coral project, with nothing to adopt and nothing to decline.
+     Capability slicing and the five categories (`[MODEL-1]`), one trigger owned end to end (`[BOUND-2]`),
+     promotion to a crosscut gated on a must-not-diverge invariant (`[XCUT-1]`), consuming another slice
+     only through its published capability (`[COMPOSE-1]`), behavior-first tests at the entry point
+     (`[TEST-1]`), and the `CORAL.md` record rules (`[VER-3]`, `[VER-5]`, `[VER-6]`).
+   - **production baseline** — counts only where `production-baseline` is adopted, and only at the scales
+     declared. This is where **no bucket packages** (`[BUCKET-*]`), **role-revealing package names**
+     (`[MODEL-2]`), **precisely named and injected crosscuts** (`[XCUT-2]`, `[XCUT-3]`), **thin
+     composition** (`[ROOT-1]`), the **error taxonomy** (`[ERR-*]`), state ownership, concurrency,
+     idempotency, configuration and trust-boundary policy all live. Most of what an auditor reaches for
+     first is in this tier.
+   - **app / runtime-agent / language profiles** — count only for the profiles named in `adopts`.
+   - **bugs** — security / correctness / reliability defects, *however severe*, go in **Notes for human
+     awareness**. Unchanged: they are recorded so the team knows, and never become the headline or the
+     answer. Do not let a scary bug hijack the conformance question.
+
+   **Within the selected surface, judge hard.** A misplaced crosscut (error rendering living in `utils`)
+   or a meaningless name (`pkg`, `utils`, `middleware.go` — a name that tells you nothing but "it's a
+   middleware") is a **real conformance finding** for a project that has adopted the baseline — never file
+   it as a throwaway LOW and move on. Only a genuinely cohesive unit's exact name is cosmetic; say which is
+   which, but don't use "don't flag every folder" as an excuse to wave off a real bucket or a misplaced
+   concern.
+
+   **Outside it, observe — do not convict.** A kernel-only project with a `utils` package is not in breach
+   of anything: `[BUCKET-1]` is not in its surface. Record what you saw as an **observation**, say which
+   rule *would* bite, and let it feed the one question that is actually open for that project — whether to
+   adopt the baseline. An observation is not a finding, is not ranked with findings, and does not move the
+   verdict.
 6. **Judge what's clearly wrong; flag what you can't adjudicate — and require it be documented.**
    Conformance exists to make the code legible and maintainable for humans *and agents* — that is the
    whole point of structure and naming, and it is why structural findings matter so much. So:
@@ -144,6 +173,13 @@ Report the specific problem; do not repair it and do not work around it.
 ## Procedure
 
 ### 1. Frame (altitude) — before any line-by-line reading
+
+Framing is **observation, not adjudication**. Answer these for any repository, whatever it has adopted;
+they tell you what the code *is*. Which of the answers becomes a finding is decided later, in step 3, by
+the selected surface — several of the questions below are shaped by production-baseline policy
+(`[ROOT-1]` thinness, `[XCUT-3]` injection, `[MODEL-4]` interface direction) and are only divergences for
+a project that adopted it.
+
 Produce a **structural thesis** by answering:
 - What is this repo — an app (and which app-type appendix applies?) or a crosscut / framework /
   base layer?
@@ -154,9 +190,10 @@ Produce a **structural thesis** by answering:
 - If it's a framework: is standardization achieved by *composition* or by *containment*?
 - Dependency surface: does every consumer link things it does not use?
 - Do the five categories map cleanly (slice / crosscut / adapter / composition root / published
-  contract — `[MODEL-1]`)? An adapter is only an adapter if the slice declares the interface and the
-  adapter implements it (`[MODEL-4]`); the other arrow direction is a `repository` layer. Where nothing
-  maps, is that a smell in the code or a gap in the architecture?
+  contract — `[MODEL-1]`, kernel, so this one binds every Coral project)? An adapter is only an adapter if
+  the slice declares the interface and the adapter implements it (`[MODEL-4]`, production baseline); the
+  other arrow direction is a `repository` layer. Where nothing maps, is that a smell in the code or a gap
+  in the architecture?
 
 Map the surface to support this: manifest/`go.mod`, file sizes, the public API, and the critical
 subsystems — lifecycle/init, shutdown, persistence, transport/channel, HTTP, config, globals, health. For
@@ -174,9 +211,13 @@ of a rule is one interpretation of it — trusting that interpretation would qui
 opinions for the architecture's. Whether to adopt a linter is a human's decision, made after reading an
 audit, not an input to producing one.
 
-For each family, cite `file:line` and tag *earns-its-keep* vs *overkill*. The first two and the last
-two carry the verdict — they are capability slicing, placement/naming, and thin composition, the
-dimensions the conformance answer rests on. Do not treat them as warm-up:
+For each family, cite `file:line` and tag *earns-its-keep* vs *overkill*. The order below is a priority
+order **over the production baseline**, which is the layer most projects adopt and where most of these
+families live; for a project that adopted it, the first two and the last two carry the verdict — capability
+slicing, placement/naming, and thin composition — so do not treat them as warm-up. For a project that did
+not, they are observations (boundary rule 5) and the walk is short: the kernel's own families are
+`[MODEL-1]`, `[BOUND-2]`, `[XCUT-1]`, `[COMPOSE-1]`, `[TEST-1]` and the `CORAL.md` record rules, and
+nothing else is in that project's surface:
 - fit: is this a command/request-shaped app the model actually covers, or a dense coupled domain it
   is weak for? does everything converge on one god-slice? — `[SCOPE-*]`
 - capability slicing, placement & role-revealing names: packages named for the capability or concern
@@ -197,13 +238,20 @@ dimensions the conformance answer rests on. Do not treat them as warm-up:
   multi-step workflow becomes its own slice — `[COMPOSE-*]`
 - composition-root thinness & global state — `[ROOT-*]`
 
-**Walk only the families in the project's selected set.** The list above is a priority order over the
-production baseline; if the project has not adopted the baseline, most of it does not apply and the walk
-is short. App-type families (`[WEB-*]`, `[BE-*]`, `[CLI-*]`, `[AGENTIC-*]`, …) are deliberately absent
-from the order: the `adopts` block already says which profiles apply, so a new app type needs no change
-here. Each spine's **Agent Execution Contract** is the complete list of `[auto]`/`[review]` rules for that
+**Walk only the families in the project's selected set, and file findings only against rules in it.**
+App-type families (`[WEB-*]`, `[BE-*]`, `[CLI-*]`, `[AGENTIC-*]`, …) are deliberately absent from the
+order: the `adopts` block already says which profiles apply, so a new app type needs no change here. Each
+document's **Agent Execution Contract** is the complete list of `[auto]`/`[review]` rules for that
 document — use it as the checklist, this list as the order, and the `coral:scope:` markers inside it to
-tell which of its lines the project actually adopted.
+tell which of its lines the project actually adopted. `ARCHITECTURE.md`'s contract is unscoped and short
+because everything in it is kernel; `PRODUCTION.md`'s whole contract sits under one `coral:scope:baseline`
+marker; `SYSTEM.md` marks its baseline and runtime-agent groups separately.
+
+**Do not reconstruct the selected set from the code.** "It has a `utils` package, so `[BUCKET-1]` must
+apply", "it talks to another service, so the `[CHAN-*]` rules apply", "it has an HTTP handler, so audit the
+backend profile" — each of those is the inference `[VER-6]` exists to end. The declaration is the only
+input. If it looks like the project should have adopted more than it did, that is a **recommendation** for
+the report, not a licence to audit against the larger set.
 
 Two families are never findings against a slice, for two different reasons, and neither is the whole
 `[VER-*]` family:
@@ -220,8 +268,14 @@ For base layers especially, also scrutinize: init error handling (panic vs retur
 shutdown (ordering, timeouts, exit codes, in-flight drain), concurrency / global-state safety (data
 races), resource management (pools, leaks, reconnection), observability correctness, and fail-fast config.
 
-Rule definitions live in the Coral docs (`CONVENTIONS.md`, `ARCHITECTURE.md`, `SYSTEM.md`, `appendix/*`
-in the coral-architecture repo / site) — read them if available; otherwise reason from the family names.
+Rule definitions live in the Coral docs (`CONVENTIONS.md`, `ARCHITECTURE.md`, `PRODUCTION.md`,
+`SYSTEM.md`, `appendix/*` in the coral-architecture repo / site) — read them if available; otherwise reason
+from the family names. **`PRODUCTION.md` is where the production baseline's app-scale rules are defined**,
+and for a project that has adopted the baseline that is most of its applicable surface; `ARCHITECTURE.md`
+holds only the kernel's app-scale rules and the governance rules that frame them. That split arrived in
+Coral 0.7.0 — in a release the project's `targets` predates, those same rules are defined in
+`ARCHITECTURE.md` instead. The rule IDs are unchanged either way, so read whichever layout that version
+has; `rules.md` in any release maps every ID to the document defining it.
 
 ### 4. Verify, don't infer
 For every guarantee a finding rests on, read the dependency source to confirm or refute it. Correct or
@@ -238,14 +292,22 @@ Write `CORAL_AUDIT.md` to the **audited repo's root** (private — never publish
 a public/shared site). It is a **heavy diagnostic briefing**, optimized as input to a separate planning
 session; heaviness is intentional — the planner needs full context. Include:
 - The **audited surface**, stated before anything else: the Coral version targeted, the scales declared,
-  and the scopes adopted — the set every finding below is measured against. If the declaration was
-  missing or invalid, this section says so and the report stops at a proposed declaration instead of a
-  verdict.
+  and the scopes adopted — the set every finding below is measured against. Name what is **not** in it as
+  well, in one line, so a reader cannot mistake a short findings list for a clean repository: "the
+  production baseline is not adopted, so `[BUCKET-*]`, `[ERR-*]`, `[STATE-*]`, `[CONC-*]`, `[CONFIG-*]`
+  and `[ROOT-*]` were not audited." If the declaration was missing or invalid, this section says so and the
+  report stops at a proposed declaration instead of a verdict.
 - A **conformance verdict**, led with: *is this a Coral app?* (yes / partly / no) in one paragraph, with
   the structural thesis — what shape the code actually is versus a capability-sliced app.
 - A **conformance findings table**, ranked by distance-from-Coral (note which Coral rule each breaks).
 - Per finding: *what · where (file:line) · which Coral rule it diverges from · why it's a divergence ·
   target state (what the Coral form looks like)*. Be thorough.
+- An **Observations — outside the adopted surface** section, where anything the audit noticed that a
+  *non-adopted* layer would have flagged is recorded: what it is, where, and which rule would bite if the
+  layer were adopted. This is the section that makes "should we adopt the production baseline?" a decision
+  with evidence behind it. It is explicitly **not** findings — do not rank it with them, do not let it
+  reach the verdict, and do not word it as a violation. Omit the section entirely when the project has
+  adopted everything relevant.
 - A **"what conforms (keep)"** section — credibility requires acknowledging what is already Coral
   (including what it gets for free from a Coral-aligned framework versus what the repo earned itself).
 - A **Flags — confirm intent & document** section: consequential, non-obvious behavioral/contract choices
@@ -278,12 +340,19 @@ session; heaviness is intentional — the planner needs full context. Include:
 - Treat an inferred adoption set as normative — including one a human agrees with in the session. A
   proposed surface can carry a clearly labelled hypothetical assessment; only a declaration recorded in
   `CORAL.md` can carry a conformance verdict.
-- File a finding against a rule outside the project's selected set.
+- File a finding against a rule outside the project's selected set — including the ones it is most
+  tempting to treat as universal: a `utils`/`services`/`helpers` bucket, a technical-role package name, a
+  fat composition root, a shared repository layer, an ad-hoc error shape, an ambient config read. Every one
+  of those is **production baseline**, and a project that has not adopted that layer does not owe them.
+  Record them as observations instead.
 - Prescribe the migration strategy, sequencing, or task breakdown (that is the planning session's job).
 - Assert a guarantee you did not verify in the dependency source.
 - Lead with a bug (security / correctness / reliability) or let one become the verdict — the verdict is
   Coral conformance; bugs are awareness notes. Never skip the conformance thesis.
-- File a misplaced crosscut or a bucket / meaningless name as a throwaway LOW — those ARE the findings.
+- File a misplaced crosscut or a bucket / meaningless name as a throwaway LOW **where the baseline is
+  adopted** — those ARE the findings for that project.
+- Infer the adopted set from the repository's shape, or widen it because the code "obviously needs" a
+  rule. Recommend the wider declaration; audit the declared one.
 - Rule a behavioral / contract trade-off (delivery semantics, effect ordering) "wrong" when you cannot
   see the reasons — flag it for a human and check for an explanatory comment instead.
 - Publish a candid audit of an internal repo to a public or shared site.

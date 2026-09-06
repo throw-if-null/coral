@@ -1081,12 +1081,30 @@ Four properties follow from it being a union, and all four are load-bearing:
 
 **Selection is not the same as self-containment, and Coral does not yet guarantee the second.** The union
 above decides which rules a project owes. It does not promise that every selected rule is *readable*
-without the layers the project declined: a rule's statement may cite a rule from an unselected layer, and
-the resolver will not notice. There is one such case today — `[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]` cite
-production-baseline rules, so adopting the runtime-agent profile alone yields a contract that refers
-outward ([`SYSTEM.md`](./SYSTEM.md) says so where those rules are defined). The fix is to rewrite those
-statements, which is a versioned rule change; the fix is **not** to make one adoption imply another, which
-would put the applicability model back where `[VER-6]` found it.
+without the layers the project declined: a rule's statement may cite, or silently assume, a rule from an
+unselected layer, and nothing in the resolver notices.
+
+This is not a corner case. **19 of the 72 app-profile and runtime-agent rules depend on the production
+baseline in their own normative statement** — every profile is affected. The dependency takes two forms:
+
+- **an explicit citation** — `[WEB-8]` names `[IDEM-2]` and `[IDEM-4]`, `[BE-3]` names `[XCUT-3]` and
+  `[CONFIG-2]`, `[CLI-4]` and `[BE-2]` name `[CONTRACT-1]`, `[LIB-6]` names `[EFFECT-2]`, `[AGENTIC-7]`
+  names `[STATE-2]` and `[STATE-5]`, `[ORCH-5]` names `[CHAN-1]`;
+- **an assumed concept** — `[BE-5]`, `[WEB-9]`, `[GHA-9]` and `[LIB-8]` say slices "raise **the
+  taxonomy**" and map `category`, but the taxonomy is `[ERR-1]`, a baseline rule. A project that adopts
+  `app-profile: [backend]` and nothing else is told to raise a taxonomy it has not selected a definition
+  for.
+
+The resolver is right and stays as it is: adopting a profile selects no baseline rule, and the tests hold
+it to that. What is missing is a way for a rule to say *I refine `[ERR-1]`* — so that a project selecting
+the refinement either gets what it refines or is told plainly that the pair is incomplete. Coral has no
+such concept today, and inventing one is a **model** change.
+
+Three repairs are possible and none of them belongs in a documentation pass: rewrite the dependent
+statements to stand alone; declare them conditional refinements that apply only when their base rule is
+also selected; or add an explicit dependency relation to the layer model. Each is a **versioned rule
+change** under `[VER-2]`. What is *not* a repair is making one adoption imply another — that puts
+applicability back where `[VER-6]` found it, with a rule binding a project that never declared it.
 
 ### Two worked selections
 

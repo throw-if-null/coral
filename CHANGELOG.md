@@ -591,16 +591,48 @@ guard. `PRODUCTION.md` is also registered as an app-scale spine, so the existing
 guard catches a misplaced rule **definition**; it cannot see optional policy taught in ordinary prose,
 which is why the audit above was done by reading.
 
-**Known limitation, recorded rather than fixed: selection independence is not self-containment.**
-`[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]` cite `[CHAN-1]`, `[CHAN-7]`, `[CHAN-8]`, `[SYS-TEST-1]` and
-`[CONFIG-1]`, all production-baseline rules — `[ORCH-5]`'s own first sentence names `[CHAN-1]`. The
-resolver is correct and unchanged: adopting the runtime-agent profile selects no baseline rule. But the
-resulting contract refers outward to rules the project has not adopted, so a runtime-agent-only system is
-not yet a self-contained rule set. `SYSTEM.md` and `CONVENTIONS.md` now say so, and recommend adopting the
-baseline alongside it. The repair is to rewrite those statements, which is a **versioned rule change** and
-therefore out of scope for a documentation pass; making one adoption imply the other is explicitly not the
-repair. A second, smaller instance: `[TEST-1]`, a kernel rule, cites `[BOUND-1]`, now a baseline `[guide]`
-rule — noted in `ARCHITECTURE.md` at the same time.
+**Known limitation, recorded rather than fixed: selection independence is not self-containment.** The
+resolver is correct and unchanged — adopting a profile selects no production-baseline rule, and the tests
+hold it to that. What the union does not promise is that a selected rule can be *read* without the layers
+the project declined, and an audit of every profile statement found that it frequently cannot.
+
+**19 of the 72 app-profile and runtime-agent rules depend on the production baseline inside their own
+normative statement**, and every profile is affected — backend 4, web 4, CLI 3, library 3, GitHub Action 2,
+runtime-agent 3. Two forms:
+
+- **explicit citation** — `[WEB-8]` names `[IDEM-2]` and `[IDEM-4]`; `[BE-3]` names `[XCUT-3]` and
+  `[CONFIG-2]`; `[CLI-4]` and `[BE-2]` name `[CONTRACT-1]`; `[CLI-10]`, `[CLI-11]` and `[GHA-10]` name
+  `[OBS-2]`/`[OBS-3]`; `[LIB-6]` names `[EFFECT-2]`; `[WEB-1]` names `[BUCKET-1]`; `[AGENTIC-7]` names
+  `[STATE-2]` and `[STATE-5]`; `[ORCH-5]` names `[CHAN-1]`, and `[ORCH-4]`/`[ORCH-6]` reach for
+  `[CONFIG-1]` and `[SYS-TEST-1]` in their commentary.
+- **assumed concept** — `[BE-5]`, `[WEB-9]`, `[GHA-9]` and `[LIB-8]` say slices raise *the taxonomy* and
+  map `category`, but the taxonomy is `[ERR-1]`. A project adopting `app-profile: [backend]` alone is
+  told to raise a taxonomy it has selected no definition of.
+
+So this is a **composition-model gap, not something specific to the runtime-agent profile**: Coral has no
+way for a rule to say *I refine `[ERR-1]`*, so a project selecting a refinement is neither given what it
+refines nor told the pair is incomplete. Three repairs are possible — rewrite the dependent statements to
+stand alone, declare them conditional refinements that apply only when their base rule is also selected,
+or add an explicit dependency relation to the layer model — and each is a **versioned rule or model
+change** under `[VER-2]`, so none belongs in a documentation pass. Making one adoption imply another is
+explicitly **not** a repair: that returns applicability to what `[VER-6]` was written to end.
+`CONVENTIONS.md`'s composition algebra records the gap and the options; `SYSTEM.md` records it where
+`[ORCH-4..6]` are defined and recommends taking the baseline alongside the profile meanwhile.
+
+A related, smaller instance in the other direction: `[TEST-1]`, a kernel rule, cites `[BOUND-1]`, now a
+baseline `[guide]` rule — named in `ARCHITECTURE.md` rather than glossed.
+
+**`.claude/skills/coral-audit` is made adoption-aware in the same pass.** The skill already read `CORAL.md`
+first and refused to audit an undeclared surface, but its front matter and its verdict rule still defined
+conformance as a fixed list — no bucket packages, role-revealing names, named and injected crosscuts, thin
+composition — which are `[BUCKET-*]`, `[MODEL-2]`, `[XCUT-2..3]` and `[ROOT-1]`, all production baseline.
+An audit of a project that deliberately declined that layer would have produced findings against rules it
+never adopted. The verdict is now conformance to the resolved surface: kernel findings always count,
+baseline and profile findings count only where adopted at the relevant scale, and anything a non-adopted
+layer would have flagged is recorded in a new **Observations — outside the adopted surface** section as
+evidence for the adoption decision rather than as a violation. `PRODUCTION.md` is added to the
+authoritative rule-definition documents, with a note that in a release predating this split the same IDs
+are defined in `ARCHITECTURE.md`.
 
 The **exception instruction in the generated contract** is worded to keep `revisit_when` alive. An earlier
 draft said "do not raise it again", which settles an active decision and also tells the agent to ignore the

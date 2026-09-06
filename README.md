@@ -236,10 +236,11 @@ Cloudflare deployment is confirmed good:
 
 1. deploy successfully to Cloudflare
 2. verify <https://coral.appsandtools.work> loads
-3. verify representative pages — `ARCHITECTURE`, `CONVENTIONS`, `SYSTEM`, `rules`, one `appendix/`
-   page, one `examples/` page
+3. verify representative pages — `CONVENTIONS`, `ARCHITECTURE`, `PRODUCTION`, `SYSTEM`, `rules`, one
+   `appendix/` page, one `examples/` page
 4. verify static assets and Mermaid diagrams render
-5. verify anchor links resolve, including rule citations such as `ARCHITECTURE#DUP-2`
+5. verify anchor links resolve, including a cross-page rule citation such as `PRODUCTION#DUP-2` (linked
+   from `ARCHITECTURE`, so it exercises the deep link and the page it lands on)
 6. verify a nonexistent URL returns the VitePress 404 page with a `404` status
 7. only then delete the Azure Static Web App
 8. remove the GitHub repository secret `AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_HILL_09BB08B03`
