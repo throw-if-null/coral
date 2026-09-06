@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "coral",
+  "compatibility_date": "2026-09-06",
+
+  // Static-only deployment. There is no `main` entrypoint and no Worker code:
+  // every request is served by Cloudflare's asset server, not by a Worker
+  // invocation. Do not add `main` or `run_worker_first` without a concrete
+  // reason — both turn this into a billable Worker request path.
+  "assets": {
+    "directory": "./.vitepress/dist",
+
+    // VitePress emits one .html file per page plus a root index.html.
+    // "auto-trailing-slash" serves /ARCHITECTURE from ARCHITECTURE.html and
+    // / from index.html, and 307s the .html and trailing-slash spellings of a
+    // page to that canonical form. VitePress' client router strips .html before
+    // resolving page data, so both spellings hydrate the same page.
+    "html_handling": "auto-trailing-slash",
+
+    // VitePress builds a 404.html; serve it with a 404 status on no match.
+    "not_found_handling": "404-page"
+  },
+
+  // Production traffic is served only on the custom domain. Cloudflare creates
+  // and manages the DNS record and certificate for this hostname; the zone
+  // appsandtools.work must already be on this Cloudflare account.
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "coral.appsandtools.work",
+      "custom_domain": true
+    }
+  ],
+
+  // Preview URLs stay on for branch/PR builds even though workers_dev is off.
+  "preview_urls": true
+}

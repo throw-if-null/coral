@@ -7,7 +7,7 @@ across a `handlers/`, a `services/` and a `repositories/` directory. Shared code
 named and passed in. The same shape applies to a CLI, a backend, a web app, a library, or a tool, and it
 composes from a single capability up to a whole system.
 
-**📖 Live docs:** https://gray-hill-09bb08b03.7.azurestaticapps.net — the guided version, with a worked
+**📖 Live docs:** https://coral.appsandtools.work — the guided version, with a worked
 directory layout, the five kinds of code, and where the architecture does not fit.
 
 Coral is a poor fit for dense domains where every feature reaches into one central concept — a tax engine,
@@ -113,7 +113,60 @@ npm run docs:preview  # serve the built site
 
 ## Deployment
 
-Pushing to `main` triggers the Azure Static Web Apps workflow
-(`.github/workflows/azure-static-web-apps-*.yml`), which builds with `npm run build` and publishes
-`.vitepress/dist`.
+The site is hosted on **Cloudflare Workers Static Assets** at
+[coral.appsandtools.work](https://coral.appsandtools.work). It is static only: `wrangler.jsonc`
+declares no `main` entrypoint and no `run_worker_first`, so every request is served by Cloudflare's
+asset server rather than by a Worker invocation. That keeps the site inside the Free plan and adds no
+KV, R2, D1, or Durable Objects.
+
+Deployment runs through **Cloudflare Workers Builds** (Cloudflare's own GitHub integration), not
+through GitHub Actions. Pushing to `main` triggers a build that runs `npm run build` — the full
+pipeline, including the version, rule, and anchor checks — and then `npx wrangler deploy`, which
+publishes `.vitepress/dist`. Because Cloudflare authenticates the repository through the GitHub
+App, **no Cloudflare API token or account ID belongs in this repository**.
+
+`.node-version` pins the Node major used by both local and Cloudflare builds, so a change to
+Cloudflare's default Node version cannot silently change the build.
+
+### One-time Cloudflare setup
+
+Do this once, in the Cloudflare dashboard, after this change is merged.
+
+**Workers Builds** — Workers & Pages → `coral` → Settings → Build:
+
+| Setting | Value |
+| --- | --- |
+| Repository | `throw-if-null/coral` |
+| Production branch | `main` |
+| Build command | `npm run build` |
+| Deploy command | `npx wrangler deploy` |
+| Non-production branch builds | enabled (gives every branch and PR a preview URL) |
+
+Preview builds use Cloudflare's own preview deployment mechanism; `preview_urls` is set to `true` in
+`wrangler.jsonc` so branch builds get a versioned preview URL even though `workers_dev` is off. The
+account needs a `workers.dev` subdomain for those preview URLs to resolve.
+
+**Custom domain** — Workers & Pages → `coral` → Settings → Domains & Routes:
+
+- add `coral.appsandtools.work` as a **custom domain** (not a route)
+- `appsandtools.work` must already be a zone on the same Cloudflare account
+- Cloudflare then creates and manages the DNS record and the TLS certificate
+
+`wrangler.jsonc` already declares the custom domain, so `npx wrangler deploy` claims it on the first
+deploy; adding it in the dashboard is only needed if that step is skipped.
+
+### Retiring the Azure Static Web App
+
+The Azure resources are deliberately not touched by code. Delete them by hand, and only after the
+Cloudflare deployment is confirmed good:
+
+1. deploy successfully to Cloudflare
+2. verify <https://coral.appsandtools.work> loads
+3. verify representative pages — `ARCHITECTURE`, `CONVENTIONS`, `SYSTEM`, `rules`, one `appendix/`
+   page, one `examples/` page
+4. verify static assets and Mermaid diagrams render
+5. verify anchor links resolve, including rule citations such as `ARCHITECTURE#DUP-2`
+6. verify a nonexistent URL returns the VitePress 404 page with a `404` status
+7. only then delete the Azure Static Web App
+8. remove the GitHub repository secret `AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_HILL_09BB08B03`
 
