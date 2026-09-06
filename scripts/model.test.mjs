@@ -951,13 +951,13 @@ test('and every kernel rule is stated in one of them', () => {
     const page = REAL.rules.get(id).page
     assert.ok(REAL.core.has(page), `[${id}] is kernel but its defining document ${page} is not core`)
   }
-  // and the registry holds no document that is neither: every core document earns its row.
-  for (const page of REAL.core.keys()) {
-    assert.ok(
-      [...REAL.rules.values()].some((r) => r.page === page),
-      `${page} is declared core but defines no rule`
-    )
-  }
+  // Deliberately NOT asserted: that every core document defines a rule. "Core" means a project
+  // reads it before adopting anything, and a page could earn that by holding vocabulary,
+  // framing or loading instructions and no rule at all — the registry's own `Defines` column
+  // allows exactly that. Requiring a rule would turn "a new core document is one registry row"
+  // into "one registry row, plus a rule to put in it", which is a constraint the model does not
+  // have. parseCoreDocuments() already refuses a row naming a document that cannot define rules,
+  // which is the real integrity check.
 })
 
 test('the app-scale production baseline lives outside the core documents', () => {

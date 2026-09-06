@@ -62,9 +62,11 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
      and the five categories (`[MODEL-1]`), one trigger owned end to end (`[BOUND-2]`), promotion to a
      crosscut gated on a must-not-diverge invariant (`[XCUT-1]`), consuming another slice only through its
      published capability (`[COMPOSE-1]`), behavior-first tests at the entry point (`[TEST-1]`). Against
-     **`CORAL.md`**: `[VER-3]`, `[VER-5]`, `[VER-6]`. Against **how architectural decisions were made**:
-     `[AGENT-2]` (ambiguity flagged, not guessed) and `[AGENT-4]` (a human authors every exception and
-     extension). Take the membership from `CONVENTIONS.md`'s kernel block, which is its single source.
+     **`CORAL.md`**: `[VER-3]`, `[VER-5]`, `[VER-6]`. Against **provenance** — commit authorship, review,
+     session history, not the final state of the code: `[AGENT-2]` (ambiguity flagged, not guessed) and
+     `[AGENT-4]` (a human authors every exception and extension); where that evidence is unavailable these
+     two are *not verifiable* rather than passed or failed. Take the membership from `CONVENTIONS.md`'s
+     kernel block, which is its single source.
    - **production baseline** — counts only where `production-baseline` is adopted, and only at the scales
      declared. This is where **no bucket packages** (`[BUCKET-*]`), **role-revealing package names**
      (`[MODEL-2]`), **precisely named and injected crosscuts** (`[XCUT-2]`, `[XCUT-3]`), **thin
@@ -238,12 +240,34 @@ audited against, in full:**
   path-scoped), `[VER-6]` (what it adopts is declared).
 - against the **way architectural decisions were made** — `[AGENT-2]` (an ambiguous architectural decision
   is flagged for a human rather than guessed) and `[AGENT-4]` (only a human authors an exception or an
-  extension). These are kernel and they do bind, but what they bind is process and record: audit them by
-  asking whether ambiguity was escalated and whether the `CORAL.md` entries look human-authored, not by
-  grepping a slice.
+  extension). These bind **process**, not source, and they are the two kernel rules a repository audit
+  usually cannot decide — see below.
 
 Ten rules, which is the whole kernel. Read the kernel block in `CONVENTIONS.md` for the current
 membership rather than trusting this list — it is the single source, and this is a reading aid.
+
+**Applicable is not the same as auditable, and `[AGENT-2]` / `[AGENT-4]` are where the two come apart.**
+Both bind every Coral project. Neither is decidable from the final state of a repository, and inferring
+them from it breaks boundary rule 3 (*verify; do not infer*):
+
+- **`[AGENT-4]`** — "an agent never authors an exception or an extension." Whether a `CORAL.md` entry
+  *reads* as human-written is not evidence of who wrote it: an agent writes fluent prose and a human
+  writes terse mechanical prose. Only **provenance** decides it — commit authorship and trailers, PR
+  review, session history. Evidence that an agent authored or committed an entry supports a finding;
+  evidence of human authorship or review supports compliance; the entry's existence and its style
+  establish neither.
+- **`[AGENT-2]`** — "flag an ambiguous architectural decision rather than guessing." A missing `REVIEW:`
+  marker does not show that an ambiguity existed, that an agent resolved it, or that it was not escalated
+  in a PR, a review thread or a session and settled there. An **unresolved** `REVIEW:`/`FLAG:` marker is
+  inspectable and can support a finding; so can history showing an agent choosing through an ambiguity it
+  had itself acknowledged.
+
+So: audit these two **only where repository, history or session evidence establishes how the decision was
+made**. Never infer authorship or escalation from prose style, from the absence of a marker, or from the
+shape of the final code. Where that evidence is unavailable — the usual case for an outside audit of an
+existing repository — say so: report them as **not verifiable from the available evidence**, which is
+neither a finding nor an assumed pass. An audit that quietly passes a rule it could not check is making
+the same unverified claim as one that quietly fails it.
 
 The order below is the baseline's:
 - fit: is this a command/request-shaped app the model actually covers, or a dense coupled domain it
@@ -287,12 +311,14 @@ Two families are never findings against a slice, for two different reasons, and 
 - **framework governance** — `[VER-1]`, `[VER-2]`, `[VER-4]`, `[AGENT-1]`, `[AGENT-3]`, `[AGENT-5]`. These
   bind the project's *decisions about Coral*, not its code, and are not adoptable into an application
   conformance surface at all.
-- **the kernel's record and process rules** — `[VER-3]`, `[VER-5]`, `[VER-6]`, `[AGENT-2]`, `[AGENT-4]`.
-  These are kernel rules and *do* bind every Coral project unconditionally, but what they bind is
-  `CORAL.md` and the decisions around it: does it declare a target, are its exceptions and extensions
-  machine-readable and path-scoped, does it declare what it adopts, was an ambiguous architectural call
-  escalated rather than guessed, was each recorded deviation authored by a human. Check them against that
-  file and against the decision trail, never against a slice.
+- **the kernel's record rules** — `[VER-3]`, `[VER-5]`, `[VER-6]`. These are kernel rules and *do* bind
+  every Coral project unconditionally, but what they bind is `CORAL.md` itself: does it declare a target,
+  are its exceptions and extensions machine-readable and path-scoped, does it declare what it adopts.
+  Check them against that file, never against a slice — and they *are* decidable from it.
+- **the kernel's process rules** — `[AGENT-2]` and `[AGENT-4]`. Equally binding, and decidable only from
+  **provenance**: commit authorship, PR review, session history, an unresolved `REVIEW:` marker. Audit
+  them where that evidence exists and report them as not verifiable where it does not (above). Never
+  reconstruct them from prose style or from the final shape of the code.
 
 For base layers especially, also scrutinize: init error handling (panic vs return; partial-init), graceful
 shutdown (ordering, timeouts, exit codes, in-flight drain), concurrency / global-state safety (data
@@ -325,8 +351,11 @@ session; heaviness is intentional — the planner needs full context. Include:
   and the scopes adopted — the set every finding below is measured against. Name what is **not** in it as
   well, in one line, so a reader cannot mistake a short findings list for a clean repository: "the
   production baseline is not adopted, so `[BUCKET-*]`, `[ERR-*]`, `[STATE-*]`, `[CONC-*]`, `[CONFIG-*]`
-  and `[ROOT-*]` were not audited." If the declaration was missing or invalid, this section says so and the
-  report stops at a proposed declaration instead of a verdict.
+  and `[ROOT-*]` were not audited." Name any **applicable rule you could not verify** here too, with the
+  evidence that was missing — `[AGENT-2]` and `[AGENT-4]` normally land here, because provenance is rarely
+  available to an outside audit. A rule reported as unverified is neither a finding nor a pass, and saying
+  which ones they are is what keeps a clean verdict honest. If the declaration was missing or invalid, this
+  section says so and the report stops at a proposed declaration instead of a verdict.
 - A **conformance verdict**, led with: *is this a Coral app?* (yes / partly / no) in one paragraph, with
   the structural thesis — what shape the code actually is versus a capability-sliced app.
 - A **conformance findings table**, ranked by distance-from-Coral (note which Coral rule each breaks).
@@ -383,6 +412,9 @@ session; heaviness is intentional — the planner needs full context. Include:
   adopted** — those ARE the findings for that project.
 - Infer the adopted set from the repository's shape, or widen it because the code "obviously needs" a
   rule. Recommend the wider declaration; audit the declared one.
+- Decide `[AGENT-2]` or `[AGENT-4]` from prose style, from a missing `REVIEW:` marker, or from the final
+  shape of the code. They are decidable only from provenance; without it, report them as not verifiable —
+  neither a finding nor a pass.
 - Rule a behavioral / contract trade-off (delivery semantics, effect ordering) "wrong" when you cannot
   see the reasons — flag it for a human and check for an explanatory comment instead.
 - Publish a candid audit of an internal repo to a public or shared site.

@@ -599,8 +599,10 @@ disabling protection for the exact document PO-06 exists to protect. The reverse
 kernel block, already the single source of membership, so it introduces no second document list; the pair
 is what makes the registry's claim — *a reader of these documents has met the whole unconditional
 surface* — a checked invariant rather than an assertion. Both directions have synthetic coverage, and the
-repository tier now asserts that all ten kernel rules are defined in a core document and that every core
-document defines at least one rule.
+repository tier now asserts that all ten kernel rules are defined in a core document. It deliberately does
+not require a core document to define a rule: "core" means a project reads it before adopting anything, and
+a page could earn that by holding vocabulary or framing alone, so requiring one would turn "a new core
+document is one registry row" into a constraint the model does not have.
 
 **Known limitation, recorded rather than fixed: selection independence is not self-containment.** The
 resolver is correct and unchanged — adopting a profile selects no production-baseline rule, and the tests
@@ -643,7 +645,14 @@ baseline and profile findings count only where adopted at the relevant scale, an
 layer would have flagged is recorded in a new **Observations — outside the adopted surface** section as
 evidence for the adoption decision rather than as a violation. `PRODUCTION.md` is added to the
 authoritative rule-definition documents, with a note that in a release predating this split the same IDs
-are defined in `ARCHITECTURE.md`. Its judge/flag/note rule is made conditional on applicability too:
+are defined in `ARCHITECTURE.md`. It also separates a rule being **applicable** from a rule being
+**auditable**: `[AGENT-2]` and `[AGENT-4]` are kernel and bind every project, but neither is decidable
+from a repository's final state — an entry that reads as human-written is not evidence of who wrote it,
+and a missing `REVIEW:` marker is not evidence that no ambiguity was escalated. The skill now audits them
+only where provenance (commit authorship, review, session history, an unresolved marker) establishes how
+the decision was made, and reports them as *not verifiable* otherwise — neither a finding nor an assumed
+pass, named in the report's audited-surface section beside the layers that were not adopted. Its
+judge/flag/note rule is made conditional on applicability too:
 structure, naming and placement are judged where a rule in the *selected* surface decides them, and
 observed rather than convicted where the deciding rule belongs to a layer the project declined — the same
 model as the verdict rule, since most structural answers (`[MODEL-2]`, `[BUCKET-1]`, `[ROOT-1]`,
