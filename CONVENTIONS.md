@@ -310,14 +310,15 @@ rather than of software in general:
 - **Context-window economy** — one slice owns the complete behavior specific to its trigger, and what it
   needs from outside itself is explicit: a shared concern promoted to a crosscut (`[XCUT-1]`), or another
   slice's published capability (`[COMPOSE-1]`). The set an agent must load to be correct is therefore
-  bounded and knowable, rather than discovered halfway through. (The production baseline goes further and
-  puts that set in one *place*; the kernel asks that it be owned and explicit.)
+  bounded and knowable, rather than discovered halfway through. (The production baseline goes further by
+  physically colocating the behavior the slice owns and prescribing how the surrounding packages and
+  directories are organized; dependencies outside the slice stay outside it, and stay explicit.)
 - **Bounded blast radius** — behavior specific to one trigger changes in the slice that owns it, so the
   reviewer's audit surface is bounded and the diff stays legible. A change to a shared concern or a
   published contract is legitimately wider; what the kernel prevents is *unbounded*, where a trigger's
   behavior turns out to have been scattered.
 - **Deterministic architectural placement** — "where does this go?" collapses to "which of the five roles
-  owns it?" (`[MODEL-1]`), a finite question with a knowable answer rather than an open-ended one. Fewer
+  is it?" (`[MODEL-1]`), a finite question with a knowable answer rather than an open-ended one. Fewer
   degrees of freedom means fewer wrong guesses. *How* that role then maps onto packages and directories
   is production-baseline policy, not part of this property.
 - **Self-verification** — a slice exposes an observable contract the agent can assert against by running
@@ -659,7 +660,7 @@ rule can be tested against, plus drift — the failure the vocabulary already na
 |---|---|---|
 | **locality** | one slice is the clear owner of a trigger's behavior | context-window economy |
 | **bounded context** | what an agent must load in order to be correct is finite and knowable | context-window economy |
-| **deterministic placement** | "which of the five roles owns this?" has one answer | deterministic architectural placement |
+| **deterministic placement** | "which of the five roles is this?" has one answer | deterministic architectural placement |
 | **reviewability** | the architectural decision is visible in the diff a human reads | bounded blast radius |
 | **self-verification** | the agent can close its own loop by running the thing | self-verification |
 | **drift prevention** | copies of one concern cannot silently diverge | drift (`[XCUT-4]`) |
