@@ -128,9 +128,12 @@ function fixture(overrides = {}) {
     extra = {},
   } = overrides
   return {
-    // The model carries a version identity, so a fixture tree needs one — without it the
-    // model cannot say which Coral it is, and nothing can be resolved against it.
+    // The model carries a version identity, so a fixture tree states one. Both halves are
+    // required: `VERSION` is the release, and the changelog's Unreleased heading says whether
+    // the tree still describes it. A bare heading asserts that it does — an ABSENT heading is
+    // a missing statement, and the model refuses it rather than assuming.
     VERSION: '9.9.9\n',
+    'CHANGELOG.md': '# Changelog\n\n## Unreleased\n',
     [PROFILES_FILE]: conventions({ layers, scales, profiles, kernel, defs: conventionDefs }),
     'ARCHITECTURE.md': ['# App', '', ...spine, ''].join('\n'),
     'appendix/widget.md': [
@@ -657,13 +660,61 @@ test('the model identifies itself as the version its documents describe, not the
 })
 
 test('a tree that cannot say which Coral it is does not come back classified', () => {
-  const m = inTree({ ...fixture(), VERSION: 'main\n' }, loadRuleModel)
-  assert.ok(
-    m.problems.some((p) => /is not a three-part version/.test(p)),
-    m.problems.join('\n')
-  )
-  assert.equal(m.classified, false)
-  assert.equal(m.version, null)
+  // Every way the identity can go missing, and none of them may resolve to a version. The
+  // dangerous one is the silent kind: a tree still holding unreleased rules while claiming
+  // the release before them lets a record targeting that release resolve against rules that
+  // were never in it — which is the whole failure the identity exists to prevent, arriving
+  // through a deleted file rather than through a bad comparison.
+  const cases = [
+    ['a malformed VERSION', { VERSION: 'main\n' }, /is not a three-part version/],
+    ['no VERSION at all', { VERSION: null }, /VERSION is missing/],
+    ['no CHANGELOG at all', { 'CHANGELOG.md': null }, /CHANGELOG\.md is missing/],
+    [
+      'a changelog with no Unreleased heading',
+      { 'CHANGELOG.md': '# Changelog\n\n## 9.9.9 — 2026-01-01\n' },
+      /has no `## Unreleased` heading/,
+    ],
+    [
+      'two Unreleased headings',
+      { 'CHANGELOG.md': '# Changelog\n\n## Unreleased\n\n## Unreleased — 9.9.10\n' },
+      /has 2 Unreleased headings/,
+    ],
+    [
+      'an Unreleased heading naming a version at or below the release',
+      { 'CHANGELOG.md': '# Changelog\n\n## Unreleased — 9.9.9\n' },
+      /is not above the released 9\.9\.9/,
+    ],
+  ]
+  for (const [what, overrides, expected] of cases) {
+    const tree = { ...fixture() }
+    for (const [rel, text] of Object.entries(overrides)) {
+      if (text === null) delete tree[rel]
+      else tree[rel] = text
+    }
+    const m = inTree(tree, loadRuleModel)
+    assert.ok(m.problems.some((p) => expected.test(p)), `${what}: ${m.problems.join('\n')}`)
+    assert.equal(m.version, null, `${what} still produced a version`)
+    assert.equal(m.classified, false, `${what} still came back classified`)
+  }
+})
+
+test('a bare `## Unreleased` is a statement, and the tree is the released version', () => {
+  // The one case that legitimately resolves to `working === released`: somebody wrote the
+  // heading and named no successor, which is the same claim a [VER-2] patch makes.
+  const m = cleanModel()
+  assert.equal(m.version, '9.9.9')
+  const { released, working, unreleased } = inTree(fixture(), coralVersion)
+  assert.equal(released, '9.9.9')
+  assert.equal(working, '9.9.9')
+  assert.equal(unreleased, false)
+})
+
+test('a named `## Unreleased — x.y.z` makes the tree its successor', () => {
+  const tree = { ...fixture(), 'CHANGELOG.md': '# Changelog\n\n## Unreleased — 9.10.0\n' }
+  const m = inTree(tree, loadRuleModel)
+  assert.deepEqual(m.problems, [])
+  assert.equal(m.version, '9.10.0')
+  assert.equal(inTree(tree, coralVersion).unreleased, true)
 })
 
 test('every published scale keeps its stable machine identity', () => {

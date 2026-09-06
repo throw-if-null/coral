@@ -24,6 +24,14 @@
 // documents in this tree are the 0.7.0 rule set. A bare `## Unreleased` says the
 // batch changes no rule and the tree still describes the released version — the
 // same claim as a `[VER-2]` patch, written where patch-level is decided.
+//
+// Both are STATEMENTS, and the difference between them and a missing statement is the
+// whole of this file's fail-closed posture. A bare heading is an assertion someone made;
+// no heading, or no changelog at all, is an absence — and reading an absence as
+// "working == released" recreates the exact bug this identity exists to prevent, one
+// deleted file later: the tree still holds unreleased rules, but now claims to be the
+// release before them, and a record targeting that release resolves against rules that
+// were never in it. So both are refused, and the model does not come back `classified`.
 // ─────────────────────────────────────────────────────────────────────────────
 import fs from 'node:fs'
 import path from 'node:path'
@@ -76,7 +84,13 @@ export function coralVersion(srcDir) {
 
   const changelog = path.join(srcDir, CHANGELOG_FILE)
   if (!fs.existsSync(changelog)) {
-    return { released, working: released, unreleased: false, problems }
+    problems.push(
+      `${CHANGELOG_FILE} is missing, so nothing says whether this tree still describes the` +
+        ` released ${released} or a successor to it. That is not a reason to assume the former:` +
+        ' a tree holding unreleased rules while claiming the release before them is how a project' +
+        ' gets audited against rules its target predates.'
+    )
+    return { released, working: null, unreleased: false, problems }
   }
   const headings = [...fs.readFileSync(changelog, 'utf8').matchAll(UNRELEASED_RE)]
   if (headings.length > 1) {
@@ -86,7 +100,19 @@ export function coralVersion(srcDir) {
     )
     return { released, working: null, unreleased: false, problems }
   }
-  const named = headings[0]?.[1]
+  if (!headings.length) {
+    problems.push(
+      `${CHANGELOG_FILE} has no \`## Unreleased\` heading, so this tree does not say which rule set` +
+        ` it is. Write a bare \`## Unreleased\` to assert it is still ${released}, or` +
+        ' `## Unreleased — x.y.z` to name the successor it would ship as. An absent heading is a' +
+        ' missing statement, not a claim that nothing has changed.'
+    )
+    return { released, working: null, unreleased: false, problems }
+  }
+  // A BARE heading, on the other hand, is a statement: the batch changes no rule and the tree
+  // still describes the release. That is the same claim a `[VER-2]` patch makes, made where
+  // patch-level is decided.
+  const named = headings[0][1]
   if (!named) return { released, working: released, unreleased: false, problems }
 
   if (compareVersions(named, released) <= 0) {

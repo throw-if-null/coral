@@ -391,34 +391,62 @@ export function parseAdherenceRecord(text, version) {
 // ─────────────────────────────────────────────────────────────────────────────
 const GLOB_CHARS = /[*?[\]{}]/
 
-/** Trailing slashes and a leading `./` removed, so one directory has one spelling. */
-const normalizePath = (p) => p.replace(/^\.\//, '').replace(/\/+$/, '')
+// The whole repository, written the one way. `.` and `./` mean it; an empty path does not —
+// see pathProblem(), where a missing path stays a missing decision rather than becoming this.
+export const ROOT_PATH = '.'
+
+/** One directory, one spelling: no leading `./`, no trailing slash, root always `.`. */
+const normalizePath = (p) => {
+  const trimmed = String(p).trim().replace(/^\.\/+/, '').replace(/\/+$/, '')
+  return trimmed === '' || trimmed === ROOT_PATH ? ROOT_PATH : trimmed
+}
 
 /**
  * Why `p` is not a usable entry path, or null if it is one.
  *
+ * The repository root is the one thing the two record types disagree about, and the reason is
+ * what each of them does with it.
+ *
+ * An **exception** at the root declines a Coral rule everywhere. That is not a decision about
+ * a place, it is a decision about the rule — and Coral has a name for it: an amendment,
+ * filed upstream, so that the defect is fixed for everyone rather than carried forever as a
+ * per-project carve-out. `[VER-5]` already says as much in prose.
+ *
+ * An **extension** at the root adds a rule Coral does not have, everywhere in this project.
+ * That is an ordinary thing for a project to need — every outbound request carries our trace
+ * header; every capability publishes our metadata descriptor — and Coral has no claim on it
+ * whatsoever. Refusing it would leave a project inventing artificial subdirectories, or
+ * filing an amendment for a rule Coral should never adopt. So it is allowed, and written
+ * explicitly as `path: "."`.
+ *
+ * @param {unknown} p
+ * @param {{allowRoot?: boolean}} [options] whether the repository root is a legal scope
  * @returns {string|null}
  */
-export function pathProblem(p) {
+export function pathProblem(p, { allowRoot = false } = {}) {
   if (typeof p !== 'string' || !p.trim()) {
     return 'names no path. Both record types are scoped to a path ([VER-5]): an entry with no path' +
-      ' excuses a habit rather than a place.'
+      ' excuses a habit rather than a place. Silence is not the same decision as `path: "."`,' +
+      ' and it is not read as one.'
   }
   const raw = p.trim()
   if (GLOB_CHARS.test(raw)) {
     return `names the path \`${raw}\`, which is a pattern rather than a place. A path is a` +
       ' repo-relative directory and matches that directory and everything under it; patterns' +
-      ' would need a precedence between overlapping entries, and there is deliberately none.'
+      ' would need a precedence between overlapping entries, and there is deliberately none.' +
+      ' For the whole repository, where that is allowed, write `path: "."`.'
   }
   if (raw.startsWith('/') || /^[A-Za-z]:/.test(raw) || raw.includes('\\')) {
     return `names the path \`${raw}\`, which is not repo-relative. A path is resolved against the` +
       ' repository root so the record means the same thing on every machine.'
   }
   const norm = normalizePath(raw)
-  if (!norm || norm === '.') {
-    return 'scopes to the whole repository. That is not an exception or a local extension, it is a' +
-      ' statement about the rule itself — file an amendment (CONVENTIONS.md, "Three kinds of' +
-      ' divergence") instead.'
+  if (norm === ROOT_PATH) {
+    if (allowRoot) return null
+    return 'scopes to the whole repository. Declining a Coral rule everywhere is not a decision' +
+      ' about a place, it is a decision about the rule — file an amendment (CONVENTIONS.md,' +
+      ' "Three kinds of divergence") so it is fixed for everyone, rather than carrying the' +
+      ' carve-out forever. (A project rule of your own may scope to `.`; a Coral one may not.)'
   }
   if (norm.split('/').some((seg) => !seg || seg === '.' || seg === '..')) {
     return `names the path \`${raw}\`, which walks outside or through itself. Write the subtree` +
@@ -433,10 +461,13 @@ export function pathProblem(p) {
  * Subtree containment, on path segments. `internal/billing` covers `internal/billing` and
  * `internal/billing/invoice.go`, and does not cover `internal/billing-archive` — a prefix
  * test on the raw string would, which is how a scoped decision silently widens.
+ *
+ * The root covers everything, which is the point of allowing it for an extension.
  */
 export function pathApplies(scope, target) {
-  const a = normalizePath(String(scope).trim())
-  const b = normalizePath(String(target).trim())
+  const a = normalizePath(scope)
+  if (a === ROOT_PATH) return true
+  const b = normalizePath(target)
   return b === a || b.startsWith(`${a}/`)
 }
 
@@ -681,12 +712,13 @@ export function resolveApplicability(declaration, model) {
       )
       return
     }
+    // No `allowRoot`: a Coral rule declined everywhere is an amendment, not an exception.
     const bad = pathProblem(entry.path)
     if (bad) {
       problems.push(`${at} ${bad}`)
       return
     }
-    exceptions.push({ ...entry, rule: id, path: normalizePath(entry.path.trim()) })
+    exceptions.push({ ...entry, rule: id, path: normalizePath(entry.path) })
   })
 
   declaration.extensions.forEach((entry, i) => {
@@ -726,12 +758,36 @@ export function resolveApplicability(declaration, model) {
       problems.push(`${at} states no rule. An extension records the rule itself, stated as a rule.`)
       return
     }
-    const bad = pathProblem(entry.path)
+    // One ID, one definition — the property that makes a project citation mean something.
+    //
+    // An extension entry does not merely SELECT a rule the way an exception selects a Coral
+    // one; it *defines* the rule. Two entries under one ID are therefore two different rules
+    // answering to one citation, and effectiveRulesAt() reduces both to the string `ACME-1`
+    // with no way to say which was meant. At a path both entries cover, "the complete rule set
+    // is derivable deterministically" simply stops being true.
+    //
+    // Rejected regardless of path, and deliberately so: differing paths are the case that looks
+    // most reasonable and is exactly as ambiguous, because the two definitions overlap wherever
+    // one path contains the other. A project rule that genuinely covers several disjoint
+    // subtrees needs a schema that says so; until one exists, give the rules separate IDs.
+    const already = extensions.find((e) => e.rule === id)
+    if (already) {
+      problems.push(
+        `${at} declares \`${id}\` a second time (already defined for \`${already.path}\`). An` +
+          ' extension DEFINES a project rule, so two entries under one ID are two rules answering' +
+          ' to one citation — and a finding citing it would name neither. Give them separate IDs,' +
+          ' or state one rule once at a path that covers both places.'
+      )
+      return
+    }
+    // `allowRoot`: a project rule of the project's own may legitimately bind the whole
+    // repository, and Coral has no claim on it either way.
+    const bad = pathProblem(entry.path, { allowRoot: true })
     if (bad) {
       problems.push(`${at} ${bad}`)
       return
     }
-    extensions.push({ ...entry, rule: id, path: normalizePath(entry.path.trim()) })
+    extensions.push({ ...entry, rule: id, path: normalizePath(entry.path) })
   })
 
   return problems.length ? invalid() : valid()

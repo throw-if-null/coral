@@ -141,8 +141,11 @@ function fixture(overrides = {}) {
   const { layers, scales, profiles, version = FIXTURE_VERSION, extra = {} } = overrides
   return {
     // The version identity of the fixture's rule model. Records are resolved against it, so
-    // a test can build a model for a DIFFERENT release simply by naming one.
+    // a test can build a model for a DIFFERENT release simply by naming one. The bare
+    // Unreleased heading is the other half: it asserts the tree still describes that release
+    // rather than a successor, which the model requires to be stated rather than assumed.
     VERSION: `${version}\n`,
+    'CHANGELOG.md': '# Changelog\n\n## Unreleased\n',
     'CONVENTIONS.md': conventions({ layers, scales, profiles }),
     'ARCHITECTURE.md': [
       '# Unit',
@@ -712,6 +715,84 @@ test('an extension that states no rule is rejected', () => {
   )
 })
 
+test('a project rule ID may be defined only once, whatever the paths', () => {
+  // An extension DEFINES its rule, so two entries under one ID are two rules answering to one
+  // citation — and at a path both cover, `ACME-1` names neither of them.
+  const sameStatement = invalid(
+    resolve(
+      withEntries({
+        extensions: [
+          extension({ rule: 'ACME-1', path: 'internal', statement: 'every request logs the tenant' }),
+          extension({ rule: 'ACME-1', path: 'internal/billing', statement: 'invoices use decimals' }),
+        ],
+      })
+    )
+  )
+  assert.ok(
+    sameStatement.problems.some((p) => /declares `ACME-1` a second time/.test(p)),
+    sameStatement.problems.join('\n')
+  )
+  // …and identically when only the statement differs, at one path
+  const samePath = invalid(
+    resolve(
+      withEntries({
+        extensions: [
+          extension({ rule: 'ACME-1', statement: 'one thing' }),
+          extension({ rule: 'ACME-1', statement: 'a different thing' }),
+        ],
+      })
+    )
+  )
+  assert.ok(samePath.problems.some((p) => /declares `ACME-1` a second time/.test(p)))
+})
+
+test('two different project rule IDs are fine, in either order', () => {
+  const forward = clean(
+    resolve(
+      withEntries({
+        extensions: [
+          extension({ rule: 'ACME-1', path: 'internal/billing' }),
+          extension({ rule: 'ACME-2', path: 'internal/shipping' }),
+        ],
+      })
+    )
+  )
+  const reversed = clean(
+    resolve(
+      withEntries({
+        extensions: [
+          extension({ rule: 'ACME-2', path: 'internal/shipping' }),
+          extension({ rule: 'ACME-1', path: 'internal/billing' }),
+        ],
+      })
+    )
+  )
+  const at = (r, p) => effectiveRulesAt(r, p).extensions
+  assert.deepEqual(at(forward, 'internal/billing/x.go'), ['ACME-1'])
+  assert.deepEqual(at(forward, 'internal/shipping/y.go'), ['ACME-2'])
+  assert.deepEqual(at(forward, 'internal/billing/x.go'), at(reversed, 'internal/billing/x.go'))
+  assert.deepEqual(at(forward, 'internal/shipping/y.go'), at(reversed, 'internal/shipping/y.go'))
+})
+
+test('two exceptions may name one Coral rule in two subtrees — the ID is already canonical', () => {
+  // The asymmetry with extensions, stated as a test: an exception SELECTS a rule Coral has
+  // already defined, so two of them are two decisions about two places, not two definitions.
+  const r = clean(
+    resolve(
+      withEntries({
+        exceptions: [
+          { rule: 'BASE-1', path: 'internal/billing', reason: 'in flight' },
+          { rule: 'BASE-1', path: 'internal/legacy', reason: 'pending rewrite' },
+        ],
+      })
+    )
+  )
+  assert.equal(r.exceptions.length, 2)
+  assert.deepEqual(effectiveRulesAt(r, 'internal/billing/x.go').suppressed, ['BASE-1'])
+  assert.deepEqual(effectiveRulesAt(r, 'internal/legacy/y.go').suppressed, ['BASE-1'])
+  assert.deepEqual(effectiveRulesAt(r, 'internal/shipping/z.go').suppressed, [])
+})
+
 test('replacing a Coral rule is two entries, and both of them work', () => {
   // The documented way to diverge: an exception to the Coral rule plus a project rule of
   // the project's own. "Extension" never secretly means "override", so this is what the
@@ -769,11 +850,72 @@ test('an adopted profile cannot suppress a rule from another adopted layer', () 
 // ── paths ────────────────────────────────────────────────────────────────────
 
 test('path forms that cannot be decided are refused rather than interpreted', () => {
-  for (const bad of ['**', 'src/**', 'internal/*', '.', './', '/etc/passwd', '..', 'a/../b', '']) {
+  for (const bad of ['**', 'src/**', 'internal/*', '/etc/passwd', '..', 'a/../b', '']) {
     assert.ok(pathProblem(bad), `\`${bad}\` was accepted as an entry path`)
+    assert.ok(pathProblem(bad, { allowRoot: true }), `\`${bad}\` was accepted at the root`)
   }
   for (const good of ['internal/billing', 'src', 'a/b/c', './src/app']) {
     assert.equal(pathProblem(good), null, `\`${good}\` was rejected`)
+  }
+})
+
+test('the repository root is a path only where the record type allows it', () => {
+  // The asymmetry, at the level it is decided. Declining a Coral rule everywhere is a
+  // statement about the rule; adding a project rule everywhere is a statement about the
+  // project, and Coral has no claim on it.
+  for (const root of ['.', './', './/']) {
+    assert.match(pathProblem(root), /file an amendment/)
+    assert.equal(pathProblem(root, { allowRoot: true }), null, `\`${root}\` was rejected at root`)
+  }
+  // and an ABSENT path is still absent — it does not become the root by omission
+  assert.match(pathProblem(undefined, { allowRoot: true }), /names no path/)
+  assert.match(pathProblem('', { allowRoot: true }), /names no path/)
+  assert.match(pathProblem('   ', { allowRoot: true }), /names no path/)
+})
+
+test('the root path covers every target; a subtree still does not cover its siblings', () => {
+  for (const target of ['x.go', 'internal/billing/invoice.go', 'a/b/c/d.py', '.']) {
+    assert.ok(pathApplies('.', target), `root did not cover ${target}`)
+    assert.ok(pathApplies('./', target), `root did not cover ${target}`)
+  }
+  assert.ok(!pathApplies('internal', '.'))
+})
+
+test('a repository-wide project extension applies everywhere', () => {
+  // The case the old policy made inexpressible: a rule that is genuinely local to this
+  // project and genuinely covers all of it — an org trace header, a metadata descriptor —
+  // and that Coral should never adopt.
+  const r = clean(
+    resolve(
+      withEntries({
+        extensions: [
+          extension({ rule: 'ACME-1', path: '.', statement: 'every outbound request carries X-Acme-Trace' }),
+        ],
+      })
+    )
+  )
+  assert.equal(r.extensions[0].path, '.')
+  for (const target of ['main.go', 'internal/billing/invoice.go', 'deep/ly/nested/file.py']) {
+    assert.deepEqual(effectiveRulesAt(r, target).extensions, ['ACME-1'], `missing at ${target}`)
+  }
+})
+
+test('a repository-wide EXCEPTION is still refused — that is an amendment', () => {
+  const r = invalid(resolve(withEntries({ exceptions: [{ rule: 'BASE-1', path: '.' }] })))
+  assert.ok(
+    r.problems.some((p) => /file an amendment/.test(p)),
+    r.problems.join('\n')
+  )
+  assert.equal(r.diagnostic.exceptions.length, 0)
+})
+
+test('`**` is still refused on an extension, root permission or not', () => {
+  for (const pattern of ['**', '*', 'src/**']) {
+    const r = invalid(resolve(withEntries({ extensions: [extension({ path: pattern })] })))
+    assert.ok(
+      r.problems.some((p) => /is a pattern rather than a place/.test(p)),
+      `\`${pattern}\` was accepted: ${r.problems.join('\n')}`
+    )
   }
 })
 

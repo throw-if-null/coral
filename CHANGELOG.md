@@ -112,12 +112,33 @@ Two selected Coral rules that contradict each other are a **defect in Coral** an
 amendment rather than resolved by a hidden rule here — resolving it locally would apply the same silent
 fix in every consuming project and leave the defect upstream.
 
+**Path scope differs between the two records at exactly one point: the repository root.** An exception
+scoped to `.` declines a Coral rule everywhere, which is a decision about the rule rather than about a
+place — that is an amendment, and it stays refused. An extension scoped to `.` adds a project rule
+everywhere, which is an ordinary thing for a project to need and none of Coral's business: an
+organisation-specific trace header, a metadata descriptor every capability publishes. Refusing that would
+leave a project inventing artificial subdirectories or filing an amendment for a rule Coral should never
+adopt, so `path: "."` is allowed on an extension and binds every path. A missing path is still a missing
+decision, never the root by omission.
+
+**A project rule ID has exactly one definition.** An extension *defines* its rule rather than selecting
+an already-canonical one, so two entries under one ID are two rules answering to one citation — and at a
+path both cover, a finding citing it names neither. Refused regardless of path, because differing paths
+are the case that looks most reasonable and is exactly as ambiguous: the definitions overlap wherever one
+path contains the other. Duplicate *exceptions* stay legal, and for the mirror reason — `[STATE-5]`
+already means one thing, so two path-scoped exceptions to it are two decisions about two places.
+
+**Version identity fails closed too.** A bare `## Unreleased` heading asserts the tree still describes the
+released version; **no** heading, or no changelog at all, asserts nothing, and reading that absence as
+"working equals released" would recreate the bug the identity was added to fix one deleted file later — a
+tree still holding unreleased rules while claiming the release before them. Both are now problems, and a
+model carrying either does not come back `classified`.
+
 **Exceptions and extensions are tightened, not redesigned.** `[VER-5]` already required both to name a
 scoped path; the worked example showed one for the exception and none for the extension, and the example
 is what people copy. It now shows both. Path semantics are stated so a tool can decide them: repo-relative
-subtree, matching that directory and everything beneath it, with glob forms and the repository root
-refused rather than interpreted. An exception removes its rule **only** at the paths it covers, never
-globally. An exception naming a rule the project has not selected is **rejected as stale** rather than
+subtree, matching that directory and everything beneath it, with glob forms refused rather than
+interpreted. An exception removes its rule **only** at the paths it covers, never globally. An exception naming a rule the project has not selected is **rejected as stale** rather than
 kept as a dormant override. An extension may not carry a Coral ID or reuse a Coral family (`[VER-4]`), so
 "extension" can never quietly mean "override": replacing a Coral requirement is an exception plus a
 project rule, two entries because it is two decisions.

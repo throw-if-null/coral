@@ -307,7 +307,13 @@ are not interchangeable:
   against this one, which is why records kept *inside* this repository may name it and a project outside
   cannot.
 
-When a batch changes no rule, the Unreleased heading names no version and the two are the same.
+When a batch changes no rule, the heading names no version — a bare `## Unreleased` — and the two are the
+same. **That bare heading is a statement, and it is required.** A changelog with no Unreleased heading, or
+no changelog at all, is not a tree quietly asserting it is still the released version; it is a tree that
+has not said, and the build refuses it. The difference matters because the silent reading is the
+dangerous one: a tree still holding unreleased rules but identifying as the release before them would let
+a record targeting that release resolve against rules that were never in it — the exact failure the
+identity exists to prevent, arriving through a deleted file.
 
 Everything mechanical follows from that split: `scripts/version.mjs` reads both, the canonical rule
 model carries the working version as its identity, and every applicability resolution compares a
@@ -1042,13 +1048,59 @@ only question asked of them — *does this entry cover this source file?*
   `internal/billing` covers `internal/billing/invoice.go`; it does not cover `internal/billing-archive`.
 - **Patterns are refused**, not interpreted. `*`, `**`, `?` and brace forms would need a precedence
   between overlapping entries, and there is deliberately none.
-- **The repository root is refused** — for exceptions and extensions alike. `path: "**"` excuses the rule
-  rather than a place, and a project that needs that has an amendment to file, not an entry to record.
+- **The repository root is written `path: "."`, and the two record types differ on it** — see below.
+- **A missing path is a missing decision**, never the root by omission. `[VER-5]` requires the path to be
+  stated, and silence is not the same as `path: "."`.
 - An exception **does not remove a Coral rule globally.** The rule it names is still in force at every
   path the entry does not cover.
 - An exception naming a rule the project has **not** selected is **rejected as stale**, not kept. It
   excuses nothing today, and it would start excusing something the day the project adopts that layer,
   with nobody deciding that. Adopting the layer is when that decision gets made.
+- A project rule ID has **exactly one definition**. Two extension entries under one ID are two rules
+  answering to one citation, so the second is refused whatever its path — see below.
+
+#### Why the root differs between the two
+
+**An exception at the root is refused.** Declining a Coral rule *everywhere* is not a decision about a
+place; it is a decision about the rule. Coral has a name for that and it is not "exception": it is an
+**amendment**, filed upstream, so the defect gets fixed for everyone instead of being carried forever as
+a per-project carve-out. That is what `[VER-5]` means by *"`path: internal/models` excuses a decision;
+`path: "**"` excuses the rule"*.
+
+**An extension at the root is allowed.** Adding a rule Coral does not have, across the whole project, is
+an ordinary thing for a project to need and none of Coral's business: *every outbound request carries our
+trace header*, *every capability publishes our metadata descriptor*, *generated files follow our
+ownership convention*. None of those is a defect in Coral, none of them belongs upstream, and refusing
+them would leave a project inventing artificial subdirectories or filing an amendment for a rule Coral
+should never adopt. So an extension may write `path: "."`, and it then binds every path in the
+repository.
+
+The asymmetry is the same one that runs through the whole section: an exception **selects** a rule Coral
+has already defined; an extension **defines** one.
+
+#### One project rule ID, one definition
+
+Because an extension defines its rule rather than selecting it, two entries sharing an ID are two
+different rules with one citation:
+
+```yaml
+extensions:
+  - rule: ACME-1
+    path: internal
+    statement: every request logs the tenant
+  - rule: ACME-1                 # refused — ACME-1 already means something else
+    path: internal/billing
+    statement: every invoice uses decimal arithmetic
+```
+
+At `internal/billing` both definitions are in force and a finding citing `ACME-1` names neither. So a
+duplicate ID is refused **regardless of path** — differing paths are the case that looks most reasonable
+and is exactly as ambiguous, because the definitions overlap wherever one path contains the other. Give
+the rules separate IDs, or state one rule once at a path that covers both places.
+
+Duplicate **exceptions** are fine, and for the same underlying reason read the other way: `[STATE-5]`
+already means one thing, so two path-scoped exceptions to it are two decisions about two places rather
+than two definitions.
 
 ### The target version comes first
 
