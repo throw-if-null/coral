@@ -1167,17 +1167,29 @@ knows every Coral requirement the project is answerable to, without opening a Co
 
 **The command runs from a Coral checkout, not from the project.** It is an npm script in this repository,
 and Coral deliberately supports projects that are not Node projects at all — so the consuming repository is
-named by `--project` rather than being where the command lives. The checkout must be the one describing the
-version the project targets, because a record is only ever resolved against the release it names:
+named by `--project` rather than being where the command lives:
 
 ```bash
 # from a Coral checkout describing the version the project targets
 npm run contract:generate -- --project /path/to/project
 ```
 
-Write it somewhere else with `--out <file>`, or to standard output with `--stdout`. Generate against a
-different Coral checkout with `--coral <dir>`. `--help` prints the rest. The generated file repeats the
-invocation in its own header, naming the Coral version the checkout must describe.
+Write it somewhere else with `--out <file>`, or to standard output with `--stdout`. `--help` prints the
+rest. The generated file repeats the invocation in its own header, naming the Coral version the checkout
+must describe.
+
+**There is no option to point the rule model at a different checkout, and that is a version-first
+requirement rather than a missing feature.** The documents are only half of a Coral release; the other half
+is the code that reads them — the applicability resolver, the record schema, the selection algebra, this
+generator. A flag that moved the documents alone would let one release's implementation interpret another
+release's rule set: the model would truthfully report the version it was read from, the target check
+[above](#the-target-version-comes-first) would pass, and the record would still be resolved under the
+running checkout's semantics. Every gate satisfied, and the answer from the wrong release.
+
+So the rule model always comes from the checkout that is executing, and generating for another version is
+what it has always been: **check out that version of Coral and run its own `contract:generate`.** That is
+the same instruction `[VER-3]` gives everywhere else — load the applicability *semantics* of the version a
+record targets, not merely its Markdown.
 
 **`CORAL.md` is the source; `CORAL-CONTRACT.md` is the output.** Editing the contract edits nothing: the
 next generation overwrites it. Change the declaration and regenerate. There is no second manifest —
@@ -1261,7 +1273,18 @@ reasonably open with that title — a note about a contract, a draft, a copy pas
 it because a later generation failed is data loss dressed up as a safety property. Removal requires the
 exact preamble, heading and marker in order.
 
-Failures on the way in are part of the same lifecycle. A `--coral` path that does not exist, an unreadable
+Ownership decides replacement as well as removal, because the hole is symmetrical: refusing to delete a
+human's file when generation fails buys nothing if a generation that *succeeds* overwrites it. A
+destination that exists and carries no marker is **refused rather than replaced**, and nothing is written.
+There is no `--force` — moving the file or choosing another destination is a decision for whoever knows
+what is in it. A destination the generator did write is replaced normally.
+
+Recognition tolerates line endings even though the output does not use them: the contract belongs in
+version control, and a repository configured for CRLF checks it out with `\r\n`. A byte comparison would
+stop recognising the generator's own file and let the stale contract survive after all — through
+`core.autocrlf` rather than through anything Coral did.
+
+Failures on the way in are part of the same lifecycle. A Coral checkout that cannot be read, an unreadable
 `CORAL.md`, a document removed mid-read: each is a configuration problem exactly as an unregistered profile
 is, reported in the same list rather than thrown, and each still clears a stale contract from the
 destination. A successful run publishes by writing beside the destination and renaming onto it, so the

@@ -477,12 +477,18 @@ claims to be the project's complete normative surface — the operator is told a
 Only a file this generator produced is removed, and *produced* is decided by a machine marker —
 `<!-- coral:generated-execution-contract -->` on the second line — rather than by the title above it. A
 heading is not provenance: `--out` names any destination, and a human's note about a contract may
-legitimately open with that line, so removal requires the exact preamble. Failures on the way IN belong to
-the same lifecycle: a `--coral` path that does not exist, an unreadable `CORAL.md`, a document removed
-mid-read — each is reported in the problem list rather than thrown, and each still clears a stale contract
-from the destination, because an exception escaping the generator would skip the file boundary where the
-guarantee actually lives. The reserved-output-name refusal ignores case, since `coral.md` and `Coral.md`
-name the same file as `CORAL.md` on Windows and on a default macOS volume. A successful run publishes by writing beside the destination and
+legitimately open with that line, so removal requires the exact preamble. Recognition tolerates line endings even
+though the output does not use them — the contract belongs in version control, and a repository configured
+for CRLF checks it out with `\r\n`, which a byte comparison would stop recognising as the generator's own
+file. Ownership governs REPLACEMENT as well as removal, because the hole is symmetrical: a destination that
+exists and carries no marker is refused rather than overwritten, with no `--force`. Failures on the way IN
+belong to the same lifecycle: a Coral checkout that cannot be read, an unreadable `CORAL.md`, a document
+removed mid-read — each is reported in the problem list rather than thrown, and each still clears a stale
+contract from the destination, because an exception escaping the generator would skip the file boundary
+where the guarantee actually lives. Where a defect *does* escape it is rethrown rather than laundered into
+a problem list, and if the cleanup failed too both facts reach the caller. The reserved-output-name refusal
+ignores case, since `coral.md` and `Coral.md` name the same file as `CORAL.md` on Windows and on a default
+macOS volume. A successful run publishes by writing beside the destination and
 renaming onto it, so the destination holds the old contract or the new one and never half of either, and a
 filesystem error is reported through the same problem list as a configuration error rather than thrown.
 `--out` refuses a destination named `CORAL.md`: the record is the editable source and the contract is
@@ -493,6 +499,17 @@ existing version-first semantics. What did change is that the invocation says so
 names the Coral version the checkout must describe and states that the command runs from that checkout,
 with `--project` naming the consuming repository. Coral supports projects that are not Node projects, so
 "run `npm run contract:generate`" had to say where.
+
+**The rule model always comes from the checkout that is executing, and there is deliberately no flag to
+move it.** A `--coral <dir>` reads like the obvious way to generate for another release and is the thing
+`[VER-3]` forbids, because a release is not only its documents: the applicability resolver, the record
+schema, the selection algebra and the generator are the other half. Pointed at an older tree, a newer
+checkout builds a model that truthfully reports the older version, passes the target check against a record
+naming it, and then resolves that record under the *newer* release's applicability semantics — every
+version gate in the system satisfied and the answer from the wrong Coral. Generating for another version is
+what it always was: check out that version and run its own `contract:generate`. The parameter survives one
+level down, in `writeExecutionContract()`, because the synthetic tests build fixture trees; what is not
+offered is one release's implementation against another release's documents.
 
 **One `CORAL.md` record that resolved before is now refused: an exception naming a `[guide]` rule.** There
 is nothing for it to excuse — a guide is in no contract and is never a finding — so the entry recorded a

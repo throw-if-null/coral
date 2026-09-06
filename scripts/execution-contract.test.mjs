@@ -22,9 +22,11 @@
 // than the rule list.
 // ─────────────────────────────────────────────────────────────────────────────
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import process from 'node:process'
 import test from 'node:test'
 
 import { stringify } from 'yaml'
@@ -53,6 +55,7 @@ import {
   CONTRACT_MARKER,
   CONTRACT_PREAMBLE,
   compareRuleIds,
+  isGeneratedContract,
   executionContract,
   inlineCode,
   inlineText,
@@ -1148,6 +1151,150 @@ test('the contract does not claim every omitted Coral rule is inapplicable', () 
   assert.ok(md.includes('WID-1'), 'the widget profile was not adopted, so the case is untested')
 })
 
+// ── the destination is never taken from someone else ─────────────────────────
+//
+// Ownership governs replacement as well as removal. Refusing to delete a human's file
+// when generation fails buys nothing if a generation that SUCCEEDS overwrites it.
+
+test('a valid generation refuses to overwrite a file this generator did not write', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, CONTRACT_FILE)
+    const human = '# Coral project execution contract\n\nStarted by hand before the command existed.\n'
+    fs.writeFileSync(out, human)
+
+    const result = writeExecutionContract(coral, project)
+    assert.equal(result.ok, false, 'a human-authored contract was replaced')
+    assert.equal(result.markdown, undefined)
+    assert.ok(
+      result.problems.some((p) => /was not written by this generator/.test(p)),
+      result.problems.join('\n')
+    )
+    assert.equal(fs.readFileSync(out, 'utf8'), human)
+  })
+})
+
+test('the same protection applies to an explicit --out destination', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, 'NOTES.md')
+    const human = '# Notes\n\nkeep me.\n'
+    fs.writeFileSync(out, human)
+
+    const result = writeExecutionContract(coral, project, out)
+    assert.equal(result.ok, false)
+    assert.equal(fs.readFileSync(out, 'utf8'), human)
+  })
+})
+
+test('a previously generated file is still replaced normally', () => {
+  // The protection must not make the ordinary case — regenerate over yesterday's output —
+  // require a flag.
+  inProject({}, record({ ...kernelOnly, adopts: { 'shape-profile': ['widget'] } }), (coral, project) => {
+    const first = writeExecutionContract(coral, project)
+    assert.equal(first.ok, true)
+
+    fs.writeFileSync(path.join(project, ADHERENCE_FILE), record(kernelOnly))
+    const second = writeExecutionContract(coral, project)
+    assert.equal(second.ok, true)
+    assert.equal(fs.readFileSync(second.file, 'utf8'), second.markdown)
+    assert.ok(!second.markdown.includes('WID-1'))
+  })
+})
+
+test('an unreadable destination is refused rather than replaced', () => {
+  // Unproven ownership is not ownership.
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, 'blocked')
+    fs.mkdirSync(out)
+    const result = writeExecutionContract(coral, project, out)
+    assert.equal(result.ok, false)
+    assert.ok(
+      result.problems.some((p) => /could not be read/.test(p)),
+      result.problems.join('\n')
+    )
+    assert.ok(fs.statSync(out).isDirectory())
+  })
+})
+
+// ── ownership survives a CRLF checkout ───────────────────────────────────────
+
+test('generated output is LF, and recognition tolerates CRLF', () => {
+  const md = contract(kernelOnly)
+  assert.ok(!md.includes('\r'), 'generated output is not pure LF')
+  assert.ok(isGeneratedContract(md))
+  assert.ok(isGeneratedContract(md.replace(/\n/g, '\r\n')), 'a CRLF checkout stopped being recognised')
+})
+
+test('a CRLF-normalized contract is still removed when regeneration fails', () => {
+  // The version-control boundary this closes: the contract belongs in the repository, a
+  // repository configured for CRLF checks it out with `\r\n`, and a byte-comparison of the
+  // preamble would stop recognising the generator's own file — bringing the stale-contract
+  // bug straight back through `core.autocrlf`.
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, CONTRACT_FILE)
+    const first = writeExecutionContract(coral, project)
+    assert.equal(first.ok, true)
+    fs.writeFileSync(out, first.markdown.replace(/\n/g, '\r\n'))
+
+    fs.writeFileSync(path.join(project, ADHERENCE_FILE), record({ ...kernelOnly, scales: ['enormous'] }))
+    const again = writeExecutionContract(coral, project)
+    assert.equal(again.ok, false)
+    assert.equal(again.removed, out, 'a CRLF-checked-out contract was not recognised as ours')
+    assert.equal(fs.existsSync(out), false)
+  })
+})
+
+test('a CRLF-normalized contract is also replaced normally on success', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, CONTRACT_FILE)
+    const first = writeExecutionContract(coral, project)
+    fs.writeFileSync(out, first.markdown.replace(/\n/g, '\r\n'))
+    const again = writeExecutionContract(coral, project)
+    assert.equal(again.ok, true, again.problems?.join('\n'))
+    assert.equal(fs.readFileSync(out, 'utf8'), again.markdown)
+  })
+})
+
+test('isGeneratedContract needs the marker in position, not merely present', () => {
+  assert.equal(isGeneratedContract(CONTRACT_PREAMBLE), true)
+  assert.equal(isGeneratedContract(`${CONTRACT_HEADING}\r\n${CONTRACT_MARKER}\r\nbody`), true)
+  assert.equal(isGeneratedContract(`${CONTRACT_HEADING}\n\n${CONTRACT_MARKER}`), false)
+  assert.equal(isGeneratedContract(`${CONTRACT_MARKER}\n${CONTRACT_HEADING}`), false)
+  assert.equal(isGeneratedContract(`# Notes\n\nsee ${CONTRACT_MARKER}`), false)
+  assert.equal(isGeneratedContract(CONTRACT_HEADING), false)
+  assert.equal(isGeneratedContract(undefined), false)
+})
+
+// ── an unexpected error must not hide a cleanup failure ──────────────────────
+
+test('a thrown generation AND a failed cleanup both reach the caller', () => {
+  // The one case where the file boundary's guarantee does not hold. A bare rethrow would
+  // report the defect and silently drop the fact that a stale contract is still on disk.
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, 'blocked')
+    fs.mkdirSync(out) // cleanup cannot inspect or remove a directory
+    assert.throws(
+      () => writeExecutionContract(undefined, project, out),
+      (e) => {
+        assert.ok(e instanceof AggregateError, `expected an AggregateError, got ${e}`)
+        // The programmer error is preserved, not converted into a configuration problem.
+        assert.ok(e.errors.some((x) => x instanceof TypeError), 'the original defect was lost')
+        assert.ok(
+          e.errors.some((x) => /could not be inspected or removed/.test(x.message)),
+          'the cleanup failure was dropped'
+        )
+        assert.match(e.message, /could not be removed/)
+        return true
+      }
+    )
+  })
+})
+
+test('a thrown generation with a clean cleanup rethrows the original error unchanged', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    assert.throws(() => writeExecutionContract(undefined, project), (e) => e instanceof TypeError)
+  })
+})
+
 // ── 14. determinism ──────────────────────────────────────────────────────────
 
 test('the same model and the same declaration give byte-identical output', () => {
@@ -1270,6 +1417,44 @@ test('the listed rules are in the order the comparator defines', () => {
   })
   const listed = listedRules(md)
   assert.deepEqual(listed, [...listed].sort(compareRuleIds))
+})
+
+// ── the production command binds one checkout ────────────────────────────────
+
+/** Run the real CLI, capturing what an operator would see. */
+const cli = (...args) =>
+  spawnSync(process.execPath, [path.join(REPO, 'scripts', 'generate-contract.mjs'), ...args], {
+    encoding: 'utf8',
+  })
+
+test('the CLI offers no way to point the rule model at another checkout', () => {
+  // The invariant: the checkout supplying the generator and applicability CODE is the
+  // checkout supplying the Coral rule MODEL. A flag that moved only the documents would
+  // let a 0.8.0 tree read 0.7.0 documents, build a model that truthfully calls itself
+  // 0.7.0, pass the target-version check, and then resolve the record under 0.8.0's
+  // applicability semantics — every version gate satisfied and the answer from the wrong
+  // release. `[VER-3]` says load the SEMANTICS of the targeted version, not its files.
+  const rejected = cli('--coral', REPO, '--project', REPO)
+  assert.equal(rejected.status, 1)
+  assert.match(rejected.stderr, /unknown argument `--coral`/)
+
+  const help = cli('--help')
+  assert.equal(help.status, 0)
+  assert.ok(!help.stdout.includes('--coral'), 'the help still advertises --coral')
+  // And it says where the model comes from, and what to do for another version.
+  assert.ok(help.stdout.includes(REPO), 'the help does not name the checkout it generates from')
+  assert.match(help.stdout, /check\s*out that version and run its own contract:generate/)
+})
+
+test('the CLI generates against its own checkout', () => {
+  // Asserted through behaviour rather than by reading the source: a record targeting the
+  // version THIS tree describes resolves, which is only true if the model came from here.
+  inTree({ [ADHERENCE_FILE]: record({ targets: VERSION, scales: ['app'], adopts: {} }) }, (project) => {
+    const run = cli('--project', project, '--stdout')
+    assert.equal(run.status, 0, run.stderr)
+    assert.ok(run.stdout.startsWith(CONTRACT_PREAMBLE))
+    assert.ok(run.stdout.includes(`- Coral: \`${VERSION}\``))
+  })
 })
 
 // ── 16. the real documents ───────────────────────────────────────────────────

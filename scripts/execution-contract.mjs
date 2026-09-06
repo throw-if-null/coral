@@ -82,10 +82,33 @@ export const CONTRACT_HEADING = '# Coral project execution contract'
 export const CONTRACT_MARKER = '<!-- coral:generated-execution-contract -->'
 
 /**
- * The exact opening of a generated contract. A file that does not start with this was not
- * written by this generator, whatever its first line says.
+ * The exact opening this generator emits. Output is always LF, which is what keeps it
+ * byte-identical run to run; RECOGNISING output is a looser question — see
+ * isGeneratedContract().
  */
 export const CONTRACT_PREAMBLE = `${CONTRACT_HEADING}\n${CONTRACT_MARKER}`
+
+/** A line without its carriage return, if it has one. */
+const withoutCR = (line) => (line?.endsWith('\r') ? line.slice(0, -1) : line)
+
+/**
+ * Was this text written by this generator?
+ *
+ * The identity is the first two LOGICAL lines — heading, then marker — and the comparison
+ * is deliberately tolerant of line endings while the output itself is not. The contract
+ * is documented as belonging in version control, and a repository configured for CRLF
+ * checks it out with `\r\n`: byte-comparing the preamble would then stop recognising the
+ * generator's own file, and the stale-contract bug this marker exists to close would come
+ * straight back through `core.autocrlf`.
+ *
+ * Position matters as much as presence. A human's document that merely mentions the marker
+ * in its prose is not a generated contract, so this is not a substring search.
+ */
+export function isGeneratedContract(text) {
+  if (typeof text !== 'string') return false
+  const [first, second] = text.split('\n', 2)
+  return withoutCR(first) === CONTRACT_HEADING && withoutCR(second) === CONTRACT_MARKER
+}
 
 /** The npm script a project runs, quoted in the generated header so the file says how to redo it. */
 export const GENERATE_COMMAND = 'npm run contract:generate'
@@ -533,11 +556,17 @@ function systemProblem(e, coralDir, projectDir) {
 // DISCARDS the stale contract: after this function returns unsuccessfully, there is no
 // final file claiming to be the current contract.
 //
-// Only a file this generator wrote is discarded, and the heading alone does not establish
+// Only a file this generator wrote is touched, and the heading alone does not establish
 // that. An `--out` destination the caller picked may be anything, a human's document may
-// legitimately open with that title, and deleting a file we did not produce is not a
-// fail-closed measure but data loss — so the test is CONTRACT_PREAMBLE, the heading plus
-// the `coral:` machine marker beneath it, which nothing but this generator writes.
+// legitimately open with that title, and destroying a file we did not produce is not a
+// fail-closed measure but data loss — so the test is isGeneratedContract(): the heading
+// plus the `coral:` machine marker beneath it, which nothing but this generator writes.
+//
+// The same test governs BOTH directions, because the hole is symmetrical. Refusing to
+// delete a human's file when generation fails buys nothing if a generation that succeeds
+// overwrites it, so a destination that exists and is not generator-owned is refused rather
+// than replaced. There is no `--force`: moving the file or picking another destination is
+// a decision for whoever knows what is in it.
 //
 // Failures on the way IN are part of the same lifecycle. loadExecutionContract() turns an
 // unreadable checkout or declaration into a problem rather than an exception, and
@@ -593,23 +622,53 @@ function destinationProblem(file, projectDir) {
 function discardStale(file) {
   try {
     if (!fs.existsSync(file)) return { removed: null, problems: [] }
-    // The exact preamble, heading AND marker. A human's document may legitimately open with
-    // the heading alone — a note about a contract, a draft, a copy pasted for review — and
+    // Heading AND marker, in position. A human's document may legitimately open with the
+    // heading alone — a note about a contract, a draft, a copy pasted for review — and
     // deleting that because a later generation failed is data loss dressed up as a safety
     // property. Only this generator writes the marker.
-    if (!fs.readFileSync(file, 'utf8').startsWith(CONTRACT_PREAMBLE)) {
-      return { removed: null, problems: [] }
-    }
+    if (!isGeneratedContract(fs.readFileSync(file, 'utf8'))) return { removed: null, problems: [] }
     fs.rmSync(file)
     return { removed: file, problems: [] }
   } catch (e) {
+    // Worded for what is actually known: the file could not be inspected or could not be
+    // deleted, and in neither case can this claim to have left the destination clean.
     return {
       removed: null,
       problems: [
-        `the previously generated contract at \`${file}\` could not be removed (${e.message}), so it` +
-          ' is still on disk and is now stale. It describes an earlier declaration; do not load it.',
+        `\`${file}\` could not be inspected or removed (${e.message}). If it is a previously` +
+          ' generated contract it is still on disk and is now stale — it describes an earlier' +
+          ' declaration, so do not load it.',
       ],
     }
+  }
+}
+
+/**
+ * Why this destination must not be REPLACED, or null.
+ *
+ * The mirror of discardStale(), on the successful path, and it closes the same hole from
+ * the other side. Refusing to delete a human's file when generation fails is worth little
+ * if a generation that succeeds overwrites it — `--out NOTES.md`, or a `CORAL-CONTRACT.md`
+ * somebody started writing by hand before this command existed. Ownership decides both.
+ *
+ * Fail-closed when the destination cannot be read: unproven ownership is not ownership.
+ * No `--force`, deliberately — moving the file or choosing another destination is a
+ * decision for whoever knows what is in it.
+ */
+function occupiedProblem(file) {
+  try {
+    if (!fs.existsSync(file)) return null
+    if (isGeneratedContract(fs.readFileSync(file, 'utf8'))) return null
+    return (
+      `\`${file}\` already exists and was not written by this generator — it carries no` +
+      ` \`${CONTRACT_MARKER}\` marker. Replacing it would discard whatever it holds, so nothing was` +
+      ' written. Move it, delete it, or generate somewhere else with `--out`.'
+    )
+  } catch (e) {
+    return (
+      `\`${file}\` already exists and could not be read (${e.message}), so there is no way to tell` +
+      ' whether it is a generated contract or something else. Nothing was written.'
+    )
   }
 }
 
@@ -664,17 +723,32 @@ export function writeExecutionContract(coralDir, projectDir, outFile) {
   } catch (e) {
     // loadExecutionContract() already turns every EXPECTED filesystem failure into a
     // problem, so reaching here means a defect rather than a mistyped path — and a defect
-    // must still surface as one. What it must not do is leave a contract that describes an
-    // earlier declaration sitting at the destination: the file boundary is the last line of
-    // defence, and it does not get to skip its own guarantee because something upstream
-    // threw. Discard first, then let the error out unchanged.
-    discardStale(file)
+    // must still surface as one, not be laundered into `{ok: false}`. What it must not do
+    // is leave a contract that describes an earlier declaration sitting at the destination:
+    // the file boundary is the last line of defence, and it does not get to skip its own
+    // guarantee because something upstream threw.
+    const stale = discardStale(file)
+    // And if the cleanup ALSO failed, that is the one case where the guarantee did not
+    // hold — precisely the fact a caller needs and the one a bare rethrow would drop on the
+    // floor. Both reach it, with the original defect first.
+    if (stale.problems.length) {
+      throw new AggregateError(
+        [e, new Error(stale.problems.join(' '))],
+        `the contract generator failed, and the stale contract at \`${file}\` could not be removed.`
+      )
+    }
     throw e
   }
   if (!result.ok) {
     const stale = discardStale(file)
     return { ok: false, problems: [...result.problems, ...stale.problems], removed: stale.removed }
   }
+
+  // A valid contract is not a licence to overwrite whatever is in the way. Checked here
+  // rather than up front, so a project with both a broken declaration and an occupied
+  // destination hears about the declaration — the problem it has to fix either way.
+  const occupied = occupiedProblem(file)
+  if (occupied) return { ok: false, problems: [occupied], removed: null }
 
   const failure = publish(file, result.markdown)
   if (failure) {

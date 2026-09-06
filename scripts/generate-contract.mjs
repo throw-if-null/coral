@@ -12,6 +12,31 @@
 // reports an error while yesterday's contract sits there unchanged has told the operator
 // and lied to the next agent, which loads a file that looks current. The lifecycle is
 // implemented in writeExecutionContract(); this reports what it did.
+//
+// ── one checkout ─────────────────────────────────────────────────────────────
+//
+// THE RULE MODEL AND THE CODE THAT INTERPRETS IT COME FROM THE SAME CHECKOUT. That is
+// why the Coral directory is not an option here: it is bound, below, to the parent of
+// this very file, and there is deliberately no flag to point it anywhere else.
+//
+// A `--coral <dir>` would have looked like the obvious way to generate against another
+// release, and it is precisely the thing `[VER-3]` forbids. It moves only the DOCUMENTS.
+// `applicability.mjs`, `rules.mjs`, the adherence schema, the selection algebra and this
+// generator all still come from whatever checkout is executing — so a 0.8.0 tree pointed
+// at 0.7.0 documents builds a model that truthfully calls itself 0.7.0, passes the
+// target-version check against a `CORAL.md` targeting 0.7.0, and then resolves that
+// record under 0.8.0's applicability semantics. Every version gate in the system is
+// satisfied and the answer is still from the wrong release.
+//
+// CONVENTIONS.md already says what to do instead, and says it about semantics rather than
+// files: load the applicability semantics of the version the record targets. Concretely —
+// check out that Coral, and run ITS `npm run contract:generate`. Fetching it is separate
+// work and is not solved here.
+//
+// The parameter survives one level down, in writeExecutionContract(), because the
+// synthetic tests build fixture trees with a vocabulary that is not Coral's. What is not
+// offered is "today's implementation against another checkout's documents" as a supported
+// operation.
 // ─────────────────────────────────────────────────────────────────────────────
 import path from 'node:path'
 import process from 'node:process'
@@ -22,6 +47,12 @@ import {
   writeExecutionContract,
 } from './execution-contract.mjs'
 
+/**
+ * The Coral checkout this command generates against: the one it is running from.
+ *
+ * Bound, not configured. See the header — a flag that moved the documents without moving
+ * the semantics is a version-first violation wearing a convenience.
+ */
 const CORAL_DIR = path.resolve(import.meta.dirname, '..')
 
 const USAGE = `
@@ -33,20 +64,27 @@ Generate a project's Coral execution contract.
                     Default: the current directory.
   --out <file>      where to write. Default: <project>/${CONTRACT_FILE}
   --stdout          write to standard output instead of a file.
-  --coral <dir>     the Coral documents to generate against.
-                    Default: this checkout (${CORAL_DIR}).
   --help            this text.
 
 The contract is generated from the project's CORAL.md and contains only that project's
 applicable [auto] and [review] Coral rules, plus its own accepted exceptions and
-extensions. It is regenerated, never edited.
+extensions. It is regenerated, never edited. An existing file at the destination is
+replaced only if this generator wrote it.
 
-Coral does not fetch the release a project targets. A CORAL.md targeting a version other
-than the one this checkout describes is refused, and no contract is written.
+The Coral rule model comes from THIS checkout:
+
+  ${CORAL_DIR}
+
+and there is no option to point it elsewhere. Moving the documents without moving the
+code that interprets them would resolve a record under one release's applicability
+semantics while calling it another's. To generate for a different Coral version, check
+out that version and run its own contract:generate. Coral does not fetch it for you: a
+CORAL.md targeting a version other than the one this checkout describes is refused, and
+no contract is written.
 `
 
 function parseArgs(argv) {
-  const opts = { project: process.cwd(), out: null, stdout: false, coral: CORAL_DIR, help: false }
+  const opts = { project: process.cwd(), out: null, stdout: false, help: false }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     // A flag that takes a value consumes the next argument, and a missing value is an
@@ -60,7 +98,6 @@ function parseArgs(argv) {
     switch (arg) {
       case '--project': opts.project = path.resolve(value()); break
       case '--out': opts.out = path.resolve(value()); break
-      case '--coral': opts.coral = path.resolve(value()); break
       case '--stdout': opts.stdout = true; break
       case '--help': case '-h': opts.help = true; break
       default: throw new Error(`unknown argument \`${arg}\`.`)
@@ -100,11 +137,11 @@ if (opts.help) {
 }
 
 if (opts.stdout) {
-  const result = loadExecutionContract(opts.coral, opts.project)
+  const result = loadExecutionContract(CORAL_DIR, opts.project)
   if (!result.ok) fail(result.problems)
   process.stdout.write(result.markdown)
 } else {
-  const result = writeExecutionContract(opts.coral, opts.project, opts.out)
+  const result = writeExecutionContract(CORAL_DIR, opts.project, opts.out)
   if (!result.ok) fail(result.problems, result.removed)
   const { rules, exceptions, extensions } = result.counts
   console.log(`[contract] wrote ${path.relative(process.cwd(), result.file) || result.file}`)
