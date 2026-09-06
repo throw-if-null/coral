@@ -908,6 +908,18 @@ test('a path carrying a line break or a control character is refused', () => {
   for (const bad of ['internal/bil\nling', 'internal/\tbilling', 'internal/bill\u0000ing']) {
     assert.match(pathProblem(bad), /line break or a control character/, JSON.stringify(bad))
   }
+  // Checked BEFORE the trim, which is the case that would otherwise pass silently: a
+  // trailing newline is exactly what `.trim()` removes, so a check that ran after it would
+  // resolve `internal/billing\n` as `internal/billing` — the same path under a different
+  // name, which is the renaming this refusal exists to prevent rather than an instance of
+  // it being caught.
+  for (const edge of ['internal/billing\n', '\tinternal/billing', 'internal/billing\r', '\ninternal/billing\n']) {
+    assert.match(pathProblem(edge), /line break or a control character/, JSON.stringify(edge))
+  }
+  assert.match(pathProblem('internal/billing\n'), /silently rename/)
+  // An entry carrying one is refused by the resolver, not normalized into a neighbour.
+  const r = invalid(resolve(withEntries({ exceptions: [{ rule: 'BASE-1', path: 'internal/billing\n' }] })))
+  assert.ok(r.problems.some((p) => /line break or a control character/.test(p)), r.problems.join('\n'))
   // Ordinary awkward characters stay legal — a backtick is a POSIX filename character, and
   // the contract generator renders it rather than the record refusing it.
   assert.equal(pathProblem('internal/bi`ll'), null)

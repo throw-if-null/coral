@@ -440,7 +440,10 @@ generator all read the same one.
 
 **Absence is the property the file is for.** A scale, layer or profile the project has not adopted leaves
 *no trace* — no rule, no heading, and no "backend: not selected" line, because a line naming an unadopted
-profile is a rule surface arriving through a heading. An **exception is a path decision, not a deletion**:
+profile is a rule surface arriving through a heading. The generated prose keeps the two reasons for absence
+apart: an `[auto]` or `[review]` rule missing from the file does not apply to the project, while a `[guide]`
+may belong to an adopted scope and is omitted because it is not normative. Saying "every Coral rule missing
+from this file is inapplicable" would be false about exactly the distinction the generator rests on. An **exception is a path decision, not a deletion**:
 the excepted rule stays in the rule list, since it still binds outside its subtree, and the decision is
 recorded separately with its scope and whatever `reason`, `decided_by`, `decided` and `revisit_when` the
 record carries — enough for an agent under that path to recognize a settled decision and stop re-raising
@@ -460,7 +463,9 @@ so no word is dropped and no project string can open a heading, a list item or a
 rendered as code spans that survive a backtick in a directory name. One path form is now refused upstream
 instead: **an entry path may not contain a line break or a control character**, on the same ground the glob
 refusal already stands on — a path is written, printed and rendered on one line, and one that cannot be
-shown without changing what it names is a path nothing can check.
+shown without changing what it names is a path nothing can check. Checked against the string as written,
+before the trim: `internal/billing\n` must not be quietly resolved as `internal/billing`, which is the
+silent renaming the refusal exists to prevent rather than an instance of it being caught.
 
 Generation **fails closed**, and that is a claim about the destination and not only about the return value.
 An invalid rule model, an unparsable record, an unregistered profile, an unknown scale or a target-version
@@ -469,8 +474,15 @@ never the diagnostic selection an invalid resolution carries. **A failed regener
 contract the previous run wrote.** That failure only appears on the second run: yesterday's contract, a
 declaration edited into something that does not resolve, and an error printed beside a file that still
 claims to be the project's complete normative surface — the operator is told and the next agent is not.
-Only a file this generator produced is removed, identified by its own heading, so an `--out` destination
-holding something else is left alone. A successful run publishes by writing beside the destination and
+Only a file this generator produced is removed, and *produced* is decided by a machine marker —
+`<!-- coral:generated-execution-contract -->` on the second line — rather than by the title above it. A
+heading is not provenance: `--out` names any destination, and a human's note about a contract may
+legitimately open with that line, so removal requires the exact preamble. Failures on the way IN belong to
+the same lifecycle: a `--coral` path that does not exist, an unreadable `CORAL.md`, a document removed
+mid-read — each is reported in the problem list rather than thrown, and each still clears a stale contract
+from the destination, because an exception escaping the generator would skip the file boundary where the
+guarantee actually lives. The reserved-output-name refusal ignores case, since `coral.md` and `Coral.md`
+name the same file as `CORAL.md` on Windows and on a default macOS volume. A successful run publishes by writing beside the destination and
 renaming onto it, so the destination holds the old contract or the new one and never half of either, and a
 filesystem error is reported through the same problem list as a configuration error rather than thrown.
 `--out` refuses a destination named `CORAL.md`: the record is the editable source and the contract is

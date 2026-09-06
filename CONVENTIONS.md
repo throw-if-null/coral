@@ -1183,7 +1183,9 @@ invocation in its own header, naming the Coral version the checkout must describ
 next generation overwrites it. Change the declaration and regenerate. There is no second manifest —
 `CORAL.md` remains the only file a project writes by hand, and `--out` refuses a destination named
 `CORAL.md` for that reason: writing the contract over the record would destroy the decisions the contract
-is derived from.
+is derived from. The refusal ignores case — `coral.md` and `Coral.md` name that same file on Windows and on
+a default macOS volume, and a guard that held only on Linux would protect the declaration in one place and
+hand it over in the others.
 
 What the contract contains:
 
@@ -1193,8 +1195,15 @@ What the contract contains:
 - the project's **extensions**, as path-scoped project rules.
 
 What it does not contain, and this is the point: a rule from a scale, a layer or a profile the project has
-not adopted leaves **no trace at all** — no rule, no heading, no "backend: not selected" line. `[guide]`
-rules are rationale rather than instruction and are never emitted, whether or not they were selected.
+not adopted leaves **no trace at all** — no rule, no heading, no "backend: not selected" line.
+
+`[guide]` rules are absent for a different reason, and the generated prose keeps the two apart rather than
+collapsing them. *Applicable* and *normative* are not one question: a guide can belong to a scope the
+project has adopted and is still omitted, because it is rationale rather than instruction and is never
+reported as a violation. So the contract says that an `[auto]` or `[review]` rule missing from it does not
+apply — a claim about the classes it actually lists — and says separately that guides are left out on the
+other ground. "Every Coral rule missing from this file is inapplicable" would be false, and false about
+precisely the distinction the file is built on.
 
 **An exception is a path decision, not a deletion.** The excepted rule stays in the rule list, because it
 still binds everywhere outside its path; the decision is recorded separately with its scope and whatever
@@ -1237,10 +1246,26 @@ and no fallback to "all Coral rules".
 And **a failed regeneration leaves no stale contract behind.** This is the half that only shows up on the
 second run: a contract generated yesterday, a declaration edited into something that does not resolve, and
 an error message printed beside a file that still claims to be the project's complete normative surface.
-The operator is told; the next agent is not. So a failed run deletes the contract it had previously written
-— and only that, identified by its own heading, never a file the generator did not produce. A successful
-run publishes by writing beside the destination and renaming onto it, so the destination holds the old
-contract or the new one and never half of either.
+The operator is told; the next agent is not. So a failed run deletes the contract it had previously
+written — and only that.
+
+Which file that is, is decided by a **machine marker** on the second line, not by the title:
+
+```markdown
+# Coral project execution contract
+<!-- coral:generated-execution-contract -->
+```
+
+A heading is not provenance. `--out` names any destination, and a document a human wrote may perfectly
+reasonably open with that title — a note about a contract, a draft, a copy pasted for review — and deleting
+it because a later generation failed is data loss dressed up as a safety property. Removal requires the
+exact preamble, heading and marker in order.
+
+Failures on the way in are part of the same lifecycle. A `--coral` path that does not exist, an unreadable
+`CORAL.md`, a document removed mid-read: each is a configuration problem exactly as an unregistered profile
+is, reported in the same list rather than thrown, and each still clears a stale contract from the
+destination. A successful run publishes by writing beside the destination and renaming onto it, so the
+destination holds the old contract or the new one and never half of either.
 
 One thing it deliberately does not solve: **acquiring the version a project targets.** A `CORAL.md` whose
 `targets` names a release other than the one the Coral checkout describes is refused with the version-first

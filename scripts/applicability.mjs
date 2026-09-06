@@ -432,18 +432,26 @@ export function pathProblem(p, { allowRoot = false } = {}) {
       ' excuses a habit rather than a place. Silence is not the same decision as `path: "."`,' +
       ' and it is not read as one.'
   }
-  const raw = p.trim()
   // A path is written by a human, printed in a diagnostic, and rendered into a generated
   // execution contract, and all three are line-oriented. A path carrying a line break or a
   // control character therefore cannot be shown anywhere without changing what it names —
   // the same objection the glob refusal below makes, one class of character over. Refused
   // rather than rendered ambiguously; a directory named this way is renamed, not excused.
-  if (CONTROL_CHARS.test(raw)) {
+  //
+  // Tested against the ORIGINAL string, before the trim below. Trimming first would delete
+  // exactly the characters this refuses whenever they sit at either end, so `internal/billing\n`
+  // would resolve quietly as `internal/billing` — a path silently renamed into a different
+  // one, which is the failure the rule exists to prevent rather than an instance of it being
+  // caught. Interior control characters would still be refused, which is what makes the
+  // omission the kind nobody notices.
+  if (CONTROL_CHARS.test(p)) {
     return 'names a path containing a line break or a control character. A path is written,' +
       ' printed and rendered on one line, and one that cannot be shown without changing what it' +
-      ' names is a path no reader and no tool can check. Write the subtree plainly —' +
+      ' names is a path no reader and no tool can check. Nor is it trimmed away and resolved as' +
+      ' the path that is left: that would silently rename it. Write the subtree plainly —' +
       ' `internal/billing`.'
   }
+  const raw = p.trim()
   if (GLOB_CHARS.test(raw)) {
     return `names the path \`${raw}\`, which is a pattern rather than a place. A path is a` +
       ' repo-relative directory and matches that directory and everything under it; patterns' +

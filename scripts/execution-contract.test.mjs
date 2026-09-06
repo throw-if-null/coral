@@ -50,6 +50,8 @@ import {
 import {
   CONTRACT_FILE,
   CONTRACT_HEADING,
+  CONTRACT_MARKER,
+  CONTRACT_PREAMBLE,
   compareRuleIds,
   executionContract,
   inlineCode,
@@ -950,6 +952,200 @@ test('a path containing a line break is refused upstream, not rendered', () => {
     r.problems.some((p) => /line break or a control character/.test(p)),
     r.problems.join('\n')
   )
+})
+
+// ── input-side filesystem failures ───────────────────────────────────────────
+//
+// Reading the inputs is filesystem work and every step of it can fail for reasons that
+// belong to the operator. Those failures have to arrive as problems, not as exceptions:
+// an exception escaping the generator skips the whole fail-closed lifecycle at the file
+// boundary, which is where the guarantee actually lives.
+
+const MISSING_CORAL = path.join(os.tmpdir(), 'coral-does-not-exist-8f3a1c')
+
+test('a Coral checkout that does not exist is a problem, not an ENOENT stack', () => {
+  let result
+  assert.doesNotThrow(() => {
+    result = inTree({ [ADHERENCE_FILE]: record(kernelOnly) }, (project) =>
+      loadExecutionContract(MISSING_CORAL, project)
+    )
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.markdown, undefined)
+  assert.ok(
+    result.problems.some((p) => /could not be read \(ENOENT\)/.test(p)),
+    result.problems.join('\n')
+  )
+  // And it says what it was trying to read, so the mistyped half is identifiable.
+  assert.ok(result.problems.some((p) => p.includes(MISSING_CORAL)))
+  assert.ok(result.problems.some((p) => p.includes(ADHERENCE_FILE)))
+})
+
+test('an unreadable CORAL.md is a problem too, not an exception', () => {
+  // The other input. A declaration that exists and cannot be opened is a configuration
+  // failure exactly as an unregistered profile is, and belongs in the same list.
+  inTree(fixture(), (coral) =>
+    inTree({ 'keep.md': '' }, (project) => {
+      // A directory where the record should be: readFileSync fails with EISDIR.
+      fs.mkdirSync(path.join(project, ADHERENCE_FILE))
+      let result
+      assert.doesNotThrow(() => {
+        result = loadExecutionContract(coral, project)
+      })
+      assert.equal(result.ok, false)
+      assert.equal(result.markdown, undefined)
+      assert.ok(result.problems.some((p) => /could not be read/.test(p)), result.problems.join('\n'))
+    })
+  )
+})
+
+test('a failed input read still removes the contract the previous run wrote', () => {
+  // The reproduction the lifecycle exists for, arriving from the input side rather than
+  // from an unresolvable declaration: the destination must not keep a contract that is now
+  // stale merely because the failure happened while reading rather than while resolving.
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, CONTRACT_FILE)
+    assert.equal(writeExecutionContract(coral, project).ok, true)
+    assert.ok(fs.existsSync(out))
+
+    let again
+    assert.doesNotThrow(() => {
+      again = writeExecutionContract(MISSING_CORAL, project)
+    })
+    assert.equal(again.ok, false)
+    assert.equal(again.markdown, undefined)
+    assert.equal(fs.existsSync(out), false, 'a stale contract survived an input-side failure')
+    assert.equal(again.removed, out)
+  })
+})
+
+test('a programmer error is not laundered into a configuration problem', () => {
+  // The other half of the guard. Swallowing every throw would turn a defect in this module
+  // into a message blaming the operator's paths, and the bug would never be seen.
+  assert.throws(() => loadExecutionContract(undefined, undefined), (e) => e instanceof TypeError)
+})
+
+test('the file boundary discards stale output even when generation throws', () => {
+  // Last line of defence: whatever escapes upstream, the destination must not be left
+  // holding a contract that describes an earlier declaration. The error still surfaces.
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, CONTRACT_FILE)
+    assert.equal(writeExecutionContract(coral, project).ok, true)
+    assert.ok(fs.existsSync(out))
+
+    assert.throws(() => writeExecutionContract(undefined, project), TypeError)
+    assert.equal(fs.existsSync(out), false, 'a thrown generation left the stale contract in place')
+  })
+})
+
+// ── provenance: the marker, not the heading ──────────────────────────────────
+
+test('a generated contract opens with the heading and the machine marker', () => {
+  const md = contract(kernelOnly)
+  assert.ok(md.startsWith(CONTRACT_PREAMBLE), md.slice(0, 120))
+  assert.equal(md.split('\n')[0], CONTRACT_HEADING)
+  assert.equal(md.split('\n')[1], CONTRACT_MARKER)
+  // Stable across regenerations, so it is not a nondeterministic field.
+  assert.equal(contract(kernelOnly), md)
+})
+
+test('a human file that merely OPENS with the Coral heading is never deleted', () => {
+  // The collision the heading alone cannot survive. A note about a contract, a draft, a
+  // copy pasted for review — all of them legitimately start with that line, and none of
+  // them was written by this generator.
+  inProject({}, record({ ...kernelOnly, scales: ['enormous'] }), (coral, project) => {
+    const out = path.join(project, 'draft.md')
+    const human = `${CONTRACT_HEADING}\n\nNotes on what ours should say once we adopt a profile.\n`
+    fs.writeFileSync(out, human)
+
+    const result = writeExecutionContract(coral, project, out)
+    assert.equal(result.ok, false)
+    assert.equal(result.removed, null, 'a file this generator never wrote was deleted')
+    assert.equal(fs.readFileSync(out, 'utf8'), human)
+  })
+})
+
+test('a file carrying the marker is removed when regeneration fails', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const out = path.join(project, 'docs', 'contract.md')
+    fs.mkdirSync(path.dirname(out), { recursive: true })
+    assert.equal(writeExecutionContract(coral, project, out).ok, true)
+    assert.ok(fs.readFileSync(out, 'utf8').startsWith(CONTRACT_PREAMBLE))
+
+    fs.writeFileSync(path.join(project, ADHERENCE_FILE), record({ ...kernelOnly, scales: ['enormous'] }))
+    const again = writeExecutionContract(coral, project, out)
+    assert.equal(again.ok, false)
+    assert.equal(again.removed, out)
+    assert.equal(fs.existsSync(out), false)
+  })
+})
+
+test('the marker must be in its exact place, not merely somewhere in the file', () => {
+  inProject({}, record({ ...kernelOnly, scales: ['enormous'] }), (coral, project) => {
+    const out = path.join(project, 'about.md')
+    // Mentions the marker in prose; it is still a human's document.
+    const human = `# Notes\n\nGenerated contracts carry \`${CONTRACT_MARKER}\` on line two.\n`
+    fs.writeFileSync(out, human)
+    assert.equal(writeExecutionContract(coral, project, out).ok, false)
+    assert.equal(fs.readFileSync(out, 'utf8'), human)
+  })
+})
+
+// ── the reserved output name, on any filesystem ──────────────────────────────
+
+test('every case spelling of CORAL.md is refused as an output name', () => {
+  // `--out coral.md` names the same file as `CORAL.md` on Windows and on a default macOS
+  // volume, so a case-sensitive guard protects the declaration on Linux and hands it over
+  // everywhere else. Refused on every platform, rather than probed for.
+  inProject({}, record(kernelOnly), (coral, project) => {
+    for (const spelling of ['CORAL.md', 'coral.md', 'Coral.md', 'CORAL.MD', 'cOrAl.Md']) {
+      const result = writeExecutionContract(coral, project, path.join(project, spelling))
+      assert.equal(result.ok, false, `\`--out ${spelling}\` was accepted`)
+      assert.ok(
+        result.problems.some((p) => /adherence RECORD and not a place to put generated output/.test(p)),
+        result.problems.join('\n')
+      )
+      assert.equal(result.removed, null)
+    }
+    // The declaration is still exactly what it was.
+    assert.equal(fs.readFileSync(path.join(project, ADHERENCE_FILE), 'utf8'), record(kernelOnly))
+  })
+})
+
+test('a lowercase coral.md in the project root is identified as this project\'s own record', () => {
+  inProject({}, record(kernelOnly), (coral, project) => {
+    const result = writeExecutionContract(coral, project, path.join(project, 'coral.md'))
+    assert.ok(result.problems.some((p) => /destroy the/.test(p)), result.problems.join('\n'))
+  })
+})
+
+// ── applicable is not the same question as normative ─────────────────────────
+
+test('the contract does not claim every omitted Coral rule is inapplicable', () => {
+  // `[WID-2]` is a `[guide]` in the widget profile, and this project ADOPTS widget. It is
+  // applicable and still absent, so a blanket "a Coral rule that is not listed here does
+  // not apply to this project" would be false in the one document an agent is told to
+  // trust — and false about exactly the distinction the generator is built on.
+  const md = contract({ ...kernelOnly, adopts: { 'shape-profile': ['widget'] } })
+  const prose = md.slice(0, md.indexOf('## Rules'))
+
+  assert.ok(
+    !/A Coral rule that is not listed here does not apply/.test(md),
+    'the contract claims every omitted Coral rule is inapplicable'
+  )
+  // The inapplicability claim is scoped to the classes the file actually lists.
+  assert.match(prose, /An `\[auto\]` or `\[review\]` rule that is not listed here does not/)
+  assert.match(prose, /apply to this project/)
+  // And guides are said to be omitted on the other ground.
+  assert.match(prose, /`\[guide\]` rules are left out on different grounds/)
+  assert.match(prose, /belong to scopes this/)
+  assert.match(prose, /project HAS adopted/)
+  assert.match(prose, /rationale rather than instruction/)
+  assert.match(prose, /not because they are inapplicable/)
+
+  // The fixture actually exercises the case the prose describes.
+  assert.ok(!md.includes('WID-2'), 'the applicable guide was emitted after all')
+  assert.ok(md.includes('WID-1'), 'the widget profile was not adopted, so the case is untested')
 })
 
 // ── 14. determinism ──────────────────────────────────────────────────────────
