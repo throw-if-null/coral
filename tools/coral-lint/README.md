@@ -1,6 +1,8 @@
 # coral-lint — Tier 1 static checks
 
 The operational half of [Enforcement & Drift Control](../../ARCHITECTURE.md#enforcement-drift-control).
+Every rule it checks is production-baseline or app-profile, so the per-rule Tier 1 mapping lives with
+those rules — [`PRODUCTION.md`](../../PRODUCTION.md#enforcement-of-the-baseline) for the baseline.
 It decides deterministically on the `[auto]` rules it implements.
 
 ```bash

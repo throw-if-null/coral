@@ -128,8 +128,9 @@ merely implied. A CLI that reads untrusted files or network input does not quali
 ## Agent Execution Contract (CLI)
 
 The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
-**adds to** the spine's contract in [`ARCHITECTURE.md`](../ARCHITECTURE.md) rather than replacing it —
-load both. `[guide]` rules are rationale and live only in the prose.
+**adds to** the app-scale contracts rather than replacing them —
+load [`ARCHITECTURE.md`](../ARCHITECTURE.md)'s, and [`PRODUCTION.md`](../PRODUCTION.md)'s if this project
+adopts the production baseline. `[guide]` rules are rationale and live only in the prose.
 
 <!-- coral:contract:start -->
 <!-- coral:scope:app:cli -->

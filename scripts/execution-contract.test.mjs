@@ -32,6 +32,8 @@ import test from 'node:test'
 import { stringify } from 'yaml'
 
 import {
+  CORE_END,
+  CORE_START,
   KERNEL_END,
   KERNEL_START,
   LAYERS_END,
@@ -145,6 +147,14 @@ const conventions = () =>
     ...PROFILE_ROWS,
     '',
     PROFILES_END,
+    '',
+    CORE_START,
+    '',
+    '| Document | Defines | Justified by |',
+    '|---|---|---|',
+    '| `CONVENTIONS.md` | the registries and the kernel | everyone reads it |',
+    '',
+    CORE_END,
     '',
   ].join('\n')
 

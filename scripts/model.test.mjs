@@ -21,6 +21,8 @@ import path from 'node:path'
 import test from 'node:test'
 
 import {
+  CORE_END,
+  CORE_START,
   KERNEL_END,
   KERNEL_START,
   LAYERS_END,
@@ -69,12 +71,18 @@ const PROFILE_ROWS = [
   '| `{lang:go}` | `appendix/go.md` | The Go realization of a neutral concept. |',
 ]
 const KERNEL_HEADER = ['| Rule | Why | Properties |', '|---|---|---|']
+const CORE_HEADER = ['| Document | Defines | Justified by |', '|---|---|---|']
+// The fixture's own front door is core; the spine is not, so the synthetic tree can carry an
+// opt-in rule in ARCHITECTURE.md wherever a test is about something else. The core-document
+// tests below override this.
+const CORE_ROWS = ['| `CONVENTIONS.md` | the registries and the kernel | everyone reads it |']
 
 /** A CONVENTIONS.md holding all three registries, plus whatever definitions `defs` adds. */
 const conventions = ({
   layers = LAYER_ROWS,
   scales = SCALE_ROWS,
   profiles = PROFILE_ROWS,
+  core = CORE_ROWS,
   kernel = ['K-1'],
   defs = [],
 }) =>
@@ -111,6 +119,13 @@ const conventions = ({
     '',
     PROFILES_END,
     '',
+    CORE_START,
+    '',
+    ...CORE_HEADER,
+    ...core,
+    '',
+    CORE_END,
+    '',
   ].join('\n')
 
 /** A whole fixture repository, sound by default: one rule in every declared layer. */
@@ -119,6 +134,7 @@ function fixture(overrides = {}) {
     layers,
     scales,
     profiles,
+    core,
     kernel = ['K-1'],
     conventionDefs = ['**`[K-1]` `[review]`** — the kernel one.'],
     spine = [
@@ -134,7 +150,7 @@ function fixture(overrides = {}) {
     // a missing statement, and the model refuses it rather than assuming.
     VERSION: '9.9.9\n',
     'CHANGELOG.md': '# Changelog\n\n## Unreleased\n',
-    [PROFILES_FILE]: conventions({ layers, scales, profiles, kernel, defs: conventionDefs }),
+    [PROFILES_FILE]: conventions({ layers, scales, profiles, core, kernel, defs: conventionDefs }),
     'ARCHITECTURE.md': ['# App', '', ...spine, ''].join('\n'),
     'appendix/widget.md': [
       '# Widget',
@@ -403,6 +419,197 @@ test('an unknown tag and an unregistered profile both fail', () => {
     typo.problems.some((p) => /is not a declared profile/.test(p)),
     typo.problems.join('\n')
   )
+})
+
+// ── core documents: an opt-in rule may not be defined in one ─────────────────
+//
+// The structural half of PO-06. Moving seventy `{baseline}` rules out of ARCHITECTURE.md
+// fixed the state of the documents; this is what stops the next one walking back in, where
+// it would again be published to every reader of the app spine as though it were
+// unconditional.
+//
+// Synthetic throughout, and deliberately so: the check is stated in terms of a layer's
+// SURFACE, so it has nothing to say about which layer Coral's production baseline is. A
+// fixture where the opt-in layer is called `shape:widget` proves exactly the same invariant,
+// and proves it without pinning Coral's current vocabulary.
+
+// Two FIXED-tag opt-in layers, which the default fixture taxonomy has none of. Fixed-tag is
+// what Coral's `{baseline}` and `{runtime-agent}` are, and it is the shape that isolates this
+// guard: a profile-tagged rule in a spine is already refused by the profile-home check, so a
+// fixture built from one would prove that check rather than this one. Two of them, because
+// the guard must be keyed to the SURFACE and not to a layer somebody enumerated.
+const OPT_IN_LAYERS = [
+  '| extras | `extras` | `{extra}` | opt-in | profile-scoped | projects that want them | wanting them |',
+  '| addons | `addons` | `{addon}` | opt-in | profile-scoped | projects that want them | wanting them |',
+]
+
+/** A tree whose spine is registered core, with `spine` as its rule definitions. */
+const withCoreSpine = (spine) =>
+  model({
+    layers: [...LAYER_ROWS, ...OPT_IN_LAYERS],
+    core: [
+      ...CORE_ROWS,
+      '| `ARCHITECTURE.md` | the kernel-facing spine | read before any adoption decision |',
+    ],
+    spine,
+  })
+
+test('an opt-in rule defined in a core document fails, and the model is not classified', () => {
+  const m = withCoreSpine([
+    '**`[BASE-1]` `[review]` `{base}`** — a conformance rule, which is fine here.',
+    '**`[META-1]` `[review]` `{meta}`** — a governance rule, also fine here.',
+    '**`[SNEAK-1]` `[review]` `{extra}`** — an opt-in rule that walked back in.',
+  ])
+  assert.ok(
+    m.problems.some((p) => /\[SNEAK-1\].*core document/.test(p)),
+    m.problems.join('\n')
+  )
+  assert.equal(m.classified, false)
+  // and it is refused rather than filed: a scope would let a consumer read it as classified
+  assert.equal(m.rules.get('SNEAK-1').scope, undefined)
+})
+
+test('the guard names the layer surface, not the layer — a second opt-in layer is covered too', () => {
+  // No enumeration of "which layers are the baseline". Adding a seventh opt-in layer to the
+  // registry needs no edit to the guard, which is the property that keeps it single-sourced.
+  const m = withCoreSpine(['**`[SNEAK-1]` `[review]` `{addon}`** — a different opt-in layer, same leak.'])
+  assert.ok(
+    m.problems.some((p) => /\[SNEAK-1\]/.test(p) && /`opt-in` layer/.test(p)),
+    m.problems.join('\n')
+  )
+  assert.equal(m.classified, false)
+})
+
+test('the same opt-in rule in a non-core document is fine — placement is what the guard checks', () => {
+  // The control. Identical rule, identical tag, identical everything except the document it
+  // is defined in. A guard that fired here would be forbidding the classification rather
+  // than the placement.
+  const m = cleanModel({
+    layers: [...LAYER_ROWS, ...OPT_IN_LAYERS],
+    extra: {
+      'appendix/extras.md': [
+        '# Extras',
+        '',
+        '**`[SNEAK-1]` `[review]` `{extra}`** — the same rule, one document over.',
+        '',
+      ].join('\n'),
+    },
+  })
+  assert.equal(m.rules.get('SNEAK-1').scope.kind, 'extras')
+  assert.ok(m.classified)
+})
+
+test('a conformance or governance rule in a core document is untouched', () => {
+  const m = withCoreSpine([
+    '**`[BASE-1]` `[review]` `{base}`** — a conformance rule.',
+    '**`[META-1]` `[review]` `{meta}`** — a governance rule.',
+  ])
+  assert.deepEqual(m.problems, [])
+  assert.ok(m.classified)
+  assert.equal(m.rules.get('BASE-1').scope.kind, 'base-rules')
+  assert.equal(m.rules.get('META-1').scope.kind, 'meta-rules')
+})
+
+test('a core registry that fails to validate cannot leave the model `classified`', () => {
+  // Same posture as the kernel and scale registries. A guard whose own source the build has
+  // refused is a guard nobody can rely on, so the model must not come back usable.
+  const m = model({ core: ['| not a document | x | y |'] })
+  assert.ok(
+    m.problems.some((p) => /malformed core-document row/.test(p)),
+    m.problems.join('\n')
+  )
+  assert.equal(m.classified, false)
+})
+
+test('a core row naming a document that cannot define rules is refused', () => {
+  const m = model({ core: ['| `nowhere.md` | nothing | nothing |'] })
+  assert.ok(
+    m.problems.some((p) => /not a document that can define rules/.test(p)),
+    m.problems.join('\n')
+  )
+})
+
+test('a document declared core twice is refused rather than deduplicated', () => {
+  const m = model({ core: [...CORE_ROWS, ...CORE_ROWS] })
+  assert.ok(
+    m.problems.some((p) => /declares `CONVENTIONS.md` core twice/.test(p)),
+    m.problems.join('\n')
+  )
+})
+
+test('a kernel rule defined outside a core document fails the model', () => {
+  // The guard's other direction. Without it the whole thing is self-disabling: drop the spine
+  // from the registry and the opt-in check simply stops looking at it, while the registry is
+  // still non-empty and every other assertion still passes.
+  const m = model({
+    kernel: ['K-1', 'SK-1'],
+    spine: [
+      '**`[SK-1]` `[review]`** — a kernel rule stated in a document nobody declared core.',
+      '**`[META-1]` `[review]` `{meta}`** — the governance one.',
+    ],
+  })
+  assert.ok(
+    m.problems.some((p) => /\[SK-1\] is a kernel rule but is defined in ARCHITECTURE\.md/.test(p)),
+    m.problems.join('\n')
+  )
+  assert.equal(m.classified, false)
+})
+
+test('declaring that document core is what makes it pass — no list in the tooling', () => {
+  // Same tree, one registry row added. That is the whole repair, and it is the property that
+  // keeps the invariant single-sourced: the kernel block says which rules are kernel, the core
+  // block says which documents are core, and the check is the join of the two.
+  const m = cleanModel({
+    kernel: ['K-1', 'SK-1'],
+    core: [
+      ...CORE_ROWS,
+      '| `ARCHITECTURE.md` | a kernel rule of its own | read before any adoption decision |',
+    ],
+    spine: [
+      '**`[SK-1]` `[review]`** — a kernel rule stated in a document declared core.',
+      '**`[META-1]` `[review]` `{meta}`** — the governance one.',
+    ],
+  })
+  assert.ok(m.classified)
+  assert.equal(m.rules.get('SK-1').scope.kind, 'core')
+})
+
+test('the two directions are independent — a core document still refuses an opt-in rule', () => {
+  // Both halves apply to the same document at once: ARCHITECTURE.md is core because it defines
+  // a kernel rule, and being core is what forbids the opt-in one beside it.
+  const m = model({
+    kernel: ['K-1', 'SK-1'],
+    layers: [...LAYER_ROWS, ...OPT_IN_LAYERS],
+    core: [
+      ...CORE_ROWS,
+      '| `ARCHITECTURE.md` | a kernel rule of its own | read before any adoption decision |',
+    ],
+    spine: [
+      '**`[SK-1]` `[review]`** — the kernel one, correctly placed.',
+      '**`[SNEAK-1]` `[review]` `{extra}`** — the opt-in one, incorrectly placed.',
+      '**`[META-1]` `[review]` `{meta}`** — the governance one.',
+    ],
+  })
+  assert.ok(
+    m.problems.some((p) => /\[SNEAK-1\].*core document/.test(p)),
+    m.problems.join('\n')
+  )
+  assert.ok(!m.problems.some((p) => /\[SK-1\]/.test(p)), m.problems.join('\n'))
+  assert.equal(m.classified, false)
+})
+
+test('a missing core registry is an error, not an empty set of core documents', () => {
+  // The failure this registry exists to prevent runs through its own absence: with no block,
+  // no document is core, the guard silently checks nothing, and the page still reads fine.
+  const m = inTree(
+    { ...fixture(), [PROFILES_FILE]: fixture()[PROFILES_FILE].split(CORE_START)[0] },
+    loadRuleModel
+  )
+  assert.ok(
+    m.problems.some((p) => /must hold exactly one <!-- coral:core:start --> block/.test(p)),
+    m.problems.join('\n')
+  )
+  assert.equal(m.classified, false)
 })
 
 // ── the machine key ──────────────────────────────────────────────────────────
@@ -715,6 +922,56 @@ test('a named `## Unreleased — x.y.z` makes the tree its successor', () => {
   assert.deepEqual(m.problems, [])
   assert.equal(m.version, '9.10.0')
   assert.equal(inTree(tree, coralVersion).unreleased, true)
+})
+
+test("Coral's core documents define nothing a project has to adopt", () => {
+  // Half of the repository-tier invariant: nothing OPTIONAL is stated in a core document.
+  // Against `scope.surface`, so it survives any rename of the layers involved.
+  assert.ok(REAL.core.size, 'the repository declares no core documents')
+  for (const [id, rule] of REAL.rules) {
+    if (!REAL.core.has(rule.page)) continue
+    assert.notEqual(
+      rule.scope.surface,
+      'opt-in',
+      `[${id}] is opt-in and is defined in the core document ${rule.page}`
+    )
+  }
+})
+
+test('and every kernel rule is stated in one of them', () => {
+  // The other half, and the one that makes the pair mean what the registry claims: *a reader
+  // of the core documents has met the whole unconditional surface*. The first assertion alone
+  // does not pin that — dropping ARCHITECTURE.md from the registry would leave it passing over
+  // a smaller set while five kernel rules sat outside the guard entirely.
+  //
+  // Derived from the kernel block rather than from a document list held here, so a kernel rule
+  // stated in a new document fails until that document is declared core.
+  assert.equal(REAL.kernel.size, 10)
+  for (const id of REAL.kernel) {
+    const page = REAL.rules.get(id).page
+    assert.ok(REAL.core.has(page), `[${id}] is kernel but its defining document ${page} is not core`)
+  }
+  // Deliberately NOT asserted: that every core document defines a rule. "Core" means a project
+  // reads it before adopting anything, and a page could earn that by holding vocabulary,
+  // framing or loading instructions and no rule at all — the registry's own `Defines` column
+  // allows exactly that. Requiring a rule would turn "a new core document is one registry row"
+  // into "one registry row, plus a rule to put in it", which is a constraint the model does not
+  // have. parseCoreDocuments() already refuses a row naming a document that cannot define rules,
+  // which is the real integrity check.
+})
+
+test('the app-scale production baseline lives outside the core documents', () => {
+  // The other direction, and the one that would regress silently: the baseline rules still
+  // exist, still carry the same ownership, and are simply stated somewhere a project reaches
+  // only after deciding to. A non-empty count is asserted so the test cannot pass by the
+  // baseline having quietly emptied.
+  const appBaseline = [...REAL.rules].filter(
+    ([, r]) => r.scope.kind === 'production-baseline' && r.scale === 'app'
+  )
+  assert.ok(appBaseline.length > 50, `only ${appBaseline.length} app-scale baseline rules`)
+  const pages = new Set(appBaseline.map(([, r]) => r.page))
+  assert.equal(pages.size, 1, `the app-scale baseline is split across ${[...pages].join(', ')}`)
+  for (const page of pages) assert.ok(!REAL.core.has(page), `${page} is a core document`)
 })
 
 test('every published scale keeps its stable machine identity', () => {

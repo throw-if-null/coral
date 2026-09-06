@@ -1,6 +1,6 @@
 # Rule index
 
-Every rule Coral publishes, in one place: **179 rules** across 9 documents — 29 `[auto]`, 121 `[review]`,
+Every rule Coral publishes, in one place: **179 rules** across 10 documents — 29 `[auto]`, 121 `[review]`,
 29 `[guide]`. Each ID links to its definition, where the reasoning lives; the statement here is only the
 one-line form.
 
@@ -122,12 +122,12 @@ production baseline takes the app-scale part of that group and not the rest.
 
 | Rule | Class | Scale | Defined in |
 | --- | --- | --- | --- |
-| `[BOUND-1]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BOUND-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BOUND-4]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BOUND-5]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BUCKET-1]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[BUCKET-2]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[BOUND-1]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[BOUND-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[BOUND-4]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[BOUND-5]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[BUCKET-1]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[BUCKET-2]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[CHAN-1]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[CHAN-10]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[CHAN-2]` | `[guide]` | system | [`SYSTEM.md`](./SYSTEM.md) |
@@ -138,78 +138,78 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[CHAN-7]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[CHAN-8]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[CHAN-9]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
-| `[COMPOSE-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[COMPOSE-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[COMPOSE-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-1]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONC-5]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONFIG-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONFIG-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONFIG-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONFIG-4]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONTRACT-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[CONTRACT-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[DUP-1]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[DUP-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[DUP-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[DUP-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[EFFECT-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[EFFECT-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[EFFECT-3]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[EFFECT-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ERR-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ERR-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ERR-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ERR-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[GROW-1]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[GROW-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[GROW-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-5]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[IDEM-6]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[MODEL-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[MODEL-3]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[MODEL-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[OBS-1]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[OBS-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[OBS-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[COMPOSE-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[COMPOSE-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[COMPOSE-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONC-1]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONC-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONC-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONC-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONC-5]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONFIG-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONFIG-2]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONFIG-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONFIG-4]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONTRACT-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[CONTRACT-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[DUP-1]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[DUP-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[DUP-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[DUP-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[EFFECT-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[EFFECT-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[EFFECT-3]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[EFFECT-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[ERR-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[ERR-2]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[ERR-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[ERR-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[GROW-1]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[GROW-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[GROW-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[IDEM-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[IDEM-2]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[IDEM-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[IDEM-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[IDEM-5]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[IDEM-6]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[MODEL-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[MODEL-3]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[MODEL-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[OBS-1]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[OBS-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[OBS-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[ORCH-1]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[ORCH-2]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[ORCH-3]` | `[guide]` | system | [`SYSTEM.md`](./SYSTEM.md) |
-| `[ROOT-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ROOT-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[ROOT-3]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[SCOPE-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-3]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-5]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-6]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STATE-7]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STRUCT-1]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STRUCT-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[STRUCT-3]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[ROOT-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[ROOT-2]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[ROOT-3]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[SCOPE-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STATE-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STATE-2]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STATE-3]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STATE-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STATE-5]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STATE-6]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STATE-7]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STRUCT-1]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STRUCT-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[STRUCT-3]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[SYS-TEST-1]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[SYS-TEST-2]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[SYS-TEST-3]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[SYS-TEST-4]` | `[guide]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[SYS-TEST-5]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
-| `[TEST-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[TEST-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[TEST-4]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[TRUST-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[TRUST-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[XCUT-2]` | `[auto]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[XCUT-3]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[XCUT-4]` | `[guide]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| `[XCUT-5]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[TEST-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[TEST-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[TEST-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[TRUST-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[TRUST-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[XCUT-2]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[XCUT-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[XCUT-4]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[XCUT-5]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 
 ### app-profile
 
@@ -353,20 +353,30 @@ production baseline takes the app-scale part of that group and not the rest.
 
 ## Coral Architecture — the App
 
-78 rules — [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+8 rules — [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
 | `[SCOPE-1]` | `[guide]` | framework governance | This architecture covers command/request-shaped apps with loosely-coupled features, where each feature is largely its own world. |
 | `[SCOPE-2]` | `[guide]` | framework governance | It is weak for dense, deeply-coupled domains where every feature reaches into one large central concept. |
-| `[SCOPE-3]` | `[review]` | production baseline | When features converge on one dense concept, give it its own app behind a published contract. |
 | `[SCOPE-4]` | `[guide]` | framework governance | What happens *after* the split is not in this document. |
 | `[MODEL-1]` | `[review]` | kernel | Every unit of code is a slice, a crosscut, an adapter, the composition root, or a published contract. |
+| `[BOUND-2]` | `[review]` | kernel | One request/trigger — or a very tight pair — per slice, owned end to end. |
+| `[XCUT-1]` | `[review]` | kernel | Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant. |
+| `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals; depend on its published capability. |
+| `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking. |
+
+## Coral Production Baseline — the App
+
+70 rules — [`PRODUCTION.md`](./PRODUCTION.md)
+
+| Rule | Class | Layer | Statement |
+| --- | --- | --- | --- |
+| `[SCOPE-3]` | `[review]` | production baseline | When features converge on one dense concept, give it its own app behind a published contract. |
 | `[MODEL-2]` | `[review]` | production baseline | Name every package for the capability or concern it owns, never for its technical role. |
 | `[MODEL-3]` | `[guide]` | production baseline | A crosscut's decisive property is defined once, injected many. |
 | `[MODEL-4]` | `[review]` | production baseline | An adapter implements a slice-declared port: infrastructure only, arrow inward, wired by the root, no behavior. |
 | `[BOUND-1]` | `[guide]` | production baseline | A slice handles one inbound request or trigger, end to end. |
-| `[BOUND-2]` | `[review]` | kernel | One request/trigger — or a very tight pair — per slice, owned end to end. |
 | `[BOUND-3]` | `[review]` | production baseline | Use the boundary form the appendix fixes; do not invent a new one. |
 | `[BOUND-4]` | `[guide]` | production baseline | "Continuous" or "real-time" work is not a new boundary kind. |
 | `[BOUND-5]` | `[review]` | production baseline | A scheduled/background trigger is a slice: observable outcome, overlap-safe, tested. |
@@ -378,7 +388,6 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[STRUCT-3]` | `[auto]` | production baseline | Keep root-level crosscuts rare and precisely named. |
 | `[BUCKET-1]` | `[auto]` | production baseline | Do not create or expand `shared`/`common`/`utils`/`helpers`/`services`/`repository`/generic `models`. |
 | `[BUCKET-2]` | `[guide]` | production baseline | Generic catch-all names destroy locality and predictability. |
-| `[XCUT-1]` | `[review]` | kernel | Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant. |
 | `[XCUT-2]` | `[auto]` | production baseline | Give every crosscut a precise domain or infrastructure name. |
 | `[XCUT-3]` | `[review]` | production baseline | Inject crosscuts; consume their published surface, never their internals. |
 | `[XCUT-4]` | `[guide]` | production baseline | A crosscut is the *first line* of drift control. |
@@ -387,7 +396,6 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[DUP-2]` | `[review]` | production baseline | Do not extract on similarity alone; similarity is not a shared concept. |
 | `[DUP-3]` | `[review]` | production baseline | Extract only to enforce an invariant or convention, provide named infrastructure, or clarify a real calculation. |
 | `[DUP-4]` | `[review]` | production baseline | Apply the Extraction Test before extracting. |
-| `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals; depend on its published capability. |
 | `[COMPOSE-2]` | `[review]` | production baseline | Prefer injecting a capability through the root over a slice-to-slice import. |
 | `[COMPOSE-3]` | `[review]` | production baseline | A shared multi-step workflow is a candidate crosscut, not a `services` bucket. |
 | `[COMPOSE-4]` | `[review]` | production baseline | Read fan-in is a legitimate slice, provided it uses published capabilities only. |
@@ -428,7 +436,6 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[CONTRACT-2]` | `[review]` | production baseline | Version public-contract changes per the app type's discipline. |
 | `[TRUST-1]` | `[review]` | production baseline | Validate and authorize untrusted input at the boundary. |
 | `[TRUST-2]` | `[review]` | production baseline | State the app's trust boundary explicitly, however minimal. |
-| `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking. |
 | `[TEST-2]` | `[review]` | production baseline | Prefer integration and end-to-end tests over isolated unit tests. |
 | `[TEST-3]` | `[review]` | production baseline | Unit tests are a scalpel; never duplicate integration coverage; never extract just to test. |
 | `[TEST-4]` | `[review]` | production baseline | Assert contract, errors, idempotency, transactions, authorization, and diagnostics where relevant. |

@@ -24,6 +24,8 @@ import test from 'node:test'
 import { stringify } from 'yaml'
 
 import {
+  CORE_END,
+  CORE_START,
   KERNEL_END,
   KERNEL_START,
   LAYERS_END,
@@ -90,6 +92,10 @@ const PROFILE_ROWS = [
   '| `{shape:gadget}` | `appendix/gadget.md` | Gadget-shaped applications. |',
 ]
 const KERNEL_HEADER = ['| Rule | Why | Properties |', '|---|---|---|']
+// The fixture's front door is its one core document — the registries and the implicit rule
+// live there, and nothing opt-in does.
+const CORE_HEADER = ['| Document | Defines | Justified by |', '|---|---|---|']
+const CORE_ROWS = ['| `CONVENTIONS.md` | the registries and the implicit rule | everyone reads it |']
 
 const conventions = ({ layers = LAYER_ROWS, scales = SCALE_ROWS, profiles = PROFILE_ROWS }) =>
   [
@@ -124,6 +130,13 @@ const conventions = ({ layers = LAYER_ROWS, scales = SCALE_ROWS, profiles = PROF
     ...profiles,
     '',
     PROFILES_END,
+    '',
+    CORE_START,
+    '',
+    ...CORE_HEADER,
+    ...CORE_ROWS,
+    '',
+    CORE_END,
     '',
   ].join('\n')
 
@@ -1232,6 +1245,97 @@ test('a kernel-only project on the real rule set owes exactly the kernel', () =>
     )
   )
   assert.deepEqual([...r.selected].sort(), [...REAL.kernel].sort())
+})
+
+// ── PO-06: the split is a document move, and applicability did not follow it ──
+//
+// The documents moved; the resolver did not, and must not. These pin the four claims a
+// reader of that change has to be able to check: that adopting a profile is not a back door
+// into the baseline, that adopting the runtime-agent profile is not either, that the
+// system-scale baseline is still system-scale after the app-scale half left ARCHITECTURE.md,
+// and that the resolver reads ownership and scale rather than the page a rule is written on.
+
+const REAL_ADOPT = (adopts, scales = ['app']) =>
+  clean(resolve({ targets: VERSION, scales, adopts }, { model: REAL, version: VERSION }))
+
+const baselineIds = () =>
+  [...REAL.rules].filter(([, r]) => r.scope.kind === 'production-baseline').map(([id]) => id)
+
+test('adopting an app profile alone brings no production-baseline rule', () => {
+  // The failure this would be: a project takes `app-profile: [cli]`, and because the CLI
+  // appendix refines baseline rules, the baseline arrives with it. Nothing in the resolver
+  // does that, and nothing in the document restructuring changed it.
+  const r = REAL_ADOPT({ 'app-profile': ['cli'] })
+  assert.ok(r.selected.has('CLI-6'), 'the adopted profile contributed nothing')
+  for (const id of baselineIds()) {
+    assert.ok(!r.selected.has(id), `[${id}] arrived with an app profile that did not adopt it`)
+  }
+  // exactly the kernel plus the CLI profile's app-scale rules, and nothing else
+  const expected = [...REAL.rules]
+    .filter(
+      ([id, rule]) =>
+        REAL.kernel.has(id) || (rule.scope.profile === 'cli' && rule.scale === 'app')
+    )
+    .map(([id]) => id)
+  assert.deepEqual([...r.selected].sort(), expected.sort())
+})
+
+test('adopting the runtime-agent profile alone brings no production-baseline rule', () => {
+  // Both scales, so the system-scale half of each layer is in play: [ORCH-4..6] must arrive
+  // and [CHAN-1] must not. The two are in one document and always have been; what makes them
+  // separable is the ownership tag, not the page.
+  const r = REAL_ADOPT({ 'runtime-agent-profile': true }, ['app', 'system'])
+  for (const id of ['AGENTIC-1', 'ORCH-4', 'ORCH-5', 'ORCH-6']) {
+    assert.ok(r.selected.has(id), `[${id}] is a runtime-agent rule and was not selected`)
+  }
+  for (const id of baselineIds()) {
+    assert.ok(!r.selected.has(id), `[${id}] arrived with the runtime-agent profile`)
+  }
+})
+
+test('adopting the production baseline alone brings no profile and no runtime-agent rule', () => {
+  const r = REAL_ADOPT({ 'production-baseline': true }, ['app', 'system'])
+  assert.ok(r.selected.has('STATE-5'), 'the app-scale baseline was not selected')
+  assert.ok(r.selected.has('CHAN-1'), 'the system-scale baseline was not selected')
+  for (const id of ['CLI-6', 'BE-1', 'WEB-1', 'LIB-3', 'GHA-1', 'AGENTIC-1', 'ORCH-4']) {
+    assert.ok(!r.selected.has(id), `[${id}] arrived with the production baseline`)
+  }
+})
+
+test('the system-scale baseline is still system-scale after the app-scale half moved out', () => {
+  // Scale is derived from the defining document, so moving seventy rules to a new one is
+  // exactly the change that could have altered it by accident. SYSTEM.md keeps its scale row;
+  // PRODUCTION.md falls to the `app` default like every other unclaimed document.
+  for (const id of ['CHAN-1', 'CHAN-10', 'SYS-TEST-1', 'ORCH-4']) {
+    assert.equal(REAL.rules.get(id).scale, 'system', `[${id}] left system scale`)
+  }
+  for (const id of ['STATE-5', 'CONC-1', 'ERR-1', 'BUCKET-1', 'SCOPE-3']) {
+    assert.equal(REAL.rules.get(id).scale, 'app', `[${id}] left app scale`)
+  }
+  // and a one-app project that adopts the baseline takes the first set and not the second
+  const appOnly = REAL_ADOPT({ 'production-baseline': true }, ['app'])
+  assert.ok(appOnly.selected.has('STATE-5'))
+  for (const id of ['CHAN-1', 'CHAN-10', 'SYS-TEST-1']) {
+    assert.ok(!appOnly.selected.has(id), `[${id}] reached a one-app project`)
+  }
+})
+
+test('the applicable set is decided by ownership and scale, never by the defining document', () => {
+  // The claim the whole restructuring rests on. Every selected rule is either a kernel rule
+  // or one whose layer the declaration adopts at a scale the declaration names — computed
+  // from the rule model, with the page never consulted.
+  const adopts = { 'production-baseline': true, 'app-profile': ['cli'] }
+  const r = REAL_ADOPT(adopts, ['app'])
+  for (const id of r.selected) {
+    const rule = REAL.rules.get(id)
+    if (REAL.kernel.has(id)) continue
+    assert.equal(rule.scale, 'app', `[${id}] was selected at a scale the project did not declare`)
+    const kind = rule.scope.kind
+    const ok =
+      (kind === 'production-baseline' && adopts['production-baseline']) ||
+      (kind === 'app-profile' && adopts['app-profile'].includes(rule.scope.profile))
+    assert.ok(ok, `[${id}] (${kind}) was selected by nothing in the declaration`)
+  }
 })
 
 test("CONVENTIONS.md's worked CORAL.md example is a record the resolver accepts", () => {
