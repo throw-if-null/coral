@@ -30,6 +30,7 @@
   "devDependencies": {
     "mermaid": "^11.17.2",
     "vitepress": "^1.6.4",
-    "vitepress-plugin-mermaid": "^2.0.17"
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "wrangler": "4.129.0"
   }
 }
