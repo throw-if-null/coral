@@ -7,7 +7,8 @@ orchestrate**.*
 > (slice, crosscut, adapter, composition root, published contract, app, system, channel), the rule-ID
 > scheme, the enforcement classes, the [Coral kernel](./CONVENTIONS.md#the-coral-kernel) — the rules Coral
 > would substantially relax without the agent-author / human-architect operating model — and the
-> [canonical slice](./CONVENTIONS.md#the-canonical-slice) every rule here exists to produce.
+> [canonical slice](./CONVENTIONS.md#the-canonical-slice) — which is itself a production-baseline
+> realization of the shape the rules here ask for.
 
 This is the **kernel-facing app spine**: the shape of one app, and the rules whose presence or strictness
 Coral justifies by its operating model. It is what a project owes for calling itself Coral, before it has
@@ -172,14 +173,18 @@ baseline. The five are not peers in volume:
 |---|---|---|
 | **slice** | one capability end to end — the trigger it answers, the work that answers it, its output, its tests | most of the code |
 | **crosscut** | one cross-cutting concern, held in one definition rather than copied per slice | few |
-| **adapter** | the infrastructure mechanics behind a port a slice declared | one per port that needs one; often none |
+| **adapter** | the infrastructure-facing mechanics that connect behavior to an external system | one per external system that needs one; often none |
 | **composition root** | wiring and bootstrap: where slices are registered and crosscuts are constructed | exactly one |
 | **published contract** | the surface others may depend on | one per slice/app that exposes anything |
 
-The table classifies; it does not prescribe. How each category must then be built — a crosscut *injected*
-rather than reached for (`[XCUT-3]`), the root *thin* and free of business logic (`[ROOT-1]`), an adapter
-*wired by the root* and holding no behavior (`[MODEL-4]`), a precise name on every crosscut (`[XCUT-2]`) —
-is [production-baseline](./PRODUCTION.md) policy, and binds a project that has adopted that layer.
+The table classifies; it does not prescribe, and it is deliberately thinner than the shape most Coral
+codebases have. Because `[MODEL-1]` is a kernel rule requiring every unit of code to be one of these five,
+a category defined by optional policy would make that policy binding by the back door. So the discipline
+stays with the rules: a crosscut *injected* rather than reached for (`[XCUT-3]`) and precisely named
+(`[XCUT-2]`), the root *thin* and free of business logic (`[ROOT-1]`), the **slice** declaring the port an
+adapter implements so the dependency runs adapter → slice (`[MODEL-4]`). Every one of those is
+[production-baseline](./PRODUCTION.md) policy, binding a project that has adopted that layer, and none of
+them is needed to answer "which of the five is this?"
 
 ---
 

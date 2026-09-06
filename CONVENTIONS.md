@@ -33,23 +33,33 @@ Eight nouns. Every document uses exactly these; there are no synonyms.
 | Noun | What it is | Governed by |
 |---|---|---|
 | **slice** | one capability, owned end to end — the trigger it answers, the work that answers it, the output it returns, and its tests | `[BOUND-*]` `[MODEL-1]` |
-| **crosscut** | a concern several slices need, held in **one** definition rather than copied into each of them (`config`, `errors`, `db`, `money`) | `[XCUT-*]` |
-| **adapter** | the infrastructure mechanics behind a port **a slice declared** — it implements that interface rather than defining it (`store`, `s3`, `stripe`) | `[MODEL-4]` |
-| **composition root** | the app's wiring and bootstrap boundary: the one place slices are registered and crosscuts are constructed and handed to them | `[ROOT-*]` |
+| **crosscut** | one concern that several slices need (`config`, `errors`, `db`, `money`) | `[XCUT-*]` |
+| **adapter** | the infrastructure-facing mechanics that connect application behavior to an external system or dependency (`store`, `s3`, `stripe`) | `[MODEL-4]` |
+| **composition root** | the app's wiring and bootstrap boundary — where the parts are brought together and started | `[ROOT-*]` |
 | **published contract** | the surface others are allowed to depend on: a slice's public capability, a machine-readable output, an HTTP shape, a library API | `[CONTRACT-*]` |
 | **app** | one deployable unit: many slices, one composition root, one set of crosscuts | `ARCHITECTURE.md`, `PRODUCTION.md` |
 | **system** | several apps composed together | all of `SYSTEM.md` |
 | **channel** | the pathway between two apps, and the contract governing what crosses it | `[CHAN-*]` |
 
 **The nouns name shapes; the rules say how to build them, and most of those rules are optional.** This
-table defines the vocabulary and nothing more. The disciplines a reader may expect to find in it —
-a crosscut is *injected* rather than reached for (`[XCUT-3]`), the root holds *no business logic*
-(`[ROOT-1]`), an adapter is wired by the root and owns no behavior (`[MODEL-4]`), apps communicate *only*
-through a channel and never share a datastore (`[CHAN-1]`, `[CHAN-3]`), a channel is *versioned* and takes
-one of three *forms* (`[CHAN-4]`, `[CHAN-2]`) — are **production-baseline** rules, and they bind a project
-that has adopted that layer ([What applies to a project](#what-applies-to-a-project)). The **Governed by**
-column says where each noun's rules live; it does not say that all of them apply to you. A project can
-use every one of these nouns, correctly and conformantly, having adopted nothing but the kernel.
+table defines the vocabulary and nothing more — deliberately thinner than a reader may expect, because
+`[MODEL-1]` is a **kernel** rule requiring every unit of code to be one of these five, and a definition
+that smuggled optional policy into a noun would make that policy binding by the back door. So the
+discipline sits with the rules, not with the words:
+
+| The noun says | The optional rule then says |
+|---|---|
+| a **crosscut** is one concern several slices need | give it a precise, domain- or infrastructure-oriented name (`[XCUT-2]`); consume it through its published surface and **inject** anything holding config, a connection or per-trigger state (`[XCUT-3]`); promote to one only against a must-not-diverge invariant (`[XCUT-1]`, kernel) |
+| an **adapter** connects behavior to an external system | the **slice** declares the port and the adapter implements it, so the dependency runs adapter → slice, and the adapter owns no application behavior (`[MODEL-4]`) |
+| a **composition root** is the wiring and bootstrap boundary | keep it **thin** — register, construct, inject, bootstrap, no business logic and no state access (`[ROOT-1]`); import no persistence or domain-internal module (`[ROOT-2]`) |
+| a **channel** is the pathway between apps and its contract | it is the **only** coupling, apps never share a datastore (`[CHAN-1]`, `[CHAN-3]`), it is versioned (`[CHAN-4]`) and takes one of three forms (`[CHAN-2]`) |
+
+Every rule in the right-hand column is **production baseline** except `[XCUT-1]`, and binds a project that
+has adopted that layer at the relevant scale ([What applies to a project](#what-applies-to-a-project)).
+The **Governed by** column above says where each noun's rules live; it does not say that all of them apply
+to you. A project can use every one of these nouns, correctly and conformantly, having adopted nothing but
+the kernel — and it will still have slices, crosscuts, adapters, a composition root and published
+contracts, because `[MODEL-1]` asks for the categories and not for the discipline.
 
 Two further terms name what a crosscut is *not*, and they are defined below the canonical slice, where
 there is a concrete crosscut to contrast them against: **forbidden bucket** and **drift**.
@@ -170,7 +180,7 @@ flowchart TD
   Q{"new code —<br/>what is it?"}
   Q -->|"owns one capability<br/>end to end"| SLICE["<b>SLICE</b><br/>one trigger, owned end to end"]
   Q -->|"cross-cutting AND bears a<br/>must-not-diverge invariant"| XC["<b>CROSSCUT</b><br/>one definition, not a copy per slice"]
-  Q -->|"infrastructure behind a port<br/>a slice declared"| AD["<b>ADAPTER</b><br/>implements, never defines"]
+  Q -->|"speaks to one external<br/>system or dependency"| AD["<b>ADAPTER</b><br/>infrastructure-facing mechanics"]
   Q -->|"wiring and bootstrap"| ROOT["<b>COMPOSITION ROOT</b><br/>the entry point"]
   Q -->|"a surface others<br/>depend on"| CT["<b>PUBLISHED CONTRACT</b><br/>the stable shape"]
   Q -->|"none of these —<br/>just 'shared stuff'"| BAD["⚠ <b>FORBIDDEN BUCKET</b><br/>utils / services / … — no sixth category"]
@@ -184,6 +194,11 @@ When more than one fits, or none cleanly does, **flag it** (`[AGENT-2]`) rather 
 stronger claim — *do not create or expand* `utils` / `services` / `helpers` / `common` / generic `models`,
 enforceable by a linter — is `[BUCKET-1]`, a **production-baseline** rule, and a project owes it once it
 has adopted that layer.
+
+The boxes are the categories, not the discipline. Which one a unit of code *is* has a kernel answer; how
+it must then be built — the port declared by the slice rather than by the adapter (`[MODEL-4]`), the
+crosscut injected and precisely named (`[XCUT-3]`, `[XCUT-2]`), the root kept thin (`[ROOT-1]`) — is the
+production baseline's, and none of it is needed to place the code.
 
 A slice lives *in* a **feature package**, and the two are not the same thing — this diagram used to label
 the slice box "a feature package", which is where the confusion started. The package groups the slices of
@@ -285,8 +300,9 @@ a model — a different axis, covered by [`appendix/agentic-app.md`](./appendix/
 are governed by the same *harness* pattern; this document set is the build-time harness, an agentic
 app is the run-time one.)
 
-The whole document set is designed *around* this division of labor. Every constraint earns its place
-by serving one of four properties:
+**The division of labour is what motivates the kernel**, and the kernel alone. Coral's unconditional
+constraints are there to protect four properties, each of which is a property of *this* way of working
+rather than of software in general:
 
 - **Context-window economy** — a slice (or an app) holds everything it needs in one place, so an agent
   can load the *complete* relevant world into one context and reason without missing a cross-file
@@ -298,9 +314,13 @@ by serving one of four properties:
 - **Self-verification** — every slice, and every app across the channel, exposes an observable contract the
   agent can assert against by running it, closing the loop without trusting internal state.
 
-Ten of Coral's rules owe their presence, or their strictness, to this division of labour; the rest are
-stated at the strength they are for reasons that survive a human author. Which ten, and how to tell them
-apart, is the [Coral kernel](#the-coral-kernel) below.
+**Everything else Coral publishes is justified some other way, and adopted separately.** Ten rules owe
+their presence, or their strictness, to this division of labour — which ten, and how to tell them apart,
+is the [Coral kernel](#the-coral-kernel) below, and that block is the only record of the membership. The
+other 169 are stated at the strength they are for reasons that survive a human author: the production
+baseline because the *software* needs it, an app profile because that app *shape* needs it, the
+runtime-agent profile because a *running* model needs it. None of them is a consequence of who typed the
+code, and a project takes each on deliberately ([What applies to a project](#what-applies-to-a-project)).
 
 **`[AGENT-1]` `[guide]` `{governance}`** — Prefer the structure that minimizes an agent's placement and
 cross-file-reasoning decisions, even at the cost of some duplication.

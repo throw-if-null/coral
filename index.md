@@ -26,7 +26,12 @@ it is, and Coral does not do that.
 
 ## What that looks like
 
-A small expense-tracking CLI with two commands, `expenses add` and `expenses list`:
+A small expense-tracking CLI with two commands, `expenses add` and `expenses list`. **It shows a project
+that has taken Coral's [production baseline](/PRODUCTION)** — an optional layer, adopted explicitly — so
+the colocated tests, the root crosscuts constructed once and passed in, and the absence of a
+`handlers`/`services`/`repositories` layer are that layer's policy rather than the minimum a Coral
+codebase owes. What Coral asks without adopting anything is a much shorter list, and the section
+[below](#why-the-core-rules-are-shaped-this-way) says which part is which.
 
 ```text
 expenses/
@@ -53,36 +58,37 @@ shared parts constructed at startup. [An HTTP endpoint in Go](/examples/go-api-s
 case where a language's own rules — import cycles, code generation — force one capability to span more
 than one package, which stays legitimate as long as every package is named for that capability.
 
-The layout above shows a project that has taken Coral's [production baseline](/PRODUCTION) — the
-colocated tests, the root crosscuts, the absence of a `handlers`/`services`/`repositories` layer are its
-policy. The baseline is optional and adopted explicitly; what a Coral codebase owes without adopting
-anything is a much shorter list, and the section [below](#why-the-core-rules-are-shaped-this-way) says
-which part is which.
-
 ## The five kinds of code
 
 Every file above is one of five things, and knowing which one you are writing answers most questions
-about where to put it.
+about where to put it. **These five are the unconditional part** — every Coral codebase has them, whatever
+else it has adopted. How each one is then built is where the optional layer starts, and this section
+says which is which.
 
 A **slice** is one capability, complete: `add.py`, `list.py`. Most of a codebase is slices.
 
-A **crosscut** is something several slices need, defined in one place and passed in: `money.py`,
-`errors.py`, `db.py`. There are few of them, and each has a specific name. Code does not become a crosscut
-just because it appears twice: it has to be genuinely cross-cutting *and* carry an invariant that would be
-a bug if the copies drifted apart. Duplication that fails that test is left alone deliberately.
+A **crosscut** is one concern that several slices need: `money.py`, `errors.py`, `db.py`. Code does not
+become a crosscut just because it appears twice — it has to be genuinely cross-cutting *and* carry an
+invariant that would be a bug if the copies drifted apart, which is one of the rules that applies to every
+Coral codebase. Duplication that fails that test is left alone deliberately. *The production baseline
+adds the discipline around it: give each one a precise name, and pass it in rather than letting a slice
+reach for it.*
 
-The **composition root** is the entry point that constructs the crosscuts and hands them to the slices:
-`app.py`. It holds no business logic.
+The **composition root** is where the parts are brought together and started: `app.py`. *The baseline adds
+that it stays thin — registering, constructing and wiring, with no business logic of its own.*
 
 A **published contract** is the part other code is allowed to depend on. For this CLI it is the exit
 code, the separation of `stdout` from `stderr`, and the shape of the `--json` output.
 
 An **adapter** is the code that speaks to one specific piece of infrastructure — a database driver, an S3
-client, a payment API — behind an interface the slice itself declared. Which side owns that interface is
-the whole point: the slice says what it needs, the adapter implements it, and the dependency points from
-the adapter to the slice. Turn that arrow around and you have a `repositories` layer, where one shared
-package decides what every caller gets. Small apps often have none — the CLI above has none, because a
-`db.py` crosscut is enough.
+client, a payment API. Small apps often have none: the CLI above has none, because a `db.py` crosscut is
+enough. *The baseline adds the part that does the real work: the **slice** declares the interface it
+needs, the adapter implements it, and the dependency points from the adapter to the slice. Turn that
+arrow around and you have a `repositories` layer, where one shared package decides what every caller
+gets.*
+
+The italicised additions above are [production baseline](/PRODUCTION) rules. A project that has not
+adopted that layer still has all five categories; it simply owes none of the discipline in italics.
 
 There is a sixth thing most codebases have, and it is not one of the five: a directory named for nothing
 in particular — `utils`, `shared`, `common`, `services`, `helpers`. Coral calls that a **forbidden

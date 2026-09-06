@@ -573,6 +573,20 @@ codebase, which is precisely why it is an opt-in layer.
   `[CHAN-3]` as universal. `ARCHITECTURE.md`'s category table and its "anatomy of one slice" diagram are
   labelled the same way, and `index.md` and `README.md` no longer present forbidden buckets, channel forms
   or the no-shared-database rule as unconditional consequences of adopting Coral.
+
+  A second pass closed the subtler half of the same leak: **the vocabulary itself was still defined in
+  terms of optional policy.** `adapter` was "the infrastructure mechanics behind a port *a slice declared*
+  — it implements that interface rather than defining it", which is `[MODEL-4]`; `composition root` was
+  "where crosscuts are constructed and handed to slices", which is `[XCUT-3]`. That matters more than
+  ordinary prose, because `[MODEL-1]` is **kernel** and requires every unit of code to be one of the five
+  categories — so a category defined by baseline policy makes that policy binding by the back door. The
+  nouns are now layer-neutral in `CONVENTIONS.md`, in `ARCHITECTURE.md`'s `[MODEL-1]` table, in the
+  placement decision tree, and in `index.md`'s "five kinds of code", each followed by an explicit table or
+  note attributing the discipline to the rule that carries it. The operating-model section no longer says
+  "the whole document set is designed around this division of labour" and "every constraint earns its
+  place" by it — that claim is scoped to the kernel, with the other 169 rules attributed to the software,
+  the app shape or the runtime model instead. `index.md`'s adopted-baseline disclaimer moved **above** the
+  worked directory layout, so a reader meets it before the layout rather than after.
 - **Navigation makes the subordination visible.** The sidebar groups pages as *Coral core — applies to
   every Coral codebase*, *Production baseline — optional, adopted explicitly*, *The System — optional, at
   system scale*, and the two profile groups, so the production baseline cannot read as another name for
