@@ -272,24 +272,40 @@ and where a failure becomes output, are placement and ownership questions like a
 each slice answers them locally, and the agent writing the next slice has no finite set to load — only
 the conventions of whichever neighbours it happened to read.
 
-**`[ERR-1]` `[review]`** — Every Coral codebase declares **one small, stable, structured error model**:
-its categories are declared in one place, every failure a slice raises is constructed through that
-declared model, and presenting a raised failure is **one boundary's responsibility, never a slice's**.
+**`[ERR-1]` `[review]`** — Each app or published package declares **one small, stable, structured error
+model** for its own slices: its categories are declared once for that app or package, every failure a
+slice raises is constructed through that declared model, and presenting a raised failure belongs to a
+**boundary that owns an observable contract, never to a slice**.
 
 Three parts, and all three are the rule. **Structured** means a typed, inspectable value carrying a
-category and a stable identity, not a bare string or a per-slice exception hierarchy a caller has to
-pattern-match. **Declared in one place** means the set of categories is decided once for the codebase, so
-a slice selects from it and never extends it. **Presentation belongs to one boundary** means that turning
-a raised failure into observable output — an exit code, an HTTP status, an annotation, a rendered page —
-happens at a single place that owns the observable contract, and never inside a slice in passing.
+classification from the declared model — not a bare string, and not a per-slice exception hierarchy a
+caller has to pattern-match. **Declared once for that app or package** means the set of categories is
+decided at that boundary, so a slice selects from it and never extends it. **Presentation belongs to a
+boundary** means that turning a raised failure into observable output — an exit code, an HTTP status, an
+annotation, a rendered page — happens where an observable contract is owned, and never inside a slice in
+passing.
 
-**The third part is stated as ownership, not as a root.** Not every Coral codebase has an executable
+**The unit is the app or package, not the repository.** An app is one deployable unit
+([`CONVENTIONS.md`](./CONVENTIONS.md#the-vocabulary)), and this rule binds at that grain. A repository
+holding a backend and a CLI holds two error models unless their authors deliberately share one, and
+neither owes the other a category. Apps composing into a system acquire no shared cross-app taxonomy
+from this rule either: each raises and presents inside its own boundary, and what crosses between them
+is a question for the system-scale channel rules rather than for this one. Sharing a model across two apps is
+a decision somebody makes, with its own cost, and never something `[ERR-1]` imposes.
+
+**The third part is stated as ownership, not as a root.** Not every unit Coral covers has an executable
 entry point, and the rule must hold for the one that does not. A library has **no composition root of its
 own**, because the consumer is the root (`[ROOT-3]`). It still satisfies this rule, and satisfies it
-exactly: it declares its error model, every slice raises through it, and **no slice in the package
-presents anything** (`[LIB-8]`). The boundary that presents lies outside the package, in each consuming
-application, where that application's own `[ERR-1]` gives it one. A library with many consumers therefore
-has zero renderers rather than many, which is the rule met rather than an exception to it.
+exactly: it declares the error model its own slices raise through, and **no slice in the package presents
+anything** (`[LIB-8]`). Presentation happens in each consuming application, at that application's own
+boundary under its own `[ERR-1]`. A library with many consumers therefore contains zero renderers rather
+than many, which is the rule met rather than an exception to it.
+
+**What this rule does not reach.** It asks for a classification drawn from a declared model. It does not
+fix a field layout, and it does not require a stable per-error identifier. The baseline's concrete shape
+— `{category, code, message}`, with `code` a stable string the raising slice owns — is `[ERR-2]`, and a
+library's public error identity is `[LIB-8]`. A project on the kernel alone owes the model and its
+ownership, not those.
 
 **Coral fixes the shape of the model, not its contents.** The kernel prescribes no number of categories
 and no names for them. Three categories can be the right answer, and so can eight. What it forbids is
@@ -351,7 +367,7 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 - `[COMPOSE-1]` Do not reach into another slice's internals. Depend on its published capability.
 
 ### The error model
-- `[ERR-1]` One small, stable, structured error model: categories declared once, construction through it, presentation owned by one boundary and never by a slice.
+- `[ERR-1]` One small, stable, structured error model per app or package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice.
 
 ### Testing
 - `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.

@@ -109,9 +109,10 @@ several apps *and* has adopted the baseline. A project that has done neither sti
 **The kernel's capability shape is one sentence:** one capability, owned end to end, tests included,
 consumed by other code only through what it publishes (`[MODEL-1]`, `[BOUND-2]`, `[COMPOSE-1]`,
 `[TEST-1]`). That is the shape of the *unit*, and it is deliberately short. It is **not** the whole
-kernel: a codebase also owes one declared, structured error model presented at a single owning boundary
-(`[ERR-1]`), the gate on promoting anything to a crosscut (`[XCUT-1]`), and the `[AGENT-*]` and `[VER-*]`
-rules that govern how it relates to Coral. The [kernel block](#the-coral-kernel) is the complete list.
+kernel: an app or package also owes one declared, structured error model of its own, presented at a
+boundary rather than inside a slice (`[ERR-1]`), the gate on promoting anything to a crosscut
+(`[XCUT-1]`), and the `[AGENT-*]` and `[VER-*]` rules that govern how it relates to Coral. The
+[kernel block](#the-coral-kernel) is the complete list.
 
 > **The listing below is a slice as a project that has adopted the [production
 > baseline](./PRODUCTION.md) writes one.** It is the kernel shape *plus* a set of opinions the baseline
@@ -153,8 +154,8 @@ expense/add                                    # one slice = one capability
 
 **Three of its properties are the kernel's**, and hold for any Coral codebase: `expense/add` owns one
 capability from its trigger to its output (`[BOUND-2]`), its behavior is asserted at that entry point
-against what a caller can observe (`[TEST-1]`), and it constructs its failures through the app's one
-declared error model rather than inventing a local one (`[ERR-1]`).
+against what a caller can observe (`[TEST-1]`), and it constructs its failures through this app's one
+declared error model rather than inventing a local one, and presents none of them itself (`[ERR-1]`).
 
 **Five are the production baseline's**, and they are what makes the listing look the way it does:
 
@@ -696,7 +697,7 @@ rule can be tested against, plus drift, which is the failure the vocabulary alre
 | `[MODEL-1]` | Gives new code a finite set of architectural roles instead of an open-ended placement decision. | deterministic placement |
 | `[XCUT-1]` | Stops similarity-driven extraction from becoming global abstraction: sharing requires a must-not-diverge invariant. | locality, drift prevention |
 | `[COMPOSE-1]` | Preserves context boundaries — another slice is consumed through its published capability, without loading its internals. | bounded context, reviewability |
-| `[ERR-1]` | Gives the agent one finite failure vocabulary to load, and one owner for presentation, instead of a local error convention discovered slice by slice. | bounded context, reviewability, drift prevention |
+| `[ERR-1]` | Gives the agent one finite failure vocabulary per app or package, and a single owner for presentation, instead of a local error convention discovered slice by slice. | bounded context, reviewability, drift prevention |
 | `[TEST-1]` | Gives the authoring agent an executable feedback loop against observable behavior. | self-verification, reviewability |
 | `[AGENT-2]` | Makes an ambiguous architectural decision visible to a human reviewer instead of a hidden guess. | deterministic placement, reviewability |
 | `[AGENT-4]` | Reserves architectural legislation — exceptions and extensions — for humans. | reviewability, drift prevention |
@@ -740,16 +741,17 @@ is worth stating against all four tests. **Agent-justified:** drop the operating
 say "have a coherent error strategy" and leave it there. Keep it, and the vocabulary has to be finite and
 declared, because an agent writing the next slice either loads one small set or reconstructs local
 convention from whatever the neighbouring slices happened to do. **Defended properties:** bounded context
-(one vocabulary to load rather than a per-slice discovery), reviewability (widening the taxonomy or moving
-the rendering owner lands as an architectural diff, not as a line inside one handler), and drift
-prevention (categories, construction and presentation cannot diverge slice by slice). **Not merely general
-correctness:** the rule constrains *where the vocabulary is declared and who renders it*, which is a
-placement and ownership constraint. Whether the app then retries, logs or wraps is not its business, and
-none of it is here. **Not downstream:** nothing else in the kernel implies it. `[ERR-2]` is downstream of
-it, which is exactly why `[ERR-2]` stays in the production baseline.
+(one vocabulary per app or package to load, rather than a per-slice discovery), reviewability (widening
+the taxonomy or moving presentation lands as an architectural diff, not as a line inside one handler),
+and drift prevention (categories, construction and presentation cannot diverge slice by slice). **Not
+merely general correctness:** the rule constrains *where the vocabulary is declared and who presents it*,
+which is a placement and ownership constraint. Whether the app then retries, logs or wraps is not its
+business, and neither is the shape of the value. **Not downstream:** nothing else in the kernel implies
+it. `[ERR-2]` is downstream of it, which is exactly why `[ERR-2]` stays in the production baseline.
 
-The rest of the `[ERR-*]` family is outside the kernel and stays there. `[ERR-2]` is the static
-enforcement of `[ERR-1]`, `[ERR-3]` is the baseline's realization of its rendering half, `[ERR-4]` is
+The rest of the `[ERR-*]` family is outside the kernel and stays there. `[ERR-2]` is the concrete shape
+and the static enforcement of `[ERR-1]`, `[ERR-3]` is the baseline's realization of its presentation half
+for an executable application, `[ERR-4]` is
 transaction policy for batches, and `[ERR-5]` is the recommended category vocabulary. A project reaches
 all four by adopting the production baseline, and none of them by adopting nothing.
 

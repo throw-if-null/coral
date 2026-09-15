@@ -59,23 +59,35 @@ agent-justified and belongs in the kernel. The six names are a good default voca
 A project with a three-category taxonomy was non-conformant for the category count alone, and a project
 that had adopted nothing owed no error model at all.
 
-**`[ERR-1]` is now a kernel rule, stated in `ARCHITECTURE.md`.** Every Coral codebase declares one small,
-stable, structured error model: its categories are declared in one place, every failure a slice raises is
-constructed through that declared model, and presenting a raised failure is one boundary's
-responsibility, never a slice's. It prescribes **no number of categories and no names**. A project that
-declares its own small, stable taxonomy is conformant, and needs no `[VER-5]` exception merely because
-its categories differ from Coral's recommended ones. What it still cannot do is let a slice mint a
-category locally or present a failure in passing: changing the taxonomy is a change to a shared
-declaration, made where that declaration lives, and where the right category is genuinely unclear
-`[AGENT-2]` applies — flag it rather than guess.
+**`[ERR-1]` is now a kernel rule, stated in `ARCHITECTURE.md`.** Each app or published package declares
+one small, stable, structured error model for its own slices: its categories are declared once for that
+app or package, every failure a slice raises is constructed through that declared model, and presenting a
+raised failure belongs to a boundary that owns an observable contract, never to a slice. It prescribes
+**no number of categories and no names**. A project that declares its own small, stable taxonomy is
+conformant, and needs no `[VER-5]` exception merely because its categories differ from Coral's
+recommended ones. What it still cannot do is let a slice mint a category locally or present a failure in
+passing: changing the taxonomy is a change to a shared declaration, made where that declaration lives,
+and where the right category is genuinely unclear `[AGENT-2]` applies — flag it rather than guess.
 
-**The rendering half is stated as ownership rather than as a root, so it holds for a library.** "One
+**The unit is the app or package, not the repository.** An app is one deployable unit, and the rule binds
+at that grain. A repository holding a backend and a CLI holds two error models unless somebody
+deliberately shares one, and apps composing into a system acquire no cross-app taxonomy from this rule —
+each raises and presents inside its own boundary. `[XCUT-1]` still decides, per app, whether that model
+becomes a physical crosscut.
+
+**The presentation half is stated as ownership rather than as a root, so it holds for a library.** "One
 boundary owns rendering it" would have been ambiguous for exactly one core profile: a library has no
 composition root of its own (`[ROOT-3]`), never renders, and may have many independent consumers. The
-rule now says presentation is one boundary's responsibility and never a slice's. A library satisfies it
-by declaring its model, raising through it, and presenting nothing; the boundary that presents is each
-consuming application's, under that application's own `[ERR-1]`. Zero renderers in the package is the
-rule met, not an exception to it.
+rule now says presentation belongs to a boundary that owns an observable contract and never to a slice. A
+library satisfies it by declaring the model its slices raise through and presenting nothing; presentation
+happens in each consuming application, at that application's own boundary under its own `[ERR-1]`. Zero
+renderers in the package is the rule met, not an exception to it.
+
+**What the kernel deliberately does not reach.** `[ERR-1]` asks for a classification drawn from a
+declared model. It fixes no field layout and requires no stable per-error identifier, so a kernel-only
+project does not acquire stable error codes by implication. `{category, code, message}` with a
+slice-owned stable `code` is `[ERR-2]`, production baseline; a library's public error identity is
+`[LIB-8]`.
 
 **"Defined once as a crosscut" did not survive the move, deliberately.** The old wording would have made
 `[XCUT-1]` and `[ERR-1]` contradict each other for a one-slice app: `[XCUT-1]` promotes only against

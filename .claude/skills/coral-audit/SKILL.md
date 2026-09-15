@@ -69,8 +69,9 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
      They audit against three different things. Against the **source**: capability slicing and the five
      categories (`[MODEL-1]`), one trigger owned end to end (`[BOUND-2]`), promotion to a crosscut gated
      on a must-not-diverge invariant (`[XCUT-1]`), consuming another slice only through its published
-     capability (`[COMPOSE-1]`), one small declared error model with one rendering owner (`[ERR-1]`),
-     behavior-first tests at the entry point (`[TEST-1]`). Against
+     capability (`[COMPOSE-1]`), one small declared error model per app or package with presentation owned
+     by a boundary rather than by slices (`[ERR-1]`), behavior-first tests at the entry point
+     (`[TEST-1]`). Against
      **`CORAL.md`**: `[VER-3]`, `[VER-5]`, `[VER-6]`. Against **provenance** — commit authorship, review,
      session history, not the final state of the code: `[AGENT-2]` (ambiguity flagged, not guessed) and
      `[AGENT-4]` (a human authors every exception and extension); where that evidence is unavailable these
@@ -243,9 +244,10 @@ audited against, in full:**
 
 - against the **source** — `[MODEL-1]` (the five categories), `[BOUND-2]` (one trigger, owned end to end),
   `[XCUT-1]` (promotion to a crosscut needs a must-not-diverge invariant), `[COMPOSE-1]` (published
-  capability, never internals), `[ERR-1]` (one small, stable, structured error model, declared once and
-  rendered at one boundary — **not** a fixed list of category names), `[TEST-1]` (behavior-first at the
-  entry point). Six rules; that is the whole structural surface.
+  capability, never internals), `[ERR-1]` (one small, stable, structured error model declared once for the
+  app or package, presented at a boundary rather than inside slices — **not** a fixed list of category
+  names, and **not** a required field layout or stable error id), `[TEST-1]` (behavior-first at the entry
+  point). Six rules; that is the whole structural surface.
 - against **`CORAL.md`** — `[VER-3]` (a target is declared), `[VER-5]` (deviations are explicit and
   path-scoped), `[VER-6]` (what it adopts is declared).
 - against the **way architectural decisions were made** — `[AGENT-2]` (an ambiguous architectural decision
@@ -305,8 +307,9 @@ The order below is the baseline's:
   adapter → slice) — `[EFFECT-*]` / `[STATE-*]`
 - configuration: resolved and validated at the root, injected, never read ambiently from a slice —
   `[CONFIG-*]`
-- errors: the declared model and its rendering owner (`[ERR-1]`, kernel — judge the shape, never the
-  category names); raised-type discipline, raise-vs-render and swallowing — `[ERR-2]`–`[ERR-5]`
+- errors: the declared model and who presents it (`[ERR-1]`, kernel — judge the shape, never the category
+  names; a library package correctly presents nothing at all, and its consumers own presentation);
+  raised-type discipline, `{category, code, message}`, raise-vs-render and swallowing — `[ERR-2]`–`[ERR-5]`
 - trust boundary, secrets, authz — `[TRUST-*]`
 - delivery guarantees & contracts (events/channel, versioning) — `[CHAN-*]` / `[CONTRACT-*]`
 - testing: is it injectable, or a boot-the-world coupling magnet? — `[TEST-*]` / `[SYS-TEST-*]`

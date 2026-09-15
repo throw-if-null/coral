@@ -10,8 +10,11 @@ explicitly, and separate from the Coral kernel.*
 > kernel-facing app architecture, and it binds without being adopted.
 
 **Why these rules exist is not "because an agent wrote the code."** Their justification survives a
-human-authored codebase. Error taxonomies, transaction scope, retry semantics, cache invalidation,
-concurrency strategy and trust boundaries are required because the *software* needs them. Coral
+human-authored codebase. Error-model enforcement and the recommended category vocabulary, transaction
+scope, retry semantics, cache invalidation, concurrency strategy and trust boundaries are required
+because the *software* needs them. **That the error model exists at all, and who owns presenting it, is
+not on that list** — it is `[ERR-1]`, a kernel rule, and this document refines it rather than
+establishing it. Coral
 publishes them as one coherent baseline, so a project can take the whole opinion in one decision rather
 than reinventing it per repository. A project that already has its own can decline it in one decision
 too.
@@ -42,8 +45,8 @@ cross-references. A few rules lead with a bolded name instead, such as `[DUP-4]`
 `[TEST-3]` Unit tests are a scalpel. That name is then the quotable form. Where a rule ends in a colon,
 the list beneath it is part of the rule, not commentary.
 
-Rules here cite kernel rules freely. `[MODEL-1]`, `[BOUND-2]`, `[XCUT-1]`, `[COMPOSE-1]` and `[TEST-1]`
-are defined in [`ARCHITECTURE.md`](./ARCHITECTURE.md), and most of what follows refines one of them. The
+Rules here cite kernel rules freely. The app-scale kernel rules are defined in
+[`ARCHITECTURE.md`](./ARCHITECTURE.md), and most of what follows refines one of them. The
 normative dependency points one way. That document's contract lists **no** rule defined here, so the
 kernel surface stays readable without this one. Where its prose cites a rule from this page, it is
 pointing at that rule or marking an illustration as baseline policy.
@@ -576,11 +579,12 @@ Do not invent a name whose effect is ambiguous. If the *effect itself* is unclea
 ## 15. Error Model  `[ERR-*]`
 
 The architectural invariant is the kernel's, and it is stated in
-[`ARCHITECTURE.md`](./ARCHITECTURE.md#_7-the-error-model-err): one small, stable, structured error model,
-its categories declared in one place, every raised failure constructed through it, and presentation owned
-by one boundary rather than by a slice (`[ERR-1]`). **The kernel names no categories and fixes no count.**
-What follows is the baseline's realization — how the model is enforced, which boundary renders it in an
-application, how batches behave, and which vocabulary Coral recommends a project start from.
+[`ARCHITECTURE.md`](./ARCHITECTURE.md#_7-the-error-model-err): one small, stable, structured error model
+per app or package, its categories declared once for it, every raised failure constructed through it, and
+presentation owned by a boundary rather than by a slice (`[ERR-1]`). **The kernel names no categories,
+fixes no count, and fixes no field layout.** What follows is the baseline's realization — the concrete
+shape and its static enforcement, which boundary renders it in an executable application, how batches
+behave, and which vocabulary Coral recommends a project start from.
 
 **`[ERR-2]` `[auto]` `{baseline}`** — A slice raises only through the project's **declared taxonomy**
 type or constructors, never an ad-hoc or bespoke error type.
@@ -599,9 +603,9 @@ constructors. It does not verify the fields, the argument values, or that a `cod
 
 **`[ERR-3]` `[review]` `{baseline}`** — **Slices raise. The root renders. Nothing else renders.**
 
-This is the baseline's realization of `[ERR-1]`'s single presentation owner, naming *which* boundary owns
-it for an application: the composition root. Validate at the boundary, fail fast, do not swallow errors, do
-not partially succeed silently. Unexpected errors are caught once at the root. For a library the
+This is the baseline's realization of `[ERR-1]`'s presentation half, naming *which* boundary owns it in
+an executable application: the composition root. Validate at the boundary, fail fast, do not swallow
+errors, do not partially succeed silently. Unexpected errors are caught once at the root. For a library the
 consumer is the root, so the library raises and never renders (`[ROOT-3]`, `[LIB-8]`).
 
 **`[ERR-4]` `[review]` `{baseline}`** — Batch and bulk operations default to all-or-nothing: one
@@ -622,10 +626,11 @@ in, and never leave it implicit.
 6. `internal` — unexpected bug
 
 **This is a recommended vocabulary, not the definition of a conformant error model.** `[ERR-1]` decides
-what makes one: declared once, constructed through, presented at one owning boundary. It fixes neither
-the count nor the names. A project that declares a different small, stable taxonomy is conformant, and
-needs no exception merely because its categories differ (`[VER-5]`). What "custom taxonomy" never
-licenses is a category per slice — `[ERR-1]` still asks for one declared model, whatever is in it.
+what makes one: declared once for the app or package, constructed through, presented at a boundary rather
+than in a slice. It fixes neither the count nor the names. A project that declares a different small,
+stable taxonomy is conformant, and needs no exception merely because its categories differ (`[VER-5]`).
+What "custom taxonomy" never licenses is a category per slice — `[ERR-1]` still asks for one declared
+model, whatever is in it.
 
 Six is a practical starting point: small enough for an agent to hold, wide enough that most failures land
 without argument, and the vocabulary every mapping table in this document set is written against. This
