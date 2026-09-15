@@ -377,23 +377,23 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[MODEL-3]` | `[guide]` | production baseline | A crosscut's decisive property is defined once, injected many. |
 | `[MODEL-4]` | `[review]` | production baseline | An adapter implements a slice-declared port: infrastructure only, arrow inward, wired by the root, no behavior. |
 | `[BOUND-1]` | `[guide]` | production baseline | A slice handles one inbound request or trigger, end to end. |
-| `[BOUND-3]` | `[review]` | production baseline | Use the boundary form the appendix fixes; do not invent a new one. |
+| `[BOUND-3]` | `[review]` | production baseline | Use the boundary form the appendix fixes. Do not invent a new one. |
 | `[BOUND-4]` | `[guide]` | production baseline | "Continuous" or "real-time" work is not a new boundary kind. |
 | `[BOUND-5]` | `[review]` | production baseline | A scheduled/background trigger is a slice: observable outcome, overlap-safe, tested. |
 | `[ROOT-1]` | `[review]` | production baseline | Keep the root thin: register, construct, inject, bootstrap. No business logic. |
 | `[ROOT-2]` | `[auto]` | production baseline | The root imports no persistence or domain-internal module. |
-| `[ROOT-3]` | `[guide]` | production baseline | Each appendix names its root form — including the app types that have no root of their own: for a library the *consumer* is the composition root, so the package exposes capabilities and lets the consumer wire them. |
+| `[ROOT-3]` | `[guide]` | production baseline | Each appendix names its root form, including the app types that have no root of their own. |
 | `[STRUCT-1]` | `[auto]` | production baseline | Colocate tests, or mirror the package structure where colocation is impossible. |
-| `[STRUCT-2]` | `[review]` | production baseline | Put slices in concrete, domain-oriented feature packages; the package owns its capability's state. |
+| `[STRUCT-2]` | `[review]` | production baseline | Put slices in concrete, domain-oriented feature packages. The package owns its capability's state. |
 | `[STRUCT-3]` | `[auto]` | production baseline | Keep root-level crosscuts rare and precisely named. |
 | `[BUCKET-1]` | `[auto]` | production baseline | Do not create or expand `shared`/`common`/`utils`/`helpers`/`services`/`repository`/generic `models`. |
 | `[BUCKET-2]` | `[guide]` | production baseline | Generic catch-all names destroy locality and predictability. |
 | `[XCUT-2]` | `[auto]` | production baseline | Give every crosscut a precise domain or infrastructure name. |
-| `[XCUT-3]` | `[review]` | production baseline | Inject crosscuts; consume their published surface, never their internals. |
+| `[XCUT-3]` | `[review]` | production baseline | Inject crosscuts. Consume their published surface, never their internals. |
 | `[XCUT-4]` | `[guide]` | production baseline | A crosscut is the *first line* of drift control. |
-| `[XCUT-5]` | `[review]` | production baseline | A domain entity may be a crosscut only as type + invariants — never its queries or storage. |
-| `[DUP-1]` | `[guide]` | production baseline | Small duplication across slices is acceptable and often preferred; do not extract merely to save lines. |
-| `[DUP-2]` | `[review]` | production baseline | Do not extract on similarity alone; similarity is not a shared concept. |
+| `[XCUT-5]` | `[review]` | production baseline | A domain entity may be a crosscut only as type + invariants, never its queries or storage. |
+| `[DUP-1]` | `[guide]` | production baseline | Small duplication across slices is acceptable and often preferred, and you should not extract merely to save lines. |
+| `[DUP-2]` | `[review]` | production baseline | Do not extract on similarity alone. Similarity is not a shared concept. |
 | `[DUP-3]` | `[review]` | production baseline | Extract only to enforce an invariant or convention, provide named infrastructure, or clarify a real calculation. |
 | `[DUP-4]` | `[review]` | production baseline | Apply the Extraction Test before extracting. |
 | `[COMPOSE-2]` | `[review]` | production baseline | Prefer injecting a capability through the root over a slice-to-slice import. |
@@ -405,39 +405,39 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[EFFECT-4]` | `[review]` | production baseline | Do not extract a function only to make it pure or testable. |
 | `[STATE-1]` | `[review]` | production baseline | Keep state-access logic local to the slice that owns it. |
 | `[STATE-2]` | `[auto]` | production baseline | Do not create a shared repository or data-access layer. |
-| `[STATE-3]` | `[guide]` | production baseline | A shared persistence layer accumulates special cases and forces cross-slice reasoning on every change; local ownership keeps each slice independently changeable. |
-| `[STATE-4]` | `[review]` | production baseline | The slice that computes derived state owns it; write it from a set-/event-named handler. |
-| `[STATE-5]` | `[review]` | production baseline | One owning feature package per table/file/bucket, schema defined once inside it; siblings reach it directly, outsiders via a published capability. |
-| `[STATE-6]` | `[review]` | production baseline | A cache is never a source of truth; every read path must be correct with it empty. |
-| `[STATE-7]` | `[review]` | production baseline | Name the cache's invalidation strategy — TTL, write-through, or event-driven. |
+| `[STATE-3]` | `[guide]` | production baseline | A shared persistence layer accumulates special cases and forces cross-slice reasoning on every change, whereas local ownership keeps each slice independently changeable. |
+| `[STATE-4]` | `[review]` | production baseline | The slice that computes derived state owns it. Write it from a set- or event-named handler. |
+| `[STATE-5]` | `[review]` | production baseline | One owning feature package per table/file/bucket, schema defined once inside it. Siblings reach it directly, and outsiders go through a published capability. |
+| `[STATE-6]` | `[review]` | production baseline | A cache is never a source of truth. Every read path must be correct with it empty. |
+| `[STATE-7]` | `[review]` | production baseline | Name the cache's invalidation strategy: TTL, write-through, or event-driven. |
 | `[CONC-1]` | `[auto]` | production baseline | A slice holds no mutable state between triggers. |
 | `[CONC-2]` | `[review]` | production baseline | Every crosscut is explicitly shared-and-concurrency-safe or constructed per trigger. |
 | `[CONC-3]` | `[review]` | production baseline | Name the strategy where two triggers can write the same state: serialize, compare-and-set, or commute. |
-| `[CONC-4]` | `[review]` | production baseline | Scope a transaction to one trigger; never hold it across an external call. |
+| `[CONC-4]` | `[review]` | production baseline | Scope a transaction to one trigger. Never hold it across an external call. |
 | `[CONC-5]` | `[guide]` | production baseline | The architecture's concurrency default is *one trigger, one thread of control, no shared mutable state*. |
 | `[CONFIG-1]` | `[review]` | production baseline | Resolve, validate, and inject configuration at the root as a crosscut. |
 | `[CONFIG-2]` | `[auto]` | production baseline | No slice reads the environment, a config file, or a global settings object directly. |
-| `[CONFIG-3]` | `[review]` | production baseline | Validate every required setting at construction; fail startup, not first use. |
-| `[CONFIG-4]` | `[auto]` | production baseline | Read secrets only through the config crosscut; never inline, log, or publish them. |
-| `[IDEM-1]` | `[review]` | production baseline | The name signals the effect; the implementation matches it. |
+| `[CONFIG-3]` | `[review]` | production baseline | Validate every required setting at construction. Fail startup, not first use. |
+| `[CONFIG-4]` | `[auto]` | production baseline | Read secrets only through the config crosscut. Never inline, log, or publish them. |
+| `[IDEM-1]` | `[review]` | production baseline | The name signals the effect, and the implementation matches it. |
 | `[IDEM-2]` | `[auto]` | production baseline | A read-named slice contains no write or mutation call, including a cache write. |
 | `[IDEM-3]` | `[review]` | production baseline | Do not make a non-idempotent operation idempotent without renaming it. |
 | `[IDEM-4]` | `[review]` | production baseline | Never auto-retry a non-idempotent mutation. |
 | `[IDEM-5]` | `[review]` | production baseline | On an at-least-once platform, a mutating handler must be idempotent. |
-| `[IDEM-6]` | `[review]` | production baseline | Classify an unlisted verb by its effect and name it truthfully; flag an unclear effect. |
+| `[IDEM-6]` | `[review]` | production baseline | Classify an unlisted verb by its effect and name it truthfully. Flag an unclear effect. |
 | `[ERR-1]` | `[review]` | production baseline | Use the six-category taxonomy, defined once as a crosscut. |
-| `[ERR-2]` | `[auto]` | production baseline | Raise `{category, code, message}` using the enum; slices own their `code` strings. |
-| `[ERR-3]` | `[review]` | production baseline | Slices raise; the root renders; nothing else renders. |
+| `[ERR-2]` | `[auto]` | production baseline | Raise `{category, code, message}` using the enum. Slices own their `code` strings. |
+| `[ERR-3]` | `[review]` | production baseline | Slices raise. The root renders. Nothing else renders. |
 | `[ERR-4]` | `[review]` | production baseline | Batch operations are all-or-nothing unless partial outcomes are reported explicitly. |
 | `[OBS-1]` | `[guide]` | production baseline | Diagnostics are opt-in, off the data path, and never part of the machine contract. |
-| `[OBS-2]` | `[review]` | production baseline | Configure observability at the root; emit through the injected crosscut. |
+| `[OBS-2]` | `[review]` | production baseline | Configure observability at the root, and emit through the injected crosscut. |
 | `[OBS-3]` | `[review]` | production baseline | Keep diagnostics off the machine-readable contract channel. |
 | `[CONTRACT-1]` | `[review]` | production baseline | Keep the public contract stable, explicit, fully typed, and undecorated. |
 | `[CONTRACT-2]` | `[review]` | production baseline | Version public-contract changes per the app type's discipline. |
 | `[TRUST-1]` | `[review]` | production baseline | Validate and authorize untrusted input at the boundary. |
 | `[TRUST-2]` | `[review]` | production baseline | State the app's trust boundary explicitly, however minimal. |
 | `[TEST-2]` | `[review]` | production baseline | Prefer integration and end-to-end tests over isolated unit tests. |
-| `[TEST-3]` | `[review]` | production baseline | Unit tests are a scalpel; never duplicate integration coverage; never extract just to test. |
+| `[TEST-3]` | `[review]` | production baseline | Unit tests are a scalpel. Never duplicate integration coverage, and never extract only to test. |
 | `[TEST-4]` | `[review]` | production baseline | Assert contract, errors, idempotency, transactions, authorization, and diagnostics where relevant. |
 | `[GROW-1]` | `[guide]` | production baseline | Start small: prefer one file per slice initially. |
 | `[GROW-2]` | `[review]` | production baseline | Answer file growth by splitting inside the slice, never with a global abstraction. |
