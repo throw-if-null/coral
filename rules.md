@@ -361,9 +361,9 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[SCOPE-2]` | `[guide]` | framework governance | It is weak for dense, deeply-coupled domains where every feature reaches into one large central concept. |
 | `[SCOPE-4]` | `[guide]` | framework governance | What happens *after* the split is not in this document. |
 | `[MODEL-1]` | `[review]` | kernel | Every unit of code is a slice, a crosscut, an adapter, the composition root, or a published contract. |
-| `[BOUND-2]` | `[review]` | kernel | One request/trigger — or a very tight pair — per slice, owned end to end. |
+| `[BOUND-2]` | `[review]` | kernel | One request or trigger per slice, or a tightly-coupled pair, owned end to end. |
 | `[XCUT-1]` | `[review]` | kernel | Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant. |
-| `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals; depend on its published capability. |
+| `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals. Depend on its published capability. |
 | `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking. |
 
 ## Coral Production Baseline — the App
