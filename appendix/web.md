@@ -121,9 +121,9 @@ middleware renders it. The middleware maps **every** declared category to an HTT
 the right surface: a user-facing error view or page for navigations, and a structured body for API and
 fetch calls. Slices never render their own HTTP response.
 
-Two mappings, one owner. `[ERR-1]` asks for one declared error model and one boundary that presents it;
-**the total category → HTTP-status mapping is this rule's realization of that**, not something `[ERR-1]`
-states. A category the middleware has no status for is a gap in this profile's own requirement, and it
+Two mappings, one owner. `[ERR-1]` asks for one declared error model and for presentation to be owned by
+a boundary rather than by a slice; **the total category → HTTP-status mapping is this rule's realization
+of that**, not something `[ERR-1]` states. A category the middleware has no status for is a gap in this profile's own requirement, and it
 falls through to whatever a handler does next — which is the per-slice presentation `[ERR-1]` forbids.
 
 The surface decision is this profile's own too, because a web app answers both navigations and fetches

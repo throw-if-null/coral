@@ -697,7 +697,7 @@ rule can be tested against, plus drift, which is the failure the vocabulary alre
 | `[MODEL-1]` | Gives new code a finite set of architectural roles instead of an open-ended placement decision. | deterministic placement |
 | `[XCUT-1]` | Stops similarity-driven extraction from becoming global abstraction: sharing requires a must-not-diverge invariant. | locality, drift prevention |
 | `[COMPOSE-1]` | Preserves context boundaries — another slice is consumed through its published capability, without loading its internals. | bounded context, reviewability |
-| `[ERR-1]` | Gives the agent one finite failure vocabulary per app or package, and a single owner for presentation, instead of a local error convention discovered slice by slice. | bounded context, reviewability, drift prevention |
+| `[ERR-1]` | Gives the agent one finite failure vocabulary per app or package, and presentation owned by a boundary rather than by slices, instead of a local error convention discovered slice by slice. | bounded context, reviewability, drift prevention |
 | `[TEST-1]` | Gives the authoring agent an executable feedback loop against observable behavior. | self-verification, reviewability |
 | `[AGENT-2]` | Makes an ambiguous architectural decision visible to a human reviewer instead of a hidden guess. | deterministic placement, reviewability |
 | `[AGENT-4]` | Reserves architectural legislation — exceptions and extensions — for humans. | reviewability, drift prevention |
@@ -762,6 +762,12 @@ Coral imposes a rule, and at what strength*. It never classifies how hard the ru
 non-kernel rule is fully normative for a project that has adopted the layer or profile contributing it,
 at a scale where that rule applies. Once applicable, an `[auto]` rule outside the kernel is enforced
 exactly as an `[auto]` kernel rule is, and a `[review]` one takes the same judgment.
+
+**What decides advisory is the enforcement class, not the layer.** `[guide]` rules are rationale and are
+never a pass/fail gate ([above](#enforcement-classes)), inside the kernel or outside it — `[ERR-5]`'s
+recommended error-category vocabulary is production baseline *and* advisory, and a project that declares
+a different taxonomy fails nothing. The sentence above is about `[auto]` and `[review]`, which are the
+classes that instruct.
 
 What differs is **how a rule enters a project's normative surface**, and that is a separate axis from
 strength. The kernel enters without a decision. Everything else, the production baseline included, enters

@@ -54,8 +54,8 @@ under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 Coral required a predictable error architecture and stated it as a fixed vocabulary. `[ERR-1]` named
 exactly six categories — `usage`, `validation`, `not_found`, `conflict`, `infrastructure`, `internal` —
 and lived in the production baseline. Two things were wrong with that. The architectural claim Coral
-actually needs is that *there is one declared model and one boundary that presents it*, which is
-agent-justified and belongs in the kernel. The six names are a good default vocabulary, which is not.
+actually needs is that *there is one declared model per app or package, and presentation belongs to a
+boundary rather than to a slice*, which is agent-justified and belongs in the kernel. The six names are a good default vocabulary, which is not.
 A project with a three-category taxonomy was non-conformant for the category count alone, and a project
 that had adopted nothing owed no error model at all.
 
@@ -110,13 +110,26 @@ statically checkable enforcement and `[ERR-3]` is the baseline's realization of 
 mechanism in the kernel, which the membership test's fourth clause forbids. `[ERR-4]`, batch transaction
 policy, is untouched.
 
-**`[ERR-2]`'s statement now matches what a checker can decide.** It said errors carry
-`{ category, code, message }` and that `category` is "one of the six". A static check sees neither the
-fields nor the argument values — it sees the raised type. The rule now requires a slice to raise only
-through the **project's declared taxonomy** type or constructors, never an ad-hoc one, and the rule text
-says plainly which half is `[auto]`. `{ category, code, message }` remains the baseline's concrete shape,
-with slice-owned `code` strings, stated as the commentary it always was in practice. **Loosened, not
-tightened:** every project that conformed to the old wording conforms to the new one.
+**`[ERR-2]`'s statement now matches what a checker can decide, and follows `[ERR-1]`'s grain.** It said
+errors carry `{ category, code, message }` and that `category` is "one of the six". A static check sees
+neither the fields nor the argument values — it sees the raised type. The rule now requires a slice to
+raise only through the error model declared for **its own app or package**, never an ad-hoc one and never
+a sibling unit's, and the rule text says plainly which half is `[auto]`. `{ category, code, message }`
+remains the baseline's concrete shape, with slice-owned `code` strings, stated as the commentary it
+always was in practice. **Loosened, not tightened:** every project that conformed to the old wording
+conforms to the new one.
+
+**`coral-lint` learned the same grain, and refuses to guess it.** The `[ERR-2]` check took one
+repository-wide `error_types` allowlist and applied it to every slice, so a repo holding a backend and a
+CLI could pass a backend slice that raised the CLI's constructor — an `[ERR-1]` boundary violation
+reported as clean. `coral.toml` now accepts `[[coral.error_models]]`, one entry per app or package with
+its own `path` and `types`, and each slice is checked against the model whose path contains it, longest
+path winning. A slice inside no declared model is reported as unanalyzed rather than passed. The flat
+`error_types` form still means *one model for everything here*, which is true of a single-unit repo — and
+where a repo declares several units (`app_dirs` / `library_dirs`) with only the flat form, the check
+**skips and says why** instead of unioning the constructors. Declaring both forms is a hard config
+failure. This is the tool's implementation of an already-selected rule and pulls in no applicability
+work.
 
 **`[ERR-5]` `[guide]` is the recommended six-category vocabulary, and it is the one new ID in this
 entry.** The list, and the explanation of what each category means, moved there intact, along with why
@@ -137,7 +150,8 @@ mapping:
 
 - **`[BE-5]`** requires the root middleware to own a **total** mapping from every declared category to an
   HTTP status. That totality is **this rule's** requirement, not `[ERR-1]`'s — the kernel asks for one
-  model and one presenting boundary, and the HTTP mapping is the backend's realization of it. Adding a
+  model and presentation owned by a boundary, and the HTTP mapping is the backend's realization of it at
+  the boundary a backend renders from. Adding a
   category therefore touches two central definitions, the taxonomy declaration and this table, and no
   slice or handler. A category the renderer does not know is a gap, not a custom taxonomy. The six-row
   status table stays, labelled as the recommended mapping when the project uses `[ERR-5]`'s default
@@ -164,9 +178,9 @@ mapping:
 **What a project has to do.** A project that had adopted the production baseline owes nothing new: it
 already had a declared taxonomy, and `[ERR-5]` describes what it already uses. A project that had **not**
 adopted the baseline gains one unconditional rule, `[ERR-1]`, and that is why the change is breaking. A
-project that wanted a different taxonomy can now have one without an exception. `coral-lint`'s `[ERR-2]`
-check is unchanged in behavior — it still reads the constructors the repo declares in `coral.toml` — and
-its remedy text now points at the project's declared taxonomy instead of "one of the six".
+project that wanted a different taxonomy can now have one without an exception. A single-app repo running
+`coral-lint` needs no config change; a repo holding several apps or packages moves its `error_types` list
+to one `[[coral.error_models]]` entry per unit, and is told to rather than silently mis-checked.
 
 **Coral rules become applicable by declaration, not by existing. `[VER-6]` is added, the production
 baseline becomes opt-in, and rules carry an architectural scale. Major under `[VER-2]`: a rule is added,

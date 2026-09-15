@@ -10,14 +10,18 @@ explicitly, and separate from the Coral kernel.*
 > kernel-facing app architecture, and it binds without being adopted.
 
 **Why these rules exist is not "because an agent wrote the code."** Their justification survives a
-human-authored codebase. Error-model enforcement and the recommended category vocabulary, transaction
-scope, retry semantics, cache invalidation, concurrency strategy and trust boundaries are required
-because the *software* needs them. **That the error model exists at all, and who owns presenting it, is
-not on that list** — it is `[ERR-1]`, a kernel rule, and this document refines it rather than
-establishing it. Coral
-publishes them as one coherent baseline, so a project can take the whole opinion in one decision rather
-than reinventing it per repository. A project that already has its own can decline it in one decision
-too.
+human-authored codebase. Error-model enforcement, transaction scope, retry semantics, cache
+invalidation, concurrency strategy and trust boundaries are baseline **requirements**, justified by what
+the *software* needs. The baseline also supplies **guidance** a project may take or leave — a recommended
+error-category vocabulary (`[ERR-5]`) among it — and a `[guide]` rule is rationale rather than a gate
+([`CONVENTIONS.md`](./CONVENTIONS.md#enforcement-classes)).
+
+**That the error model exists at all, and who owns presenting it, is on neither list.** It is `[ERR-1]`,
+a kernel rule, and this document refines it rather than establishing it.
+
+Coral publishes all of it as one coherent baseline, so a project can take the whole opinion in one
+decision rather than reinventing it per repository. A project that already has its own can decline it in
+one decision too.
 
 **Not weaker for being optional.** Once adopted, a `[auto]` rule here is enforced exactly as an `[auto]`
 kernel rule is, and a `[review]` rule takes the same judgment
@@ -586,20 +590,26 @@ fixes no count, and fixes no field layout.** What follows is the baseline's real
 shape and its static enforcement, which boundary renders it in an executable application, how batches
 behave, and which vocabulary Coral recommends a project start from.
 
-**`[ERR-2]` `[auto]` `{baseline}`** — A slice raises only through the project's **declared taxonomy**
-type or constructors, never an ad-hoc or bespoke error type.
+**`[ERR-2]` `[auto]` `{baseline}`** — A slice raises only through the error model declared for **its own
+app or package**, never an ad-hoc or bespoke error type and never a sibling unit's taxonomy.
 
 The baseline's structured shape is `{ category, code, message }`. `category` comes from the taxonomy
-`[ERR-1]` requires the project to declare, whose recommended default vocabulary is `[ERR-5]`. `code` is a
-stable string id such as `"invalid_month"`. `message` is human-readable. The category set and the error
-type are the error model's published surface — the `errors` crosscut's, once two slices consume it
-(`[XCUT-1]`). The `code` strings are **owned by the slice that raises them**, minted locally and kept
+`[ERR-1]` requires that app or package to declare, whose recommended default vocabulary is `[ERR-5]`.
+`code` is a stable string id such as `"invalid_month"`. `message` is human-readable. The category set and
+the error type are the error model's published surface — the `errors` crosscut's, once two slices consume
+it (`[XCUT-1]`). The `code` strings are **owned by the slice that raises them**, minted locally and kept
 stable, so a slice stays self-contained and adding a code never edits a shared registry.
 
+**"Its own" is the operative phrase, and it follows `[ERR-1]`'s grain.** A repository may hold a backend,
+a CLI and a library, each with its own declared model. A slice in the backend raising the CLI's
+constructor has not satisfied this rule by raising *something declared somewhere*: it has reached across
+an app boundary for a vocabulary its own app never declared. The check is per unit, against that unit's
+model.
+
 **What makes this `[auto]` is the raised type, and only that.** A static check can decide whether a slice
-raises through the declared constructors or reaches for something else, because the project names those
-constructors. It does not verify the fields, the argument values, or that a `code` is stable. Those are
-`[review]` judgments carried by this rule's commentary and by `[TEST-4]`.
+raises through its own unit's declared constructors or reaches for something else, because the project
+names those constructors per unit. It does not verify the fields, the argument values, or that a `code`
+is stable. Those are `[review]` judgments carried by this rule's commentary and by `[TEST-4]`.
 
 **`[ERR-3]` `[review]` `{baseline}`** — **Slices raise. The root renders. Nothing else renders.**
 
@@ -839,7 +849,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 - `[CONC-4]` Scope a transaction to one trigger. Never hold it across an external call.
 
 ### Errors, observability, contracts, trust
-- `[ERR-2]` Raise through the project's declared taxonomy constructors, never an ad-hoc error type. Slices own their `code` strings.
+- `[ERR-2]` Raise through the declared taxonomy constructors of the slice's own app or package, never an ad-hoc error type or a sibling unit's. Slices own their `code` strings.
 - `[ERR-3]` Slices raise. The root renders. Nothing else renders.
 - `[ERR-4]` Batch operations are all-or-nothing unless partial outcomes are reported explicitly.
 - `[OBS-2]` Configure observability at the root, and emit through the injected crosscut.
@@ -898,7 +908,7 @@ Some of these ship as [`tools/coral-lint`](./tools/coral-lint/README.md), and so
 | `[CONFIG-2]` | no slice module references the environment or config-file API |
 | `[CONFIG-4]` | no literal secret in source, and no secret on a logged or published field |
 | `[IDEM-2]` | a read-named slice makes no one-hop write/mutation call |
-| `[ERR-2]` | raised errors use the project's declared taxonomy constructors, not ad-hoc types |
+| `[ERR-2]` | raised errors use the owning app or package's declared taxonomy constructors, not ad-hoc types |
 
 > **Which of these run is the tool's answer, not this table's.** These documents own the *rules*.
 > `coral-lint` owns the *implementation status*, reports it on every run, and prints the full map under

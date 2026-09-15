@@ -55,11 +55,12 @@ python_files = ["*_test.py"]   # so a test can sit beside the code it verifies  
 Four of them, each precisely named, each carrying an invariant that would be a bug if it drifted
 (`[XCUT-1]`). None is called `utils`.
 
-The error model first. `[ERR-1]` requires one small, stable, structured taxonomy, declared once and
-rendered at one boundary; it fixes neither the count nor the names. This example takes Coral's recommended
-six-category default (`[ERR-5]`) because it has adopted the production baseline. A project on another
-small taxonomy would write this file differently and be equally conformant. Slices raise it, and exactly
-one place renders it (`[ERR-3]`):
+The error model first. `[ERR-1]` requires one small, stable, structured taxonomy, declared once for this
+app, with presentation owned by a boundary rather than by a slice; it fixes neither the count nor the
+names. This example takes Coral's recommended six-category default (`[ERR-5]`) because it has adopted the
+production baseline. A project on another small taxonomy would write this file differently and be equally
+conformant. This is an executable CLI, so the boundary that presents is its root (`[ERR-3]`) — slices
+raise, and exactly one place renders:
 
 ```python
 # errors.py

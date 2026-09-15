@@ -70,8 +70,8 @@ No slice chooses a status or constructs its own error response. That is what mak
 checkable: a status-code write inside a slice module is a violation.
 
 **The mapping is total, and this rule is what requires that.** `[ERR-1]` asks for one declared model and
-one boundary that presents it; requiring a status for *every* declared category is this profile's
-realization of that half. The middleware knows a status for every category the project declared, so
+for presentation to be owned by a boundary rather than by a slice; requiring a status for *every*
+declared category is this profile's realization of that half, at the boundary a backend renders from. The middleware knows a status for every category the project declared, so
 adding a category touches two central definitions — the taxonomy declaration and this mapping table —
 and no slice or handler. That is the property worth having: the blast radius is the architectural
 definitions, never every call site. A category the renderer does not know is not a custom taxonomy; it is

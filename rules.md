@@ -427,7 +427,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[IDEM-4]` | `[review]` | production baseline | Never auto-retry a non-idempotent mutation. |
 | `[IDEM-5]` | `[review]` | production baseline | On an at-least-once platform, a mutating handler must be idempotent. |
 | `[IDEM-6]` | `[review]` | production baseline | Classify an unlisted verb by its effect and name it truthfully. Flag an unclear effect. |
-| `[ERR-2]` | `[auto]` | production baseline | Raise through the project's declared taxonomy constructors, never an ad-hoc error type. Slices own their `code` strings. |
+| `[ERR-2]` | `[auto]` | production baseline | Raise through the declared taxonomy constructors of the slice's own app or package, never an ad-hoc error type or a sibling unit's. Slices own their `code` strings. |
 | `[ERR-3]` | `[review]` | production baseline | Slices raise. The root renders. Nothing else renders. |
 | `[ERR-4]` | `[review]` | production baseline | Batch operations are all-or-nothing unless partial outcomes are reported explicitly. |
 | `[ERR-5]` | `[guide]` | production baseline | Coral's recommended starting taxonomy is six categories: `usage`, `validation`, `not_found`, `conflict`, `infrastructure`, `internal`. |

@@ -964,8 +964,10 @@ test('and every kernel rule is stated in one of them', () => {
 })
 
 test('the error-model split: the invariant is kernel, its refinements are baseline', () => {
-  // PO-07. [ERR-1] is the architectural invariant — one small, stable, structured error model,
-  // declared once and rendered at one boundary — and it binds a project that adopted nothing.
+  // PO-07. [ERR-1] is the architectural invariant — one small, stable, structured error model per
+  // app or package, presented at a boundary rather than inside a slice, which is what makes it
+  // satisfiable by a library that presents nothing at all — and it binds a project that adopted
+  // nothing.
   // Everything downstream of it stays opt-in: the static enforcement, the raise/render
   // realization, batch policy, and the recommended category vocabulary. Asserted as scope and
   // class rather than as prose, so rewording any of the five statements does not touch this.

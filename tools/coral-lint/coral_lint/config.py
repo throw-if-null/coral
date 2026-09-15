@@ -29,8 +29,32 @@ DEFAULT_READ_VERBS = ("show", "list", "summary", "get", "find")
 
 _KNOWN_KEYS = {
     "ignore", "app_dirs", "feature_dirs", "library_dirs", "roots", "crosscuts",
-    "grandfathered", "read_verbs", "error_types",
+    "grandfathered", "read_verbs", "error_types", "error_models",
 }
+
+
+@dataclass(frozen=True)
+class ErrorModel:
+    """One app or package, and the error constructors it declares.  [ERR-1] [ERR-2]
+
+    `[ERR-1]` binds at the app or package, not at the repository: a repo holding a
+    backend and a CLI holds two error models, and a backend slice raising the CLI's
+    constructor has reached across a boundary rather than satisfied the rule. So the
+    tool has to know which declared constructors belong to which unit, and `path` is
+    how the audited repo says it.
+
+    `path` is repo-relative and names the unit's directory. `types` are the
+    constructors declared for that unit alone.
+    """
+
+    path: str
+    types: frozenset[str]
+
+    def owns(self, rel: str) -> bool:
+        """Does this unit contain the repo-relative path `rel`?"""
+        if self.path in ("", "."):
+            return True
+        return rel == self.path or rel.startswith(f"{self.path}/")
 
 
 @dataclass(frozen=True)
@@ -46,7 +70,32 @@ class Config:
     grandfathered: frozenset[str] = field(default_factory=frozenset)
     read_verbs: tuple[str, ...] = DEFAULT_READ_VERBS
     error_types: frozenset[str] = field(default_factory=frozenset)
+    error_models: tuple[ErrorModel, ...] = ()  # per app/package taxonomies ([ERR-1] grain)
     source: str = "defaults"             # where this came from, for the report
+
+    @property
+    def declared_units(self) -> frozenset[str]:
+        """The app/package boundaries this config names, if any.
+
+        `app_dirs` and `library_dirs` are the only keys that say *this directory is
+        one unit*. `feature_dirs` does not: one app routinely declares several
+        feature packages, so counting them would call every ordinary app ambiguous.
+        """
+        return frozenset(self.app_dirs) | frozenset(self.library_dirs)
+
+    def error_model_for(self, rel: str) -> ErrorModel | None:
+        """The error model owning a repo-relative path, or None if none does.
+
+        Longest path wins, so a package nested inside an app resolves to the
+        package. Returning None is a real answer — the caller must not fall back to
+        some other unit's constructors, which is the false pass this exists to
+        prevent.
+        """
+        best: ErrorModel | None = None
+        for model in self.error_models:
+            if model.owns(rel) and (best is None or len(model.path) > len(best.path)):
+                best = model
+        return best
 
     @property
     def declares_slices(self) -> bool:
@@ -71,6 +120,54 @@ def _strs(raw: object, key: str) -> tuple[str, ...]:
     if not isinstance(raw, list) or not all(isinstance(v, str) for v in raw):
         raise errors.validation("bad_config_type", f"{CONFIG_NAME}: [coral].{key} must be a list of strings")
     return tuple(raw)
+
+
+def _error_models(raw: object) -> tuple[ErrorModel, ...]:
+    """Parse `[[coral.error_models]]`: one entry per app or package.
+
+    Validated here rather than at first use, like everything else in this file, so a
+    malformed declaration fails before any check runs.  [CONFIG-3]
+    """
+    if not isinstance(raw, list) or not all(isinstance(v, dict) for v in raw):
+        raise errors.validation(
+            "bad_config_type",
+            f"{CONFIG_NAME}: [[coral.error_models]] must be a list of tables, each with"
+            " `path` and `types`",
+        )
+    models: list[ErrorModel] = []
+    seen: set[str] = set()
+    for entry in raw:
+        unknown = sorted(set(entry) - {"path", "types"})
+        if unknown:
+            raise errors.validation(
+                "unknown_config_key",
+                f"{CONFIG_NAME}: [[coral.error_models]] has unknown key(s) {', '.join(unknown)};"
+                " known keys are path, types",
+            )
+        path = entry.get("path")
+        if not isinstance(path, str) or not path:
+            raise errors.validation(
+                "bad_config_type",
+                f"{CONFIG_NAME}: every [[coral.error_models]] needs a `path` naming the app or"
+                " package it declares the taxonomy for",
+            )
+        path = path.rstrip("/")
+        if path in seen:
+            raise errors.validation(
+                "duplicate_error_model",
+                f"{CONFIG_NAME}: [[coral.error_models]] declares {path!r} twice. One unit has one"
+                " error model ([ERR-1]); two entries leave no answer for which one owns a slice",
+            )
+        seen.add(path)
+        types = _strs(entry.get("types", []), "error_models.types")
+        if not types:
+            raise errors.validation(
+                "bad_config_type",
+                f"{CONFIG_NAME}: [[coral.error_models]] for {path!r} declares no `types`. An empty"
+                " model would fail every raise in that unit rather than checking it",
+            )
+        models.append(ErrorModel(path=path, types=frozenset(types)))
+    return tuple(models)
 
 
 def load(repo: Path) -> Config:
@@ -112,8 +209,25 @@ def load(repo: Path) -> Config:
         grandfathered=frozenset(_strs(section.get("grandfathered", []), "grandfathered")),
         read_verbs=_strs(section.get("read_verbs", list(DEFAULT_READ_VERBS)), "read_verbs"),
         error_types=frozenset(_strs(section.get("error_types", []), "error_types")),
+        error_models=_error_models(section.get("error_models", [])),
         source=CONFIG_NAME,
     )
+
+    # Two ways to say the same thing is two sources of truth, and the check would have
+    # to pick one silently. Refuse instead.  [XCUT-4]
+    if cfg.error_types and cfg.error_models:
+        raise errors.validation(
+            "conflicting_error_declaration",
+            f"{CONFIG_NAME}: declare either [coral].error_types (one error model for the whole"
+            " repo) or [[coral.error_models]] (one per app or package), not both",
+        )
+    for model in cfg.error_models:
+        if not (repo / model.path).is_dir():
+            raise errors.validation(
+                "config_path_missing",
+                f"{CONFIG_NAME}: [[coral.error_models]] names {model.path!r}, which is not a"
+                " directory",
+            )
 
     for key, values in (("app_dirs", cfg.app_dirs), ("feature_dirs", cfg.feature_dirs),
                         ("library_dirs", cfg.library_dirs)):

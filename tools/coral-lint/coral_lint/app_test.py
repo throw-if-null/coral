@@ -109,6 +109,66 @@ def test_an_unknown_config_key_is_rejected(tmp_path):
     assert "unknown_config_key" in err
 
 
+def test_declaring_both_error_forms_is_rejected(tmp_path):
+    # One error model per unit ([ERR-1]) has one declaration. Two shapes saying it
+    # would make the check pick a winner silently.
+    repo = _repo(
+        tmp_path,
+        {"app/feat/add.py": ""},
+        coral_toml=(
+            '[coral]\nfeature_dirs = ["app/feat"]\nerror_types = ["e.v"]\n\n'
+            '[[coral.error_models]]\npath = "app"\ntypes = ["e.v"]\n'
+        ),
+    )
+    code, out, err = _run([], repo)
+    assert code == 2
+    assert out == ""
+    assert "conflicting_error_declaration" in err
+
+
+def test_an_error_model_without_types_is_rejected(tmp_path):
+    repo = _repo(
+        tmp_path,
+        {"app/feat/add.py": ""},
+        coral_toml=(
+            '[coral]\nfeature_dirs = ["app/feat"]\n\n'
+            '[[coral.error_models]]\npath = "app"\ntypes = []\n'
+        ),
+    )
+    code, _, err = _run([], repo)
+    assert code == 2
+    assert "bad_config_type" in err
+
+
+def test_an_error_model_naming_a_missing_directory_is_rejected(tmp_path):
+    repo = _repo(
+        tmp_path,
+        {"app/feat/add.py": ""},
+        coral_toml=(
+            '[coral]\nfeature_dirs = ["app/feat"]\n\n'
+            '[[coral.error_models]]\npath = "nope"\ntypes = ["e.v"]\n'
+        ),
+    )
+    code, _, err = _run([], repo)
+    assert code == 2
+    assert "config_path_missing" in err
+
+
+def test_two_error_models_for_one_path_are_rejected(tmp_path):
+    repo = _repo(
+        tmp_path,
+        {"app/feat/add.py": ""},
+        coral_toml=(
+            '[coral]\nfeature_dirs = ["app/feat"]\n\n'
+            '[[coral.error_models]]\npath = "app"\ntypes = ["e.v"]\n\n'
+            '[[coral.error_models]]\npath = "app"\ntypes = ["e.w"]\n'
+        ),
+    )
+    code, _, err = _run([], repo)
+    assert code == 2
+    assert "duplicate_error_model" in err
+
+
 def test_rule_filter_runs_only_that_check(tmp_path):
     repo = _repo(tmp_path, {"app/utils/x.py": ""})
     _, out, _ = _run(["--json", "--rule", "BUCKET-1"], repo)
