@@ -1,4 +1,10 @@
-"""Crosscut: the error taxonomy. Checks raise; the root renders.  [ERR-1] [ERR-3]"""
+"""Crosscut: this tool's declared error model. Checks raise; the root renders.  [ERR-1] [ERR-3]
+
+[ERR-1] asks for one small, stable, structured taxonomy declared in one place. It
+does not say which categories. This tool takes Coral's recommended default
+([ERR-5]) because it has adopted the production baseline — an implementation
+choice, not evidence that [ERR-1] mandates these six names.
+"""
 
 from typing import Literal
 

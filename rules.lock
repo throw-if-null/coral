@@ -86,10 +86,11 @@ EFFECT-1	review	PRODUCTION.md
 EFFECT-2	review	PRODUCTION.md
 EFFECT-3	guide	PRODUCTION.md
 EFFECT-4	review	PRODUCTION.md
-ERR-1	review	PRODUCTION.md
+ERR-1	review	ARCHITECTURE.md
 ERR-2	auto	PRODUCTION.md
 ERR-3	review	PRODUCTION.md
 ERR-4	review	PRODUCTION.md
+ERR-5	guide	PRODUCTION.md
 GHA-1	review	appendix/gh-action.md
 GHA-10	auto	appendix/gh-action.md
 GHA-11	review	appendix/gh-action.md

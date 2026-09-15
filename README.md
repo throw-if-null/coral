@@ -74,9 +74,10 @@ it. `npm run rules:index` generates the page from the documents, and the build f
 behind them. An index that can drift from what it indexes is worse than no index.
 
 **Only a small part of Coral is imposed because an agent writes the code.** That subset is the
-[kernel](./CONVENTIONS.md#the-coral-kernel): ten rules, named and justified one at a time. Coral publishes
-general production-engineering policy separately, as the production baseline and the app profiles. A
-project adopts that policy rather than inheriting it. The build enforces the separation structurally: it
+[kernel](./CONVENTIONS.md#the-coral-kernel): a small set of rules, named and justified one at a time, and
+counted in [`rules.md`](./rules.md)'s layer tally. Coral publishes general production-engineering policy
+separately, as the production baseline and the app profiles. A project adopts that policy rather than
+inheriting it. The build enforces the separation structurally: it
 rejects an opt-in rule defined in a [core document](./CONVENTIONS.md#core-documents).
 
 Rules carry stable IDs like `[DUP-2]`, and three independent classifications:

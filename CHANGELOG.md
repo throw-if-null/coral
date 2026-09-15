@@ -39,11 +39,105 @@ a project pinning `VERSION` does not owe it yet.
 ## Unreleased — 0.7.0
 
 A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **The batch takes the highest level of the entries in it, currently major**, because
-the applicability pass below adds `[VER-6]`. Adding a rule is a breaking change under `[VER-2]`. Here the
-code that can fail is a project's `CORAL.md`, which conformed yesterday. Coral is still in `0.y.z`, so
-that major is cut as a **minor** bump (`0.6.0` → `0.7.0`) per semver's major-version-zero clause. The
-level of the change is major either way, and a consuming project reads it as one.
+the batch is cut. **The batch takes the highest level of the entries in it, currently major**, because the
+applicability pass below adds `[VER-6]` and the error-model pass moves `[ERR-1]` into the kernel. Adding a
+rule is a breaking change under `[VER-2]`, and so is making an opt-in rule unconditional. The code that
+can fail is a project's `CORAL.md`, which conformed yesterday, and a kernel-only project that had no
+declared error model. Coral is still in `0.y.z`, so that major is cut as a **minor** bump
+(`0.6.0` → `0.7.0`) per semver's major-version-zero clause. The level of the change is major either way,
+and a consuming project reads it as one. **The working version is already `0.7.0` and does not move
+again** — one batch takes one bump, however many breaking entries it holds.
+
+**`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
+under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
+
+Coral required a predictable error architecture and stated it as a fixed vocabulary. `[ERR-1]` named
+exactly six categories — `usage`, `validation`, `not_found`, `conflict`, `infrastructure`, `internal` —
+and lived in the production baseline. Two things were wrong with that. The architectural claim Coral
+actually needs is that *there is one declared model and one place that renders it*, which is
+agent-justified and belongs in the kernel. The six names are a good default vocabulary, which is not.
+A project with a three-category taxonomy was non-conformant for the category count alone, and a project
+that had adopted nothing owed no error model at all.
+
+**`[ERR-1]` is now a kernel rule, stated in `ARCHITECTURE.md`.** An app has one small, stable, structured
+error model: its categories are declared in one place, every failure a slice raises is constructed through
+that declared model, and one boundary owns rendering it. It prescribes **no number of categories and no
+names**. A project that declares its own small, stable taxonomy is conformant, and needs no `[VER-5]`
+exception merely because its categories differ from Coral's recommended ones. What it still cannot do is
+let a slice mint a category locally, or render in passing: widening a shared contract is an architectural
+change a human authors (`[AGENT-4]`), and genuine ambiguity about which category applies is flagged
+(`[AGENT-2]`).
+
+**"Defined once as a crosscut" did not survive the move, deliberately.** The old wording would have made
+`[XCUT-1]` and `[ERR-1]` contradict each other for a one-slice app: `[XCUT-1]` promotes only against
+genuine sharing, and a kernel rule demanding a crosscut regardless would force the `[DUP-4]` failure. The
+invariant is **one definition**. Once two slices consume it, it qualifies as an error crosscut on
+`[XCUT-1]`'s own terms, because it carries exactly the must-not-diverge invariant that rule asks for.
+
+**Its kernel rationale, against the four-part membership test:** drop the operating model and Coral would
+say "have a coherent error strategy" and stop; keep it and the vocabulary must be finite and declared,
+because an agent writing the next slice either loads one small set or reconstructs local convention from
+its neighbours. It defends **bounded context** (one vocabulary to load), **reviewability** (a taxonomy or
+rendering-policy change lands as an architectural diff rather than inside one handler) and **drift
+prevention** (categories, construction and presentation cannot diverge slice by slice). It is not general
+correctness, because it constrains *where the vocabulary is declared and who renders it* rather than how
+failures are handled. And nothing else in the kernel implies it.
+
+**`[ERR-2]` and `[ERR-3]` stay in the production baseline, as refinements of it.** `[ERR-2]` is the
+statically checkable enforcement and `[ERR-3]` is the baseline's realization of the rendering half —
+*slices raise, the root renders, nothing else renders* — so promoting either would put an enforcement
+mechanism in the kernel, which the membership test's fourth clause forbids. `[ERR-4]`, batch transaction
+policy, is untouched.
+
+**`[ERR-2]`'s statement now matches what a checker can decide.** It said errors carry
+`{ category, code, message }` and that `category` is "one of the six". A static check sees neither the
+fields nor the argument values — it sees the raised type. The rule now requires a slice to raise only
+through the **project's declared taxonomy** type or constructors, never an ad-hoc one, and the rule text
+says plainly which half is `[auto]`. `{ category, code, message }` remains the baseline's concrete shape,
+with slice-owned `code` strings, stated as the commentary it always was in practice. **Loosened, not
+tightened:** every project that conformed to the old wording conforms to the new one.
+
+**`[ERR-5]` `[guide]` is the recommended six-category vocabulary, and it is the one new ID in this
+entry.** The list, and the explanation of what each category means, moved there intact, along with why
+authentication and authorization outcomes are deliberately absent and why a scoped miss raises the
+missing-resource category rather than a permission error. It is a `[guide]`, so it is rationale and never
+a gate — a new `[guide]` rule is **minor** under `[VER-2]`, not major. Coral recommends starting here, and
+"custom taxonomy" still never licenses a category per slice.
+
+**App profiles no longer depend on baseline adoption for the existence of an error taxonomy.** This was
+the concrete instance of the self-containment gap `CONVENTIONS.md` records. `[BE-5]`, `[WEB-9]`,
+`[GHA-9]`, `[LIB-8]` and `[AGENTIC-9]` told slices to "raise the taxonomy" while the taxonomy was a
+baseline rule, so a project adopting `app-profile: [backend]` and nothing else was told to raise something
+it had selected no definition for. Each now rests on kernel `[ERR-1]` and states its own boundary's
+mapping:
+
+- **`[BE-5]`** requires the root middleware to own a **total** mapping from every declared category to an
+  HTTP status. A category the renderer does not know is a gap, not a custom taxonomy. The six-row status
+  table stays, labelled as the recommended mapping when the project uses `[ERR-5]`'s default vocabulary.
+- **`[BE-8]`** states the security property as observable behavior — `401` unauthenticated, `403`
+  authenticated without the capability, `404` for a scoped miss — and no longer rests on the literal
+  category name `not_found`. Whatever the taxonomy calls it, the scoped miss must reach the client
+  indistinguishably from a genuine miss.
+- **`[CLI-8]`** keeps the exit-code contract unchanged (`0` / `2` / `1`) and now reads "invalid
+  invocation" rather than "usage error", so it no longer requires a category literally named `usage`. The
+  root owns the mapping; `usage` → `2` is the recommended one under `[ERR-5]`.
+- **`[WEB-9]`** owns its own statement that the root maps every declared category to a status and selects
+  the surface. `[BE-5]`'s table is cited as an analogous default, not as a hidden dependency.
+- **`[GHA-9]`** requires the entry point to classify every declared category as recoverable or
+  non-recoverable and to own the exit-status and annotation mapping. `infrastructure` retryable,
+  `usage`/`validation` not, are `[ERR-5]` examples rather than universal names.
+- **`[LIB-8]`** keeps typed, inspectable errors and no rendering, and states that reclassifying an
+  already-published error is breaking. `validation` → `400` is now explicitly an `[ERR-5]` example.
+- **`[AGENTIC-9]`** and `[AGENTIC-4]` still require malformed model output to be a structured,
+  non-success failure that never travels downstream, mapped onto the project's category for invalid
+  structured output — `validation` under `[ERR-5]`.
+
+**What a project has to do.** A project that had adopted the production baseline owes nothing new: it
+already had a declared taxonomy, and `[ERR-5]` describes what it already uses. A project that had **not**
+adopted the baseline gains one unconditional rule, `[ERR-1]`, and that is why the change is breaking. A
+project that wanted a different taxonomy can now have one without an exception. `coral-lint`'s `[ERR-2]`
+check is unchanged in behavior — it still reads the constructors the repo declares in `coral.toml` — and
+its remedy text now points at the project's declared taxonomy instead of "one of the six".
 
 **Coral rules become applicable by declaration, not by existing. `[VER-6]` is added, the production
 baseline becomes opt-in, and rules carry an architectural scale. Major under `[VER-2]`: a rule is added,
@@ -689,9 +783,13 @@ and runtime-agent 3. There are two forms:
   map `category`, but the taxonomy is `[ERR-1]`. A project adopting `app-profile: [backend]` alone is
   told to raise a taxonomy it has selected no definition of.
 
+**Those four were repaired later in this same batch**, by the error-model entry above: `[ERR-1]` is now a
+kernel rule, so a profile that renders errors rests on a model every Coral project already owes. The
+explicit-citation form is untouched, and the gap below is the general one.
+
 This is therefore a **composition-model gap, not something specific to the runtime-agent profile**. Coral
-has no way for a rule to say *I refine `[ERR-1]`*, so a project selecting a refinement is neither given
-what it refines nor told the pair is incomplete. Three repairs are possible:
+has no way for a rule to say *I refine `[CONTRACT-1]`*, so a project selecting a refinement is neither
+given what it refines nor told the pair is incomplete. Three repairs are possible:
 
 - rewrite the dependent statements to stand alone
 - declare them conditional refinements that apply only when their base rule is also selected

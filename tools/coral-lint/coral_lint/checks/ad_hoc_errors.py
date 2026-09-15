@@ -1,8 +1,14 @@
-"""[ERR-2] — raised errors use the taxonomy, not ad-hoc types.
+"""[ERR-2] — raised errors use the project's declared taxonomy, not ad-hoc types.
 
 Needs the repo to name its taxonomy, because the type is repo-specific. Without
 that declaration the check cannot distinguish a taxonomy error from a bespoke
 exception, so it skips rather than guessing.
+
+[ERR-1] requires the taxonomy to exist and to be declared once; it fixes neither
+the number of categories nor their names. So this check reads the constructors
+the repo declared in `coral.toml` and never a category list of its own. A repo
+with three categories and a repo with Coral's recommended six ([ERR-5]) are both
+checked the same way: raise through what you declared, or it is a finding.
 """
 
 from __future__ import annotations
@@ -52,9 +58,12 @@ def run(layout: Layout) -> CheckResult:
                         line=hit.line,
                         message=f"raises {hit.label!r}, which is not in the declared taxonomy",
                         remedy=(
-                            "Raise the taxonomy error instead: one of the six categories, a stable "
-                            "`code` string owned by this slice, and a human-readable message "
-                            "([ERR-1], [ERR-2]). The root renders it; the slice never does ([ERR-3])."
+                            "Raise through this project's declared taxonomy instead: a category from "
+                            "the error model the project declared once ([ERR-1]), a stable `code` "
+                            "string owned by this slice, and a human-readable message ([ERR-2]). If no "
+                            "declared category fits, that is an architectural change to the taxonomy, "
+                            "not a new error type here ([AGENT-2], [AGENT-4]). The root renders it; "
+                            "the slice never does ([ERR-3])."
                         ),
                     )
                 )

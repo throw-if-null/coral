@@ -45,7 +45,7 @@ list. The section [below](#why-the-core-rules-are-shaped-this-way) says which pa
 expenses/
   __main__.py        entry point — argv in, exit code out
   app.py             registers the commands, constructs the shared parts, injects them
-  errors.py          the error taxonomy, defined once
+  errors.py          the error model, declared once
   money.py           parsing and formatting money, defined once
   db.py              connection and transaction handling, defined once
   expense/
@@ -161,7 +161,7 @@ from those four consequences. Remove the agent-author premise and Coral would su
 **Most of what Coral publishes is not that, and does not claim to be.** All of these are required because
 the *software* needs them:
 
-- error taxonomies
+- which error categories a project uses, and how they are enforced
 - transaction scope
 - retry semantics
 - cache invalidation

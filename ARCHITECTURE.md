@@ -18,9 +18,10 @@ adopted anything.
 
 **What is deliberately not here.** Coral's general production-engineering policy is the **production
 baseline**, an [optional layer](./CONVENTIONS.md#ownership-layers) a project adopts explicitly. That
-policy covers package naming, directory layout, forbidden buckets, the error taxonomy, transactions,
-retries, caching, concurrency strategy, configuration, observability, and trust boundaries. It lives in
-[`PRODUCTION.md`](./PRODUCTION.md). **This document's Agent Execution Contract lists no rule defined
+policy covers package naming, directory layout, forbidden buckets, the recommended error-category
+vocabulary and its enforcement, transactions, retries, caching, concurrency strategy, configuration,
+observability, and trust boundaries. It lives in [`PRODUCTION.md`](./PRODUCTION.md). **This document's
+Agent Execution Contract lists no rule defined
 there.** Adopting Coral therefore obliges a project to none of it, and a reader can understand the Coral
 kernel without loading it. Where the prose below cites a baseline rule, it is pointing at that rule or
 labelling an illustration, never asking for it.
@@ -40,7 +41,7 @@ into a system lives in [`SYSTEM.md`](./SYSTEM.md). Worked code lives in
 
 ## How to read this document
 
-Sections 1–7 **define** the kernel-facing rules and explain *why* each exists. The
+Sections 1–8 **define** the kernel-facing rules and explain *why* each exists. The
 [Agent Execution Contract](#agent-execution-contract) is the **complete** condensed checklist for **this
 document**. Every `[auto]` and `[review]` rule below appears in it, so an agent that loads only the
 contract has this document's whole normative surface. The build fails if a rule is missing from it.
@@ -244,10 +245,10 @@ cross-cutting (consumed by two or more slices) **and** enforcing an invariant or
 not diverge.
 
 The second prong is the real gate. Shared *similarity* is not enough (`[DUP-2]`). The thing must enforce
-something that would be a **bug** if it diverged: money parsing, period or date format, an error taxonomy
-where the project has one (`[ERR-1]`), connection management, or a domain entity's identity rules. Two
-consumers is a floor, not a trigger. A thing consumed by twenty slices that carries no invariant is still
-a bucket.
+something that would be a **bug** if it diverged: money parsing, period or date format, the app's error
+model once two slices raise through it (`[ERR-1]`), connection management, or a domain entity's identity
+rules. Two consumers is a floor, not a trigger. A thing consumed by twenty slices that carries no
+invariant is still a bucket.
 
 The normal moment to promote is when a *second* consumer appears for logic currently inline in one
 slice. Extracting then, and touching the first slice, is expected. Flag the change per `[AGENT-2]`.
@@ -264,7 +265,49 @@ its internals: not its parsing, its queries, or its private helpers.
 
 ---
 
-## 7. Testing Philosophy  `[TEST-*]`
+## 7. The Error Model  `[ERR-*]`
+
+Every capability can fail, so every capability has to say how. Where the failure vocabulary is declared,
+and where a failure becomes output, are placement questions like any other. Left unstated, each slice
+answers them locally, and the agent writing the next slice has no finite set to load — only the
+conventions of whichever neighbours it happened to read.
+
+**`[ERR-1]` `[review]`** — An app has **one small, stable, structured error model**: its categories are
+declared in one place, every failure a slice raises is constructed through that declared model, and one
+boundary owns rendering it.
+
+Three parts, and all three are the rule. **Structured** means a typed, inspectable value carrying a
+category and a stable identity, not a bare string or a per-slice exception hierarchy a caller has to
+pattern-match. **Declared in one place** means the set of categories is decided once for the app, so a
+slice selects from it and never extends it. **One rendering owner** means exactly one boundary turns a
+raised error into the app's observable output — an exit code, an HTTP status, an annotation — and no
+slice does it in passing.
+
+**Coral fixes the shape of the model, not its contents.** The kernel prescribes no number of categories
+and no names for them. Three categories can be the right answer, and so can eight. What it forbids is
+having no declared set, or having a different one per slice. Coral's *recommended* vocabulary is
+`[ERR-5]`, a production-baseline guide, and a project that uses another small, stable taxonomy is
+conformant without an exception (`[VER-5]`).
+
+**One definition is not the same as one crosscut.** `[XCUT-1]` promotes something only when two or more
+slices genuinely consume it, and an error model consumed by several slices meets that test easily: it
+carries exactly the must-not-diverge invariant the second prong asks for. A single-slice app owes the one
+declaration, not the promotion, and manufacturing a crosscut to satisfy this rule is the `[DUP-4]`
+failure rather than diligence.
+
+**Changing the taxonomy is an architectural decision, not a slice-local one.** A slice whose case does
+not fit an existing category does not mint a new one. Widening a shared contract every other slice reads
+is a change a human authors (`[AGENT-4]`), and genuine uncertainty about which category applies is
+flagged rather than guessed (`[AGENT-2]`).
+
+**Who the rendering owner is depends on the app type**, and the kernel names only that there is one. For
+an application it is the composition root or entry point. For a library the consumer is the root, so the
+library raises and never renders (`[ROOT-3]`, `[LIB-8]`). The production baseline's realization of this
+half is `[ERR-3]`, and each app profile states the mapping its own boundary owns.
+
+---
+
+## 8. Testing Philosophy  `[TEST-*]`
 
 **`[TEST-1]` `[review]`** — Testing is **behavior-first**: exercise the slice's entry point, assert its
 observable contract (`[BOUND-1]`), use real or realistic temporary infrastructure, and minimize mocking.
@@ -296,6 +339,9 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 ### The sharing decision
 - `[XCUT-1]` Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant.
 - `[COMPOSE-1]` Do not reach into another slice's internals. Depend on its published capability.
+
+### The error model
+- `[ERR-1]` One small, stable, structured error model per app: categories declared once, construction through it, one rendering owner.
 
 ### Testing
 - `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.

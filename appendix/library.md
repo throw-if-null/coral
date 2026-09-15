@@ -72,24 +72,31 @@ For anything that performs I/O, state the idempotency and the retry stance expli
 Your consumer is deciding whether to wrap the call in a retry, and cannot see inside (`[IDEM-4]`,
 `[IDEM-6]`).
 
-## Error rendering  → `[ERR-1]` `[ERR-3]`
+## Error rendering  → `[ERR-1]`
 
-**`[LIB-8]`** `[review]` `{app:library}` Raise typed taxonomy errors and never render: the consumer is
-the root, so the consumer decides presentation.
+**`[LIB-8]`** `[review]` `{app:library}` Raise typed, inspectable errors from the library's declared error
+model (`[ERR-1]`) and never render: the consumer is the root, so the consumer decides presentation.
 
-The error **type**, its `category`, and its `code` strings are part of the public contract (`[ERR-2]`),
+The error **type**, the classification it carries, and its `code` strings are part of the public contract,
 and are therefore semver-relevant. Adding a new `code` is a minor change. Changing or removing one is
-breaking. Make errors *inspectable* rather than *parseable*: expose a typed accessor or sentinel a
-consumer can branch on, and never expect them to match on a message string.
+breaking, and so is **reclassifying an already-published error**: a consumer routing on the classification
+gets different behavior from the same input. Make errors *inspectable* rather than *parseable*: expose a
+typed accessor or sentinel a consumer can branch on, and never expect them to match on a message string.
 
-**The domain identity is primary. The taxonomy category is the routing hint.** A library's errors should
-read in its own vocabulary, such as `ErrInvalidExpression`, `ErrUnsupportedCodec`, and
-`ErrVersionMismatch`. That vocabulary is the `code` and the typed sentinel a consumer branches on. The
-`category` travels with it, so a consuming app can map the error onto its own edge contract without
-knowing the library's domain. `validation` becomes a `400` in a backend (`[BE-5]`), exit `1` in a CLI, and
-a retry-or-dead-letter decision in a worker. That is what the taxonomy is for: one small enum that saves
-every consumer from writing a mapping table per library. The library is not asked to describe its domain
-in six words that were chosen for applications.
+**The domain identity is primary. The classification is the routing hint.** A library's errors should read
+in its own vocabulary, such as `ErrInvalidExpression`, `ErrUnsupportedCodec`, and `ErrVersionMismatch`.
+That vocabulary is the `code` and the typed sentinel a consumer branches on. The category travels with it,
+so a consuming app can map the error onto its own edge contract without knowing the library's domain.
+
+An example of that routing, with `[ERR-5]`'s default vocabulary on both sides: a `validation` error
+becomes a `400` in a backend (`[BE-5]`), exit `1` in a CLI, and a retry-or-dead-letter decision in a
+worker. A library on its own taxonomy gives its consumer the same service, and the consumer maps that
+taxonomy once instead of per call site. That is what a small declared classification is for. The library
+is not asked to describe its domain in a vocabulary that was chosen for applications, and Coral does not
+ask it to adopt six specific words to be conformant.
+
+Under the production baseline the raised shape is `{category, code, message}` (`[ERR-2]`), which is what
+makes `category` the field a consumer reads.
 
 ## Observability  → `[OBS-1]`
 
@@ -187,7 +194,7 @@ it**.
 - `[LIB-5]` Never write to `stdout`/`stderr` and never install global handlers. The default diagnostic is silence.
 - `[LIB-6]` Prefer pure functions and push every effect to a consumer-provided interface.
 - `[LIB-7]` Encode effect semantics in the name, and document idempotency and retry stance for anything doing I/O.
-- `[LIB-8]` Raise typed taxonomy errors and never render. The consumer is the root and decides presentation.
+- `[LIB-8]` Raise typed, inspectable errors from the declared error model and never render. The consumer is the root and decides presentation.
 - `[LIB-9]` Accept an injected logger or hook, define its no-op default, and keep the interface minimal.
 - `[LIB-10]` Validate inputs at the public API boundary, and state the trust assumption explicitly.
 - `[LIB-11]` Follow semver: add freely, never repurpose, and deprecate before removing.

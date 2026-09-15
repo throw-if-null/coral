@@ -72,8 +72,9 @@ and testable. Only the call itself is non-deterministic.
 (structured output or tool-call format). The observable contract is **"output conforms to the schema" plus
 the observed side effects (tool calls)**, never the exact text.
 
-Output that fails the schema is a `validation` failure (`[ERR-1]`). Repair or retry it a bounded number
-of times. Never pass it downstream malformed.
+Output that fails the schema is a structured, non-success failure raised through the app's declared error
+model — the project's category for invalid input, which is `validation` under `[ERR-5]`'s default
+vocabulary (`[ERR-1]`). Repair or retry it a bounded number of times. Never pass it downstream malformed.
 
 ## The Harness (the heart of an agentic app)
 
@@ -163,10 +164,17 @@ agent that answers consistently while double-charging.
 
 ## Error model  → `[ERR-1]`
 
-**`[AGENTIC-9]`** `[review]` `{runtime-agent}` Map model failures to the taxonomy: model unavailable or
-timed out → `infrastructure`, output that fails its schema → `validation` with bounded repair then
-failure, refusal or content-filter → a named `validation` or `conflict` code, and tool errors propagating
-under their own taxonomy category. Never silently accept malformed output.
+**`[AGENTIC-9]`** `[review]` `{runtime-agent}` Map every model failure onto the app's declared error model
+(`[ERR-1]`): a model that is unavailable or timed out onto the project's environment-failure category,
+output that fails its schema onto its invalid-input category with bounded repair then failure, a refusal
+or content-filter onto a named code under one of them, and tool errors propagating under their own
+category. Never silently accept malformed output.
+
+Malformed model output is the half that is not negotiable: it is a structured failure like any other, and
+it never travels downstream as if it had parsed. Which category carries it is the project's decision, not
+this profile's. With `[ERR-5]`'s default vocabulary the mapping reads: model unavailable or timed out →
+`infrastructure`, schema failure → `validation`, refusal or content-filter → a named `validation` or
+`conflict` code.
 
 ## Trust (the heaviest slot)  → `[TRUST-1]` `[TRUST-2]`
 
@@ -266,7 +274,7 @@ are specific to this app type:
 | harness             | tools = typed contracts · authz · risk-gate against policy · observe · bound |
 | state               | conversation / memory / RAG (local or a retrieval crosscut)   |
 | idempotency         | two layers: dedupe-by-stored-result, **and** per-action replay protection |
-| error model         | model → infrastructure, bad output → validation (bounded repair) |
+| error model         | model failure and bad output map onto the declared categories; bad output never passes (bounded repair) |
 | trust               | prompt injection · untrusted output · tool authz · data governance |
 | contract versioning | the schema is the contract, model + prompt are pinned provenance, re-eval on change |
 | testing             | deterministic parts normal, behavior via conformance + evals + judge |
@@ -299,7 +307,7 @@ without a major bump. Five entries hold regardless: `[AGENTIC-5]`, `[AGENTIC-10]
 - `[AGENTIC-7]` Treat history, memory, and retrieval as state: slice-owned, or a precisely-named retrieval crosscut.
 - `[AGENTIC-8]` Dedupe a mutating agent by storing the first result keyed to the request. Never re-run to recover.
 - `[AGENTIC-13]` Give every side-effecting tool its own replay protection: a key, a natural key, or a ledger. The stored result is not one.
-- `[AGENTIC-9]` Map model failures to the taxonomy, bound schema repair then fail, and never accept malformed output.
+- `[AGENTIC-9]` Map model failures onto the declared error model, bound schema repair then fail, and never accept malformed output.
 - `[AGENTIC-10]` Treat prompt input and model output as untrusted, default-deny dangerous tools, keep secrets out of prompts entirely, and minimize/redact/retain personal data.
 - `[AGENTIC-11]` Test the deterministic parts normally, agent behavior by conformance and evals, and harness safety. Never exact-match model text.
 - `[AGENTIC-12]` Pin the model identifier and version the prompt. Record both with each result, and re-run evals before either changes.

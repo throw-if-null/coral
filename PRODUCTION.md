@@ -515,9 +515,10 @@ setup.
 **`[CONFIG-3]` `[review]` `{baseline}`** — Validate every required setting when the config crosscut is
 constructed, not at first use.
 
-A missing or malformed setting is a **startup failure** raising `infrastructure` (`[ERR-1]`). It is never
-an empty value that surfaces hours later. Document the precedence order once, typically
-explicit argument → environment → file → default. Apply it in the crosscut, not per slice.
+A missing or malformed setting is a **startup failure** raising the taxonomy's environment-failure
+category — `infrastructure` under `[ERR-5]`'s default vocabulary (`[ERR-1]`). It is never an empty value
+that surfaces hours later. Document the precedence order once, typically explicit argument → environment
+→ file → default. Apply it in the crosscut, not per slice.
 
 **`[CONFIG-4]` `[auto]` `{baseline}`** — Secrets are read through the config crosscut only: never inlined,
 never logged, never placed on a published contract.
@@ -574,7 +575,44 @@ Do not invent a name whose effect is ambiguous. If the *effect itself* is unclea
 
 ## 15. Error Model  `[ERR-*]`
 
-**`[ERR-1]` `[review]` `{baseline}`** — Use one small, stable error taxonomy, defined once as a crosscut:
+The architectural invariant is the kernel's, and it is stated in
+[`ARCHITECTURE.md`](./ARCHITECTURE.md#_7-the-error-model-err): one small, stable, structured error model
+per app, its categories declared in one place, every raised failure constructed through it, and one
+boundary owning the rendering (`[ERR-1]`). **The kernel names no categories and fixes no count.** What
+follows is the baseline's realization — how the model is enforced, which boundary renders it, how batches
+behave, and which vocabulary Coral recommends a project start from.
+
+**`[ERR-2]` `[auto]` `{baseline}`** — A slice raises only through the project's **declared taxonomy**
+type or constructors, never an ad-hoc or bespoke error type.
+
+The baseline's structured shape is `{ category, code, message }`. `category` comes from the taxonomy
+`[ERR-1]` requires the project to declare, whose recommended default vocabulary is `[ERR-5]`. `code` is a
+stable string id such as `"invalid_month"`. `message` is human-readable. The category set and the error
+type are the error model's published surface — the `errors` crosscut's, once two slices consume it
+(`[XCUT-1]`). The `code` strings are **owned by the slice that raises them**, minted locally and kept
+stable, so a slice stays self-contained and adding a code never edits a shared registry.
+
+**What makes this `[auto]` is the raised type, and only that.** A static check can decide whether a slice
+raises through the declared constructors or reaches for something else, because the project names those
+constructors. It does not verify the fields, the argument values, or that a `code` is stable. Those are
+`[review]` judgments carried by this rule's commentary and by `[TEST-4]`.
+
+**`[ERR-3]` `[review]` `{baseline}`** — **Slices raise. The root renders. Nothing else renders.**
+
+This is the baseline's realization of `[ERR-1]`'s single rendering owner, naming *which* boundary owns it
+for an application: the composition root. Validate at the boundary, fail fast, do not swallow errors, do
+not partially succeed silently. Unexpected errors are caught once at the root. For a library the
+consumer is the root, so the library raises and never renders (`[ROOT-3]`, `[LIB-8]`).
+
+**`[ERR-4]` `[review]` `{baseline}`** — Batch and bulk operations default to all-or-nothing: one
+transaction, one bad item aborts and rolls back.
+
+A command may offer a partial mode, but only if it **reports per-item outcomes explicitly** in its
+observable contract. Partial success must never be *silent* (`[ERR-3]`). State which mode a command is
+in, and never leave it implicit.
+
+**`[ERR-5]` `[guide]` `{baseline}`** — Coral's recommended starting taxonomy is six categories: `usage`,
+`validation`, `not_found`, `conflict`, `infrastructure`, `internal`.
 
 1. `usage` — invalid invocation, malformed arguments, bad flag/parameter combinations
 2. `validation` — syntactically valid input that fails business rules
@@ -583,37 +621,30 @@ Do not invent a name whose effect is ambiguous. If the *effect itself* is unclea
 5. `infrastructure` — database, filesystem, permissions, environment, or OS failure
 6. `internal` — unexpected bug
 
+**This is a default vocabulary, not the definition of a conformant error model.** `[ERR-1]` decides what
+makes one: declared once, constructed through, rendered at one boundary. It fixes neither the count nor
+the names. A project that declares a different small, stable taxonomy is conformant, and needs no
+exception merely because its categories differ (`[VER-5]`). What "custom taxonomy" never licenses is a
+category per slice — `[ERR-1]` still asks for one declared model, whatever is in it.
+
+Six is a starting point with a track record: small enough for an agent to hold, wide enough that most
+failures land without argument, and mapped by every app profile in this document set. Take it unless the
+domain gives a concrete reason not to, and record the reason where the taxonomy is declared.
+
 **Authentication and authorization outcomes are deliberately not in this list.** Leaving that unstated
 was a gap, because nothing said whether `unauthenticated` and `forbidden` were missing on purpose. They
 are. Both are decided at the boundary by the code that holds the principal (`[TRUST-1]`, `[BE-6]`), so a
 slice has nothing to raise. Making them categories would also push a security decision into a taxonomy
 slices own, whose first consequence is slices raising `forbidden` about state they should never have
-loaded. A rendering rule per app type replaces them, and `[BE-8]` fixes the HTTP shape.
+loaded. A rendering rule per app type replaces them, and `[BE-8]` fixes the HTTP shape. A project on
+another taxonomy owes the same omission, for the same reason.
 
 One authorization outcome *does* reach the taxonomy, and it is the one that matters most. A scoped query
 that matches nothing raises `not_found`, not a permission error. "Exists but is not yours" and "does not
 exist" must be **indistinguishable** to a caller who is not entitled to know which. The honest-looking
-answer is the leak, and the taxonomy's existing category is the correct one.
-
-**`[ERR-2]` `[auto]` `{baseline}`** — Errors carry the structured shape `{ category, code, message }` and
-raised errors use the taxonomy enum, not ad-hoc strings.
-
-`category` is one of the six. `code` is a stable string id such as `"invalid_month"`. `message` is
-human-readable. The `category` enum and the error type are the `errors` crosscut's published surface.
-The `code` strings are **owned by the slice that raises them**, minted locally and kept stable, so a
-slice stays self-contained and adding a code never edits a shared registry.
-
-**`[ERR-3]` `[review]` `{baseline}`** — **Slices raise. The root renders. Nothing else renders.**
-
-Validate at the boundary, fail fast, do not swallow errors, do not partially succeed silently.
-Unexpected errors are caught once at the root.
-
-**`[ERR-4]` `[review]` `{baseline}`** — Batch and bulk operations default to all-or-nothing: one
-transaction, one bad item aborts and rolls back.
-
-A command may offer a partial mode, but only if it **reports per-item outcomes explicitly** in its
-observable contract. Partial success must never be *silent* (`[ERR-3]`). State which mode a command is
-in, and never leave it implicit.
+answer is the leak, and this vocabulary's existing category is the correct one. On another taxonomy the
+category names change and the observable behavior does not: the scoped miss must still render exactly as
+a genuine miss does (`[BE-8]`).
 
 ---
 
@@ -716,9 +747,10 @@ name:
 
 **Lookup-then-mutate (`edit`/`update`, `not_found`).** A slice that changes an existing record validates
 input purely, then performs the lookup-and-write as **one** effect. If the write affects zero rows it
-raises `not_found` (`[ERR-1]`). Existence is knowable only via state, so the `not_found` check lives
-*inside* the write step. It is an effect, not a pure pre-validation. The verb that *sets* a field to a
-supplied value is idempotent, so name it `edit`, `update` or `set`, not `add` (`[IDEM-1]`, `[IDEM-6]`).
+raises the taxonomy's missing-resource category — `not_found` under `[ERR-5]`'s default vocabulary
+(`[ERR-1]`). Existence is knowable only via state, so that check lives *inside* the write step. It is an
+effect, not a pure pre-validation. The verb that *sets* a field to a supplied value is idempotent, so name
+it `edit`, `update` or `set`, not `add` (`[IDEM-1]`, `[IDEM-6]`).
 
 **A first slice, with no crosscuts yet.** The canonical slice consumes `money`, `db` and `errors` as
 *pre-existing* crosscuts. A lone first slice keeps that logic inline and waits for a second consumer
@@ -802,8 +834,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 - `[CONC-4]` Scope a transaction to one trigger. Never hold it across an external call.
 
 ### Errors, observability, contracts, trust
-- `[ERR-1]` Use the six-category taxonomy, defined once as a crosscut.
-- `[ERR-2]` Raise `{category, code, message}` using the enum. Slices own their `code` strings.
+- `[ERR-2]` Raise through the project's declared taxonomy constructors, never an ad-hoc error type. Slices own their `code` strings.
 - `[ERR-3]` Slices raise. The root renders. Nothing else renders.
 - `[ERR-4]` Batch operations are all-or-nothing unless partial outcomes are reported explicitly.
 - `[OBS-2]` Configure observability at the root, and emit through the injected crosscut.
@@ -862,7 +893,7 @@ Some of these ship as [`tools/coral-lint`](./tools/coral-lint/README.md), and so
 | `[CONFIG-2]` | no slice module references the environment or config-file API |
 | `[CONFIG-4]` | no literal secret in source, and no secret on a logged or published field |
 | `[IDEM-2]` | a read-named slice makes no one-hop write/mutation call |
-| `[ERR-2]` | raised errors use the taxonomy enum, not ad-hoc strings |
+| `[ERR-2]` | raised errors use the project's declared taxonomy constructors, not ad-hoc types |
 
 > **Which of these run is the tool's answer, not this table's.** These documents own the *rules*.
 > `coral-lint` owns the *implementation status*, reports it on every run, and prints the full map under
