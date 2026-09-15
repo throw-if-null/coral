@@ -531,15 +531,15 @@ production baseline takes the app-scale part of that group and not the rest.
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
 | `[GHA-1]` | `[review]` | app profile · gh-action | One action run is one slice: one trigger, handled end to end. |
-| `[GHA-2]` | `[review]` | app profile · gh-action | The contract is declared outputs + exit status + annotations; log text is not a contract. |
+| `[GHA-2]` | `[review]` | app profile · gh-action | The contract is declared outputs + exit status + annotations. Log text is not a contract. |
 | `[GHA-3]` | `[auto]` | app profile · gh-action | Declare every output the action writes in `action.yml`, and rely on no undeclared output. |
 | `[GHA-4]` | `[review]` | app profile · gh-action | The entry point is the root: validate inputs and environment there, inject, dispatch, render. No business logic. |
 | `[GHA-5]` | `[review]` | app profile · gh-action | Make every mutating run safe under redelivery, via an idempotency key, a natural key, or check-before-write. |
-| `[GHA-6]` | `[review]` | app profile · gh-action | Treat the event payload as attacker-controlled; pass untrusted values through `env:`, never into a `run:` body. |
+| `[GHA-6]` | `[review]` | app profile · gh-action | Treat the event payload as attacker-controlled. Pass untrusted values through `env:`, never into a `run:` body. |
 | `[GHA-7]` | `[review]` | app profile · gh-action | Declare `permissions:` explicitly and scope them to the run, default to read-only, and never write a secret to an output. |
 | `[GHA-8]` | `[guide]` | app profile · gh-action | Pin third-party actions you call by commit SHA, not by a moving tag. |
 | `[GHA-9]` | `[review]` | app profile · gh-action | Map `category` → exit status and annotation at the entry point, distinguish recoverable from not, never exit `0` on failure. |
-| `[GHA-10]` | `[auto]` | app profile · gh-action | Keep diagnostics in log groups and annotations, never on the outputs surface; report no-ops explicitly. |
+| `[GHA-10]` | `[auto]` | app profile · gh-action | Keep diagnostics in log groups and annotations, never on the outputs surface. Report no-ops explicitly. |
 | `[GHA-11]` | `[review]` | app profile · gh-action | Treat input and output names as the versioned contract: add freely, never repurpose, deprecate before removing. |
 | `[GHA-12]` | `[review]` | app profile · gh-action | Exercise the entry point with simulated inputs and hostile payload fixtures, and assert a repeated run is a no-op. |
 
