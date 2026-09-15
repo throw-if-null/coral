@@ -136,7 +136,7 @@ state, because each slice still owns its own port. Name it for the infrastructur
 
 **`[BOUND-1]` `[guide]` `{baseline}`** — A slice handles **one inbound request or trigger, end to end**.
 
-This is the universal boundary; each app type names its concrete form:
+This is the universal boundary. Each app type names its concrete form:
 
 | App type             | The request/trigger (slice boundary) | Observable contract to assert against    |
 | -------------------- | ------------------------------------ | ---------------------------------------- |
@@ -277,8 +277,8 @@ entity's type, its validation, and the rules that must hold everywhere. It must 
 storage or its queries. That is a `repository` layer (`[BUCKET-1]`), and slices keep their own queries
 (`[STATE-1]`).
 
-The test: **if removing the crosscut would break an *invariant*, it is a crosscut; if it would only
-break *access to data*, it is a bucket.** A slice constructs and validates entities through the
+The test is this. **If removing the crosscut would break an *invariant*, it is a crosscut. If it would
+only break *access to data*, it is a bucket.** A slice constructs and validates entities through the
 crosscut, then queries its own state itself.
 
 ---
@@ -292,7 +292,7 @@ preferred, and you should not extract merely to save lines.
 
 Two slices with similar-looking code today live in different contexts and may diverge under different
 pressures. Extracting on similarity alone couples them permanently to an abstraction one may later need
-to escape. Duplicate *incidental* similarity inside each slice; promote to a crosscut only when
+to escape. Duplicate *incidental* similarity inside each slice, and promote to a crosscut only when
 `[XCUT-1]` is met.
 
 **`[DUP-3]` `[review]` `{baseline}`** — Extract only when the extraction does at least one of the
@@ -343,7 +343,7 @@ calculation, and output shaping.
 writes, filesystem, environment, and external process or network calls.
 
 **`[EFFECT-3]` `[guide]` `{baseline}`** — The preferred slice flow is **parse → validate → compute →
-persist/effect → render**; do not intermingle calculation and side effects unnecessarily.
+persist/effect → render**, and do not intermingle calculation and side effects unnecessarily.
 
 **`[EFFECT-4]` `[review]` `{baseline}`** — Do not extract a function *only* to make it pure or testable;
 extract only when it enforces a rule, clarifies a real calculation, or deserves a precise name (`[DUP-3]`).
@@ -391,7 +391,7 @@ A `show` or `GET` reads the cached value and never writes it, which keeps `[IDEM
 
 **`[STATE-5]` `[review]` `{baseline}`** — Every table, file, or bucket is owned by **exactly one feature
 package**, and its schema is defined **once** inside that package. Slices in the owning package reach it
-directly; any slice outside the package goes through the owner's published capability (`[COMPOSE-1]`).
+directly. Any slice outside the package goes through the owner's published capability (`[COMPOSE-1]`).
 
 Ownership sits at the package rather than at a single slice, because a capability is normally **several
 operations over one shape**. `expense/add`, `expense/edit`, `expense/delete` and `expense/list` all touch

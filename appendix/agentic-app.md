@@ -55,7 +55,7 @@ prompt, calls the model, and parses the output, with no loop. It needs only the 
 discipline below. An **agentic loop**, in which the model iteratively chooses tools and acts, needs the
 full **Harness**. Do not use a loop when one call suffices.
 
-## Model as a crosscut; pure core, fuzzy edge  → `[EFFECT-2]` `[XCUT-1]`
+## Model as a crosscut, pure core, fuzzy edge  → `[EFFECT-2]` `[XCUT-1]`
 
 **`[AGENTIC-3]`** `[review]` `{runtime-agent}` The model is an **injected effect**, not pure compute. The
 slice flow is parse → validate → *build prompt/context* (pure) → **call the model** (an edge effect,

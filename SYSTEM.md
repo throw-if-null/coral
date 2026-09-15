@@ -183,8 +183,8 @@ connect to which and over which channel form. It contains no business logic.
 It is the system's composition root, `[ROOT-1]` lifted to system scale. It wires producers to consumers,
 and the apps themselves hold no reference to the wider graph.
 
-**`[ORCH-2]` `[review]` `{baseline}`** — An app publishes and consumes capabilities; it does not hard-code
-its peers.
+**`[ORCH-2]` `[review]` `{baseline}`** — An app publishes and consumes capabilities, and does not
+hard-code its peers.
 
 *Re-wiring* existing capabilities is an orchestration change, not an edit to a participating app.
 Re-wiring covers swapping a producer, and routing an already-published capability to a new consumer.

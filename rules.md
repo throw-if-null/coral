@@ -401,7 +401,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[COMPOSE-4]` | `[review]` | production baseline | Read fan-in is a legitimate slice, provided it uses published capabilities only. |
 | `[EFFECT-1]` | `[review]` | production baseline | Keep parsing, validation, normalization, calculation, and output shaping pure. |
 | `[EFFECT-2]` | `[review]` | production baseline | Keep side effects at the edges. |
-| `[EFFECT-3]` | `[guide]` | production baseline | The preferred slice flow is parse → validate → compute → persist/effect → render; do not intermingle calculation and side effects unnecessarily. |
+| `[EFFECT-3]` | `[guide]` | production baseline | The preferred slice flow is parse → validate → compute → persist/effect → render, and do not intermingle calculation and side effects unnecessarily. |
 | `[EFFECT-4]` | `[review]` | production baseline | Do not extract a function only to make it pure or testable. |
 | `[STATE-1]` | `[review]` | production baseline | Keep state-access logic local to the slice that owns it. |
 | `[STATE-2]` | `[auto]` | production baseline | Do not create a shared repository or data-access layer. |
