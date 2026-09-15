@@ -452,24 +452,24 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[CHAN-1]` | `[review]` | production baseline | Cross an app boundary only through a published channel contract. |
 | `[CHAN-2]` | `[guide]` | production baseline | A channel is one of three forms, chosen per relationship: a synchronous API contract, an event, or a message bus. |
 | `[CHAN-3]` | `[auto]` | production baseline | Never share a datastore between apps. |
-| `[CHAN-4]` | `[review]` | production baseline | Version the channel contract; add freely, never repurpose, deprecate before removing. |
-| `[CHAN-5]` | `[review]` | production baseline | Make event/message consumers idempotent; never auto-retry a non-idempotent sync call. |
-| `[CHAN-6]` | `[review]` | production baseline | Never let errors cross the channel as exceptions; dead-letter the un-processable. |
+| `[CHAN-4]` | `[review]` | production baseline | Version the channel contract. Add freely, never repurpose, and deprecate before removing. |
+| `[CHAN-5]` | `[review]` | production baseline | Make event/message consumers idempotent. Never auto-retry a non-idempotent sync call. |
+| `[CHAN-6]` | `[review]` | production baseline | Never let errors cross the channel as exceptions. Dead-letter the un-processable. |
 | `[CHAN-7]` | `[review]` | production baseline | Propagate the correlation/trace id across the channel, in metadata not payload. |
 | `[CHAN-8]` | `[review]` | production baseline | Authenticate the caller/message and validate every inbound channel payload. |
 | `[CHAN-9]` | `[review]` | production baseline | Make consumers that mutate shared state safe under concurrent and out-of-order delivery. |
-| `[CHAN-10]` | `[review]` | production baseline | Never assume a transactional view spanning two apps; state how a cross-app computation handles the skew. |
-| `[ORCH-1]` | `[review]` | production baseline | Put topology in the orchestration layer; keep business logic out of the wiring. |
+| `[CHAN-10]` | `[review]` | production baseline | Never assume a transactional view spanning two apps. State how a cross-app computation handles the skew. |
+| `[ORCH-1]` | `[review]` | production baseline | Put topology in the orchestration layer. Keep business logic out of the wiring. |
 | `[ORCH-2]` | `[review]` | production baseline | Keep apps peer-agnostic: publish and consume capabilities, never hard-code peers. |
 | `[ORCH-3]` | `[guide]` | production baseline | Each app is independently deployable and independently observable. |
 | `[ORCH-4]` | `[review]` | runtime-agent profile | Let an agent orchestrate only from inside a harness, never as a bare model. |
-| `[ORCH-5]` | `[review]` | runtime-agent profile | Give the harness only published channel capabilities as tools; authorize every call and gate irreversible ones absent bounded pre-authorization. |
+| `[ORCH-5]` | `[review]` | runtime-agent profile | Give the harness only published channel capabilities as tools. Authorize every call, and gate irreversible ones absent bounded pre-authorization. |
 | `[ORCH-6]` | `[review]` | runtime-agent profile | Treat the orchestrating harness as an app: its own contract, observability, and tests. |
 | `[SYS-TEST-1]` | `[review]` | production baseline | Verify each side independently against the shared contract, not by booting both apps. |
-| `[SYS-TEST-2]` | `[review]` | production baseline | Give every consumed channel relationship executable compatibility verification; consumer-driven contracts are one technique. |
+| `[SYS-TEST-2]` | `[review]` | production baseline | Give every consumed channel relationship executable compatibility verification. Consumer-driven contracts are one technique. |
 | `[SYS-TEST-3]` | `[review]` | production baseline | Gate producer releases on provider verification against consumer contracts. |
-| `[SYS-TEST-4]` | `[guide]` | production baseline | Contract testing is tool-agnostic in principle; pick concrete tooling per stack. |
-| `[SYS-TEST-5]` | `[review]` | production baseline | Keep integrated end-to-end suites tiny; they backstop contract tests, never replace them. |
+| `[SYS-TEST-4]` | `[guide]` | production baseline | Contract testing is tool-agnostic in principle, so pick concrete tooling per stack. |
+| `[SYS-TEST-5]` | `[review]` | production baseline | Keep integrated end-to-end suites tiny. They backstop contract tests, never replace them. |
 
 ## Appendix: Agentic App  (ADDENDUM)
 
