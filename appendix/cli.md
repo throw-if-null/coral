@@ -1,7 +1,7 @@
 # Appendix: CLI
 
 This appendix instantiates the [Coral app spine](../ARCHITECTURE.md) for command-line tools. Read the
-spine first; this appendix only fills the app-type-specific slots and adds CLI-only rules. Rule IDs here
+spine first. This appendix fills only the app-type-specific slots and adds CLI-only rules. Rule IDs here
 use the `CLI-` family and reference the spine's IDs.
 
 ---
@@ -15,13 +15,12 @@ related commands (`add`/`list` for one capability) may share a slice (`[BOUND-2]
 
 A command's contract is **exit code + `stdout`/`stderr` separation + `--json`**:
 
-- **`[CLI-1]`** `[review]` `{app:cli}` Normal output goes to `stdout`; errors and diagnostics go to
+- **`[CLI-1]`** `[review]` `{app:cli}` Normal output goes to `stdout`. Errors and diagnostics go to
   `stderr`.
 - **`[CLI-2]`** `[review]` `{app:cli}` Failures return non-zero exit codes.
-- **`[CLI-3]`** `[auto]` `{app:cli}` Read commands **must** support `--json` on `stdout`; mutations
-  **may**, and if
-  they do it follows `[CLI-4]`. A mutation's `--json` result is typically the created id — the
-  [canonical slice](../CONVENTIONS.md#the-canonical-slice) and the
+- **`[CLI-3]`** `[auto]` `{app:cli}` Read commands **must** support `--json` on `stdout`. Mutations
+  **may**, and a mutation that does follows `[CLI-4]`. A mutation's `--json` result is typically the
+  created id. The [canonical slice](../CONVENTIONS.md#the-canonical-slice) and the
   [CLI example](../examples/cli-slice.md) both show `add` emitting one.
 - **`[CLI-4]`** `[review]` `{app:cli}` `--json` output is stable across patch releases, fully typed, and
   free of
@@ -36,8 +35,10 @@ constructs and injects crosscuts (`db`, `config`, `errors`, `logging`). It conta
 
 - **`[CLI-5]`** `[guide]` `{app:cli}` Commands are narrow, explicit, composable, and script-friendly.
   Concretely:
-  one command does one thing well; its behavior is clear from its name and flags; its output pipes
-  cleanly; and it never requires a human at the keyboard.
+  - one command does one thing well
+  - its behavior is clear from its name and flags
+  - its output pipes cleanly
+  - it never requires an interactive user
 - **`[CLI-6]`** `[auto]` `{app:cli}` No interactive prompts by default. → `[CLI-5]`
 - **`[CLI-7]`** `[guide]` `{app:cli}` Command names are stable and predictable.
 
@@ -48,8 +49,8 @@ CLI verb → semantics (the spine's mapping, concretely):
 - `show` / `list` / `summary` → read-only and idempotent. → `[IDEM-2]`
 - `init` → idempotent.
 - `set` / `edit` / `update` → idempotent when setting a field to a caller-supplied value (same input →
-  same end state). A *relative* change (increment/append) is non-idempotent — name it so. → `[IDEM-1]`
-- `add` / `create` / `import` → non-idempotent by default; never auto-retried. → `[IDEM-4]`
+  same end state). A *relative* change (increment/append) is non-idempotent, so name it so. → `[IDEM-1]`
+- `add` / `create` / `import` → non-idempotent by default, and never auto-retried. → `[IDEM-4]`
 - `delete` → idempotent if adopted.
 - `ensure` / `upsert` → idempotent if introduced.
 - a verb not listed here → classify it by effect and name it truthfully. → `[IDEM-6]`
@@ -58,7 +59,7 @@ A non-idempotent command must not be made to behave idempotently without renamin
 
 ## Error rendering  → `[ERR-3]`
 
-Slices raise the taxonomy error `{category, code, message}`; the **root** catches it once, writes
+Slices raise the taxonomy error `{category, code, message}`. The **root** catches it once, writes
 `message` to `stderr`, and maps `category` → exit code. Minimal exit-code policy:
 
 - **`[CLI-8]`** `[auto]` `{app:cli}` `0` success · `2` usage error · `1` every other failure.
@@ -68,12 +69,10 @@ Slices raise the taxonomy error `{category, code, message}`; the **root** catche
 
 ## Observability mechanism  → `[OBS-1]`
 
-- **`[CLI-10]`** `[auto]` `{app:cli}` Debug mode is a single global flag (e.g. `--debug`) configured at the
-  root;
-  slices do not configure tracing independently. → `[OBS-2]`
-- **`[CLI-11]`** `[auto]` `{app:cli}` Trace output goes to `stderr`; default mode stays quiet; traces never
-  pollute
-  `--json` on `stdout`. → `[OBS-3]`
+- **`[CLI-10]`** `[auto]` `{app:cli}` Debug mode is a single global flag (for example `--debug`)
+  configured at the root. Slices do not configure tracing independently. → `[OBS-2]`
+- **`[CLI-11]`** `[auto]` `{app:cli}` Trace output goes to `stderr`. Default mode stays quiet. Traces
+  never pollute `--json` on `stdout`. → `[OBS-3]`
 
 Debug may include: resolved command and arguments, resolved config and paths, transaction lifecycle
 (begin/commit/rollback), operation labels and timing, and exception tracebacks.
@@ -81,23 +80,24 @@ Debug may include: resolved command and arguments, resolved config and paths, tr
 ## State / effects  → `[STATE-1]`
 
 Prefer direct queries owned by the slice. A small, precisely-named `db` crosscut handles connection
-management and migration *execution* only — never a generic data-access layer (`[STATE-2]`). Schema
-definitions live in the owning feature package, at one site within it (`[STATE-5]`); sibling commands
+management and migration *execution* only. It is never a generic data-access layer (`[STATE-2]`). Schema
+definitions live in the owning feature package, at one site within it (`[STATE-5]`). Sibling commands
 share the table and still write their own SQL.
 
 ## Configuration  → `[CONFIG-1]`
 
-Precedence is **explicit flag → environment variable → config file → default**, resolved and validated
-once at the root and injected (`[CONFIG-1]`, `[CONFIG-3]`). A missing required setting fails the process
-with an `infrastructure` error and a non-zero exit, not a silent default. Slices read configuration only
-from what was injected (`[CONFIG-2]`); secrets never appear in `--debug` output (`[CONFIG-4]`,
-`[OBS-3]`).
+Precedence is **explicit flag → environment variable → config file → default**. Configuration is
+resolved and validated once at the root, then injected (`[CONFIG-1]`, `[CONFIG-3]`). A missing required
+setting fails the process with an `infrastructure` error and a non-zero exit, not a silent default.
+Slices read configuration only from what was injected (`[CONFIG-2]`). Secrets never appear in `--debug`
+output (`[CONFIG-4]`, `[OBS-3]`).
 
 ## Trust boundary  → `[TRUST-1]` `[TRUST-2]`
 
-Validate arguments and flags at the command boundary; fail fast. A local CLI typically has a minimal
-trust boundary — the invoking user is trusted — and `[TRUST-2]` requires that assumption be *stated*, not
-merely implied. A CLI that reads untrusted files or network input does not qualify for the minimal case.
+Validate arguments and flags at the command boundary, and fail fast. A local CLI typically has a minimal
+trust boundary, because the invoking user is trusted. `[TRUST-2]` requires that assumption to be
+*stated*, not implied. A CLI that reads untrusted files or network input does not qualify for the minimal
+case.
 
 ## Testing mechanics  → `[TEST-1]`
 
@@ -119,7 +119,7 @@ merely implied. A CLI that reads untrusted files or network input does not quali
 | idempotency form    | verb → semantics mapping                                |
 | error rendering     | root maps `category` → exit code (`0`/`2`/`1`)          |
 | observability       | global `--debug` → `stderr`, quiet by default           |
-| trust / security    | validate args at the boundary; user trusted, stated     |
+| trust / security    | validate args at the boundary, user trusted and stated  |
 | contract versioning | `--json` stable across patch releases                   |
 | testing             | exercise entry point against realistic temp storage     |
 
@@ -128,21 +128,21 @@ merely implied. A CLI that reads untrusted files or network input does not quali
 ## Agent Execution Contract (CLI)
 
 The complete normative checklist for this appendix: every `[auto]` and `[review]` rule defined above. It
-**adds to** the app-scale contracts rather than replacing them —
-load [`ARCHITECTURE.md`](../ARCHITECTURE.md)'s, and [`PRODUCTION.md`](../PRODUCTION.md)'s if this project
-adopts the production baseline. `[guide]` rules are rationale and live only in the prose.
+**adds to** the app-scale contracts rather than replacing them. Load
+[`ARCHITECTURE.md`](../ARCHITECTURE.md)'s contract, and [`PRODUCTION.md`](../PRODUCTION.md)'s if this
+project adopts the production baseline. `[guide]` rules are rationale and live only in the prose.
 
 <!-- coral:contract:start -->
 <!-- coral:scope:app:cli -->
 
-- `[CLI-1]` Normal output goes to `stdout`; errors and diagnostics go to `stderr`.
+- `[CLI-1]` Normal output goes to `stdout`. Errors and diagnostics go to `stderr`.
 - `[CLI-2]` Failures return non-zero exit codes.
-- `[CLI-3]` Read commands must support `--json` on `stdout`; mutations may, and if they do they follow `[CLI-4]`.
+- `[CLI-3]` Read commands must support `--json` on `stdout`. Mutations may, and a mutation that does follows `[CLI-4]`.
 - `[CLI-4]` Keep `--json` stable across patch releases, fully typed, and free of color, progress, or decoration.
 - `[CLI-6]` No interactive prompts by default.
 - `[CLI-8]` Exit `0` on success, `2` on usage error, `1` on every other failure.
 - `[CLI-9]` Use stable string `code`s on `stderr` for finer scripting precision, not a wider exit-code matrix.
-- `[CLI-10]` Configure debug mode as one global flag at the root; slices never configure tracing themselves.
+- `[CLI-10]` Configure debug mode as one global flag at the root. Slices never configure tracing themselves.
 - `[CLI-11]` Send trace output to `stderr`, stay quiet by default, and never pollute `--json` on `stdout`.
 
 <!-- coral:contract:end -->

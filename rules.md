@@ -497,14 +497,14 @@ production baseline takes the app-scale part of that group and not the rest.
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
-| `[BE-1]` | `[review]` | app profile · backend | One slice per business operation, named for the singular capability plus its effect verb; the route is its trigger. |
+| `[BE-1]` | `[review]` | app profile · backend | One slice per business operation, named for the singular capability plus its effect verb. The route is its trigger. |
 | `[BE-2]` | `[review]` | app profile · backend | The contract is status code + response body + observable side effects: `201` create, `200` read, `204` no body. |
-| `[BE-3]` | `[review]` | app profile · backend | Wire router, middleware, and injection at the root; crosscuts are singletons, only request-bound state is per-request. |
-| `[BE-4]` | `[review]` | app profile · backend | A synchronous `POST` may offer an idempotency key; any platform-redelivered handler must be idempotent. |
-| `[BE-5]` | `[auto]` | app profile · backend | Slices raise the taxonomy; one root middleware renders the body and maps `category` → HTTP status. |
-| `[BE-6]` | `[review]` | app profile · backend | Authenticate and coarsely authorize at the boundary; scope every query by owner/tenant id, default to deny. |
+| `[BE-3]` | `[review]` | app profile · backend | Wire router, middleware, and injection at the root. Crosscuts are singletons, and only request-bound state is per-request. |
+| `[BE-4]` | `[review]` | app profile · backend | A synchronous `POST` may offer an idempotency key. Any platform-redelivered handler must be idempotent. |
+| `[BE-5]` | `[auto]` | app profile · backend | Slices raise the taxonomy. One root middleware renders the body and maps `category` → HTTP status. |
+| `[BE-6]` | `[review]` | app profile · backend | Authenticate and coarsely authorize at the boundary. Scope every query by owner/tenant id, and default to deny. |
 | `[BE-8]` | `[review]` | app profile · backend | Render authn/authz failures at the boundary, not through the taxonomy: `401` unauthenticated, `403` no capability, `404` scoped miss. |
-| `[BE-7]` | `[review]` | app profile · backend | Pick one API versioning strategy and apply it system-wide — URL prefix by default; advance it only for a breaking change. |
+| `[BE-7]` | `[review]` | app profile · backend | Pick one API versioning strategy and apply it system-wide, with URL prefix as the default. Advance it only for a breaking change. |
 
 ## Appendix: CLI
 
@@ -512,16 +512,16 @@ production baseline takes the app-scale part of that group and not the rest.
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
-| `[CLI-1]` | `[review]` | app profile · cli | Normal output goes to `stdout`; errors and diagnostics go to `stderr`. |
+| `[CLI-1]` | `[review]` | app profile · cli | Normal output goes to `stdout`. Errors and diagnostics go to `stderr`. |
 | `[CLI-2]` | `[review]` | app profile · cli | Failures return non-zero exit codes. |
-| `[CLI-3]` | `[auto]` | app profile · cli | Read commands must support `--json` on `stdout`; mutations may, and if they do they follow `[CLI-4]`. |
+| `[CLI-3]` | `[auto]` | app profile · cli | Read commands must support `--json` on `stdout`. Mutations may, and a mutation that does follows `[CLI-4]`. |
 | `[CLI-4]` | `[review]` | app profile · cli | Keep `--json` stable across patch releases, fully typed, and free of color, progress, or decoration. |
 | `[CLI-5]` | `[guide]` | app profile · cli | Commands are narrow, explicit, composable, and script-friendly. |
 | `[CLI-6]` | `[auto]` | app profile · cli | No interactive prompts by default. |
 | `[CLI-7]` | `[guide]` | app profile · cli | Command names are stable and predictable. |
 | `[CLI-8]` | `[auto]` | app profile · cli | Exit `0` on success, `2` on usage error, `1` on every other failure. |
 | `[CLI-9]` | `[review]` | app profile · cli | Use stable string `code`s on `stderr` for finer scripting precision, not a wider exit-code matrix. |
-| `[CLI-10]` | `[auto]` | app profile · cli | Configure debug mode as one global flag at the root; slices never configure tracing themselves. |
+| `[CLI-10]` | `[auto]` | app profile · cli | Configure debug mode as one global flag at the root. Slices never configure tracing themselves. |
 | `[CLI-11]` | `[auto]` | app profile · cli | Send trace output to `stderr`, stay quiet by default, and never pollute `--json` on `stdout`. |
 
 ## Appendix: GitHub Action / Tool
