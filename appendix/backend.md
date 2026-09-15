@@ -69,11 +69,15 @@ single root error-handling middleware renders it and maps **every** declared cat
 No slice chooses a status or constructs its own error response. That is what makes this statically
 checkable: a status-code write inside a slice module is a violation.
 
-**The mapping is total.** The middleware knows a status for every category the project declared, so
-adding a category is a change to that one table and to nothing else. A category the renderer does not
-know is not a custom taxonomy — it is a gap that falls through to whatever a handler does next, which is
-the per-slice presentation `[ERR-1]` forbids. A project that declares its own taxonomy is conformant here
-exactly when the root maps all of it.
+**The mapping is total, and this rule is what requires that.** `[ERR-1]` asks for one declared model and
+one boundary that presents it; requiring a status for *every* declared category is this profile's
+realization of that half. The middleware knows a status for every category the project declared, so
+adding a category touches two central definitions — the taxonomy declaration and this mapping table —
+and no slice or handler. That is the property worth having: the blast radius is the architectural
+definitions, never every call site. A category the renderer does not know is not a custom taxonomy; it is
+a gap that falls through to whatever a handler does next, which is the per-slice presentation `[ERR-1]`
+forbids. A project that declares its own taxonomy is conformant here exactly when the root maps all of
+it.
 
 **The recommended mapping, when the project uses `[ERR-5]`'s default taxonomy:**
 
@@ -117,7 +121,7 @@ crosscut, never inline (`[CONFIG-4]`). **Default to deny:** a slice with no expl
 is not shippable.
 
 **`[BE-8]`** `[review]` `{app:backend}` Render authentication and authorization failures at the boundary
-that decides them, never through the error taxonomy: **`401`** when the caller is unauthenticated,
+that decides them, never through the error model: **`401`** when the caller is unauthenticated,
 **`403`** when an authenticated caller lacks the capability, and **`404`** when a scoped query does not
 match.
 

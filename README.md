@@ -18,7 +18,7 @@ everything else:
 - tests beside the code they verify
 - no `utils` bucket
 - crosscuts injected rather than reached for
-- a fixed error taxonomy
+- error-model enforcement, plus a recommended error-category vocabulary
 - transaction and retry policy
 - no shared database between apps
 

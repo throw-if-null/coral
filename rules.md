@@ -365,7 +365,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[BOUND-2]` | `[review]` | kernel | One request or trigger per slice, or a tightly-coupled pair, owned end to end. |
 | `[XCUT-1]` | `[review]` | kernel | Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant. |
 | `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals. Depend on its published capability. |
-| `[ERR-1]` | `[review]` | kernel | One small, stable, structured error model per app: categories declared once, construction through it, one rendering owner. |
+| `[ERR-1]` | `[review]` | kernel | One small, stable, structured error model: categories declared once, construction through it, presentation owned by one boundary and never by a slice. |
 | `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking. |
 
 ## Coral Production Baseline — the App

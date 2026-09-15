@@ -121,13 +121,16 @@ middleware renders it. The middleware maps **every** declared category to an HTT
 the right surface: a user-facing error view or page for navigations, and a structured body for API and
 fetch calls. Slices never render their own HTTP response.
 
-Two mappings, one owner. The surface decision is this profile's own, because a web app answers both
-navigations and fetches from the same routes, and only the boundary knows which it is looking at. The
-status mapping is the same total mapping `[ERR-1]` asks for anywhere: a category the middleware does not
-know is a gap, not a custom taxonomy. `[BE-5]` states the recommended category → status table for
-`[ERR-5]`'s default vocabulary, and a web app that renders HTTP can use it as-is; it is a default worth
-copying, not a rule this profile depends on. Under the production baseline the structured body is
-`{category, code, message}` and `code` strings stay slice-owned (`[ERR-2]`).
+Two mappings, one owner. `[ERR-1]` asks for one declared error model and one boundary that presents it;
+**the total category → HTTP-status mapping is this rule's realization of that**, not something `[ERR-1]`
+states. A category the middleware has no status for is a gap in this profile's own requirement, and it
+falls through to whatever a handler does next — which is the per-slice presentation `[ERR-1]` forbids.
+
+The surface decision is this profile's own too, because a web app answers both navigations and fetches
+from the same routes and only the boundary knows which it is looking at. `[BE-5]` states the recommended
+category → status table for `[ERR-5]`'s default vocabulary, and a web app that renders HTTP can copy it;
+it is a default worth copying, not a rule this profile depends on. Under the production baseline the
+structured body is `{category, code, message}` and `code` strings stay slice-owned (`[ERR-2]`).
 
 ## Contract versioning  → `[CONTRACT-2]`
 

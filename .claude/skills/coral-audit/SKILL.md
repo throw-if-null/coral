@@ -253,8 +253,8 @@ audited against, in full:**
   extension). These bind **process**, not source, and they are the two kernel rules a repository audit
   usually cannot decide — see below.
 
-Ten rules, which is the whole kernel. Read the kernel block in `CONVENTIONS.md` for the current
-membership rather than trusting this list — it is the single source, and this is a reading aid.
+That is the whole kernel. Read the kernel block in `CONVENTIONS.md` for the current membership rather
+than trusting this list — it is the single source, and this is a reading aid.
 
 **Applicable is not the same as auditable, and `[AGENT-2]` / `[AGENT-4]` are where the two come apart.**
 Both bind every Coral project. Neither is decidable from the final state of a repository, and inferring

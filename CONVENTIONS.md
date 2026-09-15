@@ -106,9 +106,12 @@ several apps *and* has adopted the baseline. A project that has done neither sti
 
 ## The canonical slice
 
-**The kernel shape is one sentence:** one capability, owned end to end, tests included, consumed by other
-code only through what it publishes (`[MODEL-1]`, `[BOUND-2]`, `[COMPOSE-1]`, `[TEST-1]`). That is what
-Coral asks of every codebase that calls itself Coral, and it is deliberately short.
+**The kernel's capability shape is one sentence:** one capability, owned end to end, tests included,
+consumed by other code only through what it publishes (`[MODEL-1]`, `[BOUND-2]`, `[COMPOSE-1]`,
+`[TEST-1]`). That is the shape of the *unit*, and it is deliberately short. It is **not** the whole
+kernel: a codebase also owes one declared, structured error model presented at a single owning boundary
+(`[ERR-1]`), the gate on promoting anything to a crosscut (`[XCUT-1]`), and the `[AGENT-*]` and `[VER-*]`
+rules that govern how it relates to Coral. The [kernel block](#the-coral-kernel) is the complete list.
 
 > **The listing below is a slice as a project that has adopted the [production
 > baseline](./PRODUCTION.md) writes one.** It is the kernel shape *plus* a set of opinions the baseline
@@ -116,7 +119,7 @@ Coral asks of every codebase that calls itself Coral, and it is deliberately sho
 > the kernel already requires, one effect at the edge, the root doing the rendering, colocated tests
 > against real storage, an effect-truthful verb. Each of those is a rule in
 > [`PRODUCTION.md`](./PRODUCTION.md) and applies where a project's `CORAL.md` adopts that layer. A
-> kernel-only project's slices satisfy the sentence above and may look nothing like this listing.
+> kernel-only project's slices satisfy the capability shape above and may look nothing like this listing.
 
 Read it before the rules, because the rules are the reasons it is shaped this way. It is
 language-neutral. This exact capability is written out in real Python in
@@ -335,13 +338,13 @@ generally:
   boundary is `[SYS-TEST-1]`, a production-baseline rule at system scale. The property is the kernel's,
   and the system-scale realization is adopted.
 
-**Everything else Coral publishes is justified some other way, and adopted separately.** Ten rules owe
-their presence, or their strictness, to this division of labour. The [Coral kernel](#the-coral-kernel)
-below names which ten and how to tell them apart, and that block is the only record of the membership.
-The other 169 are stated at the strength they are for reasons that survive a human author: the
-production baseline because the *software* needs it, an app profile because that app *shape* needs it,
-and the runtime-agent profile because a *running* model needs it. None of them is a consequence of who
-typed the code, and a project takes each on deliberately
+**Everything else Coral publishes is justified some other way, and adopted separately.** A small, named
+subset of rules owes its presence, or its strictness, to this division of labour. The
+[Coral kernel](#the-coral-kernel) below names exactly which, and how to tell them apart, and that block
+is the only record of the membership. **Every other rule** is stated at the strength it is for reasons
+that survive a human author: the production baseline because the *software* needs it, an app profile
+because that app *shape* needs it, and the runtime-agent profile because a *running* model needs it. None
+of them is a consequence of who typed the code, and a project takes each on deliberately
 ([What applies to a project](#what-applies-to-a-project)).
 
 **`[AGENT-1]` `[guide]` `{governance}`** — Prefer the structure that minimizes an agent's placement and

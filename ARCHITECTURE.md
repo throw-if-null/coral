@@ -83,7 +83,7 @@ expenses/
   app               bootstrap and composition root
   db                crosscut: connections and transactions
   config            crosscut: settings, resolved once at startup
-  errors            crosscut: the error taxonomy
+  errors            crosscut: the app's declared error model
   category/
     add             definition + behavior
     add_test        tests for add (colocated, or mirrored if the language forbids colocation)
@@ -268,20 +268,28 @@ its internals: not its parsing, its queries, or its private helpers.
 ## 7. The Error Model  `[ERR-*]`
 
 Every capability can fail, so every capability has to say how. Where the failure vocabulary is declared,
-and where a failure becomes output, are placement questions like any other. Left unstated, each slice
-answers them locally, and the agent writing the next slice has no finite set to load — only the
-conventions of whichever neighbours it happened to read.
+and where a failure becomes output, are placement and ownership questions like any other. Left unstated,
+each slice answers them locally, and the agent writing the next slice has no finite set to load — only
+the conventions of whichever neighbours it happened to read.
 
-**`[ERR-1]` `[review]`** — An app has **one small, stable, structured error model**: its categories are
-declared in one place, every failure a slice raises is constructed through that declared model, and one
-boundary owns rendering it.
+**`[ERR-1]` `[review]`** — Every Coral codebase declares **one small, stable, structured error model**:
+its categories are declared in one place, every failure a slice raises is constructed through that
+declared model, and presenting a raised failure is **one boundary's responsibility, never a slice's**.
 
 Three parts, and all three are the rule. **Structured** means a typed, inspectable value carrying a
 category and a stable identity, not a bare string or a per-slice exception hierarchy a caller has to
-pattern-match. **Declared in one place** means the set of categories is decided once for the app, so a
-slice selects from it and never extends it. **One rendering owner** means exactly one boundary turns a
-raised error into the app's observable output — an exit code, an HTTP status, an annotation — and no
-slice does it in passing.
+pattern-match. **Declared in one place** means the set of categories is decided once for the codebase, so
+a slice selects from it and never extends it. **Presentation belongs to one boundary** means that turning
+a raised failure into observable output — an exit code, an HTTP status, an annotation, a rendered page —
+happens at a single place that owns the observable contract, and never inside a slice in passing.
+
+**The third part is stated as ownership, not as a root.** Not every Coral codebase has an executable
+entry point, and the rule must hold for the one that does not. A library has **no composition root of its
+own**, because the consumer is the root (`[ROOT-3]`). It still satisfies this rule, and satisfies it
+exactly: it declares its error model, every slice raises through it, and **no slice in the package
+presents anything** (`[LIB-8]`). The boundary that presents lies outside the package, in each consuming
+application, where that application's own `[ERR-1]` gives it one. A library with many consumers therefore
+has zero renderers rather than many, which is the rule met rather than an exception to it.
 
 **Coral fixes the shape of the model, not its contents.** The kernel prescribes no number of categories
 and no names for them. Three categories can be the right answer, and so can eight. What it forbids is
@@ -295,15 +303,17 @@ carries exactly the must-not-diverge invariant the second prong asks for. A sing
 declaration, not the promotion, and manufacturing a crosscut to satisfy this rule is the `[DUP-4]`
 failure rather than diligence.
 
-**Changing the taxonomy is an architectural decision, not a slice-local one.** A slice whose case does
-not fit an existing category does not mint a new one. Widening a shared contract every other slice reads
-is a change a human authors (`[AGENT-4]`), and genuine uncertainty about which category applies is
-flagged rather than guessed (`[AGENT-2]`).
+**Changing the taxonomy is an architectural change to a shared contract, not a slice-local one.** A slice
+whose case does not fit an existing category does not mint a new one, because the set every other slice
+selects from would then differ depending on which slice was written last. The change is made where the
+model is declared, and it is visible there. Where the *right* category is genuinely unclear, that is an
+ambiguous architectural decision and `[AGENT-2]` applies: flag it rather than guess.
 
-**Who the rendering owner is depends on the app type**, and the kernel names only that there is one. For
-an application it is the composition root or entry point. For a library the consumer is the root, so the
-library raises and never renders (`[ROOT-3]`, `[LIB-8]`). The production baseline's realization of this
-half is `[ERR-3]`, and each app profile states the mapping its own boundary owns.
+**Which boundary that is, and what it maps onto, is the app type's answer.** The kernel names only that
+there is one owner and that it is not a slice. For an executable application it is the composition root
+or entry point, which is the production baseline's `[ERR-3]`. What each boundary then maps the declared
+categories onto — HTTP statuses, exit codes, annotations, a rendered surface — is stated by the profile
+that owns that boundary (`[BE-5]`, `[CLI-8]`, `[WEB-9]`, `[GHA-9]`), never here.
 
 ---
 
@@ -341,7 +351,7 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 - `[COMPOSE-1]` Do not reach into another slice's internals. Depend on its published capability.
 
 ### The error model
-- `[ERR-1]` One small, stable, structured error model per app: categories declared once, construction through it, one rendering owner.
+- `[ERR-1]` One small, stable, structured error model: categories declared once, construction through it, presentation owned by one boundary and never by a slice.
 
 ### Testing
 - `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.

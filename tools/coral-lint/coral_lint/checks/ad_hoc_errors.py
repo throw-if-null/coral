@@ -61,9 +61,9 @@ def run(layout: Layout) -> CheckResult:
                             "Raise through this project's declared taxonomy instead: a category from "
                             "the error model the project declared once ([ERR-1]), a stable `code` "
                             "string owned by this slice, and a human-readable message ([ERR-2]). If no "
-                            "declared category fits, that is an architectural change to the taxonomy, "
-                            "not a new error type here ([AGENT-2], [AGENT-4]). The root renders it; "
-                            "the slice never does ([ERR-3])."
+                            "declared category fits, changing the taxonomy is a change to that shared "
+                            "declaration, not a new error type here; flag it if the right category is "
+                            "unclear ([AGENT-2]). The root renders it; the slice never does ([ERR-3])."
                         ),
                     )
                 )

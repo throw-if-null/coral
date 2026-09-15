@@ -54,19 +54,28 @@ under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 Coral required a predictable error architecture and stated it as a fixed vocabulary. `[ERR-1]` named
 exactly six categories — `usage`, `validation`, `not_found`, `conflict`, `infrastructure`, `internal` —
 and lived in the production baseline. Two things were wrong with that. The architectural claim Coral
-actually needs is that *there is one declared model and one place that renders it*, which is
+actually needs is that *there is one declared model and one boundary that presents it*, which is
 agent-justified and belongs in the kernel. The six names are a good default vocabulary, which is not.
 A project with a three-category taxonomy was non-conformant for the category count alone, and a project
 that had adopted nothing owed no error model at all.
 
-**`[ERR-1]` is now a kernel rule, stated in `ARCHITECTURE.md`.** An app has one small, stable, structured
-error model: its categories are declared in one place, every failure a slice raises is constructed through
-that declared model, and one boundary owns rendering it. It prescribes **no number of categories and no
-names**. A project that declares its own small, stable taxonomy is conformant, and needs no `[VER-5]`
-exception merely because its categories differ from Coral's recommended ones. What it still cannot do is
-let a slice mint a category locally, or render in passing: widening a shared contract is an architectural
-change a human authors (`[AGENT-4]`), and genuine ambiguity about which category applies is flagged
-(`[AGENT-2]`).
+**`[ERR-1]` is now a kernel rule, stated in `ARCHITECTURE.md`.** Every Coral codebase declares one small,
+stable, structured error model: its categories are declared in one place, every failure a slice raises is
+constructed through that declared model, and presenting a raised failure is one boundary's
+responsibility, never a slice's. It prescribes **no number of categories and no names**. A project that
+declares its own small, stable taxonomy is conformant, and needs no `[VER-5]` exception merely because
+its categories differ from Coral's recommended ones. What it still cannot do is let a slice mint a
+category locally or present a failure in passing: changing the taxonomy is a change to a shared
+declaration, made where that declaration lives, and where the right category is genuinely unclear
+`[AGENT-2]` applies — flag it rather than guess.
+
+**The rendering half is stated as ownership rather than as a root, so it holds for a library.** "One
+boundary owns rendering it" would have been ambiguous for exactly one core profile: a library has no
+composition root of its own (`[ROOT-3]`), never renders, and may have many independent consumers. The
+rule now says presentation is one boundary's responsibility and never a slice's. A library satisfies it
+by declaring its model, raising through it, and presenting nothing; the boundary that presents is each
+consuming application's, under that application's own `[ERR-1]`. Zero renderers in the package is the
+rule met, not an exception to it.
 
 **"Defined once as a crosscut" did not survive the move, deliberately.** The old wording would have made
 `[XCUT-1]` and `[ERR-1]` contradict each other for a one-slice app: `[XCUT-1]` promotes only against
@@ -99,10 +108,13 @@ tightened:** every project that conformed to the old wording conforms to the new
 
 **`[ERR-5]` `[guide]` is the recommended six-category vocabulary, and it is the one new ID in this
 entry.** The list, and the explanation of what each category means, moved there intact, along with why
-authentication and authorization outcomes are deliberately absent and why a scoped miss raises the
-missing-resource category rather than a permission error. It is a `[guide]`, so it is rationale and never
-a gate — a new `[guide]` rule is **minor** under `[VER-2]`, not major. Coral recommends starting here, and
-"custom taxonomy" still never licenses a category per slice.
+*this vocabulary* omits `unauthenticated` and `forbidden`. It is a `[guide]`, so it is rationale and never
+a gate — a new `[guide]` rule is **minor** under `[VER-2]`, not major. It recommends and imposes nothing:
+it does not ask a project on another taxonomy to reproduce its category layout, and it does not require a
+recorded reason for choosing differently. The backend security behavior that used to be argued from the
+taxonomy — `401`, `403`, and a scoped miss rendering as `404` — is owned by `[BE-8]`, which states it in
+terms of the response rather than a category name and binds a backend whatever its taxonomy is called.
+What "custom taxonomy" still never licenses is a category per slice; `[ERR-1]` owns that.
 
 **App profiles no longer depend on baseline adoption for the existence of an error taxonomy.** This was
 the concrete instance of the self-containment gap `CONVENTIONS.md` records. `[BE-5]`, `[WEB-9]`,
@@ -112,8 +124,12 @@ it had selected no definition for. Each now rests on kernel `[ERR-1]` and states
 mapping:
 
 - **`[BE-5]`** requires the root middleware to own a **total** mapping from every declared category to an
-  HTTP status. A category the renderer does not know is a gap, not a custom taxonomy. The six-row status
-  table stays, labelled as the recommended mapping when the project uses `[ERR-5]`'s default vocabulary.
+  HTTP status. That totality is **this rule's** requirement, not `[ERR-1]`'s — the kernel asks for one
+  model and one presenting boundary, and the HTTP mapping is the backend's realization of it. Adding a
+  category therefore touches two central definitions, the taxonomy declaration and this table, and no
+  slice or handler. A category the renderer does not know is a gap, not a custom taxonomy. The six-row
+  status table stays, labelled as the recommended mapping when the project uses `[ERR-5]`'s default
+  vocabulary.
 - **`[BE-8]`** states the security property as observable behavior — `401` unauthenticated, `403`
   authenticated without the capability, `404` for a scoped miss — and no longer rests on the literal
   category name `not_found`. Whatever the taxonomy calls it, the scoped miss must reach the client
@@ -122,7 +138,8 @@ mapping:
   invocation" rather than "usage error", so it no longer requires a category literally named `usage`. The
   root owns the mapping; `usage` → `2` is the recommended one under `[ERR-5]`.
 - **`[WEB-9]`** owns its own statement that the root maps every declared category to a status and selects
-  the surface. `[BE-5]`'s table is cited as an analogous default, not as a hidden dependency.
+  the surface, and that total mapping is attributed to this rule rather than to `[ERR-1]`. `[BE-5]`'s
+  table is cited as an analogous default, not as a hidden dependency.
 - **`[GHA-9]`** requires the entry point to classify every declared category as recoverable or
   non-recoverable and to own the exit-status and annotation mapping. `infrastructure` retryable,
   `usage`/`validation` not, are `[ERR-5]` examples rather than universal names.
@@ -648,8 +665,9 @@ opt-in under `[VER-6]`, and a generated `CORAL-CONTRACT.md` carries only the app
 document structure was not. `ARCHITECTURE.md` held five kernel rules and seventy `{baseline}` ones in
 twenty-two interleaved sections, so "read the Coral app spine" meant "read the production baseline".
 General production-engineering policy therefore read as a *consequence* of the agents-write /
-humans-review operating model: the error taxonomy, transaction scope, retry semantics, cache
-invalidation, concurrency strategy, forbidden package names, and trust boundaries. It is not one. Its
+humans-review operating model: the recommended error-category vocabulary, transaction scope, retry
+semantics, cache invalidation, concurrency strategy, forbidden package names, and trust boundaries. It is
+not one. Its
 justification survives a human-authored codebase, which is why it is an opt-in layer.
 
 - **[`PRODUCTION.md`](./PRODUCTION.md) is new** and holds the app-scale production baseline: all seventy
@@ -755,12 +773,13 @@ which is why the audit above was done by reading.
 **The guard runs in both directions**, because one direction is self-disabling. A core document may define
 no `opt-in` rule, and every document that **defines a kernel rule must be core**. Without the second,
 deleting the `ARCHITECTURE.md` row would leave the registry non-empty, silently stop the first check
-looking at that document, and leave five kernel rules outside the guard with every test still passing.
+looking at that document, and leave the kernel rules it defines outside the guard with every test still
+passing.
 That would disable protection for the exact document PO-06 exists to protect. The reverse check is derived
 from the kernel block, already the single source of membership, so it introduces no second document list.
 The pair is what makes the registry's claim a checked invariant rather than an assertion: *a reader of
 these documents has met the whole unconditional surface*. Both directions have synthetic coverage, and the
-repository tier now asserts that all ten kernel rules are defined in a core document. It deliberately does
+repository tier now asserts that every kernel rule is defined in a core document. It deliberately does
 not require a core document to define a rule. "Core" means a project reads it before adopting anything,
 and a page could earn that by holding vocabulary or framing alone. Requiring a rule would turn "a new core
 document is one registry row" into a constraint the model does not have.
@@ -838,7 +857,7 @@ Its judge/flag/note rule is made conditional on applicability too. Structure, na
 judged where a rule in the *selected* surface decides them, and observed rather than judged where the
 deciding rule belongs to a layer the project declined. That is the same model as the verdict rule, since
 most structural answers are baseline: `[MODEL-2]`, `[BUCKET-1]`, `[ROOT-1]`, `[XCUT-2]`, `[XCUT-3]` and
-`[STATE-*]`. Its kernel enumeration is completed to all ten rules, split by what each is audited against:
+`[STATE-*]`. Its kernel enumeration is completed to the whole kernel, split by what each is audited against:
 source, `CORAL.md`, or the decision trail (`[AGENT-2]`, `[AGENT-4]`).
 
 The **exception instruction in the generated contract** is worded to keep `revisit_when` usable. An

@@ -576,11 +576,11 @@ Do not invent a name whose effect is ambiguous. If the *effect itself* is unclea
 ## 15. Error Model  `[ERR-*]`
 
 The architectural invariant is the kernel's, and it is stated in
-[`ARCHITECTURE.md`](./ARCHITECTURE.md#_7-the-error-model-err): one small, stable, structured error model
-per app, its categories declared in one place, every raised failure constructed through it, and one
-boundary owning the rendering (`[ERR-1]`). **The kernel names no categories and fixes no count.** What
-follows is the baseline's realization — how the model is enforced, which boundary renders it, how batches
-behave, and which vocabulary Coral recommends a project start from.
+[`ARCHITECTURE.md`](./ARCHITECTURE.md#_7-the-error-model-err): one small, stable, structured error model,
+its categories declared in one place, every raised failure constructed through it, and presentation owned
+by one boundary rather than by a slice (`[ERR-1]`). **The kernel names no categories and fixes no count.**
+What follows is the baseline's realization — how the model is enforced, which boundary renders it in an
+application, how batches behave, and which vocabulary Coral recommends a project start from.
 
 **`[ERR-2]` `[auto]` `{baseline}`** — A slice raises only through the project's **declared taxonomy**
 type or constructors, never an ad-hoc or bespoke error type.
@@ -599,8 +599,8 @@ constructors. It does not verify the fields, the argument values, or that a `cod
 
 **`[ERR-3]` `[review]` `{baseline}`** — **Slices raise. The root renders. Nothing else renders.**
 
-This is the baseline's realization of `[ERR-1]`'s single rendering owner, naming *which* boundary owns it
-for an application: the composition root. Validate at the boundary, fail fast, do not swallow errors, do
+This is the baseline's realization of `[ERR-1]`'s single presentation owner, naming *which* boundary owns
+it for an application: the composition root. Validate at the boundary, fail fast, do not swallow errors, do
 not partially succeed silently. Unexpected errors are caught once at the root. For a library the
 consumer is the root, so the library raises and never renders (`[ROOT-3]`, `[LIB-8]`).
 
@@ -621,30 +621,30 @@ in, and never leave it implicit.
 5. `infrastructure` — database, filesystem, permissions, environment, or OS failure
 6. `internal` — unexpected bug
 
-**This is a default vocabulary, not the definition of a conformant error model.** `[ERR-1]` decides what
-makes one: declared once, constructed through, rendered at one boundary. It fixes neither the count nor
-the names. A project that declares a different small, stable taxonomy is conformant, and needs no
-exception merely because its categories differ (`[VER-5]`). What "custom taxonomy" never licenses is a
-category per slice — `[ERR-1]` still asks for one declared model, whatever is in it.
+**This is a recommended vocabulary, not the definition of a conformant error model.** `[ERR-1]` decides
+what makes one: declared once, constructed through, presented at one owning boundary. It fixes neither
+the count nor the names. A project that declares a different small, stable taxonomy is conformant, and
+needs no exception merely because its categories differ (`[VER-5]`). What "custom taxonomy" never
+licenses is a category per slice — `[ERR-1]` still asks for one declared model, whatever is in it.
 
-Six is a starting point with a track record: small enough for an agent to hold, wide enough that most
-failures land without argument, and mapped by every app profile in this document set. Take it unless the
-domain gives a concrete reason not to, and record the reason where the taxonomy is declared.
+Six is a practical starting point: small enough for an agent to hold, wide enough that most failures land
+without argument, and the vocabulary every mapping table in this document set is written against. This
+rule is `[guide]`, so it recommends and never gates.
 
-**Authentication and authorization outcomes are deliberately not in this list.** Leaving that unstated
-was a gap, because nothing said whether `unauthenticated` and `forbidden` were missing on purpose. They
-are. Both are decided at the boundary by the code that holds the principal (`[TRUST-1]`, `[BE-6]`), so a
-slice has nothing to raise. Making them categories would also push a security decision into a taxonomy
-slices own, whose first consequence is slices raising `forbidden` about state they should never have
-loaded. A rendering rule per app type replaces them, and `[BE-8]` fixes the HTTP shape. A project on
-another taxonomy owes the same omission, for the same reason.
+**Why this vocabulary omits authentication and authorization outcomes.** `unauthenticated` and
+`forbidden` are absent on purpose rather than by oversight. Both are decided at the boundary by the code
+that holds the principal (`[TRUST-1]`, `[BE-6]`), so a slice has nothing to raise. Making them categories
+here would push a security decision into a set slices select from, whose first consequence is slices
+raising `forbidden` about state they should never have loaded. The observable behavior that replaces
+them is owned by the profile that renders it — for a backend, `[BE-8]`, which states `401`, `403` and the
+scoped-miss `404` and binds a backend whatever its taxonomy is called.
 
-One authorization outcome *does* reach the taxonomy, and it is the one that matters most. A scoped query
-that matches nothing raises `not_found`, not a permission error. "Exists but is not yours" and "does not
-exist" must be **indistinguishable** to a caller who is not entitled to know which. The honest-looking
-answer is the leak, and this vocabulary's existing category is the correct one. On another taxonomy the
-category names change and the observable behavior does not: the scoped miss must still render exactly as
-a genuine miss does (`[BE-8]`).
+One authorization outcome *does* reach this vocabulary, and it is the one that matters most. A scoped
+query that matches nothing raises `not_found`, not a permission error. "Exists but is not yours" and
+"does not exist" must be **indistinguishable** to a caller who is not entitled to know which. The
+honest-looking answer is the leak, and `not_found` is the category that already says the safe thing.
+Coral requires that indistinguishability of a backend through `[BE-8]`, in terms of the response rather
+than the category name, so a project on another taxonomy meets it there rather than here.
 
 ---
 

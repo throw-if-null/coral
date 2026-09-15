@@ -77,6 +77,13 @@ Your consumer is deciding whether to wrap the call in a retry, and cannot see in
 **`[LIB-8]`** `[review]` `{app:library}` Raise typed, inspectable errors from the library's declared error
 model (`[ERR-1]`) and never render: the consumer is the root, so the consumer decides presentation.
 
+**A package with zero renderers satisfies `[ERR-1]`, and does not need an exception to.** That rule asks
+for one declared model and for presentation to be one boundary's responsibility rather than a slice's. A
+library meets the first half here, in its own package, and the second half by containing no presentation
+at all: the boundary that presents is each consuming application's root, under that application's own
+`[ERR-1]`. Many consumers therefore means many renderers in the world and none in this package, which is
+the point rather than a gap.
+
 The error **type**, the classification it carries, and its `code` strings are part of the public contract,
 and are therefore semver-relevant. Adding a new `code` is a minor change. Changing or removing one is
 breaking, and so is **reclassifying an already-published error**: a consumer routing on the classification
