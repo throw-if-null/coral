@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Coral Architecture
   text: One trigger, one owning capability, end to end
-  tagline: Rules for CLIs, backends, web apps, libraries and tools — and for how several
+  tagline: Rules for CLIs, backends, web apps, libraries and tools, and for how several
     of them compose into a system.
   image:
     src: /logo.png
@@ -13,32 +13,33 @@ hero:
 
 ## What this is
 
-Coral is a set of rules for organising code in a repository. It is written to be followed by coding
-agents as well as by people, so the rules are stated explicitly, numbered, and most of them are
-checkable by a program rather than by argument.
+Coral is a set of rules for organising code in a repository. Coding agents follow it, and so do people.
+The rules are therefore stated explicitly and numbered. Most of them are checkable by a program rather
+than by argument.
 
 The organising principle is one sentence: **one trigger, one owning capability, end to end.**
 
-A capability is one thing the software does — one command, one HTTP endpoint, one event handler. The
-unconditional part of Coral is about **ownership**: whatever answers that trigger owns the whole of
-answering it — parsing, validating, doing the work, returning the result, and the tests that prove it —
-and every unit of code has one of five known roles.
+A capability is one thing the software does: one command, one HTTP endpoint, one event handler. The
+unconditional part of Coral governs **ownership**. Whatever answers a trigger owns the whole of answering
+it: parsing, validating, doing the work, returning the result, and the tests that prove it. Every unit of
+code has one of five known roles.
 
 **Ownership is not the same as physical colocation**, and Coral separates the two deliberately. *Where*
-that owned behavior sits — **code grouped by what it does, not by what kind of code it is**: packages
-named for the capability or concern they own, no global `handlers` / `services` / `repositories` layer,
-tests beside the code they verify — is Coral's **production baseline**. It is
-[optional and adopted explicitly](/PRODUCTION), and most projects that want Coral want it; but a project
-can own its triggers end to end without taking on Coral's opinion about what the directories are called.
+that owned behavior sits is Coral's **production baseline**: **code grouped by what it does, not by what
+kind of code it is**. The baseline requires packages named for the capability or concern they own. It
+forbids a global `handlers` / `services` / `repositories` layer. It puts tests beside the code they
+verify. It is
+[optional and adopted explicitly](/PRODUCTION). Most projects that want Coral want it. A project can still
+own its triggers end to end without taking on Coral's opinion about what the directories are called.
 
 ## What that looks like
 
 A small expense-tracking CLI with two commands, `expenses add` and `expenses list`. **It shows a project
-that has taken Coral's [production baseline](/PRODUCTION)** — an optional layer, adopted explicitly — so
-the colocated tests, the root crosscuts constructed once and passed in, and the absence of a
-`handlers`/`services`/`repositories` layer are that layer's policy rather than the minimum a Coral
-codebase owes. What Coral asks without adopting anything is a much shorter list, and the section
-[below](#why-the-core-rules-are-shaped-this-way) says which part is which.
+that has taken Coral's [production baseline](/PRODUCTION)**, an optional layer adopted explicitly. Three
+things in it are that layer's policy rather than the minimum a Coral codebase owes: the colocated tests,
+the root crosscuts constructed once and passed in, and the absence of a
+`handlers`/`services`/`repositories` layer. What Coral asks without adopting anything is a much shorter
+list. The section [below](#why-the-core-rules-are-shaped-this-way) says which part is which.
 
 ```text
 expenses/
@@ -61,50 +62,50 @@ There is no `handlers/` directory holding the argument parsing, no `services/` d
 logic, and no `repositories/` directory holding the SQL.
 
 The same shape holds for a backend: one directory per endpoint or event handler, with its tests, and the
-shared parts constructed at startup. [An HTTP endpoint in Go](/examples/go-api-slice) works through the
-case where a language's own rules — import cycles, code generation — force one capability to span more
-than one package, which stays legitimate as long as every package is named for that capability.
+shared parts constructed at startup. [An HTTP endpoint in Go](/examples/go-api-slice) works through a
+harder case. A language's own rules, such as import cycles and code generation, can force one capability
+to span more than one package. That stays legitimate as long as every package is named for that
+capability.
 
 ## The five kinds of code
 
-Every file above is one of five things, and knowing which one you are writing answers most questions
-about where to put it. **The five are the unconditional part** — in a Coral codebase every unit of code
-fits one of them, whatever else the project has adopted. That is a classification, not a checklist: a
-given app need not contain all five, and small ones usually do not. How each category is then *built* is
-where the optional layer starts, and this section says which is which.
+Every file above is one of five things. Knowing which one you are writing answers most questions about
+where to put it. **The five are the unconditional part.** In a Coral codebase every unit of code fits one
+of them, whatever else the project has adopted. The five are a classification, not a checklist: a given
+app need not contain all five, and small ones usually do not. How each category is then *built* is where
+the optional layer starts. This section says which is which.
 
 A **slice** is one capability, complete: `add.py`, `list.py`. Most of a codebase is slices.
 
 A **crosscut** is one concern that several slices need: `money.py`, `errors.py`, `db.py`. Code does not
-become a crosscut just because it appears twice — it has to be genuinely cross-cutting *and* carry an
-invariant that would be a bug if the copies drifted apart, which is one of the rules that applies to every
-Coral codebase. Duplication that fails that test is left alone deliberately. *The production baseline
-adds the discipline around it: give each one a precise name, and pass it in rather than letting a slice
+become a crosscut by appearing twice. It has to be genuinely cross-cutting. It also has to carry an
+invariant that would be a bug if the copies drifted apart. That test is one of the rules that applies to
+every Coral codebase. Duplication that fails it is left alone deliberately. *The production baseline adds
+the discipline around it: give each crosscut a precise name, and pass it in rather than letting a slice
 reach for it.*
 
 The **composition root** is where the parts are brought together and started: `app.py`. *The baseline adds
-that it stays thin — registering, constructing and wiring, with no business logic of its own.*
+that it stays thin. It registers, constructs and wires, and holds no business logic of its own.*
 
 A **published contract** is the part other code is allowed to depend on. For this CLI it is the exit
 code, the separation of `stdout` from `stderr`, and the shape of the `--json` output.
 
-An **adapter** is the code that speaks to one specific piece of infrastructure — a database driver, an S3
-client, a payment API. Small apps often have none: the CLI above has none, because a `db.py` crosscut is
-enough. *The baseline adds the part that does the real work: the **slice** declares the interface it
-needs, the adapter implements it, and the dependency points from the adapter to the slice. Turn that
-arrow around and you have a `repositories` layer, where one shared package decides what every caller
-gets.*
+An **adapter** is the code that sends to and reads from one specific piece of infrastructure: a database
+driver, an S3 client, a payment API. Small apps often have none. The CLI above has none, because a `db.py`
+crosscut is enough. *The baseline adds the dependency direction: the **slice** declares the interface it
+needs, the adapter implements it, and the dependency points from the adapter to the slice. Reverse that
+arrow and the result is a `repositories` layer, where one shared package decides what every caller gets.*
 
 The italicised additions above are [production baseline](/PRODUCTION) rules. A project that has not
-adopted that layer still classifies every unit of code with the same five categories; it simply owes none
-of the discipline in italics.
+adopted that layer still classifies every unit of code with the same five categories. It owes none of the
+discipline in italics.
 
-There is a sixth thing most codebases have, and it is not one of the five: a directory named for nothing
-in particular — `utils`, `shared`, `common`, `services`, `helpers`. Coral calls that a **forbidden
-bucket**, and when code does not obviously belong to a slice the answer is either a crosscut with a real
-name, or leaving the duplication alone. The rule that actually *bans* one is `[BUCKET-1]`, which a linter
-can decide on its own — and it belongs to the **production baseline**, an optional layer described below,
-rather than to the core of Coral, because it is good engineering whoever writes the code.
+Most codebases have a sixth thing, and it is not one of the five: a directory named for nothing in
+particular, such as `utils`, `shared`, `common`, `services`, or `helpers`. Coral calls that a **forbidden
+bucket**. When code has no clear owning slice, the answer is either a crosscut with a real name or
+leaving the duplication alone. `[BUCKET-1]` is the rule that bans a bucket, and a linter can decide it on
+its own. It belongs to the **production baseline**, an optional layer described below, rather than to the
+core of Coral. The reason is that it is good engineering whoever writes the code.
 
 ## The same shape at three sizes
 
@@ -114,26 +115,31 @@ it.
 
 One shape repeats at all three sizes:
 
-1. Own your trigger end to end — the one request, command, or event you answer.
-2. Consume another unit through what it publishes, never by reaching into its internals; share a concern
+1. Own your trigger end to end: the one request, command, or event you answer.
+2. Consume another unit through what it publishes, never by reaching into its internals. Share a concern
    by holding it in one definition rather than copying it.
 3. Between apps, that published surface is a channel.
 
-That is the whole vocabulary: eight nouns — slice, crosscut, adapter, composition root, published
-contract, app, system, channel. [`CONVENTIONS.md`](/CONVENTIONS) defines each one precisely, and every other document
-refers back to it rather than restating it.
+That is the whole vocabulary: eight nouns. They are slice, crosscut, adapter, composition root, published
+contract, app, system, and channel. [`CONVENTIONS.md`](/CONVENTIONS) defines each one precisely. Every
+other document refers back to it rather than restating it.
 
-**The nouns are the vocabulary; the production discipline around them is a separate, optional decision.**
-"Never a `utils` bucket", "apps never share a database", "a channel is versioned and takes one of three
-forms", "crosscuts are injected rather than reached for" are real Coral rules — and they belong to the
-[production baseline](/PRODUCTION), which a project adopts explicitly. The
+**The nouns are the vocabulary. The production discipline around them is a separate, optional decision.**
+All four of these are real Coral rules:
+
+- never a `utils` bucket
+- apps never share a database
+- a channel is versioned and takes one of three forms
+- crosscuts are injected rather than reached for
+
+They belong to the [production baseline](/PRODUCTION), which a project adopts explicitly. The
 [section below](#why-the-core-rules-are-shaped-this-way) draws the line.
 
 ## Why the core rules are shaped this way
 
-Coral assumes a coding agent writes most of the code and a person reviews it. Four consequences follow,
-and they are what the **kernel** — the small set of rules Coral imposes on every Coral codebase — traces
-back to.
+Coral assumes a coding agent writes most of the code and a person reviews it. Four consequences follow.
+The **kernel** is the small set of rules Coral imposes on every Coral codebase, and it traces back to
+those four.
 
 **A slice fits in one context window.** An agent can read everything a change depends on at once, rather
 than discovering afterwards that it never loaded some of it.
@@ -141,66 +147,85 @@ than discovering afterwards that it never loaded some of it.
 **A change is confined to one slice.** The reviewer's job has a known size before they start reading.
 
 **Placement is decided by the structure.** "Where does this go?" has one answer, so it stops consuming
-judgment — in the prompt and in review alike.
+judgment in the prompt and in review alike.
 
 **Every slice can be checked from outside itself.** The expense CLI's test runs the real command against
-a real database and asserts on the exit code and the `--json` payload — the same contract a user of the
-tool depends on. An agent can run that and see whether the change worked, rather than reporting that it
-should have.
+a real database. It asserts on the exit code and the `--json` payload, which is the same contract a user
+of the tool depends on. An agent can run that test and see whether the change worked, rather than
+reporting that it should have.
 
 A rule is a **kernel** rule when its presence, or the strictness Coral states it at, materially comes
-from those four consequences — remove the agent-author premise and Coral would substantially relax it.
-That subset is named and justified in [the Coral kernel](/CONVENTIONS#the-coral-kernel).
+from those four consequences. Remove the agent-author premise and Coral would substantially relax it.
+[The Coral kernel](/CONVENTIONS#the-coral-kernel) names and justifies that subset.
 
-**Most of what Coral publishes is not that, and does not claim to be.** Error taxonomies, transaction
-scope, retry semantics, cache invalidation, concurrency strategy, configuration, trust boundaries, HTTP
-status codes — these are load-bearing because the *software* needs them, and their justification survives
-a human-authored codebase. Coral publishes them as the **production baseline** and as per-app-type
+**Most of what Coral publishes is not that, and does not claim to be.** All of these are required because
+the *software* needs them:
+
+- error taxonomies
+- transaction scope
+- retry semantics
+- cache invalidation
+- concurrency strategy
+- configuration
+- trust boundaries
+- HTTP status codes
+
+Their justification survives a human-authored codebase. Coral publishes them as the **production baseline** and as per-app-type
 **profiles**: opinionated, coherent, and **optional**. A project takes them on deliberately, in its
-`CORAL.md`, or takes none of them and is still a Coral codebase.
+`CORAL.md`. A project that takes none of them is still a Coral codebase.
 
 ## Where this does not fit
 
 Some domains have one central concept that every feature reaches into: a tax engine, a scheduler, a
-pricing solver. Splitting those by capability cuts across the thing that actually holds the complexity,
-and the result is worse than a conventional layout. Coral states this as a rule rather than a footnote —
-`[SCOPE-2]` — and the recommendation there is to use something else and say so.
+pricing solver. Splitting those by capability cuts across the thing that holds the complexity. The result
+is worse than a conventional layout. Coral states this as a rule rather than a footnote, `[SCOPE-2]`. The
+recommendation there is to use something else and say so.
 
 ## How to read the rest
 
-To see the rules applied before reading them, [a real backend service reviewed against
-Coral](/examples/backend-review) is the shortest route: what the service already did right, two problems
-the rules surfaced, and three places where following Coral would have been wasted effort.
+[A real backend service reviewed against Coral](/examples/backend-review) is the shortest route to seeing
+the rules applied before reading them. It covers what the service already did right. It also covers two
+problems the rules surfaced, and three places where following Coral would have been wasted effort.
 
 Otherwise, in order:
 
-- [`CONVENTIONS.md`](/CONVENTIONS) — the vocabulary, the rule numbering, the enforcement classes, how a
-  project declares [how much of Coral applies to it](/CONVENTIONS#what-applies-to-a-project), and how it
-  records where it knowingly deviates.
-- [`ARCHITECTURE.md`](/ARCHITECTURE) — the kernel-facing app architecture: the shape of one app, and the
-  rules that bind every Coral codebase without being adopted. Short.
-- [`PRODUCTION.md`](/PRODUCTION) — the **production baseline** for one app: the long, opinionated
-  production-engineering layer. Read it to decide whether you want it; it applies only once your
+- [`CONVENTIONS.md`](/CONVENTIONS): the vocabulary, the rule numbering, and the enforcement classes. It
+  also covers how a project declares
+  [how much of Coral applies to it](/CONVENTIONS#what-applies-to-a-project), and how it records where it
+  knowingly deviates.
+- [`ARCHITECTURE.md`](/ARCHITECTURE): the kernel-facing app architecture. It gives the shape of one app,
+  and the rules that bind every Coral codebase without being adopted. Short.
+- [`PRODUCTION.md`](/PRODUCTION): the **production baseline** for one app, and the long, opinionated
+  production-engineering layer. Read it to decide whether you want it. It applies only once your
   `CORAL.md` says so.
-- [`SYSTEM.md`](/SYSTEM) — how separately-built apps compose over a channel. Also optional, and two
+- [`SYSTEM.md`](/SYSTEM): how separately-built apps compose over a channel. Also optional, and two
   independent opt-ins: the system-scale baseline, and the runtime-agent orchestration rules.
-- [Appendices](/appendix/cli) — one document per app profile: CLI, backend, web, library, GitHub Action —
-  plus the runtime-agent addendum, which an app of any shape adds when it calls a model at runtime.
-- [Worked examples](/examples/cli-slice) — real code, in Python and Go.
+- [Appendices](/appendix/cli): one document per app profile (CLI, backend, web, library, GitHub Action).
+  They also hold the runtime-agent addendum, which an app of any shape adds when it calls a model at
+  runtime.
+- [Worked examples](/examples/cli-slice): real code, in Python and Go.
 
-Every rule carries an ID like `[DUP-2]` and exactly one enforcement class: `[auto]` if a linter can decide
-it, `[review]` if it needs a person's judgment, `[guide]` if it is rationale rather than a pass/fail gate.
-On this site each citation links to its definition, and the build fails if a citation has no definition, if
-a rule has no class, or if a published ID disappears — so the documents' internal consistency is checked
-rather than trusted.
+Every rule carries an ID like `[DUP-2]` and exactly one enforcement class. `[auto]` means a linter can
+decide it. `[review]` means it needs a person's judgment. `[guide]` means it is rationale rather than a
+pass/fail gate.
 
-**Not all of it applies to you, and which part does is your decision, not ours.** A small set — the
-[kernel](/CONVENTIONS#the-coral-kernel) — applies to every Coral codebase. Everything else, the production
-baseline included, applies because a project's `CORAL.md` says it does: the app profiles it has taken on,
-whether it wants the baseline, whether it calls a model at runtime, and whether it is one app or several
-apps composing. Adding a rule or a profile here changes nothing for an existing project until that project
-adopts it. The rules for that are in
-[what applies to a project](/CONVENTIONS#what-applies-to-a-project).
+On this site each citation links to its definition. The build fails if a citation has no definition, if a
+rule has no class, or if a published ID disappears. The documents' internal consistency is checked rather
+than trusted.
 
-If you are looking for one rule rather than reading through, the [rule index](/rules) has every one of
-them on a single page — ID, class, and a one-line statement, generated from the documents themselves.
+**Not all of it applies to you, and which part does is your decision, not ours.** One small set applies to
+every Coral codebase: the [kernel](/CONVENTIONS#the-coral-kernel). Everything else, the production
+baseline included, applies because a project's `CORAL.md` says it does. The declaration names four
+things:
+
+- the app profiles the project has taken on
+- whether the project wants the baseline
+- whether it calls a model at runtime
+- whether it is one app or several apps composing
+
+Adding a rule or a profile here changes nothing for an existing project until that project adopts it.
+[What applies to a project](/CONVENTIONS#what-applies-to-a-project) holds the rules for that.
+
+The [rule index](/rules) lists every rule on a single page, with its ID, its class, and a one-line
+statement. It is generated from the documents themselves. Use it to look one rule up rather than reading
+through.
