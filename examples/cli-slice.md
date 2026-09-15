@@ -4,7 +4,7 @@
 
 The [Go example](./go-api-slice) shows a slice in a language that *forces* a capability across several
 packages. This one shows the opposite: **a CLI in Python, where nothing forces banding, so a slice is one
-file.** Same architecture, different shape — which is the point of `[MODEL-2]`.
+file.** Same architecture, different shape. That is what `[MODEL-2]` states.
 
 It also walks two commands rather than one, because the second is what makes three rules concrete: the
 mandatory `--json` read contract (`[CLI-3]`), read-never-mutates (`[IDEM-2]`), and the moment a second
@@ -31,9 +31,9 @@ expenses/
 pyproject.toml
 ```
 
-One file per slice, tests beside them. Python has no import-cycle rule and no code generator dictating
-package layout, so there is nothing to band around — and `[GROW-1]` says start there. When `add.py` gets
-hard to navigate, `[GROW-2]` splits it into `expense/add/` with `cli.py`, `behavior.py`, `sql.py`, never
+One file per slice, tests beside them. Python has no import-cycle rule, and no code generator dictating
+package layout, so there is nothing to band around. `[GROW-1]` says start there. When `add.py` gets hard
+to navigate, `[GROW-2]` splits it into `expense/add/` with `cli.py`, `behavior.py`, and `sql.py`, never
 into a global `handlers/` or `services/`.
 
 Colocated tests need one line of configuration, because pytest's default naming convention assumes a
@@ -50,7 +50,7 @@ python_files = ["*_test.py"]   # so a test can sit beside the code it verifies  
 Four of them, each precisely named, each carrying an invariant that would be a bug if it drifted
 (`[XCUT-1]`). None is called `utils`.
 
-The error taxonomy first. Slices raise it; exactly one place renders it (`[ERR-1]`, `[ERR-3]`):
+The error taxonomy first. Slices raise it, and exactly one place renders it (`[ERR-1]`, `[ERR-3]`):
 
 ```python
 # errors.py
@@ -81,7 +81,7 @@ def not_found(code: str, message: str) -> CoralError:
     return CoralError("not_found", code, message)
 ```
 
-Money is the classic invariant-bearing crosscut — one place where a string becomes an amount, so two
+Money is the clearest invariant-bearing crosscut: one place where a string becomes an amount, so two
 slices cannot disagree about what `"12.5"` means:
 
 ```python
@@ -113,11 +113,11 @@ def format(amount: Decimal) -> str:
     return f"{amount:.2f}"
 ```
 
-`period` is the same idea for dates — and it is worth noticing **why it exists**. With only `add`, this
-function lives inline in `add.py` and `[DUP-4]` says leave it there. `list --month` is the *second*
-consumer, and that is the trigger `[XCUT-1]` names: two consumers, plus an invariant (one date format)
-that would be a bug if the two commands disagreed. Promoting it now, and editing `add.py` to use it, is
-the expected move — flagged per `[AGENT-2]`, not done silently.
+`period` is the same idea for dates. **Why it exists** is the part to read. With only `add`, this
+function lives inline in `add.py`, and `[DUP-4]` says leave it there. `list --month` is the *second*
+consumer, which is the trigger `[XCUT-1]` names: two consumers, plus an invariant (one date format) that
+would be a bug if the two commands disagreed. Promoting it now, and editing `add.py` to use it, is the
+expected move. Flag it per `[AGENT-2]` rather than doing it silently.
 
 ```python
 # period.py
@@ -134,9 +134,9 @@ def parse_month(text: str) -> str:
         raise errors.validation("invalid_month", f"expected YYYY-MM, got {text!r}")
 ```
 
-And `db` — connection, transaction, and migration *execution*. Note what it does **not** do: it holds no
-queries and knows what no table means. That is the line between a `db` crosscut and the shared
-data-access layer `[STATE-2]` forbids:
+`db` handles connection, transaction, and migration *execution*. What it does **not** do matters: it
+holds no queries and carries no knowledge of any table. That is the line between a `db` crosscut and the
+shared data-access layer `[STATE-2]` forbids:
 
 ```python
 # db.py
@@ -174,19 +174,19 @@ class Db:
 deliberate, and it is the practical reading of `[XCUT-3]`:
 
 - **Import a crosscut that is pure and stateless.** `money.parse` has no configuration, no connection,
-  and no per-trigger state. Importing it *is* consuming its published surface — the thing `[XCUT-3]`
-  forbids is reaching past a crosscut's surface into its internals, not the `import` statement.
-- **Inject a crosscut that holds configuration, a connection, or per-trigger state.** `db` knows a file
-  path that comes from config. If `add.py` constructed its own `Db`, the slice could not be tested without
-  ambient setup and `[CONFIG-2]` would be violated.
+  and no per-trigger state. Importing it *is* consuming its published surface. `[XCUT-3]` forbids
+  reaching past a crosscut's surface into its internals, not the `import` statement.
+- **Inject a crosscut that holds configuration, a connection, or per-trigger state.** `db` holds a file
+  path that comes from config. If `add.py` constructed its own `Db`, the slice could not be tested
+  without ambient setup, and `[CONFIG-2]` would be violated.
 
-The test is not ceremony, it is *testability*: could you exercise this slice against a temporary database
-without setting an environment variable or patching a module? Wrapping `money` in a dependency container
-buys nothing and costs a layer.
+The test is *testability*, not ceremony. Ask whether you could exercise this slice against a temporary
+database without setting an environment variable or patching a module. Wrapping `money` in a dependency
+container buys nothing and costs a layer.
 
 ## The slice
 
-Everything for one operation: the command definition, validation, behavior, and — per `[STATE-5]` — the
+Everything for one operation: the command definition, validation, behavior, and, per `[STATE-5]`, the
 schema of the table its `expense` package owns, defined here at its one site.
 
 ```python
@@ -281,15 +281,15 @@ def run(args, db) -> dict[str, Any]:
 ```
 
 `list` owns its own query against a table its sibling `add` defined. That is `[STATE-1]` and `[STATE-5]`
-working together, not a gap waiting for a repository: the `expense` **package** owns the table, its schema
-has one definition site, the *queries* live with the slices that need them, and neither slice reaches into
-the other. A sibling reading the package's table directly is the point of package-level ownership — what
-would need a published capability is a slice in a *different* package (`[COMPOSE-1]`).
+working together, not a gap waiting for a repository. The `expense` **package** owns the table, and its
+schema has one definition site. The *queries* live with the slices that need them, and neither slice
+reaches into the other. A sibling reading the package's table directly is what package-level ownership is
+for. A slice in a *different* package would need a published capability instead (`[COMPOSE-1]`).
 
 ## The composition root
 
-The only place that knows about exit codes, output streams, and rendering. It registers, injects, and
-renders — and holds no business logic (`[ROOT-1]`):
+The only place that handles exit codes, output streams, and rendering. It registers, injects, and
+renders, and holds no business logic (`[ROOT-1]`):
 
 ```python
 # app.py
@@ -347,30 +347,30 @@ def main(argv: list[str], db_path: str) -> int:
 
 Three things to notice:
 
-- **`category` → exit code happens once**, in one expression. `[CLI-8]` keeps the matrix at three values
-  and `[CLI-9]` puts the precision in the stable `code` string on `stderr`, so a script greps
+- **`category` → exit code happens once**, in one expression. `[CLI-8]` keeps the matrix at three values.
+  `[CLI-9]` puts the precision in the stable `code` string on `stderr`, so a script greps
   `invalid_amount` rather than switching on exit code 17.
-- **`--debug` is a single global flag** defined at the root (`[CLI-10]`); no slice configures tracing, and
-  its output goes to `stderr` so it can never corrupt `--json` on `stdout` (`[CLI-11]`, `[OBS-3]`).
-- **`main` takes `argv` and `db_path` as parameters.** `__main__.py` is the only code that touches the real
-  process — `sys.exit(main(sys.argv[1:], db_path=os.environ.get("EXPENSES_DB", "expenses.db")))`. That one
-  choice is what makes the whole CLI testable in-process, and it keeps the environment read at the root
+- **`--debug` is a single global flag** defined at the root (`[CLI-10]`). No slice configures tracing. Its
+  output goes to `stderr`, so it can never corrupt `--json` on `stdout` (`[CLI-11]`, `[OBS-3]`).
+- **`main` takes `argv` and `db_path` as parameters.** `__main__.py` is the only code that touches the
+  real process: `sys.exit(main(sys.argv[1:], db_path=os.environ.get("EXPENSES_DB", "expenses.db")))`.
+  That one choice makes the whole CLI testable in-process, and it keeps the environment read at the root
   (`[CONFIG-1]`, `[CONFIG-2]`).
 
-One honest wrinkle: with argparse, a global flag must precede the subcommand (`expenses --json add …`, not
-`expenses add --json`). If that ordering matters to your users, declare the flag on each subparser via a
-shared parent parser instead — a `[CLI-5]` script-friendliness call worth making deliberately rather than
-discovering.
+One limitation is worth stating. With argparse, a global flag must precede the subcommand
+(`expenses --json add …`, not `expenses add --json`). If that ordering matters to your users, declare the
+flag on each subparser via a shared parent parser instead. That is a `[CLI-5]` script-friendliness
+decision to make deliberately rather than discover.
 
 ## The test
 
-Behavior-first: exercise the real entry point, assert the observable contract — exit code,
-`stdout`/`stderr` separation, and `--json` — against a real temporary database (`[TEST-1]`). No mocks.
+Behavior-first. Exercise the real entry point, and assert the observable contract against a real
+temporary database (`[TEST-1]`): exit code, `stdout`/`stderr` separation, and `--json`. No mocks.
 
-One fixture does the whole setup, and it is the *only* shared test code. Note what it shares: not a
-factory of pre-built objects, but the convention "call the real entry point and capture the real
-streams." That convention must not diverge between slices, which is exactly `[XCUT-1]`, and pytest
-already gives it a precise, framework-mandated name:
+One fixture does the whole setup, and it is the *only* shared test code. What it shares is not a factory
+of pre-built objects. It is the convention "call the real entry point and capture the real streams."
+That convention must not diverge between slices, which is `[XCUT-1]`, and pytest already gives it a
+precise, framework-mandated name:
 
 ```python
 # expense/conftest.py
@@ -476,40 +476,39 @@ def test_list_of_an_empty_month_is_zero_not_an_error(run_cli):
     assert json.loads(out) == {"month": "2026-01", "total": "0.00", "expenses": []}
 ```
 
-Nothing here is a unit test, and that is `[TEST-2]` working: these tests survive moving `_parse_month` into
-`period.py`, splitting `add.py` into a directory, or swapping SQLite for Postgres. A unit test on
-`add.run`'s internals would have broken on all three. `[TEST-3]`'s scalpel is still available — `money.parse`
-has enough branches (non-numeric, NaN, negative, three decimals) to earn a direct table-driven test — but it
-is an addition, not the foundation.
+Nothing here is a unit test, and that is `[TEST-2]` working. These tests survive moving `_parse_month`
+into `period.py`, splitting `add.py` into a directory, and swapping SQLite for Postgres. A unit test on
+`add.run`'s internals would have broken on all three. `[TEST-3]`'s narrower form is still available.
+`money.parse` has enough branches to earn a direct table-driven test: non-numeric, NaN, negative, and
+three decimals. That test is an addition, not the foundation.
 
 ## Mapping to the five categories  → `[MODEL-1]`
 
 | Category | Here |
 |---|---|
-| **slices** | `expense/add.py`, `expense/list.py` — one command each, definition through behavior |
+| **slices** | `expense/add.py`, `expense/list.py`: one command each, definition through behavior |
 | **crosscuts** | `errors`, `money`, `period` (pure, imported), `db` (stateful, injected) |
-| **composition root** | `app.py` + `__main__.py` — register, inject, render, exit; no logic |
+| **composition root** | `app.py` + `__main__.py`: register, inject, render, exit, no logic |
 | **published contract** | exit code + `stdout`/`stderr` separation + the `--json` payload shape |
-| **adapter** | none — `db` is a crosscut and each slice writes its own SQL. An adapter would appear if a slice declared a port and something else implemented it (`[MODEL-4]`) |
+| **adapter** | none. `db` is a crosscut and each slice writes its own SQL. An adapter would appear if a slice declared a port and something else implemented it (`[MODEL-4]`) |
 
 ## What this avoids
 
-- A `commands/` package of thin handlers delegating to a `services/` package of logic — the layered CLI
-  shape, and the `[BUCKET-1]` failure.
-- Error rendering scattered through the commands: each printing its own message and picking its own exit
-  code, which is how a CLI ends up with eleven exit codes and no documented meaning for any of them.
-- `sys.exit()` inside a slice, which is the CLI equivalent of a slice rendering its own HTTP response —
-  it steals the root's job (`[ERR-3]`) and makes the slice untestable in-process.
+- A `commands/` package of thin handlers delegating to a `services/` package of logic. That is the
+  layered CLI shape, and the `[BUCKET-1]` failure.
+- Error rendering scattered through the commands, each printing its own message and picking its own exit
+  code. That is how a CLI ends up with eleven exit codes and no documented meaning for any of them.
+- `sys.exit()` inside a slice, which is the CLI equivalent of a slice rendering its own HTTP response. It
+  takes the root's job (`[ERR-3]`) and makes the slice untestable in-process.
 - A shared `queries.py`, added the first time two commands touch `expenses`. Both slices keep their own
-  SQL; the *package* owns the table and the *schema* has one definition site (`[STATE-1]`, `[STATE-5]`).
-  Package-level ownership is what makes the shared table legitimate, and it is not a licence for this file.
+  SQL. The *package* owns the table, and the *schema* has one definition site (`[STATE-1]`, `[STATE-5]`).
+  Package-level ownership is what makes the shared table legitimate. It is not a licence for this file.
 - Reading `os.environ` inside a command, which is the fastest way to make a slice untestable
   (`[CONFIG-2]`).
 
 At around 200 lines this is a complete, navigable CLI. A real tool is this same shape repeated per
-command — which is exactly why a human or an agent can open any one file and find the whole capability in
-it.
+command. That is why a human or an agent can open any one file and find the whole capability in it.
 
 > Every snippet on this page is real code from one runnable package, and the seven tests above pass as
 > written (Python 3.14, pytest 8.4, `python_files = ["*_test.py"]`). If you copy it out and it fails,
-> that is a bug in this page — please say so.
+> that is a bug in this page. Please report it.
