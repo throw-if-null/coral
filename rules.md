@@ -342,12 +342,12 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[AGENT-1]` | `[guide]` | framework governance | Prefer the structure that minimizes an agent's placement and cross-file-reasoning decisions, even at the cost of some duplication. |
 | `[AGENT-2]` | `[review]` | kernel | Flag, don't guess: take the reversible option, mark it, surface it for human review. |
 | `[AGENT-3]` | `[guide]` | framework governance | Do not over-comply literally. |
-| `[AGENT-4]` | `[review]` | kernel | Never author an exception or an extension; a human decides and records. |
-| `[AGENT-5]` | `[review]` | framework governance | Read the project's `CORAL.md` before escalating; a documented decision is settled. |
+| `[AGENT-4]` | `[review]` | kernel | Never author an exception or an extension. A human decides and records. |
+| `[AGENT-5]` | `[review]` | framework governance | Read the project's `CORAL.md` before escalating. A documented decision is settled. |
 | `[VER-1]` | `[auto]` | framework governance | Rule IDs are append-only: never renumbered, recycled, or removed. |
-| `[VER-2]` | `[review]` | framework governance | Adding, tightening, or retiring a rule is a major version; loosening or clarifying is minor. |
-| `[VER-3]` | `[review]` | kernel | State the Coral version a project targets; audit against that version. |
-| `[VER-4]` | `[auto]` | framework governance | Namespace a project's own rule IDs by project prefix; never reuse a Coral family name. |
+| `[VER-2]` | `[review]` | framework governance | Adding, tightening, or retiring a rule is a major version. Loosening or clarifying is minor. |
+| `[VER-3]` | `[review]` | kernel | State the Coral version a project targets, and audit against that version. |
+| `[VER-4]` | `[auto]` | framework governance | Namespace a project's own rule IDs by project prefix. Never reuse a Coral family name. |
 | `[VER-5]` | `[auto]` | kernel | Record exceptions and extensions in `CORAL.md` as machine-readable entries naming a rule ID and a scoped path. |
 | `[VER-6]` | `[auto]` | kernel | Declare in `CORAL.md` which non-kernel Coral scopes the project adopts, and at which scales. |
 
