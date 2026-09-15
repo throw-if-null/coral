@@ -477,19 +477,19 @@ production baseline takes the app-scale part of that group and not the rest.
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
-| `[AGENTIC-1]` | `[guide]` | runtime-agent profile | The boundary is one turn, task, or agent-invocation — a user message, or a goal handed to the agent. |
+| `[AGENTIC-1]` | `[guide]` | runtime-agent profile | The boundary is one turn, task, or agent-invocation, such as a user message or a goal handed to the agent. |
 | `[AGENTIC-2]` | `[guide]` | runtime-agent profile | Distinguish two intensities. |
-| `[AGENTIC-3]` | `[review]` | runtime-agent profile | Treat the model as an injected effect; keep prompt-building and output-parsing pure. |
-| `[AGENTIC-4]` | `[review]` | runtime-agent profile | Force a schema on model output; the contract is schema conformance plus observed tool calls, never the text. |
+| `[AGENTIC-3]` | `[review]` | runtime-agent profile | Treat the model as an injected effect, and keep prompt-building and output-parsing pure. |
+| `[AGENTIC-4]` | `[review]` | runtime-agent profile | Force a schema on model output. The contract is schema conformance plus observed tool calls, never the text. |
 | `[AGENTIC-5]` | `[review]` | runtime-agent profile | Run an autonomous or looping agent only inside a harness: typed tools, authorization, risk-based gating against explicit policy, observation, bounds. |
-| `[AGENTIC-6]` | `[guide]` | runtime-agent profile | The agent is the non-deterministic *core*; the harness is the deterministic *shell*. |
+| `[AGENTIC-6]` | `[guide]` | runtime-agent profile | The agent is the non-deterministic *core*, and the harness is the deterministic *shell*. |
 | `[AGENTIC-7]` | `[review]` | runtime-agent profile | Treat history, memory, and retrieval as state: slice-owned, or a precisely-named retrieval crosscut. |
-| `[AGENTIC-8]` | `[review]` | runtime-agent profile | Dedupe a mutating agent by storing the first result keyed to the request; never re-run to recover. |
-| `[AGENTIC-13]` | `[review]` | runtime-agent profile | Give every side-effecting tool its own replay protection — key, natural key, or ledger; the stored result is not one. |
+| `[AGENTIC-8]` | `[review]` | runtime-agent profile | Dedupe a mutating agent by storing the first result keyed to the request. Never re-run to recover. |
+| `[AGENTIC-13]` | `[review]` | runtime-agent profile | Give every side-effecting tool its own replay protection: a key, a natural key, or a ledger. The stored result is not one. |
 | `[AGENTIC-9]` | `[review]` | runtime-agent profile | Map model failures to the taxonomy, bound schema repair then fail, and never accept malformed output. |
 | `[AGENTIC-10]` | `[review]` | runtime-agent profile | Treat prompt input and model output as untrusted, default-deny dangerous tools, keep secrets out of prompts entirely, and minimize/redact/retain personal data. |
-| `[AGENTIC-12]` | `[review]` | runtime-agent profile | Pin the model identifier and version the prompt; record both with each result and re-run evals before either changes. |
-| `[AGENTIC-11]` | `[review]` | runtime-agent profile | Test the deterministic parts normally, agent behavior by conformance and evals, and harness safety; never exact-match model text. |
+| `[AGENTIC-12]` | `[review]` | runtime-agent profile | Pin the model identifier and version the prompt. Record both with each result, and re-run evals before either changes. |
+| `[AGENTIC-11]` | `[review]` | runtime-agent profile | Test the deterministic parts normally, agent behavior by conformance and evals, and harness safety. Never exact-match model text. |
 
 ## Appendix: Backend / Service
 
