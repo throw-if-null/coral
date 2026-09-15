@@ -552,14 +552,14 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[LIB-1]` | `[review]` | app profile · library | One public capability is one slice, owned end to end with its validation, behavior, and tests. |
 | `[LIB-2]` | `[review]` | app profile · library | The contract is the public API surface: exported signatures, return values, raised error types, exported types. |
 | `[LIB-3]` | `[auto]` | app profile · library | No ambient state: no hidden singletons, no package-level mutables, no side effects on import. |
-| `[LIB-4]` | `[review]` | app profile · library | Accept dependencies; never reach for them. A library never reads the environment or a config file. |
-| `[LIB-5]` | `[auto]` | app profile · library | Never write to `stdout`/`stderr` and never install global handlers; the default diagnostic is silence. |
+| `[LIB-4]` | `[review]` | app profile · library | Accept dependencies, and never reach for them. A library never reads the environment or a config file. |
+| `[LIB-5]` | `[auto]` | app profile · library | Never write to `stdout`/`stderr` and never install global handlers. The default diagnostic is silence. |
 | `[LIB-6]` | `[review]` | app profile · library | Prefer pure functions and push every effect to a consumer-provided interface. |
 | `[LIB-7]` | `[review]` | app profile · library | Encode effect semantics in the name, and document idempotency and retry stance for anything doing I/O. |
-| `[LIB-8]` | `[review]` | app profile · library | Raise typed taxonomy errors and never render; the consumer is the root and decides presentation. |
+| `[LIB-8]` | `[review]` | app profile · library | Raise typed taxonomy errors and never render. The consumer is the root and decides presentation. |
 | `[LIB-9]` | `[review]` | app profile · library | Accept an injected logger or hook, define its no-op default, and keep the interface minimal. |
 | `[LIB-10]` | `[review]` | app profile · library | Validate inputs at the public API boundary, and state the trust assumption explicitly. |
-| `[LIB-11]` | `[review]` | app profile · library | Follow semver; add freely, never repurpose, deprecate before removing. |
+| `[LIB-11]` | `[review]` | app profile · library | Follow semver: add freely, never repurpose, and deprecate before removing. |
 | `[LIB-12]` | `[guide]` | app profile · library | Minimize dependencies: every dependency you take, your consumers take transitively, along with its vulnerabilities, its version constraints, and its own transitive set. |
 | `[LIB-13]` | `[review]` | app profile · library | Test as a consumer would: public API only, plus one test constructing the library twice with different configuration. |
 
@@ -571,13 +571,13 @@ production baseline takes the app-scale part of that group and not the rest.
 | --- | --- | --- | --- |
 | `[WEB-1]` | `[review]` | app profile · web | A slice is one route/page-action/endpoint, with its UI and its handler in the same slice. |
 | `[WEB-2]` | `[guide]` | app profile · web | Microfrontends are an escalation pattern, not the default. |
-| `[WEB-3]` | `[review]` | app profile · web | Keep the composition shell to layout and routing; it mounts slices and holds no business logic. |
+| `[WEB-3]` | `[review]` | app profile · web | Keep the composition shell to layout and routing. It mounts slices and holds no business logic. |
 | `[WEB-4]` | `[auto]` | app profile · web | Depend only on another slice's published surface: a typed import when integrated, a channel with no import edge when runtime-isolated. |
 | `[WEB-5]` | `[review]` | app profile · web | Define design tokens, primitives, and interaction patterns once as an injected crosscut. |
 | `[WEB-6]` | `[guide]` | app profile · web | The default web architecture is a single integrated frontend organized internally by capability slice, consuming the design-system crosscut. |
-| `[WEB-7]` | `[review]` | app profile · web | Treat the client as hostile: authorize at the server boundary, validate every payload, keep secrets server-side. |
+| `[WEB-7]` | `[review]` | app profile · web | Treat the client as hostile. Authorize at the server boundary, validate every payload, and keep secrets server-side. |
 | `[WEB-8]` | `[auto]` | app profile · web | Follow HTTP method semantics: `GET`/`HEAD` safe and read-only, `POST` non-idempotent, `PUT`/`DELETE` idempotent. |
-| `[WEB-9]` | `[auto]` | app profile · web | Slices raise the taxonomy; a root middleware renders to the right surface — error view or structured body. |
+| `[WEB-9]` | `[auto]` | app profile · web | Slices raise the taxonomy. A root middleware renders to the right surface: an error view or a structured body. |
 | `[WEB-10]` | `[review]` | app profile · web | Treat the route/URL structure as the stable contract: never break a route, never silently repurpose one. |
-| `[WEB-11]` | `[review]` | app profile · web | Server state is the source of truth; client state is a slice-owned cache, and the mutating slice invalidates it. |
-| `[WEB-12]` | `[review]` | app profile · web | Drive a web slice's behavior test through the real surface: no internals, no snapshots, no mocking its capability call. |
+| `[WEB-11]` | `[review]` | app profile · web | Server state is the source of truth. Client state is a slice-owned cache, and the mutating slice invalidates it. |
+| `[WEB-12]` | `[review]` | app profile · web | Drive a web slice's behavior test through the real surface. No internals, no snapshots, and no mocking its capability call. |
