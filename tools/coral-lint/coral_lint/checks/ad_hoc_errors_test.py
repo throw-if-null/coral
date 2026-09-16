@@ -33,12 +33,33 @@ def test_accepts_a_declared_taxonomy_constructor(make_layout):
     assert ad_hoc_errors.run(lay).findings == ()
 
 
-def test_accepts_a_declaration_by_final_segment(make_layout):
+def test_accepts_a_bare_reference_the_module_actually_imported(make_layout):
+    # `from errors import validation` binds the module the constructor came from,
+    # so the raise resolves to `errors.validation` even though the call spells one
+    # word. Matching the spelling alone would accept any `validation` in reach.
     lay = make_layout(
-        {"app/feat/add.py": "def run():\n    raise validation('bad', 'nope')\n"},
+        {
+            "app/feat/add.py":
+                "from errors import validation\n\ndef run():\n    raise validation('bad', 'nope')\n"
+        },
         coral_toml=TAXONOMY_CFG,
     )
     assert ad_hoc_errors.run(lay).findings == ()
+
+
+def test_a_bare_reference_with_no_import_is_a_finding(make_layout):
+    # A locally defined `validation()` is an ad-hoc error type. Its spelling
+    # matching the declared taxonomy is a coincidence, not provenance.
+    lay = make_layout(
+        {
+            "app/feat/add.py":
+                "def validation(code, message):\n    return RuntimeError(message)\n\n"
+                "def run():\n    raise validation('bad', 'nope')\n"
+        },
+        coral_toml=TAXONOMY_CFG,
+    )
+    findings = ad_hoc_errors.run(lay).findings
+    assert len(findings) == 1 and "validation" in findings[0].message
 
 
 def test_a_bare_reraise_is_not_a_new_error(make_layout):
@@ -172,13 +193,89 @@ def test_the_same_final_name_from_its_OWN_unit_still_passes(make_layout):
     assert ad_hoc_errors.run(make_layout(tree, coral_toml=SAME_TAIL_CFG)).findings == ()
 
 
-def test_a_bare_reference_is_still_matched_by_final_name(make_layout):
-    # `from a_errors import validation` leaves no module at the raise site, so the
-    # final segment is all the information there is. That path must keep working.
-    tree = dict(SAME_TAIL_TREE)
-    tree["a/feat/add.py"] = "def run():\n    raise validation('ok', 'fine')\n"
+# ── bare and aliased references are resolved, not spelled ────────────────────
+#
+# The harder half of the same collision. Comparing final segments made every form
+# below indistinguishable: app A importing ITS `validation`, app A importing app
+# B's, and a slice defining its own function of that name. Provenance is in the
+# module's imports, so the check reads them.
 
-    assert ad_hoc_errors.run(make_layout(tree, coral_toml=SAME_TAIL_CFG)).findings == ()
+
+def _a(body: str) -> dict[str, str]:
+    tree = dict(SAME_TAIL_TREE)
+    tree["a/feat/add.py"] = body
+    return tree
+
+
+def test_an_imported_bare_constructor_from_its_OWN_unit_passes(make_layout):
+    lay = make_layout(
+        _a("from a_errors import validation\n\ndef run():\n    raise validation('ok', 'fine')\n"),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    assert ad_hoc_errors.run(lay).findings == ()
+
+
+def test_an_imported_bare_constructor_from_a_SIBLING_unit_is_a_finding(make_layout):
+    # Same spelling, same final segment, different unit. This is the case the
+    # final-segment match could not see at all.
+    lay = make_layout(
+        _a("from b_errors import validation\n\ndef run():\n    raise validation('bad', 'nope')\n"),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    findings = ad_hoc_errors.run(lay).findings
+    assert len(findings) == 1
+    assert findings[0].path == "a/feat/add.py"
+
+
+def test_a_locally_defined_constructor_does_not_pass_by_name(make_layout):
+    lay = make_layout(
+        _a(
+            "def validation(code, message):\n    return RuntimeError(message)\n\n"
+            "def run():\n    raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    assert len(ad_hoc_errors.run(lay).findings) == 1
+
+
+def test_an_aliased_from_import_resolves_to_the_declared_constructor(make_layout):
+    lay = make_layout(
+        _a(
+            "from a_errors import validation as invalid\n\n"
+            "def run():\n    raise invalid('ok', 'fine')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    assert ad_hoc_errors.run(lay).findings == ()
+
+
+def test_an_aliased_module_import_resolves_too(make_layout):
+    lay = make_layout(
+        _a("import a_errors as errors\n\ndef run():\n    raise errors.validation('ok', 'fine')\n"),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    assert ad_hoc_errors.run(lay).findings == ()
+
+
+def test_an_aliased_module_import_of_a_SIBLING_unit_is_still_a_finding(make_layout):
+    # The alias must not launder provenance either.
+    lay = make_layout(
+        _a("import b_errors as errors\n\ndef run():\n    raise errors.validation('bad', 'nope')\n"),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    assert len(ad_hoc_errors.run(lay).findings) == 1
+
+
+def test_a_star_import_is_unanalyzed_rather_than_guessed_clean(make_layout):
+    # `from a_errors import *` could legitimately be where `validation` came from,
+    # and the tool cannot tell. It says so instead of answering either way.
+    lay = make_layout(
+        _a("from a_errors import *\n\ndef run():\n    raise validation('ok', 'fine')\n"),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.findings == ()
+    assert any("cannot bind exactly" in n for n in result.notes)
 
 
 def test_the_flat_form_still_works_for_a_single_unit_repo(make_layout):

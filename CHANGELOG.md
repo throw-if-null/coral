@@ -136,11 +136,20 @@ and was not one:
   `library_dirs`) with only the flat `error_types`, the check **skips and says why** instead of
   unioning the constructors. The flat form still means *one model for everything here*, which is true
   of a single-unit repo.
-- **A qualified raise matched by its final segment.** Two units routinely name one category the same
-  thing, so comparing `b_errors.validation` against `a_errors.validation` by tail passed a
-  cross-boundary raise. A qualified raise site now matches a declared qualified constructor exactly;
-  the final segment is consulted only for a bare reference, which is what `from errors import
-  validation` leaves in the AST.
+- **A raise matched by its final segment.** Two units routinely name one category the same thing, so
+  comparing `b_errors.validation` against `a_errors.validation` by tail passed a cross-boundary raise —
+  and a locally defined `validation()` passed for the same reason. Raise sites are now resolved to a
+  constructor **identity** through the module's own imports: `from b_errors import validation` then
+  `raise validation(...)` resolves to `b_errors.validation` and is a finding inside an app that declared
+  `a_errors.validation`, while `from a_errors import validation as invalid` and `import a_errors as
+  errors` both resolve to the declared one. A bare name the module never imported resolves to nothing
+  and is a finding, which is the ad-hoc error type the rule exists to catch. `pysource` gained
+  `import_bindings()` for this; where an exact binding is unavailable, such as under `from x import *`,
+  the raise is reported as unanalyzed rather than assumed clean.
+- **A bare constructor in a scoped declaration.** `types = ["validation"]` names no module, so it cannot
+  say which unit owns the constructor. Scoped `[[coral.error_models]]` entries must now be qualified;
+  the flat `error_types` form still accepts bare entries, because one unit has nothing to be ambiguous
+  against.
 - **A scoped `path` naming any directory that exists.** Longest-path-wins resolution would have let a
   *feature package* under an app carry its own taxonomy, which is a second model inside one unit.
   A scoped path must now name a unit the config already declared in `app_dirs` or `library_dirs`.

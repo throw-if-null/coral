@@ -211,6 +211,89 @@ def imports(tree: ast.Module) -> list[ImportRef]:
     return sorted(refs, key=lambda r: r.line)
 
 
+@dataclass(frozen=True)
+class Bindings:
+    """What each locally-bound name in one module was imported from.  [ERR-2]
+
+    A raise site spells a name; the taxonomy is declared in terms of where the
+    constructor actually lives. `from b_errors import validation` then
+    `raise validation(...)` spells `validation`, and the module part that says it
+    came from `b_errors` is in the `ImportFrom` node rather than at the call. So
+    the binding is extracted here, with the rest of the AST facts, instead of each
+    check rediscovering it.
+
+    `names` maps the local spelling to the canonical dotted identity it resolves
+    to. `ambiguous` holds names bound more than once to different things — a
+    conditional import — and `star` records `from X import *`. Both mean a bare
+    name cannot be resolved exactly, and a caller must treat it as unanalyzed
+    rather than assume either answer.
+    """
+
+    names: dict[str, str]
+    ambiguous: frozenset[str]
+    star: bool
+
+    def resolve(self, label: str) -> str | None:
+        """The canonical identity of a dotted raise label, or None if unbound.
+
+        None means *this module never imported that head*, which is a real answer:
+        a locally defined `validation()` is not the taxonomy's `validation`, and a
+        caller must not accept it because the spelling matches.
+        """
+        head, _, rest = label.partition(".")
+        if head in self.ambiguous or head not in self.names:
+            return None
+        base = self.names[head]
+        return f"{base}.{rest}" if rest else base
+
+    def unresolvable(self, label: str) -> bool:
+        """Could this label have a binding this module cannot show?"""
+        head = label.partition(".")[0]
+        if head in self.ambiguous:
+            return True
+        return self.star and head not in self.names
+
+
+def import_bindings(tree: ast.Module) -> Bindings:
+    """Every name this module binds by import, mapped to its canonical identity.
+
+    Deliberately not a symbol resolver. It reads the four ordinary import forms and
+    reports anything else as unresolvable:
+
+      import a_errors                 a_errors     -> a_errors
+      import a_errors as errors       errors       -> a_errors
+      from a_errors import validation validation   -> a_errors.validation
+      from a_errors import v as inv   inv          -> a_errors.validation
+
+    A relative `from . import errors` resolves to `errors`: a relative import
+    cannot leave its own package, so the written form already identifies the
+    module unambiguously within the unit that owns it.
+    """
+    names: dict[str, str] = {}
+    ambiguous: set[str] = set()
+    star = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                local = alias.asname or alias.name.split(".")[0]
+                target = alias.name if alias.asname else alias.name.split(".")[0]
+                if names.get(local, target) != target:
+                    ambiguous.add(local)
+                names[local] = target
+        elif isinstance(node, ast.ImportFrom):
+            base = node.module or ""
+            for alias in node.names:
+                if alias.name == "*":
+                    star = True
+                    continue
+                local = alias.asname or alias.name
+                target = f"{base}.{alias.name}" if base else alias.name
+                if names.get(local, target) != target:
+                    ambiguous.add(local)
+                names[local] = target
+    return Bindings(names=names, ambiguous=frozenset(ambiguous), star=star)
+
+
 def sql_literals(tree: ast.Module) -> list[Hit]:
     """String constants that are SQL statements, read or write."""
     hits: list[Hit] = []

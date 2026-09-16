@@ -209,6 +209,36 @@ def test_a_declared_library_may_carry_its_own_error_model(tmp_path):
     assert [f for f in json.loads(out)["findings"] if f["rule"] == "ERR-2"] == []
 
 
+def test_a_bare_constructor_in_a_scoped_error_model_is_rejected(tmp_path):
+    # A per-unit taxonomy is matched on constructor identity, and `validation`
+    # carries none: it cannot say which unit owns it. Accepting it would let the
+    # check claim an exactness it does not have.
+    repo = _repo(
+        tmp_path,
+        {"app/feat/add.py": ""},
+        coral_toml=(
+            '[coral]\napp_dirs = ["app"]\nfeature_dirs = ["app/feat"]\n\n'
+            '[[coral.error_models]]\npath = "app"\ntypes = ["validation"]\n'
+        ),
+    )
+    code, out, err = _run([], repo)
+    assert code == 2
+    assert out == ""  # not one finding was reported  [CONFIG-3]
+    assert "ambiguous_error_constructor" in err
+
+
+def test_the_flat_form_still_accepts_a_bare_constructor(tmp_path):
+    # One unit has nothing to be ambiguous against, so the legacy form is unchanged.
+    repo = _repo(
+        tmp_path,
+        {"app/feat/add.py": ""},
+        coral_toml='[coral]\nfeature_dirs = ["app/feat"]\nerror_types = ["CoralError"]\n',
+    )
+    _, out, _ = _run(["--json"], repo)
+    err2 = next(c for c in json.loads(out)["checks"] if c["rule"] == "ERR-2")
+    assert err2["ran"] is True
+
+
 def test_an_uncovered_slice_is_not_presented_as_a_clean_ERR_2_run(tmp_path):
     # The root-level half of the unit test in ad_hoc_errors_test.py. Every analyzed
     # slice here is clean, so before this fix the run exited 0 with [ERR-2] counted

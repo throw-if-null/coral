@@ -166,6 +166,22 @@ def _error_models(raw: object) -> tuple[ErrorModel, ...]:
                 f"{CONFIG_NAME}: [[coral.error_models]] for {path!r} declares no `types`. An empty"
                 " model would fail every raise in that unit rather than checking it",
             )
+        # A bare `validation` names no module, so it cannot say WHOSE `validation`
+        # it is — which is the whole question this form exists to answer. Two units
+        # naming one category the same thing would then each accept the other's
+        # constructor, and the per-unit check would claim an exactness it does not
+        # have. The flat `error_types` form keeps accepting bare entries: one unit
+        # has nothing to be ambiguous against.
+        bare = sorted(t for t in types if "." not in t)
+        if bare:
+            raise errors.validation(
+                "ambiguous_error_constructor",
+                f"{CONFIG_NAME}: [[coral.error_models]] for {path!r} declares"
+                f" {', '.join(repr(b) for b in bare)} without a module. A per-unit taxonomy is"
+                f" matched on constructor identity, so each entry must be qualified"
+                f" (`errors.validation`, not `validation`) — a bare name cannot say which unit"
+                f" the constructor belongs to",
+            )
         models.append(ErrorModel(path=path, types=frozenset(types)))
     return tuple(models)
 

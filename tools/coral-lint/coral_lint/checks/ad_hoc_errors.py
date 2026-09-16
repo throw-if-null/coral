@@ -19,10 +19,11 @@ ways that all look like a clean run:
     says which constructors belong to which unit, and config.py refuses a path that
     is not a declared app or published package so a feature package cannot acquire
     a taxonomy of its own;
-  * comparing a QUALIFIED raise by its final segment, which passes
-    `b_errors.validation` inside app A because A declared `a_errors.validation`.
-    Two units naming one category the same thing is ordinary, so the module part is
-    compared when the raise site has one. See _declared();
+  * comparing a raise by its final segment, which passes `b_errors.validation`
+    inside app A because A declared `a_errors.validation`, and passes a locally
+    defined `validation()` for the same reason. Two units naming one category the
+    same thing is ordinary. Raise sites are resolved to a constructor IDENTITY
+    through the module's own imports instead. See _verdict();
   * analyzing only the slices some model happens to cover and reporting the rest as
     a note. A note does not change the outcome, so the run still exits clean with
     slices nobody checked. Unowned slices skip the whole check instead.
@@ -42,31 +43,42 @@ RULE = "ERR-2"
 TITLE = "raised errors use the taxonomy"
 
 
-def _bare_names(names: frozenset[str]) -> set[str]:
-    """The final segment of each declared constructor.
+ACCEPT = "accept"
+REJECT = "reject"
+UNKNOWN = "unknown"
 
-    Used for ONE case: a raise site that names no module, which is what
-    `from errors import validation` then `raise validation(...)` produces. The
-    module is not in the AST there, so the final segment is all the information
-    the raise site carries.
+
+def _verdict(label: str, bindings: pysource.Bindings, allowed: frozenset[str]) -> str:
+    """Did THIS unit declare the constructor this raise site names?
+
+    Identity, never spelling. The raise site spells a name; the declaration names
+    where the constructor lives. Resolving the spelling through the module's own
+    imports is what keeps the two apart:
+
+      * `raise validation(...)` after `from b_errors import validation` resolves to
+        `b_errors.validation`, so it is a finding inside an app that declared
+        `a_errors.validation`. Comparing final segments accepted it;
+      * `raise validation(...)` with no import at all resolves to nothing. A
+        locally defined `validation()` is an ad-hoc error type, which is exactly
+        what this rule forbids, so a matching spelling must not rescue it.
+
+    The literal fallback is for a QUALIFIED label whose head this module did not
+    import — a package-level or re-exported binding the tool cannot see. The label
+    still carries its own module there, so accepting it only when the unit declared
+    that exact dotted name stays exact. A bare label never reaches it.
+
+    UNKNOWN is returned where an exact answer is not available: a star import, or a
+    name bound twice to different things. The caller counts those as unanalyzed
+    rather than calling them clean.
     """
-    return {name.rsplit(".", 1)[-1] for name in names}
-
-
-def _declared(label: str, allowed: frozenset[str], bare: set[str]) -> bool:
-    """Is `label` a constructor THIS unit declared?
-
-    A qualified label carries its own module, so it must match a declared
-    qualified constructor exactly. Matching it by final segment instead is how a
-    slice in app A passes while raising app B's `b_errors.validation`, when A
-    declared `a_errors.validation`: two different constructors from two different
-    units sharing one tail. That is the cross-unit false pass this check exists to
-    prevent ([ERR-1]), so the tail is consulted only when there is no module to
-    compare.
-    """
-    if label in allowed:
-        return True
-    return "." not in label and label in bare
+    canonical = bindings.resolve(label)
+    if canonical is not None:
+        return ACCEPT if canonical in allowed else REJECT
+    if bindings.unresolvable(label):
+        return UNKNOWN
+    if "." in label:
+        return ACCEPT if label in allowed else REJECT
+    return REJECT
 
 
 def run(layout: Layout) -> CheckResult:
@@ -104,18 +116,17 @@ def run(layout: Layout) -> CheckResult:
     # verdict: the run would still report `ran` with zero findings and exit 0, which
     # is the silent pass this check exists to prevent. So an unowned slice skips the
     # check, the same answer the multi-unit case gets, for the same reason.
-    flat = (config.error_types, _bare_names(config.error_types))
-    owner: dict[str, tuple[frozenset[str], set[str]]] = {}
+    owner: dict[str, frozenset[str]] = {}
     unowned: list[str] = []
     for unit in layout.slices:
         if not config.error_models:
-            owner[unit.rel] = flat
+            owner[unit.rel] = config.error_types
             continue
         model = config.error_model_for(unit.rel)
         if model is None:
             unowned.append(unit.rel)
         else:
-            owner[unit.rel] = (model.types, _bare_names(model.types))
+            owner[unit.rel] = model.types
 
     if unowned:
         shown = ", ".join(sorted(unowned)[:3])
@@ -132,9 +143,10 @@ def run(layout: Layout) -> CheckResult:
 
     findings: list[Finding] = []
     unanalyzed = 0
+    unresolved = 0
 
     for unit in layout.slices:
-        allowed, bare = owner[unit.rel]
+        allowed = owner[unit.rel]
 
         for path in unit.source_files():
             if path.suffix != ".py":
@@ -144,8 +156,13 @@ def run(layout: Layout) -> CheckResult:
             if tree is None:
                 unanalyzed += 1
                 continue
+            bindings = pysource.import_bindings(tree)
             for hit in pysource.raised_types(tree):
-                if _declared(hit.label, allowed, bare):
+                verdict = _verdict(hit.label, bindings, allowed)
+                if verdict == ACCEPT:
+                    continue
+                if verdict == UNKNOWN:
+                    unresolved += 1
                     continue
                 findings.append(
                     Finding(
@@ -173,6 +190,11 @@ def run(layout: Layout) -> CheckResult:
     notes: list[str] = []
     if unanalyzed:
         notes.append(f"{unanalyzed} non-Python or unparseable slice file(s) not analyzed")
+    if unresolved:
+        notes.append(
+            f"{unresolved} raise(s) name a constructor this tool cannot bind exactly "
+            f"(star import, or a name bound more than once) and were not analyzed"
+        )
     return CheckResult(
         rule=RULE,
         findings=tuple(sorted(findings, key=lambda f: f.sort_key)),

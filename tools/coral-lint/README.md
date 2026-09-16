@@ -120,9 +120,21 @@ types = ["clierrors.usage", "clierrors.internal"]
 ```
 
 Each slice is checked against the model whose `path` contains it, longest path winning, so a published
-package nested inside an app resolves to the package. A slice inside no declared model is **reported as
-unanalyzed**, never passed. Declaring both forms is a hard config failure — two ways to say one thing is
-two sources of truth.
+package nested inside an app resolves to the package. A slice inside no declared model makes `[ERR-2]`
+**skip**, never pass. Declaring both forms is a hard config failure — two ways to say one thing is two
+sources of truth.
+
+**Scoped `types` must be qualified.** A per-unit taxonomy is matched on constructor **identity**, and a
+bare `validation` carries none: it cannot say which unit owns it, and two units naming one category the
+same thing would each accept the other's constructor. Write `apierrors.validation`, not `validation`. The
+flat `error_types` form still accepts bare entries, because one unit has nothing to be ambiguous against.
+
+**Raise sites are resolved through the module's own imports**, not compared by spelling. `from
+apierrors import validation` then `raise validation(...)` resolves to `apierrors.validation`; so do
+`from apierrors import validation as invalid` and `import apierrors as errors`. A bare name the module
+never imported — a locally defined `validation()` — resolves to nothing and is a finding, which is the
+ad-hoc error type `[ERR-2]` exists to catch. Where an exact binding is unavailable, such as under
+`from x import *`, the raise is reported as unanalyzed rather than assumed clean.
 
 If a repo declares more than one app or published package (via `app_dirs` / `library_dirs`) but only
 the flat `error_types`, `[ERR-2]` **skips and says so**. It cannot tell which unit owns a slice, and
