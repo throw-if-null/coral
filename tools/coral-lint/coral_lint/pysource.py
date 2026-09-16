@@ -211,75 +211,97 @@ def imports(tree: ast.Module) -> list[ImportRef]:
     return sorted(refs, key=lambda r: r.line)
 
 
+# How a raise site came by the name it spells.  [ERR-2]
+IMPORTED = "imported"      # bound by an import visible at the raise site
+LOCAL_DEF = "local_def"    # a `def` or `class` of that name shadows it
+REBOUND = "rebound"        # a parameter, assignment or other rebinding shadows it
+UNBOUND = "unbound"        # nothing in scope binds it
+
+
 @dataclass(frozen=True)
-class Bindings:
-    """What each locally-bound name in one module was imported from.  [ERR-2]
+class Constructor:
+    """One `raise X(...)`, with the provenance of the name it spells.
 
-    A raise site spells a name; the taxonomy is declared in terms of where the
-    constructor actually lives. `from b_errors import validation` then
-    `raise validation(...)` spells `validation`, and the module part that says it
-    came from `b_errors` is in the `ImportFrom` node rather than at the call. So
-    the binding is extracted here, with the rest of the AST facts, instead of each
-    check rediscovering it.
+    The call node carries a spelling; the taxonomy is declared in terms of where
+    the constructor lives. `from b_errors import validation` then
+    `raise validation(...)` spells one word, and the part that says it came from
+    `b_errors` is in the `ImportFrom`. So provenance is resolved here, with the
+    rest of the AST facts, rather than in each check.
 
-    `names` maps the local spelling to the canonical dotted identity it resolves
-    to. `ambiguous` holds names bound more than once to different things — a
-    conditional import — and `star` records `from X import *`. Both mean a bare
-    name cannot be resolved exactly, and a caller must treat it as unanalyzed
-    rather than assume either answer.
+    Resolution is **lexically scoped**, because Python is: an import inside another
+    function binds nothing at this raise site, and a local `def`, a parameter or an
+    assignment of the same name shadows one that would otherwise be visible.
+
+    `level` and `module` are kept unreduced for relative imports. `from .errors`
+    and `from ...errors` spell the same canonical `errors.validation` and can name
+    different packages, so the caller — which has the repository layout — resolves
+    the path and decides whether it stayed inside the owning unit.
     """
 
-    names: dict[str, str]
-    ambiguous: frozenset[str]
-    star: bool
-
-    def resolve(self, label: str) -> str | None:
-        """The canonical identity of a dotted raise label, or None if unbound.
-
-        None means *this module never imported that head*, which is a real answer:
-        a locally defined `validation()` is not the taxonomy's `validation`, and a
-        caller must not accept it because the spelling matches.
-        """
-        head, _, rest = label.partition(".")
-        if head in self.ambiguous or head not in self.names:
-            return None
-        base = self.names[head]
-        return f"{base}.{rest}" if rest else base
-
-    def unresolvable(self, label: str) -> bool:
-        """Could this label have a binding this module cannot show?"""
-        head = label.partition(".")[0]
-        if head in self.ambiguous:
-            return True
-        return self.star and head not in self.names
+    label: str              # as spelled: "validation", "errors.validation"
+    line: int
+    origin: str
+    target: str = ""        # canonical spelling when IMPORTED: "a_errors.validation"
+    level: int = 0          # relative-import depth; 0 for absolute
+    module: str | None = None   # the `from X import` module; None for `from . import x`
+    attr: str | None = None     # the imported attribute, for `from X import n`
+    star: bool = False      # a star import is in scope and could have bound this name
 
 
-def import_bindings(tree: ast.Module) -> Bindings:
-    """Every name this module binds by import, mapped to its canonical identity.
+@dataclass(frozen=True)
+class _Bound:
+    kind: str
+    target: str = ""
+    level: int = 0
+    module: str | None = None
+    attr: str | None = None
 
-    Deliberately not a symbol resolver. It reads the four ordinary import forms and
-    reports anything else as unresolvable:
 
-      import a_errors                 a_errors     -> a_errors
-      import a_errors as errors       errors       -> a_errors
-      from a_errors import validation validation   -> a_errors.validation
-      from a_errors import v as inv   inv          -> a_errors.validation
+_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
 
-    A relative `from . import errors` resolves to `errors`: a relative import
-    cannot leave its own package, so the written form already identifies the
-    module unambiguously within the unit that owns it.
+
+def _bind_targets(node: ast.expr, out: dict[str, _Bound]) -> None:
+    """Record every plain name a binding target introduces."""
+    if isinstance(node, ast.Name):
+        out[node.id] = _Bound(REBOUND)
+    elif isinstance(node, (ast.Tuple, ast.List)):
+        for element in node.elts:
+            _bind_targets(element, out)
+    elif isinstance(node, ast.Starred):
+        _bind_targets(node.value, out)
+
+
+def _own_bindings(scope: ast.AST) -> tuple[dict[str, _Bound], bool]:
+    """What this one scope binds, and whether a star import is in it.
+
+    Descends through ordinary statements but never into a nested scope's body —
+    that body is its own scope. A nested `def foo` still binds `foo` here, which is
+    the name this scope sees.
+
+    A name bound both by an import and by something else in one scope is recorded
+    as the something else. Which one wins at the raise site depends on execution
+    order, so the conservative answer is the one that does not claim the import.
     """
-    names: dict[str, str] = {}
-    ambiguous: set[str] = set()
+    found: dict[str, _Bound] = {}
     star = False
-    for node in ast.walk(tree):
+
+    if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        args = scope.args
+        for arg in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
+            found[arg.arg] = _Bound(REBOUND)
+        for optional in (args.vararg, args.kwarg):
+            if optional is not None:
+                found[optional.arg] = _Bound(REBOUND)
+
+    body = [scope] if isinstance(scope, ast.Lambda) else list(getattr(scope, "body", []))
+    stack: list[ast.AST] = list(body)
+    while stack:
+        node = stack.pop()
         if isinstance(node, ast.Import):
             for alias in node.names:
                 local = alias.asname or alias.name.split(".")[0]
                 target = alias.name if alias.asname else alias.name.split(".")[0]
-                if names.get(local, target) != target:
-                    ambiguous.add(local)
-                names[local] = target
+                found.setdefault(local, _Bound(IMPORTED, target=target, module=alias.name))
         elif isinstance(node, ast.ImportFrom):
             base = node.module or ""
             for alias in node.names:
@@ -288,10 +310,78 @@ def import_bindings(tree: ast.Module) -> Bindings:
                     continue
                 local = alias.asname or alias.name
                 target = f"{base}.{alias.name}" if base else alias.name
-                if names.get(local, target) != target:
-                    ambiguous.add(local)
-                names[local] = target
-    return Bindings(names=names, ambiguous=frozenset(ambiguous), star=star)
+                found.setdefault(
+                    local,
+                    _Bound(IMPORTED, target=target, level=node.level,
+                           module=node.module, attr=alias.name),
+                )
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            found[node.name] = _Bound(LOCAL_DEF)
+            continue  # its body is a scope of its own
+        elif isinstance(node, ast.Lambda):
+            continue
+        elif isinstance(node, ast.Assign):
+            for target_node in node.targets:
+                _bind_targets(target_node, found)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+            _bind_targets(node.target, found)
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            _bind_targets(node.target, found)
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            for item in node.items:
+                if item.optional_vars is not None:
+                    _bind_targets(item.optional_vars, found)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            found[node.name] = _Bound(REBOUND)
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            # The binding lives in another scope and may be rewritten anywhere.
+            for name in node.names:
+                found[name] = _Bound(REBOUND)
+        stack.extend(ast.iter_child_nodes(node))
+    return found, star
+
+
+def _lookup(head: str, chain: list[tuple[dict[str, _Bound], bool]]) -> tuple[_Bound | None, bool]:
+    """The innermost binding of `head`, and whether a star import could supply it."""
+    star = any(has_star for _, has_star in chain)
+    for found, _ in reversed(chain):
+        if head in found:
+            return found[head], star
+    return None, star
+
+
+def raised_constructors(tree: ast.Module) -> list[Constructor]:
+    """Every `raise <Something>(...)`, with the provenance of its name.  [ERR-2]
+
+    A bare `raise` (re-raise) and `raise` of a caught name are not new errors, so
+    they are not reported.
+    """
+    out: list[Constructor] = []
+
+    def walk(node: ast.AST, chain: list[tuple[dict[str, _Bound], bool]]) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, _SCOPES):
+                walk(child, [*chain, _own_bindings(child)])
+                continue
+            if isinstance(child, ast.Raise) and isinstance(child.exc, ast.Call):
+                label = _dotted(child.exc.func)
+                if label:
+                    bound, star = _lookup(label.partition(".")[0], chain)
+                    if bound is None:
+                        out.append(Constructor(label, child.lineno, UNBOUND, star=star))
+                    elif bound.kind == IMPORTED:
+                        rest = label.partition(".")[2]
+                        target = f"{bound.target}.{rest}" if rest else bound.target
+                        out.append(Constructor(
+                            label, child.lineno, IMPORTED, target=target, level=bound.level,
+                            module=bound.module, attr=bound.attr, star=star,
+                        ))
+                    else:
+                        out.append(Constructor(label, child.lineno, bound.kind, star=star))
+            walk(child, chain)
+
+    walk(tree, [_own_bindings(tree)])
+    return sorted(out, key=lambda c: c.line)
 
 
 def sql_literals(tree: ast.Module) -> list[Hit]:

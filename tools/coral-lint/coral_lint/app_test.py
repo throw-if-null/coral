@@ -227,16 +227,39 @@ def test_a_bare_constructor_in_a_scoped_error_model_is_rejected(tmp_path):
     assert "ambiguous_error_constructor" in err
 
 
-def test_the_flat_form_still_accepts_a_bare_constructor(tmp_path):
-    # One unit has nothing to be ambiguous against, so the legacy form is unchanged.
+def test_a_bare_constructor_in_the_flat_form_is_rejected_too(tmp_path):
+    # Constructors are matched on identity everywhere. A bare `CoralError` would
+    # never match `errors.CoralError`, which is what `from errors import CoralError`
+    # resolves to, so accepting the config would configure an unsatisfiable check.
     repo = _repo(
         tmp_path,
         {"app/feat/add.py": ""},
         coral_toml='[coral]\nfeature_dirs = ["app/feat"]\nerror_types = ["CoralError"]\n',
     )
+    code, out, err = _run([], repo)
+    assert code == 2
+    assert out == ""  # not one finding was reported  [CONFIG-3]
+    assert "ambiguous_error_constructor" in err
+
+
+def test_a_qualified_flat_constructor_is_checked_against_the_actual_raise(tmp_path):
+    # The replacement for the parse-only test: the configured identity is exercised
+    # by a real raise, in both directions.
+    repo = _repo(
+        tmp_path,
+        {
+            "app/feat/add.py":
+                "from errors import CoralError\n\ndef run():\n    raise CoralError('b', 'n')\n",
+            "app/feat/other.py":
+                "from bespoke import CoralError\n\ndef run():\n    raise CoralError('b', 'n')\n",
+        },
+        coral_toml='[coral]\nfeature_dirs = ["app/feat"]\nerror_types = ["errors.CoralError"]\n',
+    )
     _, out, _ = _run(["--json"], repo)
-    err2 = next(c for c in json.loads(out)["checks"] if c["rule"] == "ERR-2")
+    payload = json.loads(out)
+    err2 = next(c for c in payload["checks"] if c["rule"] == "ERR-2")
     assert err2["ran"] is True
+    assert [f["path"] for f in payload["findings"] if f["rule"] == "ERR-2"] == ["app/feat/other.py"]
 
 
 def test_an_uncovered_slice_is_not_presented_as_a_clean_ERR_2_run(tmp_path):

@@ -96,7 +96,7 @@ feature_dirs = ["expenses/expense"]      # dirs whose children are slices
 library_dirs = []                        # dirs that ARE a published library — enables [LIB-*]
 roots        = ["expenses/app.py"]        # composition roots — not slices, not crosscuts
 crosscuts  = ["errors", "money", "period", "db"]
-error_types  = ["errors.validation", "errors.not_found"]   # one app/package here — see below
+error_types  = ["errors.validation", "errors.not_found"]   # one app/published package here
 grandfathered = []                        # paths exempt from [BUCKET-1]
 read_verbs   = ["show", "list", "get", "find", "summary", "report", "search", "read"]
 ignore       = []                         # added to the built-in vendor/build list
@@ -124,17 +124,27 @@ package nested inside an app resolves to the package. A slice inside no declared
 **skip**, never pass. Declaring both forms is a hard config failure — two ways to say one thing is two
 sources of truth.
 
-**Scoped `types` must be qualified.** A per-unit taxonomy is matched on constructor **identity**, and a
-bare `validation` carries none: it cannot say which unit owns it, and two units naming one category the
-same thing would each accept the other's constructor. Write `apierrors.validation`, not `validation`. The
-flat `error_types` form still accepts bare entries, because one unit has nothing to be ambiguous against.
+**Every declared constructor must be qualified**, in both forms. Constructors are matched on
+**identity**, and a bare `validation` is a spelling: it cannot say where the constructor lives, it never
+matches what `from errors import validation` resolves to, and across units two taxonomies naming one
+category the same thing would each accept the other's. Write `errors.validation`, not `validation`.
 
-**Raise sites are resolved through the module's own imports**, not compared by spelling. `from
-apierrors import validation` then `raise validation(...)` resolves to `apierrors.validation`; so do
-`from apierrors import validation as invalid` and `import apierrors as errors`. A bare name the module
-never imported — a locally defined `validation()` — resolves to nothing and is a finding, which is the
-ad-hoc error type `[ERR-2]` exists to catch. Where an exact binding is unavailable, such as under
-`from x import *`, the raise is reported as unanalyzed rather than assumed clean.
+**Raise sites are resolved through the imports visible at the raise site**, not compared by spelling.
+`from apierrors import validation` then `raise validation(...)` resolves to `apierrors.validation`; so do
+`from apierrors import validation as invalid` and `import apierrors as errors`.
+
+Resolution is **lexically scoped**, because Python is. An import inside another function binds nothing
+here, and a local `def`, a parameter or an assignment of the same name shadows one that would otherwise
+be visible. A locally defined `validation()` is a finding — that is the ad-hoc error type `[ERR-2]` exists
+to catch.
+
+A **relative** import must stay inside the unit that owns the raising slice. `from .errors import
+validation` and `from ...errors import validation` spell the same name and can reach different packages,
+so the module is resolved against the repository: a published package climbing into its host app is a
+finding, and two units may each call their own constructor `errors.validation` without colliding.
+
+Where an exact binding is unavailable — a star import, a rebound name, an unresolvable relative import —
+`[ERR-2]` **skips** and names the raise. It never reports a clean run over a raise it could not decide.
 
 If a repo declares more than one app or published package (via `app_dirs` / `library_dirs`) but only
 the flat `error_types`, `[ERR-2]` **skips and says so**. It cannot tell which unit owns a slice, and

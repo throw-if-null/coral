@@ -139,17 +139,26 @@ and was not one:
 - **A raise matched by its final segment.** Two units routinely name one category the same thing, so
   comparing `b_errors.validation` against `a_errors.validation` by tail passed a cross-boundary raise —
   and a locally defined `validation()` passed for the same reason. Raise sites are now resolved to a
-  constructor **identity** through the module's own imports: `from b_errors import validation` then
-  `raise validation(...)` resolves to `b_errors.validation` and is a finding inside an app that declared
-  `a_errors.validation`, while `from a_errors import validation as invalid` and `import a_errors as
-  errors` both resolve to the declared one. A bare name the module never imported resolves to nothing
-  and is a finding, which is the ad-hoc error type the rule exists to catch. `pysource` gained
-  `import_bindings()` for this; where an exact binding is unavailable, such as under `from x import *`,
-  the raise is reported as unanalyzed rather than assumed clean.
-- **A bare constructor in a scoped declaration.** `types = ["validation"]` names no module, so it cannot
-  say which unit owns the constructor. Scoped `[[coral.error_models]]` entries must now be qualified;
-  the flat `error_types` form still accepts bare entries, because one unit has nothing to be ambiguous
-  against.
+  constructor **identity** through the imports visible at the raise site: `from b_errors import
+  validation` then `raise validation(...)` resolves to `b_errors.validation` and is a finding inside an
+  app that declared `a_errors.validation`, while `from a_errors import validation as invalid` and
+  `import a_errors as errors` both resolve to the declared one.
+- **A file-wide view of those imports.** Python binds names lexically, and the first resolver did not:
+  an import anywhere in the file bound every raise site in it. A local `def validation` shadowing the
+  import, a parameter of that name, and an import sitting inside a different function all passed.
+  `pysource.raised_constructors()` now carries a scope chain, so a shadowing `def` is a finding, a
+  parameter or assignment is undecidable, and an import in another function binds nothing here.
+- **A relative import flattened to its spelling.** `from .errors import validation` and
+  `from ...errors import validation` both read as `errors.validation`, so a published package could
+  climb into its host app and be accepted as its own. The import level is retained and the module is
+  resolved against the repository through `Layout.resolve_import()`, then required to sit inside the
+  unit owning the raising slice. Two units may each call their own constructor `errors.validation`.
+- **A bare constructor declaration.** `types = ["validation"]` names no module. It cannot say which unit
+  owns the constructor, and it never matches what `from errors import validation` resolves to, so it
+  configured a check that could not pass. Both forms now require qualified entries.
+- **An unresolved raise reported as a clean run.** A star import, a rebound name or an unresolvable
+  relative import left the check unable to decide that raise, and a note does not change an outcome.
+  `[ERR-2]` now **skips** and names the raise, the same answer an unowned slice gets.
 - **A scoped `path` naming any directory that exists.** Longest-path-wins resolution would have let a
   *feature package* under an app carry its own taxonomy, which is a second model inside one unit.
   A scoped path must now name a unit the config already declared in `app_dirs` or `library_dirs`.

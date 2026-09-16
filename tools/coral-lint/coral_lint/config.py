@@ -122,6 +122,28 @@ def _strs(raw: object, key: str) -> tuple[str, ...]:
     return tuple(raw)
 
 
+def _reject_bare(types: tuple[str, ...], where: str) -> None:
+    """Every declared constructor must name where it lives.
+
+    A bare `validation` is a spelling, not an identity. The check resolves each
+    raise site through its module's imports, so `from errors import validation`
+    resolves to `errors.validation` and a bare declaration would never match it
+    while an unimported `raise validation(...)` is rejected by design. Declaring a
+    bare name therefore configures something the check cannot satisfy. Across
+    several units it is worse: two units naming one category the same thing would
+    each accept the other's constructor.
+    """
+    bare = sorted(t for t in types if "." not in t)
+    if not bare:
+        return
+    raise errors.validation(
+        "ambiguous_error_constructor",
+        f"{CONFIG_NAME}: {where} declares {', '.join(repr(b) for b in bare)} without a module."
+        " Constructors are matched on identity, so each entry must name where it lives"
+        " (`errors.validation`, not `validation`)",
+    )
+
+
 def _error_models(raw: object) -> tuple[ErrorModel, ...]:
     """Parse `[[coral.error_models]]`: one entry per app or published package.
 
@@ -166,22 +188,7 @@ def _error_models(raw: object) -> tuple[ErrorModel, ...]:
                 f"{CONFIG_NAME}: [[coral.error_models]] for {path!r} declares no `types`. An empty"
                 " model would fail every raise in that unit rather than checking it",
             )
-        # A bare `validation` names no module, so it cannot say WHOSE `validation`
-        # it is — which is the whole question this form exists to answer. Two units
-        # naming one category the same thing would then each accept the other's
-        # constructor, and the per-unit check would claim an exactness it does not
-        # have. The flat `error_types` form keeps accepting bare entries: one unit
-        # has nothing to be ambiguous against.
-        bare = sorted(t for t in types if "." not in t)
-        if bare:
-            raise errors.validation(
-                "ambiguous_error_constructor",
-                f"{CONFIG_NAME}: [[coral.error_models]] for {path!r} declares"
-                f" {', '.join(repr(b) for b in bare)} without a module. A per-unit taxonomy is"
-                f" matched on constructor identity, so each entry must be qualified"
-                f" (`errors.validation`, not `validation`) — a bare name cannot say which unit"
-                f" the constructor belongs to",
-            )
+        _reject_bare(types, f"[[coral.error_models]] for {path!r}")
         models.append(ErrorModel(path=path, types=frozenset(types)))
     return tuple(models)
 
@@ -228,6 +235,8 @@ def load(repo: Path) -> Config:
         error_models=_error_models(section.get("error_models", [])),
         source=CONFIG_NAME,
     )
+
+    _reject_bare(tuple(cfg.error_types), "[coral].error_types")
 
     # Two ways to say the same thing is two sources of truth, and the check would have
     # to pick one silently. Refuse instead.  [XCUT-4]

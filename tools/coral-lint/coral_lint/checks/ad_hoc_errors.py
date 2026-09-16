@@ -35,6 +35,8 @@ run on the second rather than producing that false pass.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from ..findings import CheckResult, Finding
 from ..layout import Layout
 from .. import pysource
@@ -48,37 +50,67 @@ REJECT = "reject"
 UNKNOWN = "unknown"
 
 
-def _verdict(label: str, bindings: pysource.Bindings, allowed: frozenset[str]) -> str:
+class _Ref:
+    """The shape `Layout.resolve_import` reads. One relative import, one name."""
+
+    __slots__ = ("module", "level", "names")
+
+    def __init__(self, module: str | None, level: int, name: str | None) -> None:
+        self.module = module
+        self.level = level
+        self.names = (name,) if name else ()
+
+
+def _verdict(
+    ctor: pysource.Constructor,
+    allowed: frozenset[str],
+    layout: Layout,
+    source: Path,
+    unit: str | None,
+) -> str:
     """Did THIS unit declare the constructor this raise site names?
 
-    Identity, never spelling. The raise site spells a name; the declaration names
-    where the constructor lives. Resolving the spelling through the module's own
-    imports is what keeps the two apart:
+    Identity, never spelling, and the identity has two halves.
 
-      * `raise validation(...)` after `from b_errors import validation` resolves to
-        `b_errors.validation`, so it is a finding inside an app that declared
-        `a_errors.validation`. Comparing final segments accepted it;
-      * `raise validation(...)` with no import at all resolves to nothing. A
-        locally defined `validation()` is an ad-hoc error type, which is exactly
-        what this rule forbids, so a matching spelling must not rescue it.
+    **What the name resolves to.** `raise validation(...)` after
+    `from b_errors import validation` is `b_errors.validation`, a finding inside an
+    app that declared `a_errors.validation`. A local `def validation` shadows the
+    import and is an ad-hoc error type, which is what this rule forbids. A
+    parameter or an assignment of that name could be anything, so it is UNKNOWN
+    rather than guessed either way.
 
-    The literal fallback is for a QUALIFIED label whose head this module did not
+    **Where it lives.** A relative import spells the same canonical name at any
+    depth: `from .errors import validation` and `from ...errors import validation`
+    are both `errors.validation`, and two units may legitimately each call their
+    own constructor that. So the module is resolved against the repository and
+    required to sit inside the unit that owns the raising slice. Climbing out of a
+    published package into its host app is a finding, not a match.
+
+    The literal fallback covers a QUALIFIED label whose head this module did not
     import — a package-level or re-exported binding the tool cannot see. The label
-    still carries its own module there, so accepting it only when the unit declared
-    that exact dotted name stays exact. A bare label never reaches it.
-
-    UNKNOWN is returned where an exact answer is not available: a star import, or a
-    name bound twice to different things. The caller counts those as unanalyzed
-    rather than calling them clean.
+    carries its own module there, so accepting only the exact declared dotted name
+    stays exact. A bare label never reaches it.
     """
-    canonical = bindings.resolve(label)
-    if canonical is not None:
-        return ACCEPT if canonical in allowed else REJECT
-    if bindings.unresolvable(label):
+    if ctor.origin == pysource.LOCAL_DEF:
+        return REJECT
+    if ctor.origin == pysource.REBOUND:
         return UNKNOWN
-    if "." in label:
-        return ACCEPT if label in allowed else REJECT
-    return REJECT
+    if ctor.origin == pysource.UNBOUND:
+        if ctor.star:
+            return UNKNOWN
+        if "." in ctor.label:
+            return ACCEPT if ctor.label in allowed else REJECT
+        return REJECT
+
+    if ctor.level > 0 and unit is not None:
+        targets = layout.resolve_import(source, _Ref(ctor.module, ctor.level, ctor.attr))
+        if not targets:
+            return UNKNOWN
+        for target in targets:
+            rel = layout.rel(target)
+            if rel != unit and not rel.startswith(f"{unit}/"):
+                return REJECT
+    return ACCEPT if ctor.target in allowed else REJECT
 
 
 def run(layout: Layout) -> CheckResult:
@@ -143,12 +175,13 @@ def run(layout: Layout) -> CheckResult:
 
     findings: list[Finding] = []
     unanalyzed = 0
-    unresolved = 0
+    unresolved: list[str] = []
 
-    for unit in layout.slices:
-        allowed = owner[unit.rel]
+    for slice_unit in layout.slices:
+        unit_rel = slice_unit.rel
+        allowed = owner[unit_rel]
 
-        for path in unit.source_files():
+        for path in slice_unit.source_files():
             if path.suffix != ".py":
                 unanalyzed += 1
                 continue
@@ -156,13 +189,13 @@ def run(layout: Layout) -> CheckResult:
             if tree is None:
                 unanalyzed += 1
                 continue
-            bindings = pysource.import_bindings(tree)
-            for hit in pysource.raised_types(tree):
-                verdict = _verdict(hit.label, bindings, allowed)
+            unit = config.error_model_for(unit_rel).path if config.error_models else None
+            for hit in pysource.raised_constructors(tree):
+                verdict = _verdict(hit, allowed, layout, path, unit)
                 if verdict == ACCEPT:
                     continue
                 if verdict == UNKNOWN:
-                    unresolved += 1
+                    unresolved.append(f"{layout.rel(path)}:{hit.line} ({hit.label})")
                     continue
                 findings.append(
                     Finding(
@@ -187,14 +220,26 @@ def run(layout: Layout) -> CheckResult:
                     )
                 )
 
+    # A raise whose constructor cannot be bound exactly leaves the check unable to
+    # decide that file, and a note beside an otherwise clean result is not a
+    # verdict: the run would still report `ran` with zero findings. Same answer as
+    # an unowned slice, for the same reason.
+    if unresolved:
+        shown = ", ".join(unresolved[:3])
+        more = f", +{len(unresolved) - 3} more" if len(unresolved) > 3 else ""
+        return CheckResult(
+            rule=RULE,
+            skipped=(
+                f"{len(unresolved)} raise(s) name a constructor this tool cannot bind to a "
+                f"declaration — a star import, a rebound name, or a relative import it could "
+                f"not resolve — so [ERR-2] cannot be decided for them ({shown}{more}). Import "
+                f"the constructor directly in the raising module"
+            ),
+        )
+
     notes: list[str] = []
     if unanalyzed:
         notes.append(f"{unanalyzed} non-Python or unparseable slice file(s) not analyzed")
-    if unresolved:
-        notes.append(
-            f"{unresolved} raise(s) name a constructor this tool cannot bind exactly "
-            f"(star import, or a name bound more than once) and were not analyzed"
-        )
     return CheckResult(
         rule=RULE,
         findings=tuple(sorted(findings, key=lambda f: f.sort_key)),

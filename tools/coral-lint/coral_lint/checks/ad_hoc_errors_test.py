@@ -266,16 +266,138 @@ def test_an_aliased_module_import_of_a_SIBLING_unit_is_still_a_finding(make_layo
     assert len(ad_hoc_errors.run(lay).findings) == 1
 
 
-def test_a_star_import_is_unanalyzed_rather_than_guessed_clean(make_layout):
+def test_a_star_import_skips_rather_than_reporting_clean(make_layout):
     # `from a_errors import *` could legitimately be where `validation` came from,
-    # and the tool cannot tell. It says so instead of answering either way.
+    # and the tool cannot tell. A note would leave the check reporting `ran` with
+    # zero findings, so it skips instead.
     lay = make_layout(
         _a("from a_errors import *\n\ndef run():\n    raise validation('ok', 'fine')\n"),
         coral_toml=SAME_TAIL_CFG,
     )
     result = ad_hoc_errors.run(lay)
+    assert not result.ran
     assert result.findings == ()
-    assert any("cannot bind exactly" in n for n in result.notes)
+    assert "cannot bind" in result.skipped
+
+
+# ── binding is lexically scoped, because Python is ───────────────────────────
+#
+# A file-wide union of imports treats an import anywhere as if it bound every
+# raise site. It does not: an import inside another function binds nothing here,
+# and a local def, a parameter or an assignment shadows one that would be visible.
+
+
+def test_a_module_level_import_binds_a_raise_inside_a_function(make_layout):
+    lay = make_layout(
+        _a("from a_errors import validation\n\ndef run():\n    raise validation('ok', 'fine')\n"),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    assert ad_hoc_errors.run(lay).findings == ()
+
+
+def test_a_local_def_shadowing_that_import_does_not_pass(make_layout):
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run():\n"
+            "    def validation(code, message):\n        return RuntimeError(message)\n\n"
+            "    raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and len(result.findings) == 1
+
+
+def test_a_parameter_shadowing_that_import_does_not_pass(make_layout):
+    # The value comes from the caller, so neither answer is provable. Not clean.
+    lay = make_layout(
+        _a("from a_errors import validation\n\ndef run(validation):\n    raise validation('b', 'n')\n"),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_an_assignment_shadowing_that_import_does_not_pass(make_layout):
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run():\n    validation = make_custom_error\n    raise validation('b', 'n')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_an_import_in_another_function_establishes_no_provenance(make_layout):
+    # `helper`'s import binds `helper`'s scope, not the module's and not `run`'s.
+    lay = make_layout(
+        _a(
+            "def helper():\n    from a_errors import validation\n\n"
+            "def run():\n    raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and len(result.findings) == 1
+
+
+# ── a relative import must stay inside the unit that owns the slice ──────────
+#
+# `from .errors import validation` and `from ...errors import validation` spell the
+# same canonical name and can name different packages. Two units may legitimately
+# each call their own constructor `errors.validation`, so spelling cannot decide
+# it; the module is resolved against the repository instead.
+
+NESTED_CFG = """[coral]
+app_dirs = ["a"]
+library_dirs = ["a/pkg"]
+feature_dirs = ["a/feat", "a/pkg/feat"]
+
+[[coral.error_models]]
+path = "a"
+types = ["errors.validation"]
+
+[[coral.error_models]]
+path = "a/pkg"
+types = ["errors.validation"]
+"""
+
+NESTED_TREE = {
+    "a/__init__.py": "",
+    "a/errors.py": "",
+    "a/feat/__init__.py": "",
+    "a/feat/add.py": "",
+    "a/pkg/__init__.py": "",
+    "a/pkg/errors.py": "",
+    "a/pkg/feat/__init__.py": "",
+    "a/pkg/feat/parse.py": "",
+}
+
+
+def test_two_units_may_declare_the_same_local_constructor_spelling(make_layout):
+    tree = dict(NESTED_TREE)
+    tree["a/feat/add.py"] = "from ..errors import validation\n\ndef run():\n    raise validation('a', 'b')\n"
+    tree["a/pkg/feat/parse.py"] = (
+        "from ..errors import validation\n\ndef run():\n    raise validation('a', 'b')\n"
+    )
+    result = ad_hoc_errors.run(make_layout(tree, coral_toml=NESTED_CFG))
+    assert result.ran and result.findings == ()
+
+
+def test_a_relative_import_escaping_into_the_parent_app_is_a_finding(make_layout):
+    # `a/pkg` is a published package with its own model. Climbing to `a/errors.py`
+    # is the host app's constructor, which spells identically and is not the
+    # package's.
+    tree = dict(NESTED_TREE)
+    tree["a/pkg/feat/parse.py"] = (
+        "from ...errors import validation\n\ndef run():\n    raise validation('a', 'b')\n"
+    )
+    result = ad_hoc_errors.run(make_layout(tree, coral_toml=NESTED_CFG))
+    assert result.ran
+    assert [f.path for f in result.findings] == ["a/pkg/feat/parse.py"]
 
 
 def test_the_flat_form_still_works_for_a_single_unit_repo(make_layout):
