@@ -216,6 +216,7 @@ IMPORTED = "imported"      # one definite import binding reaches the raise
 LOCAL_DEF = "local_def"    # a `def` or `class` of that name shadows it
 REBOUND = "rebound"        # a parameter, assignment or other rebinding shadows it
 AMBIGUOUS = "ambiguous"    # more than one binding could reach the raise
+LOCAL_UNSET = "local_unset"  # a function local, not yet given a value at this point
 UNBOUND = "unbound"        # nothing in scope binds it
 
 
@@ -235,6 +236,13 @@ class Constructor:
     import written *after* the raise has not run yet; and a name imported
     differently on two branches is not one identity. Anything that is not a single
     definite binding at the raise is AMBIGUOUS rather than a guess.
+
+    Function locals are decided at **compile** time, not by execution order, and
+    that is a separate fact from which binding has run. A name assigned or imported
+    anywhere in a function body is local to the whole of it, so a raise above that
+    statement reads an unset local — `UnboundLocalError` — rather than the module's
+    binding of the same name. LOCAL_UNSET is that case, and it is deliberately not
+    resolved to the enclosing scope.
 
     `level` and `module` are kept unreduced for relative imports. `from .errors`
     and `from ...errors` spell the same canonical `errors.validation` and can name
@@ -331,6 +339,64 @@ def _targets(node: ast.expr, state: _State) -> None:
         _targets(node.value, state)
 
 
+def _local_names(scope: ast.AST) -> set[str]:
+    """Names Python makes local to this function, whatever the execution order.
+
+    The compile-time rule, not the runtime one: binding a name anywhere in a
+    function body makes it local to all of it, so a read above that statement is an
+    unset local rather than the enclosing scope's binding. Names declared `global`
+    or `nonlocal` are explicitly not local and are removed.
+
+    Deliberately not a symbol table. It covers the binding forms this resolver
+    already models, and it is used only to stop a fall-through, never to claim an
+    identity.
+    """
+    names: set[str] = set()
+    declared: set[str] = set()
+
+    def targets(node: ast.expr) -> None:
+        if isinstance(node, ast.Name):
+            names.add(node.id)
+        elif isinstance(node, (ast.Tuple, ast.List)):
+            for element in node.elts:
+                targets(element)
+        elif isinstance(node, ast.Starred):
+            targets(node.value)
+
+    stack: list[ast.AST] = list(getattr(scope, "body", []))
+    while stack:
+        node = stack.pop()
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                names.add(alias.asname or alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name != "*":
+                    names.add(alias.asname or alias.name)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+            continue  # its body binds its own scope, not this one
+        elif isinstance(node, ast.Lambda):
+            continue
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                targets(target)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+            targets(node.target)
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            targets(node.target)
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            for item in node.items:
+                if item.optional_vars is not None:
+                    targets(item.optional_vars)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            names.add(node.name)
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            declared.update(node.names)
+        stack.extend(ast.iter_child_nodes(node))
+    return names - declared
+
+
 def _params(scope: ast.AST, state: _State) -> None:
     if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
         return
@@ -362,10 +428,17 @@ def _import_binds(node: ast.Import | ast.ImportFrom, state: _State) -> None:
         )
 
 
-def _lookup(head: str, state: _State, chain: list[_Frame]) -> tuple[_Bound | None, bool]:
+def _lookup(
+    head: str, state: _State, chain: list[_Frame], locals_: frozenset[str]
+) -> tuple[_Bound | None, bool]:
     star = state.star or any(frame.star for frame in chain)
     if head in state.names:
         return state.names[head], star
+    # A function local with no value yet is not the enclosing scope's name. Reading
+    # it raises UnboundLocalError, so falling through to an outer frame would
+    # resolve to a binding this code can never see.
+    if head in locals_:
+        return _Bound(LOCAL_UNSET), star
     for frame in reversed(chain):
         if head in frame.names:
             return frame.names[head], star
@@ -380,13 +453,15 @@ def raised_constructors(tree: ast.Module) -> list[Constructor]:
     """
     out: list[Constructor] = []
 
-    def record(node: ast.Raise, state: _State, chain: list[_Frame]) -> None:
+    def record(
+        node: ast.Raise, state: _State, chain: list[_Frame], locals_: frozenset[str]
+    ) -> None:
         if not isinstance(node.exc, ast.Call):
             return
         label = _dotted(node.exc.func)
         if not label:
             return
-        bound, star = _lookup(label.partition(".")[0], state, chain)
+        bound, star = _lookup(label.partition(".")[0], state, chain, locals_)
         if bound is None:
             out.append(Constructor(label, node.lineno, UNBOUND, star=star))
         elif bound.kind == IMPORTED:
@@ -408,6 +483,14 @@ def raised_constructors(tree: ast.Module) -> list[Constructor]:
         """
         state = _State()
         _params(scope, state)
+        # Only functions get the compile-time local rule. A class body uses the
+        # fall-through lookup, so a name it has not bound yet is the enclosing
+        # scope's, not an unset local.
+        locals_ = (
+            frozenset(_local_names(scope))
+            if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef))
+            else frozenset()
+        )
         nested: list[ast.AST] = []
         multi: set[str] = set()
 
@@ -446,7 +529,7 @@ def raised_constructors(tree: ast.Module) -> list[Constructor]:
                     state.bind(name, _Bound(REBOUND))
                 return state
             if isinstance(node, ast.Raise):
-                record(node, state, chain)
+                record(node, state, chain, locals_)
                 walk_expr(node, state, skip_raise=True)
                 return state
             if isinstance(node, ast.If):
@@ -506,7 +589,7 @@ def raised_constructors(tree: ast.Module) -> list[Constructor]:
                         nested.append(child)
                     continue
                 if isinstance(child, ast.Raise) and not skip_raise:
-                    record(child, state, chain)
+                    record(child, state, chain, locals_)
                 walk_expr(child, state)
 
         final = run_block(list(getattr(scope, "body", [])), state) if not isinstance(scope, ast.Lambda) else state

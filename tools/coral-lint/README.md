@@ -135,12 +135,29 @@ category the same thing would each accept the other's. Write `errors.validation`
 `from apierrors import validation` then `raise validation(...)` resolves to `apierrors.validation`; so do
 `from apierrors import validation as invalid` and `import apierrors as errors`.
 
+**Every accepted raise carries a real binding.** These are the supported forms:
+
+```python
+import errors                          # then  raise errors.validation(...)
+import apierrors as errors             # then  raise errors.validation(...)
+from errors import validation          # then  raise validation(...)
+from errors import validation as bad   # then  raise bad(...)
+from .errors import validation         # relative, resolved and bounded by the unit
+```
+
+A name nothing in scope binds is a **finding**, whether it is written `validation` or
+`errors.validation`. The second is a `NameError` in Python unless `errors` is bound, and matching the
+text of a declaration proves nothing about where the constructor came from.
+
 Resolution is **lexical and in source order**, because Python is both:
 
 - an import inside another function binds nothing here, and a local `def`, a parameter or an assignment
   of the same name shadows one that would otherwise be visible. A locally defined `validation()` is a
   finding — that is the ad-hoc error type `[ERR-2]` exists to catch;
 - an import written **after** the raise has not run yet, and does not bind it;
+- a name bound anywhere in a function body is **local to all of it**, which Python decides at compile
+  time. A raise above that statement reads an unset local, not the module's binding of the same name,
+  so it is undecidable rather than resolved outward. `global` and `nonlocal` opt out;
 - two branches importing the same name from different modules are not one identity, and neither is a name
   a same-scope `from x import *` could have replaced. Branch outcomes are joined conservatively:
   agreement survives, disagreement is undecidable;
@@ -151,7 +168,8 @@ Resolution is **lexical and in source order**, because Python is both:
 A **relative** import must stay inside the unit that owns the raising slice. `from .errors import
 validation` and `from ...errors import validation` spell the same name and can reach different packages,
 so the module is resolved against the repository: a published package climbing into its host app is a
-finding, and two units may each call their own constructor `errors.validation` without colliding.
+finding, and two units may each call their own constructor `errors.validation` without colliding. This
+applies to the flat form too, against the single unit it declares.
 
 Where an exact binding is unavailable — a star import, a rebound name, an unresolvable relative import —
 `[ERR-2]` **skips** and names the raise. It never reports a clean run over a raise it could not decide.

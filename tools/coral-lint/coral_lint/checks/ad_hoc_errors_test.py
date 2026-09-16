@@ -25,12 +25,38 @@ def test_flags_a_bare_builtin_exception(make_layout):
     assert "ValueError" in findings[0].message and findings[0].line == 2
 
 
-def test_accepts_a_declared_taxonomy_constructor(make_layout):
+def test_accepts_an_imported_qualified_constructor(make_layout):
+    # `import errors` binds the head, so `errors.validation` has provenance.
+    lay = make_layout(
+        {
+            "app/feat/add.py":
+                "import errors\n\ndef run():\n    raise errors.validation('bad', 'nope')\n"
+        },
+        coral_toml=TAXONOMY_CFG,
+    )
+    assert ad_hoc_errors.run(lay).findings == ()
+
+
+def test_an_unbound_qualified_spelling_is_not_provenance(make_layout):
+    # Nothing binds `errors` here, so at runtime this is a NameError. Matching the
+    # text of a declaration proves nothing about where the constructor came from.
     lay = make_layout(
         {"app/feat/add.py": "def run():\n    raise errors.validation('bad', 'nope')\n"},
         coral_toml=TAXONOMY_CFG,
     )
-    assert ad_hoc_errors.run(lay).findings == ()
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and len(result.findings) == 1
+
+
+def test_an_arbitrary_qualified_name_cannot_be_laundered_by_the_config(make_layout):
+    # The same shortcut from the other side: declaring the text does not make an
+    # unbound spelling of it the declared constructor.
+    lay = make_layout(
+        {"app/feat/add.py": "def run():\n    raise whatever.errors.validation('b', 'n')\n"},
+        coral_toml=TAXONOMY_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and len(result.findings) == 1
 
 
 def test_accepts_a_bare_reference_the_module_actually_imported(make_layout):
@@ -101,7 +127,9 @@ TWO_APPS_TREE = {
 
 def test_a_slice_raising_its_own_app_taxonomy_passes(make_layout):
     tree = dict(TWO_APPS_TREE)
-    tree["a/feat/add.py"] = "def run():\n    raise a_errors.validation('bad', 'nope')\n"
+    tree["a/feat/add.py"] = (
+        "import a_errors\n\ndef run():\n    raise a_errors.validation('bad', 'nope')\n"
+    )
     assert ad_hoc_errors.run(make_layout(tree, coral_toml=TWO_APPS_CFG)).findings == ()
 
 
@@ -120,8 +148,9 @@ def test_a_slice_raising_a_SIBLING_apps_taxonomy_is_a_finding(make_layout):
 
 def test_each_app_is_checked_against_its_own_model_in_one_pass(make_layout):
     tree = dict(TWO_APPS_TREE)
-    tree["a/feat/add.py"] = "def run():\n    raise a_errors.not_found('x', 'no')\n"
-    tree["b/feat/run.py"] = "def run():\n    raise a_errors.not_found('x', 'no')\n"
+    body = "import a_errors\n\ndef run():\n    raise a_errors.not_found('x', 'no')\n"
+    tree["a/feat/add.py"] = body
+    tree["b/feat/run.py"] = body
 
     result = ad_hoc_errors.run(make_layout(tree, coral_toml=TWO_APPS_CFG))
     assert [f.path for f in result.findings] == ["b/feat/run.py"]
@@ -187,8 +216,12 @@ def test_a_sibling_constructor_with_the_SAME_final_name_is_still_a_finding(make_
 def test_the_same_final_name_from_its_OWN_unit_still_passes(make_layout):
     # The other half: narrowing the match must not start failing correct code.
     tree = dict(SAME_TAIL_TREE)
-    tree["a/feat/add.py"] = "def run():\n    raise a_errors.validation('ok', 'fine')\n"
-    tree["b/feat/run.py"] = "def run():\n    raise b_errors.validation('ok', 'fine')\n"
+    tree["a/feat/add.py"] = (
+        "import a_errors\n\ndef run():\n    raise a_errors.validation('ok', 'fine')\n"
+    )
+    tree["b/feat/run.py"] = (
+        "import b_errors\n\ndef run():\n    raise b_errors.validation('ok', 'fine')\n"
+    )
 
     assert ad_hoc_errors.run(make_layout(tree, coral_toml=SAME_TAIL_CFG)).findings == ()
 
@@ -404,7 +437,8 @@ def test_the_flat_form_still_works_for_a_single_unit_repo(make_layout):
     # Backward compatibility: one app, one `error_types` list, unchanged behavior.
     cfg = '[coral]\nfeature_dirs = ["app/feat"]\napp_dirs = ["app"]\nerror_types = ["errors.validation"]\n'
     tree = {
-        "app/feat/add.py": "def run():\n    raise errors.validation('bad', 'nope')\n",
+        "app/feat/add.py":
+            "import errors\n\ndef run():\n    raise errors.validation('bad', 'nope')\n",
         "app/errors.py": "",
     }
     result = ad_hoc_errors.run(make_layout(tree, coral_toml=cfg))
@@ -445,8 +479,10 @@ path = "a/pkg"
 types = ["pkg_errors.invalid"]
 """
     tree = {
-        "a/feat/add.py": "def run():\n    raise a_errors.validation('ok', 'fine')\n",
-        "a/pkg/feat/parse.py": "def run():\n    raise pkg_errors.invalid('ok', 'fine')\n",
+        "a/feat/add.py":
+            "import a_errors\n\ndef run():\n    raise a_errors.validation('ok', 'fine')\n",
+        "a/pkg/feat/parse.py":
+            "import pkg_errors\n\ndef run():\n    raise pkg_errors.invalid('ok', 'fine')\n",
         "a/errors.py": "",
     }
     assert ad_hoc_errors.run(make_layout(tree, coral_toml=cfg)).findings == ()
@@ -616,4 +652,113 @@ def test_the_flat_form_with_no_declared_unit_keeps_its_legacy_reach(make_layout)
             "from errors import validation\n\ndef run():\n    raise validation('a', 'b')\n",
     }
     result = ad_hoc_errors.run(make_layout(tree, coral_toml=cfg))
+    assert result.ran and result.findings == ()
+
+
+# ── function locals are decided at compile time, not by execution order ──────
+#
+# Binding a name anywhere in a function body makes it local to all of it. A raise
+# above that statement reads an unset local — UnboundLocalError — and must not be
+# resolved to the module's binding of the same name.
+
+
+def test_a_later_assignment_makes_the_name_local_from_function_entry(make_layout):
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run():\n    raise validation('bad', 'nope')\n    validation = custom\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_later_import_makes_the_name_local_from_function_entry(make_layout):
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run():\n    raise validation('bad', 'nope')\n"
+            "    from b_errors import validation\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_later_nested_def_makes_the_name_local_from_function_entry(make_layout):
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run():\n    raise validation('bad', 'nope')\n\n"
+            "    def validation(code, message):\n        return RuntimeError(message)\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_free_name_still_resolves_to_the_enclosing_scope(make_layout):
+    # The rule must not swallow the ordinary case: nothing in `run` binds the
+    # name, so it is free and the module's import is what it reads.
+    lay = make_layout(
+        _a("from a_errors import validation\n\ndef run():\n    raise validation('ok', 'fine')\n"),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+def test_a_global_declaration_opts_out_of_the_local_rule(make_layout):
+    # `global` says the name is not local, so the compile-time rule does not apply.
+    # It is still a rebinding this check cannot follow, so it stays undecidable.
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run():\n    global validation\n    raise validation('b', 'n')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+# ── the flat form's sole unit also bounds relative imports ───────────────────
+
+SOLE_PKG_CFG = """[coral]
+library_dirs = ["a/pkg"]
+feature_dirs = ["a/pkg/feat"]
+error_types = ["errors.validation"]
+"""
+
+SOLE_PKG_TREE = {
+    "a/__init__.py": "",
+    "a/errors.py": "",
+    "a/pkg/__init__.py": "",
+    "a/pkg/errors.py": "",
+    "a/pkg/feat/__init__.py": "",
+}
+
+
+def test_the_flat_form_bounds_a_relative_import_by_its_sole_unit(make_layout):
+    # `from ...errors` escapes the one published package the config declares and
+    # reaches the host app's error module. Its spelling is identical, so only the
+    # resolved path distinguishes them.
+    tree = dict(SOLE_PKG_TREE)
+    tree["a/pkg/feat/parse.py"] = (
+        "from ...errors import validation\n\ndef run():\n    raise validation('b', 'n')\n"
+    )
+    result = ad_hoc_errors.run(make_layout(tree, coral_toml=SOLE_PKG_CFG))
+    assert result.ran
+    assert [f.path for f in result.findings] == ["a/pkg/feat/parse.py"]
+
+
+def test_the_flat_form_accepts_a_relative_import_inside_its_sole_unit(make_layout):
+    tree = dict(SOLE_PKG_TREE)
+    tree["a/pkg/feat/parse.py"] = (
+        "from ..errors import validation\n\ndef run():\n    raise validation('o', 'k')\n"
+    )
+    result = ad_hoc_errors.run(make_layout(tree, coral_toml=SOLE_PKG_CFG))
     assert result.ran and result.findings == ()

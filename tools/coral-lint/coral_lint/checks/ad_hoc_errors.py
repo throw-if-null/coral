@@ -92,21 +92,24 @@ def _verdict(
     required to sit inside the unit that owns the raising slice. Climbing out of a
     published package into its host app is a finding, not a match.
 
-    The literal fallback covers a QUALIFIED label whose head this module did not
-    import — a package-level or re-exported binding the tool cannot see. The label
-    carries its own module there, so accepting only the exact declared dotted name
-    stays exact. A bare label never reaches it.
+    **Nothing is accepted on spelling.** A label whose head nothing in scope binds
+    is a finding whether it is written `validation` or `errors.validation`: in
+    Python the second is a `NameError` unless `errors` is bound, and matching the
+    text of a declaration proves nothing about where the constructor came from. The
+    supported forms all carry a real binding — `import errors` then
+    `raise errors.validation(...)`, or `from errors import validation` then
+    `raise validation(...)`.
     """
     if ctor.origin == pysource.LOCAL_DEF:
         return REJECT
-    if ctor.origin in (pysource.REBOUND, pysource.AMBIGUOUS):
+    if ctor.origin in (pysource.REBOUND, pysource.AMBIGUOUS, pysource.LOCAL_UNSET):
         return UNKNOWN
     if ctor.origin == pysource.UNBOUND:
-        if ctor.star:
-            return UNKNOWN
-        if "." in ctor.label:
-            return ACCEPT if ctor.label in allowed else REJECT
-        return REJECT
+        # Nothing in scope binds the head, so there is no provenance to compare —
+        # a qualified spelling is not evidence, it is the same text match this
+        # check spent its design removing. A star import could have supplied it;
+        # anything else is not the declared constructor.
+        return UNKNOWN if ctor.star else REJECT
 
     if ctor.level > 0 and unit is not None:
         targets = layout.resolve_import(source, _Ref(ctor.module, ctor.level, ctor.attr))
@@ -209,7 +212,13 @@ def run(layout: Layout) -> CheckResult:
             if tree is None:
                 unanalyzed += 1
                 continue
-            unit = config.error_model_for(unit_rel).path if config.error_models else None
+            # The sole declared unit owns the flat form's slices too, so a relative
+            # import escaping it is the same finding the scoped form gives. `None`
+            # is left only for the legacy config that declares no unit at all, where
+            # there is no boundary to escape.
+            unit = (
+                config.error_model_for(unit_rel).path if config.error_models else sole
+            )
             for hit in pysource.raised_constructors(tree):
                 verdict = _verdict(hit, allowed, layout, path, unit)
                 if verdict == ACCEPT:

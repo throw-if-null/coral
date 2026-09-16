@@ -151,6 +151,18 @@ and was not one:
   state and joining branch outcomes conservatively — agreement survives, disagreement is undecidable —
   so only one definite binding reaching the raise is accepted. A same-scope `from x import *` unsettles
   the names it could have replaced.
+- **Function locals resolved outward before they were set.** Python decides a function's locals at
+  compile time: a name bound anywhere in the body is local to all of it, so a raise above that statement
+  reads an unset local rather than the module's binding of the same name. The forward walk answered
+  *which import has run*, which is a different question, and resolved such a raise to the enclosing
+  scope. A per-function pre-scan now stops that fall-through; `global` and `nonlocal` opt out.
+- **A qualified spelling accepted without a binding.** `raise errors.validation(...)` was accepted when
+  the declaration contained that text, even where nothing bound `errors` — a `NameError` at runtime, and
+  the text match this resolver spent several rounds removing. Nothing is accepted on spelling now: an
+  unbound head is a finding whether bare or dotted, and every accepted raise carries a real import.
+- **The flat form skipping relative-import containment.** It passed no unit into the verdict, so the
+  rule that a relative import must stay inside the owning unit applied only to the scoped form. The
+  single declared unit is now passed through; `None` is left only for a config that declares no unit.
 - **A class namespace treated as an enclosing scope.** A constructor imported into a class body is an
   attribute, not a bare name its methods can see, so a method could be accepted against a binding Python
   would never give it. The class frame is skipped when resolving inside its methods, while scopes
