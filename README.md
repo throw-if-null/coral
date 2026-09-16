@@ -88,6 +88,9 @@ Rules carry stable IDs like `[DUP-2]`, and three independent classifications:
 - an **[architectural scale](./CONVENTIONS.md#architectural-scale)** saying whether it governs one app or
   several apps composing
 
+A rule binds whether or not a tool can verify it yet:
+[rules define conformance, and tools implement partial verification of them](./CONVENTIONS.md#rules-and-verification).
+
 On the live site every citation links to its definition. The build fails on any of the following:
 
 - a rule has no class or no layer

@@ -285,6 +285,20 @@ cannot keep, and it costs more credibility than an honest `[review]`.
 A new convention becomes a clean unit of work: new rule ID → new `[auto]` check (or `[review]` note) →
 enforced going forward.
 
+### Rules and verification
+
+Rules define conformance. Tools implement partial, evolving verification of those rules. Tool coverage
+must never redefine or narrow the architecture.
+
+A rule remains applicable whether or not Coral currently has a tool capable of verifying it
+automatically. A missing or incomplete checker is a limitation of the tooling, not an exception to the
+rule. Conversely, the implementation details or constraints of a checker must not become architectural
+requirements unless they are independently justified and promoted into the rules.
+
+Coral's tooling should therefore distinguish **conformance** from **verification coverage**. Where a rule
+can be checked deterministically, a tool may enforce it. Where it cannot, the tool should report that
+limitation rather than silently weakening the rule to match what it can prove.
+
 ## Prose vs. contract
 
 Each document has two layers, and the build enforces the relationship between them:
