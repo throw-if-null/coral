@@ -52,28 +52,30 @@ again** — one batch takes one bump, however many breaking entries it holds.
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 
 Coral required a predictable error architecture and stated it as a fixed vocabulary. `[ERR-1]` named
-exactly six categories — `usage`, `validation`, `not_found`, `conflict`, `infrastructure`, `internal` —
-and lived in the production baseline. Two things were wrong with that. The architectural claim Coral
-actually needs is that *there is one declared model per app or package, and presentation belongs to a
-boundary rather than to a slice*, which is agent-justified and belongs in the kernel. The six names are a good default vocabulary, which is not.
-A project with a three-category taxonomy was non-conformant for the category count alone, and a project
-that had adopted nothing owed no error model at all.
+exactly six categories — `usage`, `validation`, `not_found`, `conflict`, `infrastructure`,
+`internal` — and lived in the production baseline. Two things were wrong with that. The
+architectural claim Coral actually needs is that *there is one declared model per app or published
+package, and presentation belongs to a boundary rather than to a slice*, which is agent-justified
+and belongs in the kernel. The six names are a good default vocabulary, which is not. A project with
+a three-category taxonomy was non-conformant for the category count alone, and a project that had
+adopted nothing owed no error model at all.
 
 **`[ERR-1]` is now a kernel rule, stated in `ARCHITECTURE.md`.** Each app or published package declares
-one small, stable, structured error model for its own slices: its categories are declared once for that
-app or package, every failure a slice raises is constructed through that declared model, and presenting a
-raised failure belongs to a boundary that owns an observable contract, never to a slice. It prescribes
+one small, stable, structured error model for its own slices: its categories are declared once for
+that app or published package, every failure a slice raises is constructed through that declared
+model, and presenting a raised failure belongs to a boundary that owns an observable contract, never
+to a slice. It prescribes
 **no number of categories and no names**. A project that declares its own small, stable taxonomy is
 conformant, and needs no `[VER-5]` exception merely because its categories differ from Coral's
 recommended ones. What it still cannot do is let a slice mint a category locally or present a failure in
 passing: changing the taxonomy is a change to a shared declaration, made where that declaration lives,
 and where the right category is genuinely unclear `[AGENT-2]` applies — flag it rather than guess.
 
-**The unit is the app or package, not the repository.** An app is one deployable unit, and the rule binds
-at that grain. A repository holding a backend and a CLI holds two error models unless somebody
-deliberately shares one, and apps composing into a system acquire no cross-app taxonomy from this rule —
-each raises and presents inside its own boundary. `[XCUT-1]` still decides, per app, whether that model
-becomes a physical crosscut.
+**The unit is the app or published package, not the repository.** An app is one deployable unit, and
+the rule binds at that grain. A repository holding a backend and a CLI holds two error models unless
+somebody deliberately shares one, and apps composing into a system acquire no cross-app taxonomy
+from this rule — each raises and presents inside its own boundary. `[XCUT-1]` still decides, per
+app, whether that model becomes a physical crosscut.
 
 **The presentation half is stated as ownership rather than as a root, so it holds for a library.** "One
 boundary owns rendering it" would have been ambiguous for exactly one core profile: a library has no
@@ -111,25 +113,43 @@ mechanism in the kernel, which the membership test's fourth clause forbids. `[ER
 policy, is untouched.
 
 **`[ERR-2]`'s statement now matches what a checker can decide, and follows `[ERR-1]`'s grain.** It said
-errors carry `{ category, code, message }` and that `category` is "one of the six". A static check sees
-neither the fields nor the argument values — it sees the raised type. The rule now requires a slice to
-raise only through the error model declared for **its own app or package**, never an ad-hoc one and never
-a sibling unit's, and the rule text says plainly which half is `[auto]`. `{ category, code, message }`
-remains the baseline's concrete shape, with slice-owned `code` strings, stated as the commentary it
-always was in practice. **Loosened, not tightened:** every project that conformed to the old wording
-conforms to the new one.
+errors carry `{ category, code, message }` and that `category` is "one of the six". A static check
+sees neither the fields nor the argument values — it sees the raised type. The rule now requires a
+slice to raise only through the error model declared for **its own app or published package**, never
+an ad-hoc one and never a sibling unit's, and the rule text says plainly which half is `[auto]`. `{
+category, code, message }` remains the baseline's concrete shape, with slice-owned `code` strings,
+stated as the commentary it always was in practice. **Loosened, not tightened:** every project that
+conformed to the old wording conforms to the new one.
 
 **`coral-lint` learned the same grain, and refuses to guess it.** The `[ERR-2]` check took one
-repository-wide `error_types` allowlist and applied it to every slice, so a repo holding a backend and a
-CLI could pass a backend slice that raised the CLI's constructor — an `[ERR-1]` boundary violation
-reported as clean. `coral.toml` now accepts `[[coral.error_models]]`, one entry per app or package with
-its own `path` and `types`, and each slice is checked against the model whose path contains it, longest
-path winning. A slice inside no declared model is reported as unanalyzed rather than passed. The flat
-`error_types` form still means *one model for everything here*, which is true of a single-unit repo — and
-where a repo declares several units (`app_dirs` / `library_dirs`) with only the flat form, the check
-**skips and says why** instead of unioning the constructors. Declaring both forms is a hard config
-failure. This is the tool's implementation of an already-selected rule and pulls in no applicability
-work.
+repository-wide `error_types` allowlist and applied it to every slice, so a repo holding a backend and
+a CLI could pass a backend slice that raised the CLI's constructor — an `[ERR-1]` boundary violation
+reported as clean. `coral.toml` now accepts `[[coral.error_models]]`, one entry per app or published
+package with its own `path` and `types`, and each slice is checked against the model whose path
+contains it, longest path winning. Declaring both forms is a hard config failure. This is the tool's
+implementation of an already-selected rule and pulls in no applicability work.
+
+**Three ways that per-unit check could still report a clean run, all closed.** Each looked like a pass
+and was not one:
+
+- **A repo-wide allowlist across several units.** Where a repo declares several units (`app_dirs` /
+  `library_dirs`) with only the flat `error_types`, the check **skips and says why** instead of
+  unioning the constructors. The flat form still means *one model for everything here*, which is true
+  of a single-unit repo.
+- **A qualified raise matched by its final segment.** Two units routinely name one category the same
+  thing, so comparing `b_errors.validation` against `a_errors.validation` by tail passed a
+  cross-boundary raise. A qualified raise site now matches a declared qualified constructor exactly;
+  the final segment is consulted only for a bare reference, which is what `from errors import
+  validation` leaves in the AST.
+- **A scoped `path` naming any directory that exists.** Longest-path-wins resolution would have let a
+  *feature package* under an app carry its own taxonomy, which is a second model inside one unit.
+  A scoped path must now name a unit the config already declared in `app_dirs` or `library_dirs`.
+  A published package nested in an app is such a unit and legitimately overrides its host.
+
+**An uncovered slice is no longer a clean run either.** A slice inside no declared model was recorded
+as a note, and a note does not change the outcome: the check still reported `ran` with zero findings
+and the tool exited 0 while that slice was never examined. Unowned slices now **skip** the check and
+name themselves, which is the same answer the multi-unit case gets, for the same reason.
 
 **`[ERR-5]` `[guide]` is the recommended six-category vocabulary, and it is the one new ID in this
 entry.** The list, and the explanation of what each category means, moved there intact, along with why

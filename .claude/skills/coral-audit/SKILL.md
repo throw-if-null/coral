@@ -66,12 +66,12 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
    the declaration, never by the code's shape:
 
    - **kernel** — always counts, for every Coral project, with nothing to adopt and nothing to decline.
-     They audit against three different things. Against the **source**: capability slicing and the five
-     categories (`[MODEL-1]`), one trigger owned end to end (`[BOUND-2]`), promotion to a crosscut gated
-     on a must-not-diverge invariant (`[XCUT-1]`), consuming another slice only through its published
-     capability (`[COMPOSE-1]`), one small declared error model per app or package with presentation owned
-     by a boundary rather than by slices (`[ERR-1]`), behavior-first tests at the entry point
-     (`[TEST-1]`). Against
+     They audit against three different things. Against the **source**: capability slicing and the
+     five categories (`[MODEL-1]`), one trigger owned end to end (`[BOUND-2]`), promotion to a
+     crosscut gated on a must-not-diverge invariant (`[XCUT-1]`), consuming another slice only
+     through its published capability (`[COMPOSE-1]`), one small declared error model per app or
+     published package with presentation owned by a boundary rather than by slices (`[ERR-1]`),
+     behavior-first tests at the entry point (`[TEST-1]`). Against
      **`CORAL.md`**: `[VER-3]`, `[VER-5]`, `[VER-6]`. Against **provenance** — commit authorship, review,
      session history, not the final state of the code: `[AGENT-2]` (ambiguity flagged, not guessed) and
      `[AGENT-4]` (a human authors every exception and extension); where that evidence is unavailable these
@@ -244,10 +244,10 @@ audited against, in full:**
 
 - against the **source** — `[MODEL-1]` (the five categories), `[BOUND-2]` (one trigger, owned end to end),
   `[XCUT-1]` (promotion to a crosscut needs a must-not-diverge invariant), `[COMPOSE-1]` (published
-  capability, never internals), `[ERR-1]` (one small, stable, structured error model declared once for the
-  app or package, presented at a boundary rather than inside slices — **not** a fixed list of category
-  names, and **not** a required field layout or stable error id), `[TEST-1]` (behavior-first at the entry
-  point). Six rules; that is the whole structural surface.
+  capability, never internals), `[ERR-1]` (one small, stable, structured error model declared once
+  for the app or published package, presented at a boundary rather than inside slices — **not** a
+  fixed list of category names, and **not** a required field layout or stable error id), `[TEST-1]`
+  (behavior-first at the entry point). Six rules; that is the whole structural surface.
 - against **`CORAL.md`** — `[VER-3]` (a target is declared), `[VER-5]` (deviations are explicit and
   path-scoped), `[VER-6]` (what it adopts is declared).
 - against the **way architectural decisions were made** — `[AGENT-2]` (an ambiguous architectural decision

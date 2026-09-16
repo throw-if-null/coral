@@ -365,7 +365,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[BOUND-2]` | `[review]` | kernel | One request or trigger per slice, or a tightly-coupled pair, owned end to end. |
 | `[XCUT-1]` | `[review]` | kernel | Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant. |
 | `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals. Depend on its published capability. |
-| `[ERR-1]` | `[review]` | kernel | One small, stable, structured error model per app or package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice. |
+| `[ERR-1]` | `[review]` | kernel | One small, stable, structured error model per app or published package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice. |
 | `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking. |
 
 ## Coral Production Baseline — the App
@@ -427,7 +427,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[IDEM-4]` | `[review]` | production baseline | Never auto-retry a non-idempotent mutation. |
 | `[IDEM-5]` | `[review]` | production baseline | On an at-least-once platform, a mutating handler must be idempotent. |
 | `[IDEM-6]` | `[review]` | production baseline | Classify an unlisted verb by its effect and name it truthfully. Flag an unclear effect. |
-| `[ERR-2]` | `[auto]` | production baseline | Raise through the declared taxonomy constructors of the slice's own app or package, never an ad-hoc error type or a sibling unit's. Slices own their `code` strings. |
+| `[ERR-2]` | `[auto]` | production baseline | Raise through the declared taxonomy constructors of the slice's own app or published package, never an ad-hoc error type or a sibling unit's. Slices own their `code` strings. |
 | `[ERR-3]` | `[review]` | production baseline | Slices raise. The root renders. Nothing else renders. |
 | `[ERR-4]` | `[review]` | production baseline | Batch operations are all-or-nothing unless partial outcomes are reported explicitly. |
 | `[ERR-5]` | `[guide]` | production baseline | Coral's recommended starting taxonomy is six categories: `usage`, `validation`, `not_found`, `conflict`, `infrastructure`, `internal`. |

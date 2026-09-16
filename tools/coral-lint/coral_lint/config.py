@@ -35,9 +35,9 @@ _KNOWN_KEYS = {
 
 @dataclass(frozen=True)
 class ErrorModel:
-    """One app or package, and the error constructors it declares.  [ERR-1] [ERR-2]
+    """One app or published package, and the error constructors it declares.  [ERR-1] [ERR-2]
 
-    `[ERR-1]` binds at the app or package, not at the repository: a repo holding a
+    `[ERR-1]` binds at the app or published package, not at the repository: a repo holding a
     backend and a CLI holds two error models, and a backend slice raising the CLI's
     constructor has reached across a boundary rather than satisfied the rule. So the
     tool has to know which declared constructors belong to which unit, and `path` is
@@ -123,7 +123,7 @@ def _strs(raw: object, key: str) -> tuple[str, ...]:
 
 
 def _error_models(raw: object) -> tuple[ErrorModel, ...]:
-    """Parse `[[coral.error_models]]`: one entry per app or package.
+    """Parse `[[coral.error_models]]`: one entry per app or published package.
 
     Validated here rather than at first use, like everything else in this file, so a
     malformed declaration fails before any check runs.  [CONFIG-3]
@@ -219,14 +219,30 @@ def load(repo: Path) -> Config:
         raise errors.validation(
             "conflicting_error_declaration",
             f"{CONFIG_NAME}: declare either [coral].error_types (one error model for the whole"
-            " repo) or [[coral.error_models]] (one per app or package), not both",
+            " repo) or [[coral.error_models]] (one per app or published package), not both",
         )
+    # An error model belongs to an app or a published package, and to nothing else.
+    # `longest path wins` resolution means an unconstrained path would let a FEATURE
+    # package under an app carry its own taxonomy, which is a second model inside one
+    # unit — the opposite of what [ERR-1] asks for. So a scoped path must name a unit
+    # the config already declared as one.
+    units = cfg.declared_units
     for model in cfg.error_models:
         if not (repo / model.path).is_dir():
             raise errors.validation(
                 "config_path_missing",
                 f"{CONFIG_NAME}: [[coral.error_models]] names {model.path!r}, which is not a"
                 " directory",
+            )
+        if model.path not in units:
+            known = ", ".join(sorted(units)) if units else "none are declared"
+            raise errors.validation(
+                "error_model_not_a_unit",
+                f"{CONFIG_NAME}: [[coral.error_models]] names {model.path!r}, which is not a"
+                f" declared app or published package. [ERR-1] scopes one error model to each app"
+                f" or published package, so a feature package or other subtree cannot carry a"
+                f" taxonomy of its own. Declare {model.path!r} in [coral].app_dirs or"
+                f" [coral].library_dirs first (declared units: {known})",
             )
 
     for key, values in (("app_dirs", cfg.app_dirs), ("feature_dirs", cfg.feature_dirs),

@@ -169,6 +169,71 @@ def test_two_error_models_for_one_path_are_rejected(tmp_path):
     assert "duplicate_error_model" in err
 
 
+def test_a_feature_directory_cannot_become_its_own_error_model_unit(tmp_path):
+    # [ERR-1] scopes one model to each app or published package. `a/expense` is a
+    # feature package inside app `a`, and longest-path-wins resolution would give it
+    # a second taxonomy inside one unit if any existing directory were accepted.
+    repo = _repo(
+        tmp_path,
+        {"a/expense/add.py": "", "a/errors.py": ""},
+        coral_toml=(
+            '[coral]\napp_dirs = ["a"]\nfeature_dirs = ["a/expense"]\n\n'
+            '[[coral.error_models]]\npath = "a"\ntypes = ["app_errors.validation"]\n\n'
+            '[[coral.error_models]]\npath = "a/expense"\ntypes = ["expense_errors.validation"]\n'
+        ),
+    )
+    code, out, err = _run([], repo)
+    assert code == 2
+    assert out == ""  # not one finding was reported  [CONFIG-3]
+    assert "error_model_not_a_unit" in err
+
+
+def test_a_declared_library_may_carry_its_own_error_model(tmp_path):
+    # The other direction: a published package nested in an app IS a unit, so it
+    # legitimately overrides its host.
+    repo = _repo(
+        tmp_path,
+        {"a/feat/add.py": "", "a/pkg/feat/parse.py": "", "a/errors.py": ""},
+        coral_toml=(
+            '[coral]\napp_dirs = ["a"]\nlibrary_dirs = ["a/pkg"]\n'
+            'feature_dirs = ["a/feat", "a/pkg/feat"]\n\n'
+            '[[coral.error_models]]\npath = "a"\ntypes = ["a_errors.validation"]\n\n'
+            '[[coral.error_models]]\npath = "a/pkg"\ntypes = ["pkg_errors.invalid"]\n'
+        ),
+    )
+    # Asserted on [ERR-2] rather than on the exit code, which unrelated checks in
+    # this synthetic tree also move.
+    _, out, _ = _run(["--json"], repo)
+    err2 = next(c for c in json.loads(out)["checks"] if c["rule"] == "ERR-2")
+    assert err2["ran"] is True and err2["skipped"] is None
+    assert [f for f in json.loads(out)["findings"] if f["rule"] == "ERR-2"] == []
+
+
+def test_an_uncovered_slice_is_not_presented_as_a_clean_ERR_2_run(tmp_path):
+    # The root-level half of the unit test in ad_hoc_errors_test.py. Every analyzed
+    # slice here is clean, so before this fix the run exited 0 with [ERR-2] counted
+    # among the checks that ran, while `c/feat` was never checked at all.
+    repo = _repo(
+        tmp_path,
+        {
+            "a/feat/add.py": "def run():\n    raise a_errors.validation('ok', 'fine')\n",
+            "c/feat/orphan.py": "def run():\n    raise ValueError('nope')\n",
+            "a/errors.py": "",
+        },
+        coral_toml=(
+            '[coral]\napp_dirs = ["a"]\nfeature_dirs = ["a/feat", "c/feat"]\n\n'
+            '[[coral.error_models]]\npath = "a"\ntypes = ["a_errors.validation"]\n'
+        ),
+    )
+    _, out, err = _run(["--json"], repo)
+    err2 = next(c for c in json.loads(out)["checks"] if c["rule"] == "ERR-2")
+    assert err2["ran"] is False
+    assert "c/feat/orphan.py" in err2["skipped"]
+
+    _, _, text_err = _run([], repo)
+    assert "skipped [ERR-2]" in text_err
+
+
 def test_rule_filter_runs_only_that_check(tmp_path):
     repo = _repo(tmp_path, {"app/utils/x.py": ""})
     _, out, _ = _run(["--json", "--rule", "BUCKET-1"], repo)

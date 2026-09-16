@@ -583,22 +583,24 @@ Do not invent a name whose effect is ambiguous. If the *effect itself* is unclea
 ## 15. Error Model  `[ERR-*]`
 
 The architectural invariant is the kernel's, and it is stated in
-[`ARCHITECTURE.md`](./ARCHITECTURE.md#_7-the-error-model-err): one small, stable, structured error model
-per app or package, its categories declared once for it, every raised failure constructed through it, and
-presentation owned by a boundary rather than by a slice (`[ERR-1]`). **The kernel names no categories,
-fixes no count, and fixes no field layout.** What follows is the baseline's realization — the concrete
-shape and its static enforcement, which boundary renders it in an executable application, how batches
-behave, and which vocabulary Coral recommends a project start from.
+[`ARCHITECTURE.md`](./ARCHITECTURE.md#_7-the-error-model-err): one small, stable, structured error
+model per app or published package, its categories declared once for it, every raised failure
+constructed through it, and presentation owned by a boundary rather than by a slice (`[ERR-1]`).
+**The kernel names no categories, fixes no count, and fixes no field layout.** What follows is the
+baseline's realization — the concrete shape and its static enforcement, which boundary renders it in
+an executable application, how batches behave, and which vocabulary Coral recommends a project start
+from.
 
 **`[ERR-2]` `[auto]` `{baseline}`** — A slice raises only through the error model declared for **its own
-app or package**, never an ad-hoc or bespoke error type and never a sibling unit's taxonomy.
+app or published package**, never an ad-hoc or bespoke error type and never a sibling unit's taxonomy.
 
 The baseline's structured shape is `{ category, code, message }`. `category` comes from the taxonomy
-`[ERR-1]` requires that app or package to declare, whose recommended default vocabulary is `[ERR-5]`.
-`code` is a stable string id such as `"invalid_month"`. `message` is human-readable. The category set and
-the error type are the error model's published surface — the `errors` crosscut's, once two slices consume
-it (`[XCUT-1]`). The `code` strings are **owned by the slice that raises them**, minted locally and kept
-stable, so a slice stays self-contained and adding a code never edits a shared registry.
+`[ERR-1]` requires that app or published package to declare, whose recommended default vocabulary is
+`[ERR-5]`. `code` is a stable string id such as `"invalid_month"`. `message` is human-readable. The
+category set and the error type are the error model's published surface — the `errors` crosscut's,
+once two slices consume it (`[XCUT-1]`). The `code` strings are **owned by the slice that raises
+them**, minted locally and kept stable, so a slice stays self-contained and adding a code never
+edits a shared registry.
 
 **"Its own" is the operative phrase, and it follows `[ERR-1]`'s grain.** A repository may hold a backend,
 a CLI and a library, each with its own declared model. A slice in the backend raising the CLI's
@@ -636,11 +638,11 @@ in, and never leave it implicit.
 6. `internal` — unexpected bug
 
 **This is a recommended vocabulary, not the definition of a conformant error model.** `[ERR-1]` decides
-what makes one: declared once for the app or package, constructed through, presented at a boundary rather
-than in a slice. It fixes neither the count nor the names. A project that declares a different small,
-stable taxonomy is conformant, and needs no exception merely because its categories differ (`[VER-5]`).
-What "custom taxonomy" never licenses is a category per slice — `[ERR-1]` still asks for one declared
-model, whatever is in it.
+what makes one: declared once for the app or published package, constructed through, presented at a
+boundary rather than in a slice. It fixes neither the count nor the names. A project that declares a
+different small, stable taxonomy is conformant, and needs no exception merely because its categories
+differ (`[VER-5]`). What "custom taxonomy" never licenses is a category per slice — `[ERR-1]` still
+asks for one declared model, whatever is in it.
 
 Six is a practical starting point: small enough for an agent to hold, wide enough that most failures land
 without argument, and the vocabulary every mapping table in this document set is written against. This
@@ -849,7 +851,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 - `[CONC-4]` Scope a transaction to one trigger. Never hold it across an external call.
 
 ### Errors, observability, contracts, trust
-- `[ERR-2]` Raise through the declared taxonomy constructors of the slice's own app or package, never an ad-hoc error type or a sibling unit's. Slices own their `code` strings.
+- `[ERR-2]` Raise through the declared taxonomy constructors of the slice's own app or published package, never an ad-hoc error type or a sibling unit's. Slices own their `code` strings.
 - `[ERR-3]` Slices raise. The root renders. Nothing else renders.
 - `[ERR-4]` Batch operations are all-or-nothing unless partial outcomes are reported explicitly.
 - `[OBS-2]` Configure observability at the root, and emit through the injected crosscut.
@@ -908,7 +910,7 @@ Some of these ship as [`tools/coral-lint`](./tools/coral-lint/README.md), and so
 | `[CONFIG-2]` | no slice module references the environment or config-file API |
 | `[CONFIG-4]` | no literal secret in source, and no secret on a logged or published field |
 | `[IDEM-2]` | a read-named slice makes no one-hop write/mutation call |
-| `[ERR-2]` | raised errors use the owning app or package's declared taxonomy constructors, not ad-hoc types |
+| `[ERR-2]` | raised errors use the owning app or published package's declared taxonomy constructors, not ad-hoc types |
 
 > **Which of these run is the tool's answer, not this table's.** These documents own the *rules*.
 > `coral-lint` owns the *implementation status*, reports it on every run, and prints the full map under

@@ -273,25 +273,25 @@ each slice answers them locally, and the agent writing the next slice has no fin
 the conventions of whichever neighbours it happened to read.
 
 **`[ERR-1]` `[review]`** — Each app or published package declares **one small, stable, structured error
-model** for its own slices: its categories are declared once for that app or package, every failure a
-slice raises is constructed through that declared model, and presenting a raised failure belongs to a
-**boundary that owns an observable contract, never to a slice**.
+model** for its own slices: its categories are declared once for that app or published package, every
+failure a slice raises is constructed through that declared model, and presenting a raised failure
+belongs to a **boundary that owns an observable contract, never to a slice**.
 
 Three parts, and all three are the rule. **Structured** means a typed, inspectable value carrying a
-classification from the declared model — not a bare string, and not a per-slice exception hierarchy a
-caller has to pattern-match. **Declared once for that app or package** means the set of categories is
-decided at that boundary, so a slice selects from it and never extends it. **Presentation belongs to a
-boundary** means that turning a raised failure into observable output — an exit code, an HTTP status, an
-annotation, a rendered page — happens where an observable contract is owned, and never inside a slice in
-passing.
+classification from the declared model — not a bare string, and not a per-slice exception hierarchy
+a caller has to pattern-match. **Declared once for that app or published package** means the set of
+categories is decided at that boundary, so a slice selects from it and never extends it.
+**Presentation belongs to a boundary** means that turning a raised failure into observable output —
+an exit code, an HTTP status, an annotation, a rendered page — happens where an observable contract
+is owned, and never inside a slice in passing.
 
-**The unit is the app or package, not the repository.** An app is one deployable unit
+**The unit is the app or published package, not the repository.** An app is one deployable unit
 ([`CONVENTIONS.md`](./CONVENTIONS.md#the-vocabulary)), and this rule binds at that grain. A repository
 holding a backend and a CLI holds two error models unless their authors deliberately share one, and
 neither owes the other a category. Apps composing into a system acquire no shared cross-app taxonomy
 from this rule either: each raises and presents inside its own boundary, and what crosses between them
-is a question for the system-scale channel rules rather than for this one. Sharing a model across two apps is
-a decision somebody makes, with its own cost, and never something `[ERR-1]` imposes.
+is a question for the system-scale channel rules rather than for this one. Sharing a model across two
+apps is a decision somebody makes, with its own cost, and never something `[ERR-1]` imposes.
 
 **The third part is stated as ownership, not as a root.** Not every unit Coral covers has an executable
 entry point, and the rule must hold for the one that does not. A library has **no composition root of its
@@ -367,7 +367,7 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 - `[COMPOSE-1]` Do not reach into another slice's internals. Depend on its published capability.
 
 ### The error model
-- `[ERR-1]` One small, stable, structured error model per app or package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice.
+- `[ERR-1]` One small, stable, structured error model per app or published package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice.
 
 ### Testing
 - `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.

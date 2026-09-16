@@ -68,7 +68,7 @@ registries it names.
 | `[CONFIG-2]` | a slice reading `os.environ` / `os.getenv` / `dotenv` / `configparser` directly |
 | `[CONC-1]` | module-level mutable state in a slice that something mutates |
 | `[IDEM-2]` | a read-named slice containing a SQL write or a `.commit()` / `.save()` |
-| `[ERR-2]` | a slice raising an exception type outside its own app or package's declared taxonomy |
+| `[ERR-2]` | a slice raising an exception type outside its own app or published package's declared taxonomy |
 | `[ROOT-2]` | a root importing something that is neither a crosscut nor a slice, reaching into slice internals, or holding SQL |
 | `[STATE-2]` | a module holding SQL that two or more slices import, which is a shared data-access layer |
 | `[LIB-3]` | a library with a hidden singleton, or that performs work on `import` |
@@ -104,14 +104,14 @@ ignore       = []                         # added to the built-in vendor/build l
 
 ### Declaring the error model, or several
 
-`[ERR-1]` scopes the error model to **each app or package**, not to the repository. `error_types` above
-declares one model for everything in the repo, which is what a single-app repo has. A repo holding a
-backend and a CLI has two, and one shared allowlist would pass a backend slice that raised the CLI's
-constructor. Declare them per unit instead:
+`[ERR-1]` scopes the error model to **each app or published package**, not to the repository.
+`error_types` above declares one model for everything in the repo, which is what a single-app repo
+has. A repo holding a backend and a CLI has two, and one shared allowlist would pass a backend slice
+that raised the CLI's constructor. Declare them per unit instead:
 
 ```toml
 [[coral.error_models]]
-path  = "services/api"                   # the app or package this taxonomy belongs to
+path  = "services/api"                   # the app or published package this taxonomy belongs to
 types = ["apierrors.validation", "apierrors.not_found"]
 
 [[coral.error_models]]
@@ -124,9 +124,9 @@ package nested inside an app resolves to the package. A slice inside no declared
 unanalyzed**, never passed. Declaring both forms is a hard config failure — two ways to say one thing is
 two sources of truth.
 
-If a repo declares more than one app or package (via `app_dirs` / `library_dirs`) but only the flat
-`error_types`, `[ERR-2]` **skips and says so**. It cannot tell which unit owns a slice, and answering
-anyway would report a boundary violation as clean.
+If a repo declares more than one app or published package (via `app_dirs` / `library_dirs`) but only
+the flat `error_types`, `[ERR-2]` **skips and says so**. It cannot tell which unit owns a slice, and
+answering anyway would report a boundary violation as clean.
 
 `library_dirs` is never inferred, and that is deliberate. A CLI legitimately prints to `stdout`, and a
 service legitimately configures logging at boot. Running `[LIB-5]` against anything that had not declared
@@ -180,7 +180,7 @@ the registry, which is the property the structure exists to buy.
 
 ```bash
 cd tools/coral-lint
-python3 -m pytest -q        # 99 tests
+python3 -m pytest -q        # the unit suite
 python3 -m coral_lint .     # the tool, checked by itself
 ```
 
