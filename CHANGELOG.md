@@ -143,11 +143,18 @@ and was not one:
   validation` then `raise validation(...)` resolves to `b_errors.validation` and is a finding inside an
   app that declared `a_errors.validation`, while `from a_errors import validation as invalid` and
   `import a_errors as errors` both resolve to the declared one.
-- **A file-wide view of those imports.** Python binds names lexically, and the first resolver did not:
-  an import anywhere in the file bound every raise site in it. A local `def validation` shadowing the
-  import, a parameter of that name, and an import sitting inside a different function all passed.
-  `pysource.raised_constructors()` now carries a scope chain, so a shadowing `def` is a finding, a
-  parameter or assignment is undecidable, and an import in another function binds nothing here.
+- **A file-wide view of those imports.** Python binds names lexically and in source order, and the first
+  resolver did neither: an import anywhere in the file bound every raise site in it. A local `def
+  validation` shadowing the import, a parameter of that name, an import sitting inside a different
+  function, an import written *after* the raise, and two branches importing the name from different
+  modules all passed. `pysource.raised_constructors()` now walks each scope forward, carrying binding
+  state and joining branch outcomes conservatively — agreement survives, disagreement is undecidable —
+  so only one definite binding reaching the raise is accepted. A same-scope `from x import *` unsettles
+  the names it could have replaced.
+- **A class namespace treated as an enclosing scope.** A constructor imported into a class body is an
+  attribute, not a bare name its methods can see, so a method could be accepted against a binding Python
+  would never give it. The class frame is skipped when resolving inside its methods, while scopes
+  outside the class stay visible: a method may still close over the function the class sits in.
 - **A relative import flattened to its spelling.** `from .errors import validation` and
   `from ...errors import validation` both read as `errors.validation`, so a published package could
   climb into its host app and be accepted as its own. The import level is retained and the module is
@@ -159,6 +166,10 @@ and was not one:
 - **An unresolved raise reported as a clean run.** A star import, a rebound name or an unresolvable
   relative import left the check unable to decide that raise, and a note does not change an outcome.
   `[ERR-2]` now **skips** and names the raise, the same answer an unowned slice gets.
+- **The flat form covering slices outside the unit it declared.** `app_dirs = ["a"]` with a slice in
+  `b/feat` states an ownership boundary that slice sits outside, and the flat taxonomy was handed to it
+  anyway — the unowned-slice false pass in the other form. Where exactly one unit is declared, a slice
+  outside it now skips the check. A config naming no unit states no boundary, and keeps its reach.
 - **A scoped `path` naming any directory that exists.** Longest-path-wins resolution would have let a
   *feature package* under an app carry its own taxonomy, which is a second model inside one unit.
   A scoped path must now name a unit the config already declared in `app_dirs` or `library_dirs`.

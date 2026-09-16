@@ -121,7 +121,9 @@ types = ["clierrors.usage", "clierrors.internal"]
 
 Each slice is checked against the model whose `path` contains it, longest path winning, so a published
 package nested inside an app resolves to the package. A slice inside no declared model makes `[ERR-2]`
-**skip**, never pass. Declaring both forms is a hard config failure — two ways to say one thing is two
+**skip**, never pass. The flat form is held to the same rule: where the config names exactly one unit in
+`app_dirs` / `library_dirs`, a slice outside it is not covered by that unit's taxonomy and `[ERR-2]`
+skips. A config naming no unit at all states no boundary, and the flat taxonomy covers every slice. Declaring both forms is a hard config failure — two ways to say one thing is two
 sources of truth.
 
 **Every declared constructor must be qualified**, in both forms. Constructors are matched on
@@ -129,14 +131,22 @@ sources of truth.
 matches what `from errors import validation` resolves to, and across units two taxonomies naming one
 category the same thing would each accept the other's. Write `errors.validation`, not `validation`.
 
-**Raise sites are resolved through the imports visible at the raise site**, not compared by spelling.
+**Raise sites are resolved through the one import binding that reaches them**, not compared by spelling.
 `from apierrors import validation` then `raise validation(...)` resolves to `apierrors.validation`; so do
 `from apierrors import validation as invalid` and `import apierrors as errors`.
 
-Resolution is **lexically scoped**, because Python is. An import inside another function binds nothing
-here, and a local `def`, a parameter or an assignment of the same name shadows one that would otherwise
-be visible. A locally defined `validation()` is a finding — that is the ad-hoc error type `[ERR-2]` exists
-to catch.
+Resolution is **lexical and in source order**, because Python is both:
+
+- an import inside another function binds nothing here, and a local `def`, a parameter or an assignment
+  of the same name shadows one that would otherwise be visible. A locally defined `validation()` is a
+  finding — that is the ad-hoc error type `[ERR-2]` exists to catch;
+- an import written **after** the raise has not run yet, and does not bind it;
+- two branches importing the same name from different modules are not one identity, and neither is a name
+  a same-scope `from x import *` could have replaced. Branch outcomes are joined conservatively:
+  agreement survives, disagreement is undecidable;
+- a **class body is not an enclosing scope for its methods**. A constructor imported into a class is an
+  attribute, not a bare name `run(self)` can see. Scopes outside the class stay visible, so a method may
+  still close over the function the class was defined in.
 
 A **relative** import must stay inside the unit that owns the raising slice. `from .errors import
 validation` and `from ...errors import validation` spell the same name and can reach different packages,

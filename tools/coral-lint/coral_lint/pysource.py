@@ -212,9 +212,10 @@ def imports(tree: ast.Module) -> list[ImportRef]:
 
 
 # How a raise site came by the name it spells.  [ERR-2]
-IMPORTED = "imported"      # bound by an import visible at the raise site
+IMPORTED = "imported"      # one definite import binding reaches the raise
 LOCAL_DEF = "local_def"    # a `def` or `class` of that name shadows it
 REBOUND = "rebound"        # a parameter, assignment or other rebinding shadows it
+AMBIGUOUS = "ambiguous"    # more than one binding could reach the raise
 UNBOUND = "unbound"        # nothing in scope binds it
 
 
@@ -228,9 +229,12 @@ class Constructor:
     `b_errors` is in the `ImportFrom`. So provenance is resolved here, with the
     rest of the AST facts, rather than in each check.
 
-    Resolution is **lexically scoped**, because Python is: an import inside another
-    function binds nothing at this raise site, and a local `def`, a parameter or an
-    assignment of the same name shadows one that would otherwise be visible.
+    Resolution is **lexical and in source order**, because Python is both. An
+    import inside another function binds nothing at this raise site; a local `def`,
+    a parameter or an assignment shadows one that would otherwise be visible; an
+    import written *after* the raise has not run yet; and a name imported
+    differently on two branches is not one identity. Anything that is not a single
+    definite binding at the raise is AMBIGUOUS rather than a guess.
 
     `level` and `module` are kept unreduced for relative imports. `from .errors`
     and `from ...errors` spell the same canonical `errors.validation` and can name
@@ -245,7 +249,7 @@ class Constructor:
     level: int = 0          # relative-import depth; 0 for absolute
     module: str | None = None   # the `from X import` module; None for `from . import x`
     attr: str | None = None     # the imported attribute, for `from X import n`
-    star: bool = False      # a star import is in scope and could have bound this name
+    star: bool = False      # a star import could have supplied this name
 
 
 @dataclass(frozen=True)
@@ -257,96 +261,114 @@ class _Bound:
     attr: str | None = None
 
 
+_AMBIGUOUS_BOUND = _Bound(AMBIGUOUS)
 _SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
 
 
-def _bind_targets(node: ast.expr, out: dict[str, _Bound]) -> None:
-    """Record every plain name a binding target introduces."""
+@dataclass(frozen=True)
+class _Frame:
+    """One enclosing scope's summary, and whether it is a class body."""
+
+    names: dict[str, _Bound]
+    star: bool
+    is_class: bool
+
+
+class _State:
+    """Binding state at one point in one scope, carried forward in source order."""
+
+    __slots__ = ("names", "star")
+
+    def __init__(self, names: dict[str, _Bound] | None = None, star: bool = False) -> None:
+        self.names = dict(names or {})
+        self.star = star
+
+    def copy(self) -> "_State":
+        return _State(self.names, self.star)
+
+    def bind(self, name: str, bound: _Bound) -> None:
+        self.names[name] = bound
+
+    def go_star(self) -> None:
+        """A `from X import *` ran here.
+
+        It rebinds whatever that module exports, and the AST does not say what
+        that is. So every name this scope had bound might now be something else,
+        and a name it never bound might now exist.
+        """
+        self.star = True
+        self.names = {n: _AMBIGUOUS_BOUND for n in self.names}
+
+
+def _merge(states: list[_State]) -> _State:
+    """Join branch outcomes conservatively.
+
+    Agreement survives; disagreement degrades to AMBIGUOUS. A name bound on some
+    paths and not others is ambiguous too, because the raise might see the outer
+    scope's binding instead. This is deliberately not data-flow analysis — it does
+    not need to be, since the only alternative to "one definite identity" is "do
+    not answer".
+    """
+    merged = _State(star=any(s.star for s in states))
+    every: set[str] = set()
+    for state in states:
+        every.update(state.names)
+    for name in every:
+        values = [s.names.get(name) for s in states]
+        first = values[0]
+        merged.names[name] = first if first is not None and all(v == first for v in values) else _AMBIGUOUS_BOUND
+    return merged
+
+
+def _targets(node: ast.expr, state: _State) -> None:
+    """Bind every plain name an assignment target introduces."""
     if isinstance(node, ast.Name):
-        out[node.id] = _Bound(REBOUND)
+        state.bind(node.id, _Bound(REBOUND))
     elif isinstance(node, (ast.Tuple, ast.List)):
         for element in node.elts:
-            _bind_targets(element, out)
+            _targets(element, state)
     elif isinstance(node, ast.Starred):
-        _bind_targets(node.value, out)
+        _targets(node.value, state)
 
 
-def _own_bindings(scope: ast.AST) -> tuple[dict[str, _Bound], bool]:
-    """What this one scope binds, and whether a star import is in it.
+def _params(scope: ast.AST, state: _State) -> None:
+    if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        return
+    args = scope.args
+    for arg in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
+        state.bind(arg.arg, _Bound(REBOUND))
+    for optional in (args.vararg, args.kwarg):
+        if optional is not None:
+            state.bind(optional.arg, _Bound(REBOUND))
 
-    Descends through ordinary statements but never into a nested scope's body —
-    that body is its own scope. A nested `def foo` still binds `foo` here, which is
-    the name this scope sees.
 
-    A name bound both by an import and by something else in one scope is recorded
-    as the something else. Which one wins at the raise site depends on execution
-    order, so the conservative answer is the one that does not claim the import.
-    """
-    found: dict[str, _Bound] = {}
-    star = False
-
-    if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
-        args = scope.args
-        for arg in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
-            found[arg.arg] = _Bound(REBOUND)
-        for optional in (args.vararg, args.kwarg):
-            if optional is not None:
-                found[optional.arg] = _Bound(REBOUND)
-
-    body = [scope] if isinstance(scope, ast.Lambda) else list(getattr(scope, "body", []))
-    stack: list[ast.AST] = list(body)
-    while stack:
-        node = stack.pop()
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                local = alias.asname or alias.name.split(".")[0]
-                target = alias.name if alias.asname else alias.name.split(".")[0]
-                found.setdefault(local, _Bound(IMPORTED, target=target, module=alias.name))
-        elif isinstance(node, ast.ImportFrom):
-            base = node.module or ""
-            for alias in node.names:
-                if alias.name == "*":
-                    star = True
-                    continue
-                local = alias.asname or alias.name
-                target = f"{base}.{alias.name}" if base else alias.name
-                found.setdefault(
-                    local,
-                    _Bound(IMPORTED, target=target, level=node.level,
-                           module=node.module, attr=alias.name),
-                )
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            found[node.name] = _Bound(LOCAL_DEF)
-            continue  # its body is a scope of its own
-        elif isinstance(node, ast.Lambda):
+def _import_binds(node: ast.Import | ast.ImportFrom, state: _State) -> None:
+    if isinstance(node, ast.Import):
+        for alias in node.names:
+            local = alias.asname or alias.name.split(".")[0]
+            target = alias.name if alias.asname else alias.name.split(".")[0]
+            state.bind(local, _Bound(IMPORTED, target=target, module=alias.name))
+        return
+    base = node.module or ""
+    for alias in node.names:
+        if alias.name == "*":
+            state.go_star()
             continue
-        elif isinstance(node, ast.Assign):
-            for target_node in node.targets:
-                _bind_targets(target_node, found)
-        elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
-            _bind_targets(node.target, found)
-        elif isinstance(node, (ast.For, ast.AsyncFor)):
-            _bind_targets(node.target, found)
-        elif isinstance(node, (ast.With, ast.AsyncWith)):
-            for item in node.items:
-                if item.optional_vars is not None:
-                    _bind_targets(item.optional_vars, found)
-        elif isinstance(node, ast.ExceptHandler) and node.name:
-            found[node.name] = _Bound(REBOUND)
-        elif isinstance(node, (ast.Global, ast.Nonlocal)):
-            # The binding lives in another scope and may be rewritten anywhere.
-            for name in node.names:
-                found[name] = _Bound(REBOUND)
-        stack.extend(ast.iter_child_nodes(node))
-    return found, star
+        local = alias.asname or alias.name
+        target = f"{base}.{alias.name}" if base else alias.name
+        state.bind(
+            local,
+            _Bound(IMPORTED, target=target, level=node.level, module=node.module, attr=alias.name),
+        )
 
 
-def _lookup(head: str, chain: list[tuple[dict[str, _Bound], bool]]) -> tuple[_Bound | None, bool]:
-    """The innermost binding of `head`, and whether a star import could supply it."""
-    star = any(has_star for _, has_star in chain)
-    for found, _ in reversed(chain):
-        if head in found:
-            return found[head], star
+def _lookup(head: str, state: _State, chain: list[_Frame]) -> tuple[_Bound | None, bool]:
+    star = state.star or any(frame.star for frame in chain)
+    if head in state.names:
+        return state.names[head], star
+    for frame in reversed(chain):
+        if head in frame.names:
+            return frame.names[head], star
     return None, star
 
 
@@ -358,29 +380,157 @@ def raised_constructors(tree: ast.Module) -> list[Constructor]:
     """
     out: list[Constructor] = []
 
-    def walk(node: ast.AST, chain: list[tuple[dict[str, _Bound], bool]]) -> None:
-        for child in ast.iter_child_nodes(node):
-            if isinstance(child, _SCOPES):
-                walk(child, [*chain, _own_bindings(child)])
-                continue
-            if isinstance(child, ast.Raise) and isinstance(child.exc, ast.Call):
-                label = _dotted(child.exc.func)
-                if label:
-                    bound, star = _lookup(label.partition(".")[0], chain)
-                    if bound is None:
-                        out.append(Constructor(label, child.lineno, UNBOUND, star=star))
-                    elif bound.kind == IMPORTED:
-                        rest = label.partition(".")[2]
-                        target = f"{bound.target}.{rest}" if rest else bound.target
-                        out.append(Constructor(
-                            label, child.lineno, IMPORTED, target=target, level=bound.level,
-                            module=bound.module, attr=bound.attr, star=star,
-                        ))
-                    else:
-                        out.append(Constructor(label, child.lineno, bound.kind, star=star))
-            walk(child, chain)
+    def record(node: ast.Raise, state: _State, chain: list[_Frame]) -> None:
+        if not isinstance(node.exc, ast.Call):
+            return
+        label = _dotted(node.exc.func)
+        if not label:
+            return
+        bound, star = _lookup(label.partition(".")[0], state, chain)
+        if bound is None:
+            out.append(Constructor(label, node.lineno, UNBOUND, star=star))
+        elif bound.kind == IMPORTED:
+            rest = label.partition(".")[2]
+            target = f"{bound.target}.{rest}" if rest else bound.target
+            out.append(Constructor(
+                label, node.lineno, IMPORTED, target=target, level=bound.level,
+                module=bound.module, attr=bound.attr, star=star,
+            ))
+        else:
+            out.append(Constructor(label, node.lineno, bound.kind, star=star))
 
-    walk(tree, [_own_bindings(tree)])
+    def run_scope(scope: ast.AST, chain: list[_Frame], is_class: bool) -> None:
+        """Walk one scope in source order, then descend into the scopes it defines.
+
+        Nested scopes are visited afterwards, against a summary of this one: a
+        closure runs later, so it sees whatever this scope ended up binding, and a
+        name this scope bound more than once is not one identity by then.
+        """
+        state = _State()
+        _params(scope, state)
+        nested: list[ast.AST] = []
+        multi: set[str] = set()
+
+        def bind_watched(name: str, bound: _Bound) -> None:
+            if name in state.names and state.names[name] != bound:
+                multi.add(name)
+            state.bind(name, bound)
+
+        def step(node: ast.AST, state: _State) -> _State:
+            """Apply one statement, returning the state that follows it."""
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                before = dict(state.names)
+                _import_binds(node, state)
+                for name, bound in state.names.items():
+                    if name in before and before[name] != bound:
+                        multi.add(name)
+                return state
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                for decorator in node.decorator_list:
+                    walk_expr(decorator, state)
+                bind_watched(node.name, _Bound(LOCAL_DEF))
+                nested.append(node)
+                return state
+            if isinstance(node, ast.Assign):
+                walk_expr(node.value, state)
+                for target in node.targets:
+                    _targets(target, state)
+                return state
+            if isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+                if node.value is not None:
+                    walk_expr(node.value, state)
+                _targets(node.target, state)
+                return state
+            if isinstance(node, (ast.Global, ast.Nonlocal)):
+                for name in node.names:
+                    state.bind(name, _Bound(REBOUND))
+                return state
+            if isinstance(node, ast.Raise):
+                record(node, state, chain)
+                walk_expr(node, state, skip_raise=True)
+                return state
+            if isinstance(node, ast.If):
+                taken, other = state.copy(), state.copy()
+                walk_expr(node.test, state)
+                return _merge([run_block(node.body, taken), run_block(node.orelse, other)])
+            if isinstance(node, (ast.For, ast.AsyncFor)):
+                walk_expr(node.iter, state)
+                looped = state.copy()
+                _targets(node.target, looped)
+                # The body may run zero times, so the state before it also reaches
+                # whatever follows.
+                after = _merge([state.copy(), run_block(node.body, looped)])
+                return _merge([after, run_block(node.orelse, after.copy())])
+            if isinstance(node, ast.While):
+                walk_expr(node.test, state)
+                after = _merge([state.copy(), run_block(node.body, state.copy())])
+                return _merge([after, run_block(node.orelse, after.copy())])
+            if isinstance(node, (ast.With, ast.AsyncWith)):
+                for item in node.items:
+                    walk_expr(item.context_expr, state)
+                    if item.optional_vars is not None:
+                        _targets(item.optional_vars, state)
+                return run_block(node.body, state)
+            if isinstance(node, ast.Try) or (
+                hasattr(ast, "TryStar") and isinstance(node, ast.TryStar)
+            ):
+                # Any statement in the body may be where it failed, so a handler
+                # sees somewhere between none and all of the body's bindings.
+                after_body = run_block(node.body, state.copy())
+                outcomes = [_merge([state.copy(), after_body])]
+                for handler in node.handlers:
+                    caught = _merge([state.copy(), after_body])
+                    if handler.name:
+                        caught.bind(handler.name, _Bound(REBOUND))
+                    outcomes.append(run_block(handler.body, caught))
+                outcomes.append(run_block(node.orelse, after_body.copy()))
+                joined = _merge(outcomes)
+                return run_block(node.finalbody, joined)
+            if hasattr(ast, "Match") and isinstance(node, ast.Match):
+                walk_expr(node.subject, state)
+                arms = [run_block(case.body, state.copy()) for case in node.cases]
+                return _merge([state.copy(), *arms]) if arms else state
+            walk_expr(node, state)
+            return state
+
+        def run_block(stmts: list[ast.stmt], state: _State) -> _State:
+            for stmt in stmts:
+                state = step(stmt, state)
+            return state
+
+        def walk_expr(node: ast.AST, state: _State, skip_raise: bool = False) -> None:
+            """Catch raises and nested scopes inside an expression or statement."""
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, _SCOPES):
+                    if isinstance(child, ast.Lambda):
+                        nested.append(child)
+                    continue
+                if isinstance(child, ast.Raise) and not skip_raise:
+                    record(child, state, chain)
+                walk_expr(child, state)
+
+        final = run_block(list(getattr(scope, "body", [])), state) if not isinstance(scope, ast.Lambda) else state
+        if isinstance(scope, ast.Lambda):
+            walk_expr(scope, state)
+
+        summary = _Frame(
+            names={
+                name: (_AMBIGUOUS_BOUND if name in multi else bound)
+                for name, bound in final.names.items()
+            },
+            star=final.star,
+            is_class=is_class,
+        )
+        # A function defined in a class body does not see the class namespace, but
+        # does see every scope outside it — a method may close over the function a
+        # class was defined in. Class bodies do not nest into each other either, so
+        # one filter over the whole chain, this scope's own frame included, is the
+        # rule on both paths.
+        visible = [frame for frame in [*chain, summary] if not frame.is_class]
+        for child in nested:
+            run_scope(child, visible, isinstance(child, ast.ClassDef))
+
+    run_scope(tree, [], False)
     return sorted(out, key=lambda c: c.line)
 
 

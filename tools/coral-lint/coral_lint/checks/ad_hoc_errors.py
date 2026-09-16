@@ -50,6 +50,11 @@ REJECT = "reject"
 UNKNOWN = "unknown"
 
 
+def _inside(rel: str, unit: str) -> bool:
+    """Is the repo-relative path `rel` inside the unit directory `unit`?"""
+    return rel == unit or rel.startswith(f"{unit}/")
+
+
 class _Ref:
     """The shape `Layout.resolve_import` reads. One relative import, one name."""
 
@@ -75,9 +80,10 @@ def _verdict(
     **What the name resolves to.** `raise validation(...)` after
     `from b_errors import validation` is `b_errors.validation`, a finding inside an
     app that declared `a_errors.validation`. A local `def validation` shadows the
-    import and is an ad-hoc error type, which is what this rule forbids. A
-    parameter or an assignment of that name could be anything, so it is UNKNOWN
-    rather than guessed either way.
+    import and is an ad-hoc error type, which is what this rule forbids. Anything
+    that is not one definite binding at the raise — a parameter, an assignment, two
+    branches importing different modules, a star import that could have replaced
+    the name — is UNKNOWN rather than guessed either way.
 
     **Where it lives.** A relative import spells the same canonical name at any
     depth: `from .errors import validation` and `from ...errors import validation`
@@ -93,7 +99,7 @@ def _verdict(
     """
     if ctor.origin == pysource.LOCAL_DEF:
         return REJECT
-    if ctor.origin == pysource.REBOUND:
+    if ctor.origin in (pysource.REBOUND, pysource.AMBIGUOUS):
         return UNKNOWN
     if ctor.origin == pysource.UNBOUND:
         if ctor.star:
@@ -107,8 +113,7 @@ def _verdict(
         if not targets:
             return UNKNOWN
         for target in targets:
-            rel = layout.rel(target)
-            if rel != unit and not rel.startswith(f"{unit}/"):
+            if not _inside(layout.rel(target), unit):
                 return REJECT
     return ACCEPT if ctor.target in allowed else REJECT
 
@@ -148,11 +153,22 @@ def run(layout: Layout) -> CheckResult:
     # verdict: the run would still report `ran` with zero findings and exit 0, which
     # is the silent pass this check exists to prevent. So an unowned slice skips the
     # check, the same answer the multi-unit case gets, for the same reason.
+    # The flat form declares one taxonomy for everything here, which is only true
+    # while everything here IS the one unit the config declared. A repo naming
+    # `app_dirs = ["a"]` and a slice in `b/feat` has stated an ownership boundary
+    # that slice sits outside, and handing it `a`'s taxonomy is the same false pass
+    # the scoped form gets for an unowned slice. Where the config declares no unit
+    # at all there is no boundary to contradict, and the legacy behavior stands.
+    sole = next(iter(config.declared_units)) if len(config.declared_units) == 1 else None
+
     owner: dict[str, frozenset[str]] = {}
     unowned: list[str] = []
     for unit in layout.slices:
         if not config.error_models:
-            owner[unit.rel] = config.error_types
+            if sole is not None and not _inside(unit.rel, sole):
+                unowned.append(unit.rel)
+            else:
+                owner[unit.rel] = config.error_types
             continue
         model = config.error_model_for(unit.rel)
         if model is None:
@@ -163,13 +179,17 @@ def run(layout: Layout) -> CheckResult:
     if unowned:
         shown = ", ".join(sorted(unowned)[:3])
         more = f", +{len(unowned) - 3} more" if len(unowned) > 3 else ""
+        where = (
+            f"the one app or published package this config declares ({sole})"
+            if config.error_types
+            else "every [[coral.error_models]] path"
+        )
         return CheckResult(
             rule=RULE,
             skipped=(
-                f"{len(unowned)} slice(s) sit outside every [[coral.error_models]] path, so "
-                f"which taxonomy owns them is undeclared and [ERR-2] cannot be decided for "
-                f"them ({shown}{more}). Give each app or published package holding slices "
-                f"an [[coral.error_models]] entry"
+                f"{len(unowned)} slice(s) sit outside {where}, so which taxonomy owns them is "
+                f"undeclared and [ERR-2] cannot be decided for them ({shown}{more}). Declare "
+                f"an error model for each app or published package that holds slices"
             ),
         )
 

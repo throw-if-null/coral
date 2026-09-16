@@ -450,3 +450,170 @@ types = ["pkg_errors.invalid"]
         "a/errors.py": "",
     }
     assert ad_hoc_errors.run(make_layout(tree, coral_toml=cfg)).findings == ()
+
+
+# ── one definite binding AT the raise, not somewhere in its scope ────────────
+#
+# A scope-wide binding map answers "was this name ever imported here", which is a
+# different question. Execution order and branching decide what reaches the raise,
+# and where they do not decide it exactly, neither does this check.
+
+
+def test_an_import_after_the_raise_does_not_bind_it(make_layout):
+    # The later import has not run. Reducing the scope to one map picked it anyway.
+    lay = make_layout(
+        _a(
+            "def run():\n"
+            "    from b_errors import validation\n"
+            "    raise validation('bad', 'nope')\n"
+            "    from a_errors import validation\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and len(result.findings) == 1
+
+
+def test_branches_importing_different_modules_do_not_pass(make_layout):
+    # Both branches bind a valid local; one of them violates [ERR-2]. Choosing
+    # either is a guess.
+    lay = make_layout(
+        _a(
+            "def run(flag):\n"
+            "    if flag:\n        from a_errors import validation\n"
+            "    else:\n        from b_errors import validation\n"
+            "    raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_branches_importing_the_same_module_still_pass(make_layout):
+    # The conservative join must not reject agreement.
+    lay = make_layout(
+        _a(
+            "def run(flag):\n"
+            "    if flag:\n        from a_errors import validation\n"
+            "    else:\n        from a_errors import validation\n"
+            "    raise validation('ok', 'fine')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+def test_a_later_star_import_unsettles_an_explicit_binding(make_layout):
+    # `from b_errors import *` may re-export `validation` over the explicit one.
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\nfrom b_errors import *\n\n"
+            "def run():\n    raise validation('ok', 'fine')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_an_explicit_import_after_a_star_is_definite_again(make_layout):
+    lay = make_layout(
+        _a(
+            "from b_errors import *\nfrom a_errors import validation\n\n"
+            "def run():\n    raise validation('ok', 'fine')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+# ── a class namespace is not an enclosing scope for its methods ──────────────
+
+
+def test_a_constructor_imported_into_a_class_does_not_bind_a_bare_method_name(make_layout):
+    # `Handler.validation` is an attribute, not a name `run()` can see bare.
+    lay = make_layout(
+        _a(
+            "class Handler:\n    from a_errors import validation\n\n"
+            "    def run(self):\n        raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and len(result.findings) == 1
+
+
+def test_a_module_binding_wins_over_a_same_named_class_attribute(make_layout):
+    # The method sees the module's `validation`, which here is app B's.
+    lay = make_layout(
+        _a(
+            "from b_errors import validation\n\n"
+            "class Handler:\n    from a_errors import validation\n\n"
+            "    def run(self):\n        raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and len(result.findings) == 1
+
+
+def test_a_method_still_closes_over_the_function_the_class_sits_in(make_layout):
+    # Only the class frame is skipped. Scopes outside it stay visible.
+    lay = make_layout(
+        _a(
+            "def outer():\n    from a_errors import validation\n\n"
+            "    class Handler:\n        def run(self):\n"
+            "            raise validation('ok', 'fine')\n\n    return Handler\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+def test_a_class_body_still_sees_its_own_bindings(make_layout):
+    lay = make_layout(
+        _a(
+            "class Handler:\n    from a_errors import validation\n"
+            "    raise validation('ok', 'fine')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+# ── the flat form owns only the unit it declared ─────────────────────────────
+
+
+def test_the_flat_form_skips_a_slice_outside_its_one_declared_unit(make_layout):
+    # `app_dirs = ["a"]` states an ownership boundary. `b/feat` sits outside it, so
+    # handing it `a`'s taxonomy is the unowned-slice false pass in the flat form.
+    cfg = (
+        '[coral]\napp_dirs = ["a"]\nfeature_dirs = ["a/feat", "b/feat"]\n'
+        'error_types = ["errors.validation"]\n'
+    )
+    tree = {
+        "a/feat/add.py": "from ..errors import validation\n\ndef run():\n    raise validation('a', 'b')\n",
+        "b/feat/run.py": "",
+        "a/errors.py": "",
+    }
+    result = ad_hoc_errors.run(make_layout(tree, coral_toml=cfg))
+    assert not result.ran
+    assert result.findings == ()
+    assert "b/feat/run.py" in result.skipped and "a" in result.skipped
+
+
+def test_the_flat_form_with_no_declared_unit_keeps_its_legacy_reach(make_layout):
+    # No app_dirs or library_dirs means no boundary was stated, so nothing is
+    # outside one. This is the ordinary single-app configuration.
+    cfg = '[coral]\nfeature_dirs = ["app/feat"]\nerror_types = ["errors.validation"]\n'
+    tree = {
+        "app/feat/add.py":
+            "from errors import validation\n\ndef run():\n    raise validation('a', 'b')\n",
+    }
+    result = ad_hoc_errors.run(make_layout(tree, coral_toml=cfg))
+    assert result.ran and result.findings == ()
