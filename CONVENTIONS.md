@@ -106,16 +106,21 @@ several apps *and* has adopted the baseline. A project that has done neither sti
 
 ## The canonical slice
 
-**The kernel shape is one sentence:** one capability, owned end to end, tests included, consumed by other
-code only through what it publishes (`[MODEL-1]`, `[BOUND-2]`, `[COMPOSE-1]`, `[TEST-1]`). That is what
-Coral asks of every codebase that calls itself Coral, and it is deliberately short.
+**The kernel's capability shape is one sentence:** one capability, owned end to end, tests included,
+consumed by other code only through what it publishes (`[MODEL-1]`, `[BOUND-2]`, `[COMPOSE-1]`,
+`[TEST-1]`). That is the shape of the *unit*, and it is deliberately short. It is **not** the whole
+kernel: an app or published package also owes one declared, structured error model of its own,
+presented at a boundary rather than inside a slice (`[ERR-1]`), the gate on promoting anything to a
+crosscut (`[XCUT-1]`), and the `[AGENT-*]` and `[VER-*]` rules that govern how it relates to Coral.
+The [kernel block](#the-coral-kernel) is the complete list.
 
 > **The listing below is a slice as a project that has adopted the [production
 > baseline](./PRODUCTION.md) writes one.** It is the kernel shape *plus* a set of opinions the baseline
-> supplies — injected crosscuts, a six-category error taxonomy, one effect at the edge, the root doing the
-> rendering, colocated tests against real storage, an effect-truthful verb. Each of those is a rule in
+> supplies — injected crosscuts, `[ERR-5]`'s recommended six-category vocabulary inside the error model
+> the kernel already requires, one effect at the edge, the root doing the rendering, colocated tests
+> against real storage, an effect-truthful verb. Each of those is a rule in
 > [`PRODUCTION.md`](./PRODUCTION.md) and applies where a project's `CORAL.md` adopts that layer. A
-> kernel-only project's slices satisfy the sentence above and may look nothing like this listing.
+> kernel-only project's slices satisfy the capability shape above and may look nothing like this listing.
 
 Read it before the rules, because the rules are the reasons it is shaped this way. It is
 language-neutral. This exact capability is written out in real Python in
@@ -147,16 +152,18 @@ expense/add                                    # one slice = one capability
     assert queryExpenses().contains(food, 12.50)   # real storage
 ```
 
-**Two of its properties are the kernel's**, and hold for any Coral codebase: `expense/add` owns one
-capability from its trigger to its output (`[BOUND-2]`), and its behavior is asserted at that entry point
-against what a caller can observe (`[TEST-1]`).
+**Three of its properties are the kernel's**, and hold for any Coral codebase: `expense/add` owns one
+capability from its trigger to its output (`[BOUND-2]`), its behavior is asserted at that entry point
+against what a caller can observe (`[TEST-1]`), and it constructs its failures through this app's one
+declared error model rather than inventing a local one, and presents none of them itself (`[ERR-1]`).
 
 **Five are the production baseline's**, and they are what makes the listing look the way it does:
 
 - parse, validate and compute are **pure** (`[EFFECT-1]`)
 - the single effect sits at the **edge** (`[EFFECT-2]`)
 - crosscuts are **injected**, never reached for (`[XCUT-3]`)
-- the slice **raises** taxonomy errors and lets the root render them (`[ERR-1]`, `[ERR-3]`)
+- the root is the boundary that renders, and nothing else does (`[ERR-3]`), over a taxonomy carrying
+  `{category, code, message}` (`[ERR-2]`) with `[ERR-5]`'s recommended category names
 - the test runs against real temporary storage (`[TEST-2]`, `[TEST-4]`)
 
 The verb `add` truthfully signals a non-idempotent operation (`[IDEM-1]`). A project that has not adopted
@@ -278,6 +285,20 @@ cannot keep, and it costs more credibility than an honest `[review]`.
 A new convention becomes a clean unit of work: new rule ID → new `[auto]` check (or `[review]` note) →
 enforced going forward.
 
+### Rules and verification
+
+Rules define conformance. Tools implement partial, evolving verification of those rules. Tool coverage
+must never redefine or narrow the architecture.
+
+A rule remains applicable whether or not Coral currently has a tool capable of verifying it
+automatically. A missing or incomplete checker is a limitation of the tooling, not an exception to the
+rule. Conversely, the implementation details or constraints of a checker must not become architectural
+requirements unless they are independently justified and promoted into the rules.
+
+Coral's tooling should therefore distinguish **conformance** from **verification coverage**. Where a rule
+can be checked deterministically, a tool may enforce it. Where it cannot, the tool should report that
+limitation rather than silently weakening the rule to match what it can prove.
+
 ## Prose vs. contract
 
 Each document has two layers, and the build enforces the relationship between them:
@@ -332,13 +353,13 @@ generally:
   boundary is `[SYS-TEST-1]`, a production-baseline rule at system scale. The property is the kernel's,
   and the system-scale realization is adopted.
 
-**Everything else Coral publishes is justified some other way, and adopted separately.** Ten rules owe
-their presence, or their strictness, to this division of labour. The [Coral kernel](#the-coral-kernel)
-below names which ten and how to tell them apart, and that block is the only record of the membership.
-The other 169 are stated at the strength they are for reasons that survive a human author: the
-production baseline because the *software* needs it, an app profile because that app *shape* needs it,
-and the runtime-agent profile because a *running* model needs it. None of them is a consequence of who
-typed the code, and a project takes each on deliberately
+**Everything else Coral publishes is justified some other way, and adopted separately.** A small, named
+subset of rules owes its presence, or its strictness, to this division of labour. The
+[Coral kernel](#the-coral-kernel) below names exactly which, and how to tell them apart, and that block
+is the only record of the membership. **Every other rule** is stated at the strength it is for reasons
+that survive a human author: the production baseline because the *software* needs it, an app profile
+because that app *shape* needs it, and the runtime-agent profile because a *running* model needs it. None
+of them is a consequence of who typed the code, and a project takes each on deliberately
 ([What applies to a project](#what-applies-to-a-project)).
 
 **`[AGENT-1]` `[guide]` `{governance}`** — Prefer the structure that minimizes an agent's placement and
@@ -690,6 +711,7 @@ rule can be tested against, plus drift, which is the failure the vocabulary alre
 | `[MODEL-1]` | Gives new code a finite set of architectural roles instead of an open-ended placement decision. | deterministic placement |
 | `[XCUT-1]` | Stops similarity-driven extraction from becoming global abstraction: sharing requires a must-not-diverge invariant. | locality, drift prevention |
 | `[COMPOSE-1]` | Preserves context boundaries — another slice is consumed through its published capability, without loading its internals. | bounded context, reviewability |
+| `[ERR-1]` | Gives the agent one finite failure vocabulary per app or published package, and presentation owned by a boundary rather than by slices, instead of a local error convention discovered slice by slice. | bounded context, reviewability, drift prevention |
 | `[TEST-1]` | Gives the authoring agent an executable feedback loop against observable behavior. | self-verification, reviewability |
 | `[AGENT-2]` | Makes an ambiguous architectural decision visible to a human reviewer instead of a hidden guess. | deterministic placement, reviewability |
 | `[AGENT-4]` | Reserves architectural legislation — exceptions and extensions — for humans. | reviewability, drift prevention |
@@ -728,13 +750,40 @@ context. `[VER-3]` fixes which Coral, and `[VER-6]` fixes how much of it. Neithe
 because two projects on one version can owe different rule sets. Without the second, "what applies here"
 is answered by whoever is reading, which is not a stable set at all.
 
+`[ERR-1]` is the one kernel rule about a concern that is otherwise general correctness, so its
+membership is worth stating against all four tests. **Agent-justified:** drop the operating model
+and Coral would say "have a coherent error strategy" and leave it there. Keep it, and the vocabulary
+has to be finite and declared, because an agent writing the next slice either loads one small set or
+reconstructs local convention from whatever the neighbouring slices happened to do. **Defended
+properties:** bounded context (one vocabulary per app or published package to load, rather than a
+per-slice discovery), reviewability (widening the taxonomy or moving presentation lands as an
+architectural diff, not as a line inside one handler), and drift prevention (categories,
+construction and presentation cannot diverge slice by slice). **Not merely general correctness:**
+the rule constrains *where the vocabulary is declared and who presents it*, which is a placement and
+ownership constraint. Whether the app then retries, logs or wraps is not its business, and neither
+is the shape of the value. **Not downstream:** nothing else in the kernel implies it. `[ERR-2]` is
+downstream of it, which is exactly why `[ERR-2]` stays in the production baseline.
+
+The rest of the `[ERR-*]` family is outside the kernel and stays there. `[ERR-2]` is the concrete shape
+and the static enforcement of `[ERR-1]`, `[ERR-3]` is the baseline's realization of its presentation half
+for an executable application, `[ERR-4]` is
+transaction policy for batches, and `[ERR-5]` is the recommended category vocabulary. A project reaches
+all four by adopting the production baseline, and none of them by adopting nothing.
+
 ### Everything else
 
-**Non-kernel does not mean weak, and it does not mean advisory.** Kernel membership classifies *why
-Coral imposes a rule, and at what strength*. It never classifies how hard the rule binds once it binds. A
-non-kernel rule is fully normative for a project that has adopted the layer or profile contributing it,
-at a scale where that rule applies. Once applicable, an `[auto]` rule outside the kernel is enforced
-exactly as an `[auto]` kernel rule is, and a `[review]` one takes the same judgment.
+**Non-kernel does not mean weak.** Kernel membership classifies *why Coral imposes a rule, and at what
+strength*. It never classifies how hard the rule binds once it binds. An applicable `[auto]` or
+`[review]` rule outside the kernel binds exactly as hard as one inside it: the `[auto]` one is enforced
+the same way, and the `[review]` one takes the same judgment. A project that has adopted the layer or
+profile contributing it, at a scale where that rule applies, owes it in full.
+
+**Whether a rule gates is decided by its enforcement class, not by its layer.** `[guide]` rules are
+rationale and are never a pass/fail gate ([above](#enforcement-classes)), wherever they sit. `[ERR-5]`'s
+recommended error-category vocabulary is production baseline *and* advisory, and a project that declares
+a different small, stable taxonomy fails nothing by doing so. Layer answers *why the rule exists and who
+loads it*. Class answers *whether it is a gate once loaded*. The two are independent, and neither implies
+the other.
 
 What differs is **how a rule enters a project's normative surface**, and that is a separate axis from
 strength. The kernel enters without a decision. Everything else, the production baseline included, enters
@@ -756,8 +805,8 @@ more of:
 - **static or mechanical enforcement of a kernel constraint.** `[BUCKET-1]` mechanically reinforces
   deterministic placement and controlled sharing. It is the check that catches the failure `[MODEL-1]`
   and `[XCUT-1]` describe.
-- **general application correctness.** Purity and effect placement (`[EFFECT-*]`), the error taxonomy
-  (`[ERR-*]`), caching, and concurrency (`[CONC-*]`).
+- **general application correctness.** Purity and effect placement (`[EFFECT-*]`), the error-model
+  refinements and category vocabulary (`[ERR-2]`–`[ERR-5]`), caching, and concurrency (`[CONC-*]`).
 - **security or trust-boundary correctness.** `[TRUST-1]`, `[TRUST-2]`, and the status-code and
   authorization rules in the appendices.
 - **distributed-systems correctness.** Channel semantics (`[CHAN-5]`, `[CHAN-9]`, `[CHAN-10]`),
@@ -771,9 +820,10 @@ more of:
   persists: read them before escalating. `[GROW-1]` ("start small: one file per slice") is a starting
   default, not a constraint.
 
-Concurrency, idempotency, error handling, caching, security, channel semantics and observability are
-required Coral rules. They are not kernel rules, and importance is not the reason either way. Coral
-states them at the strength it does because the *system* needs them, not because of who typed them. A
+Concurrency, idempotency, error enforcement and vocabulary, caching, security, channel semantics and
+observability are required Coral rules. They are not kernel rules, and importance is not the reason
+either way. Coral states them at the strength it does because the *system* needs them, not because of who
+typed them. A
 project that adopts the production baseline owes every one of them as hard as it owes `[MODEL-1]`.
 
 That list says *why* a rule is not kernel. [Ownership layers](#ownership-layers), below, says something
@@ -1151,20 +1201,24 @@ above decides which rules a project owes. It does not promise that every selecte
 without the layers the project declined. A rule's statement may cite, or silently assume, a rule from an
 unselected layer, and nothing in the resolver notices.
 
-This is not a corner case. **19 of the 72 app-profile and runtime-agent rules depend on the production
-baseline in their own normative statement**, and every profile is affected. The dependency takes two
-forms:
+This is not a corner case. **Rules in every one of the profiles depend on the production baseline inside
+their own definition**, so no profile is self-contained today. The dependency takes two forms:
 
 - **an explicit citation.** `[WEB-8]` names `[IDEM-2]` and `[IDEM-4]`, `[BE-3]` names `[XCUT-3]` and
   `[CONFIG-2]`, `[CLI-4]` and `[BE-2]` name `[CONTRACT-1]`, `[LIB-6]` names `[EFFECT-2]`, `[AGENTIC-7]`
   names `[STATE-2]` and `[STATE-5]`, and `[ORCH-5]` names `[CHAN-1]`.
-- **an assumed concept.** `[BE-5]`, `[WEB-9]`, `[GHA-9]` and `[LIB-8]` say slices "raise **the
-  taxonomy**" and map `category`, but the taxonomy is `[ERR-1]`, a baseline rule. A project that adopts
-  `app-profile: [backend]` and nothing else is told to raise a taxonomy it has not selected a definition
-  for.
+- **an assumed concept.** A rule can rest on a baseline *concept* without citing a rule at all, which is
+  worse, because nothing in the text points at what is missing.
+
+**The largest instance of the second form is closed.** `[BE-5]`, `[WEB-9]`, `[GHA-9]` and `[LIB-8]` said
+slices "raise **the taxonomy**" and map `category`, while the taxonomy was `[ERR-1]`, a baseline rule — so
+a project adopting `app-profile: [backend]` and nothing else was told to raise a taxonomy it had selected
+no definition for. `[ERR-1]` is now a kernel rule, so every profile that renders errors rests on a model
+the project already owes, and each of those rules states its own boundary's mapping. The explicit-citation
+form is unchanged, and the general gap below remains open.
 
 The resolver is correct and stays as it is. Adopting a profile selects no baseline rule, and the tests
-hold it to that. What is missing is a way for a rule to say *I refine `[ERR-1]`*, so that a project
+hold it to that. What is missing is a way for a rule to say *I refine `[CONTRACT-1]`*, so that a project
 selecting the refinement either gets what it refines or is told plainly that the pair is incomplete.
 Coral has no such concept today, and inventing one is a **model** change.
 

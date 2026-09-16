@@ -18,9 +18,10 @@ adopted anything.
 
 **What is deliberately not here.** Coral's general production-engineering policy is the **production
 baseline**, an [optional layer](./CONVENTIONS.md#ownership-layers) a project adopts explicitly. That
-policy covers package naming, directory layout, forbidden buckets, the error taxonomy, transactions,
-retries, caching, concurrency strategy, configuration, observability, and trust boundaries. It lives in
-[`PRODUCTION.md`](./PRODUCTION.md). **This document's Agent Execution Contract lists no rule defined
+policy covers package naming, directory layout, forbidden buckets, the recommended error-category
+vocabulary and its enforcement, transactions, retries, caching, concurrency strategy, configuration,
+observability, and trust boundaries. It lives in [`PRODUCTION.md`](./PRODUCTION.md). **This document's
+Agent Execution Contract lists no rule defined
 there.** Adopting Coral therefore obliges a project to none of it, and a reader can understand the Coral
 kernel without loading it. Where the prose below cites a baseline rule, it is pointing at that rule or
 labelling an illustration, never asking for it.
@@ -40,7 +41,7 @@ into a system lives in [`SYSTEM.md`](./SYSTEM.md). Worked code lives in
 
 ## How to read this document
 
-Sections 1–7 **define** the kernel-facing rules and explain *why* each exists. The
+Sections 1–8 **define** the kernel-facing rules and explain *why* each exists. The
 [Agent Execution Contract](#agent-execution-contract) is the **complete** condensed checklist for **this
 document**. Every `[auto]` and `[review]` rule below appears in it, so an agent that loads only the
 contract has this document's whole normative surface. The build fails if a rule is missing from it.
@@ -82,7 +83,7 @@ expenses/
   app               bootstrap and composition root
   db                crosscut: connections and transactions
   config            crosscut: settings, resolved once at startup
-  errors            crosscut: the error taxonomy
+  errors            crosscut: the app's declared error model
   category/
     add             definition + behavior
     add_test        tests for add (colocated, or mirrored if the language forbids colocation)
@@ -244,10 +245,10 @@ cross-cutting (consumed by two or more slices) **and** enforcing an invariant or
 not diverge.
 
 The second prong is the real gate. Shared *similarity* is not enough (`[DUP-2]`). The thing must enforce
-something that would be a **bug** if it diverged: money parsing, period or date format, an error taxonomy
-where the project has one (`[ERR-1]`), connection management, or a domain entity's identity rules. Two
-consumers is a floor, not a trigger. A thing consumed by twenty slices that carries no invariant is still
-a bucket.
+something that would be a **bug** if it diverged: money parsing, period or date format, the app's error
+model once two slices raise through it (`[ERR-1]`), connection management, or a domain entity's identity
+rules. Two consumers is a floor, not a trigger. A thing consumed by twenty slices that carries no
+invariant is still a bucket.
 
 The normal moment to promote is when a *second* consumer appears for logic currently inline in one
 slice. Extracting then, and touching the first slice, is expected. Flag the change per `[AGENT-2]`.
@@ -264,7 +265,75 @@ its internals: not its parsing, its queries, or its private helpers.
 
 ---
 
-## 7. Testing Philosophy  `[TEST-*]`
+## 7. The Error Model  `[ERR-*]`
+
+Every capability can fail, so every capability has to say how. Where the failure vocabulary is declared,
+and where a failure becomes output, are placement and ownership questions like any other. Left unstated,
+each slice answers them locally, and the agent writing the next slice has no finite set to load — only
+the conventions of whichever neighbours it happened to read.
+
+**`[ERR-1]` `[review]`** — Each app or published package declares **one small, stable, structured error
+model** for its own slices: its categories are declared once for that app or published package, every
+failure a slice raises is constructed through that declared model, and presenting a raised failure
+belongs to a **boundary that owns an observable contract, never to a slice**.
+
+Three parts, and all three are the rule. **Structured** means a typed, inspectable value carrying a
+classification from the declared model — not a bare string, and not a per-slice exception hierarchy
+a caller has to pattern-match. **Declared once for that app or published package** means the set of
+categories is decided at that boundary, so a slice selects from it and never extends it.
+**Presentation belongs to a boundary** means that turning a raised failure into observable output —
+an exit code, an HTTP status, an annotation, a rendered page — happens where an observable contract
+is owned, and never inside a slice in passing.
+
+**The unit is the app or published package, not the repository.** An app is one deployable unit
+([`CONVENTIONS.md`](./CONVENTIONS.md#the-vocabulary)), and this rule binds at that grain. A repository
+holding a backend and a CLI holds two error models unless their authors deliberately share one, and
+neither owes the other a category. Apps composing into a system acquire no shared cross-app taxonomy
+from this rule either: each raises and presents inside its own boundary, and what crosses between them
+is a question for the system-scale channel rules rather than for this one. Sharing a model across two
+apps is a decision somebody makes, with its own cost, and never something `[ERR-1]` imposes.
+
+**The third part is stated as ownership, not as a root.** Not every unit Coral covers has an executable
+entry point, and the rule must hold for the one that does not. A library has **no composition root of its
+own**, because the consumer is the root (`[ROOT-3]`). It still satisfies this rule, and satisfies it
+exactly: it declares the error model its own slices raise through, and **no slice in the package presents
+anything** (`[LIB-8]`). Presentation happens in each consuming application, at that application's own
+boundary under its own `[ERR-1]`. A library with many consumers therefore contains zero renderers rather
+than many, which is the rule met rather than an exception to it.
+
+**What this rule does not reach.** It asks for a classification drawn from a declared model. It does not
+fix a field layout, and it does not require a stable per-error identifier. The baseline's concrete shape
+— `{category, code, message}`, with `code` a stable string the raising slice owns — is `[ERR-2]`, and a
+library's public error identity is `[LIB-8]`. A project on the kernel alone owes the model and its
+ownership, not those.
+
+**Coral fixes the shape of the model, not its contents.** The kernel prescribes no number of categories
+and no names for them. Three categories can be the right answer, and so can eight. What it forbids is
+having no declared set, or having a different one per slice. Coral's *recommended* vocabulary is
+`[ERR-5]`, a production-baseline guide, and a project that uses another small, stable taxonomy is
+conformant without an exception (`[VER-5]`).
+
+**One definition is not the same as one crosscut.** `[XCUT-1]` promotes something only when two or more
+slices genuinely consume it, and an error model consumed by several slices meets that test easily: it
+carries exactly the must-not-diverge invariant the second prong asks for. A single-slice app owes the one
+declaration, not the promotion, and manufacturing a crosscut to satisfy this rule is the `[DUP-4]`
+failure rather than diligence.
+
+**Changing the taxonomy is an architectural change to a shared contract, not a slice-local one.** A slice
+whose case does not fit an existing category does not mint a new one, because the set every other slice
+selects from would then differ depending on which slice was written last. The change is made where the
+model is declared, and it is visible there. Where the *right* category is genuinely unclear, that is an
+ambiguous architectural decision and `[AGENT-2]` applies: flag it rather than guess.
+
+**Which boundary that is, and what it maps onto, is the app type's answer.** The kernel names only that
+there is one owner and that it is not a slice. For an executable application it is the composition root
+or entry point, which is the production baseline's `[ERR-3]`. What each boundary then maps the declared
+categories onto — HTTP statuses, exit codes, annotations, a rendered surface — is stated by the profile
+that owns that boundary (`[BE-5]`, `[CLI-8]`, `[WEB-9]`, `[GHA-9]`), never here.
+
+---
+
+## 8. Testing Philosophy  `[TEST-*]`
 
 **`[TEST-1]` `[review]`** — Testing is **behavior-first**: exercise the slice's entry point, assert its
 observable contract (`[BOUND-1]`), use real or realistic temporary infrastructure, and minimize mocking.
@@ -296,6 +365,9 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 ### The sharing decision
 - `[XCUT-1]` Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant.
 - `[COMPOSE-1]` Do not reach into another slice's internals. Depend on its published capability.
+
+### The error model
+- `[ERR-1]` One small, stable, structured error model per app or published package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice.
 
 ### Testing
 - `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.

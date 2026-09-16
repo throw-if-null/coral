@@ -57,15 +57,25 @@ CLI verb → semantics (the spine's mapping, concretely):
 
 A non-idempotent command must not be made to behave idempotently without renaming. → `[IDEM-3]`
 
-## Error rendering  → `[ERR-3]`
+## Error rendering  → `[ERR-1]`
 
-Slices raise the taxonomy error `{category, code, message}`. The **root** catches it once, writes
-`message` to `stderr`, and maps `category` → exit code. Minimal exit-code policy:
+Slices raise the app's declared error model (`[ERR-1]`). The **root** catches it once, writes the message
+to `stderr`, and owns the whole mapping from declared category to exit code. No slice picks an exit code.
+Under the production baseline the raised value carries `{category, code, message}` (`[ERR-2]`), and
+`[ERR-3]` names the root as the one renderer.
 
-- **`[CLI-8]`** `[auto]` `{app:cli}` `0` success · `2` usage error · `1` every other failure.
+The exit-code contract is fixed regardless of what the taxonomy is called:
+
+- **`[CLI-8]`** `[auto]` `{app:cli}` `0` success · `2` invalid invocation · `1` every other failure.
 - **`[CLI-9]`** `[review]` `{app:cli}` For finer scripting precision, use stable string `code`s on
   `stderr`, not a
   wider exit-code matrix.
+
+Three codes, and the root decides which one each declared category lands on. With `[ERR-5]`'s default
+vocabulary the recommended mapping is `usage` → `2` and every other category → `1`. With another taxonomy
+the root maps whichever category means *the invocation itself was wrong* onto `2`, and the rest onto `1`.
+A boundary failure the taxonomy never sees — an argument parser rejecting a flag before any slice runs —
+is a `2` for the same reason.
 
 ## Observability mechanism  → `[OBS-1]`
 
@@ -88,8 +98,9 @@ share the table and still write their own SQL.
 
 Precedence is **explicit flag → environment variable → config file → default**. Configuration is
 resolved and validated once at the root, then injected (`[CONFIG-1]`, `[CONFIG-3]`). A missing required
-setting fails the process with an `infrastructure` error and a non-zero exit, not a silent default.
-Slices read configuration only from what was injected (`[CONFIG-2]`). Secrets never appear in `--debug`
+setting fails the process with an environment-failure error — `infrastructure` under `[ERR-5]`'s default
+vocabulary — and a non-zero exit, not a silent default. Slices read configuration only from what was
+injected (`[CONFIG-2]`). Secrets never appear in `--debug`
 output (`[CONFIG-4]`, `[OBS-3]`).
 
 ## Trust boundary  → `[TRUST-1]` `[TRUST-2]`
@@ -140,7 +151,7 @@ project adopts the production baseline. `[guide]` rules are rationale and live o
 - `[CLI-3]` Read commands must support `--json` on `stdout`. Mutations may, and a mutation that does follows `[CLI-4]`.
 - `[CLI-4]` Keep `--json` stable across patch releases, fully typed, and free of color, progress, or decoration.
 - `[CLI-6]` No interactive prompts by default.
-- `[CLI-8]` Exit `0` on success, `2` on usage error, `1` on every other failure.
+- `[CLI-8]` Exit `0` on success, `2` on invalid invocation, `1` on every other failure.
 - `[CLI-9]` Use stable string `code`s on `stderr` for finer scripting precision, not a wider exit-code matrix.
 - `[CLI-10]` Configure debug mode as one global flag at the root. Slices never configure tracing themselves.
 - `[CLI-11]` Send trace output to `stderr`, stay quiet by default, and never pollute `--json` on `stdout`.

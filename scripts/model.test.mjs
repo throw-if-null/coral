@@ -21,8 +21,10 @@ import path from 'node:path'
 import test from 'node:test'
 
 import {
+  AUTO,
   CORE_END,
   CORE_START,
+  GUIDE,
   KERNEL_END,
   KERNEL_START,
   LAYERS_END,
@@ -35,6 +37,7 @@ import {
   classifyRules,
   extractStatements,
   groupByScope,
+  isNormative,
   loadRuleModel,
   parseLayers,
   serializeIndex,
@@ -822,7 +825,7 @@ const REAL = loadRuleModel(REPO)
 test('the repository model is clean and every rule in it has one scope', () => {
   assert.deepEqual(REAL.problems, [])
   assert.ok(REAL.classified)
-  assert.equal(REAL.rules.size, 179)
+  assert.equal(REAL.rules.size, 180)
   for (const [id, rule] of REAL.rules) {
     assert.ok(rule.scope, `[${id}] has no resolved scope`)
     assert.ok(rule.scope.kind, `[${id}] has no scope kind`)
@@ -942,11 +945,11 @@ test('and every kernel rule is stated in one of them', () => {
   // The other half, and the one that makes the pair mean what the registry claims: *a reader
   // of the core documents has met the whole unconditional surface*. The first assertion alone
   // does not pin that — dropping ARCHITECTURE.md from the registry would leave it passing over
-  // a smaller set while five kernel rules sat outside the guard entirely.
+  // a smaller set while the kernel rules stated there sat outside the guard entirely.
   //
   // Derived from the kernel block rather than from a document list held here, so a kernel rule
   // stated in a new document fails until that document is declared core.
-  assert.equal(REAL.kernel.size, 10)
+  assert.equal(REAL.kernel.size, 11)
   for (const id of REAL.kernel) {
     const page = REAL.rules.get(id).page
     assert.ok(REAL.core.has(page), `[${id}] is kernel but its defining document ${page} is not core`)
@@ -958,6 +961,33 @@ test('and every kernel rule is stated in one of them', () => {
   // into "one registry row, plus a rule to put in it", which is a constraint the model does not
   // have. parseCoreDocuments() already refuses a row naming a document that cannot define rules,
   // which is the real integrity check.
+})
+
+test('the error-model split: the invariant is kernel, its refinements are baseline', () => {
+  // PO-07. [ERR-1] is the architectural invariant — one small, stable, structured error model per
+  // app or published package, presented at a boundary rather than inside a slice, which is what makes it
+  // satisfiable by a library that presents nothing at all — and it binds a project that adopted
+  // nothing.
+  // Everything downstream of it stays opt-in: the static enforcement, the raise/render
+  // realization, batch policy, and the recommended category vocabulary. Asserted as scope and
+  // class rather than as prose, so rewording any of the five statements does not touch this.
+  const errOne = REAL.rules.get('ERR-1')
+  assert.ok(REAL.kernel.has('ERR-1'), '[ERR-1] is not in the kernel block')
+  assert.equal(errOne.scope.kind, 'kernel')
+  assert.ok(REAL.core.has(errOne.page), '[ERR-1] is kernel but not stated in a core document')
+
+  for (const id of ['ERR-2', 'ERR-3', 'ERR-4', 'ERR-5']) {
+    const rule = REAL.rules.get(id)
+    assert.ok(rule, `[${id}] is not defined`)
+    assert.equal(rule.scope.kind, 'production-baseline', `[${id}] left the production baseline`)
+    assert.equal(rule.scope.surface, 'opt-in', `[${id}] is no longer opt-in`)
+    assert.ok(!REAL.kernel.has(id), `[${id}] was promoted into the kernel`)
+  }
+  // [ERR-5] is the recommended vocabulary, and a guide is rationale rather than a gate — so a
+  // project on another small taxonomy fails no conformance check for the category names alone.
+  assert.equal(REAL.rules.get('ERR-5').cls, GUIDE)
+  assert.ok(isNormative(REAL.rules.get('ERR-1')), '[ERR-1] must instruct, not advise')
+  assert.equal(REAL.rules.get('ERR-2').cls, AUTO)
 })
 
 test('the app-scale production baseline lives outside the core documents', () => {

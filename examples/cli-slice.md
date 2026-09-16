@@ -1,6 +1,11 @@
 # Worked example: a CLI capability slice (two commands, end to end)
 
 > Written against **Coral 0.6.0**.
+>
+> **"Written against" names the latest *released* Coral.** The error-model citations below are
+> **unreleased** and ship in 0.7.0: `[ERR-1]` becomes a kernel rule that names no categories, and
+> `[ERR-5]` becomes the recommended six-category vocabulary. In 0.6.0, `[ERR-1]` is a
+> production-baseline rule that fixes those six names. Delete this note when 0.7.0 is cut.
 
 The [Go example](./go-api-slice) shows a slice in a language that *forces* a capability across several
 packages. This one shows the opposite: **a CLI in Python, where nothing forces banding, so a slice is one
@@ -50,7 +55,12 @@ python_files = ["*_test.py"]   # so a test can sit beside the code it verifies  
 Four of them, each precisely named, each carrying an invariant that would be a bug if it drifted
 (`[XCUT-1]`). None is called `utils`.
 
-The error taxonomy first. Slices raise it, and exactly one place renders it (`[ERR-1]`, `[ERR-3]`):
+The error model first. `[ERR-1]` requires one small, stable, structured taxonomy, declared once for this
+app, with presentation owned by a boundary rather than by a slice; it fixes neither the count nor the
+names. This example takes Coral's recommended six-category default (`[ERR-5]`) because it has adopted the
+production baseline. A project on another small taxonomy would write this file differently and be equally
+conformant. This is an executable CLI, so the boundary that presents is its root (`[ERR-3]`) — slices
+raise, and exactly one place renders:
 
 ```python
 # errors.py
@@ -333,7 +343,7 @@ def main(argv: list[str], db_path: str) -> int:
 
             traceback.print_exc(file=sys.stderr)  # diagnostics to stderr only  [CLI-11]
         return EXIT_USAGE if err.category == "usage" else EXIT_FAIL
-    except Exception as err:  # unexpected == internal  [ERR-1]
+    except Exception as err:  # unexpected == internal  [ERR-5]
         print(f"internal: {err}", file=sys.stderr)
         return EXIT_FAIL
 
@@ -434,8 +444,9 @@ def test_add_normalizes_the_stored_amount(run_cli):
 
 
 def test_missing_required_flag_is_a_usage_error(run_cli):
-    # A malformed invocation is `usage`, and usage is the one category with its own
-    # exit code. Here argparse itself detects it before any slice runs.  [CLI-8] [ERR-1]
+    # A malformed invocation exits 2. In this taxonomy that is the `usage` category,
+    # and it is the one with its own exit code. Here argparse itself detects it before
+    # any slice runs.  [CLI-8] [ERR-5]
     code, out, _ = run_cli(["add", "--amount", "12.50"])
     assert code == 2
     assert out == ""

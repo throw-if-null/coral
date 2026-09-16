@@ -133,10 +133,11 @@ auto-retry a non-idempotent operation.
 
 **`[CHAN-6]` `[review]` `{baseline}`** — Errors do not cross the channel as exceptions.
 
-On a **synchronous call**, a producer failure surfaces to the caller as the `infrastructure` category
-(`[ERR-1]`). On an **event or message channel**, an un-processable message goes to a **dead-letter** path
-rather than blocking the stream. A transient failure is retried by redelivery, so the consumer must be
-idempotent (`[CHAN-5]`). Each app still raises and renders within its own boundary (`[ERR-3]`).
+On a **synchronous call**, a producer failure surfaces to the caller as the consuming app's
+environment-failure category — `infrastructure` under `[ERR-5]`'s default vocabulary (`[ERR-1]`). On an
+**event or message channel**, an un-processable message goes to a **dead-letter** path rather than
+blocking the stream. A transient failure is retried by redelivery, so the consumer must be idempotent
+(`[CHAN-5]`). Each app still raises and renders within its own boundary (`[ERR-3]`).
 
 **`[CHAN-7]` `[review]` `{baseline}`** — Propagate a correlation/trace id across the channel so a single
 user action is traceable across apps.

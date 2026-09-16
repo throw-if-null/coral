@@ -1,7 +1,7 @@
 # Rule index
 
-Every rule Coral publishes, in one place: **179 rules** across 10 documents — 29 `[auto]`, 121 `[review]`,
-29 `[guide]`. Each ID links to its definition, where the reasoning lives; the statement here is only the
+Every rule Coral publishes, in one place: **180 rules** across 10 documents — 29 `[auto]`, 121 `[review]`,
+30 `[guide]`. Each ID links to its definition, where the reasoning lives; the statement here is only the
 one-line form.
 
 This page is **generated from the documents** (`npm run rules:index`), and the build fails if it drifts, so
@@ -18,11 +18,11 @@ Every rule belongs to exactly one **ownership layer**: the narrowest surface tha
 separate axis from the enforcement class — a rule is *both* `app profile · cli` *and* `[auto]`. Ownership
 answers *who has to load this rule*; the class answers *how it is checked*.
 
-They answer to three audiences rather than stacking into one number. **10 form the conformance surface** —
-kernel — the rules that apply without a project deciding anything, 8 of them `[review]`. **9 govern Coral
+They answer to three audiences rather than stacking into one number. **11 form the conformance surface** —
+kernel — the rules that apply without a project deciding anything, 9 of them `[review]`. **9 govern Coral
 itself** and sit outside that surface entirely: no application source code satisfies or violates them.
 Coral-aware humans, agents and tooling read them when interpreting a rule, consulting the adherence record,
-or changing how a project relates to Coral. The other **160 are opt-in** — 111 `[review]` — and reach a
+or changing how a project relates to Coral. The other **160 are opt-in** — 110 `[review]` — and reach a
 project only where its `CORAL.md` adopts the layer they belong to, so a CLI that has not adopted the
 runtime-agent profile never reads an `[AGENTIC-*]` rule and a library never reads an HTTP status code.
 
@@ -34,9 +34,9 @@ a project declares what it adopts, and how the set is composed from that, is in
 
 | Layer | Rules | `[auto]` | `[review]` | `[guide]` | Loaded by |
 | --- | --- | --- | --- | --- | --- |
-| kernel | 10 | 2 | 8 | 0 | every Coral codebase |
+| kernel | 11 | 2 | 9 | 0 | every Coral codebase |
 | framework governance | 9 | 2 | 2 | 5 | Coral-aware humans, agents and tooling — never audited against application source |
-| production baseline | 88 | 12 | 61 | 15 | projects that adopt it, at the scales they adopt |
+| production baseline | 88 | 12 | 60 | 16 | projects that adopt it, at the scales they adopt |
 | app profile · backend | 8 | 1 | 7 | 0 | projects with an app of that shape |
 | app profile · cli | 11 | 5 | 4 | 2 | projects with an app of that shape |
 | app profile · gh-action | 12 | 2 | 9 | 1 | projects with an app of that shape |
@@ -67,7 +67,7 @@ are not narrowed by scale: they bind without a decision, so a scale declaration 
 
 | Scale | Rules | Stated in | Read by |
 | --- | --- | --- | --- |
-| app | 158 | every other document | every project — one deployable unit, its slices, its crosscuts, its root |
+| app | 159 | every other document | every project — one deployable unit, its slices, its crosscuts, its root |
 | system | 21 | [`SYSTEM.md`](./SYSTEM.md) | projects where separately-built apps compose over a channel |
 
 ## Rules by scope
@@ -85,7 +85,7 @@ production baseline takes the app-scale part of that group and not the rest.
 
 ### kernel
 
-10 rules — kernel.
+11 rules — kernel.
 
 | Rule | Class | Scale | Defined in |
 | --- | --- | --- | --- |
@@ -93,6 +93,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[AGENT-4]` | `[review]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
 | `[BOUND-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 | `[COMPOSE-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[ERR-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 | `[MODEL-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 | `[TEST-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 | `[VER-3]` | `[review]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
@@ -160,10 +161,10 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[EFFECT-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[EFFECT-3]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[EFFECT-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
-| `[ERR-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[ERR-2]` | `[auto]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[ERR-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[ERR-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
+| `[ERR-5]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[GROW-1]` | `[guide]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[GROW-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[GROW-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
@@ -353,7 +354,7 @@ production baseline takes the app-scale part of that group and not the rest.
 
 ## Coral Architecture — the App
 
-8 rules — [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+9 rules — [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
@@ -364,6 +365,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[BOUND-2]` | `[review]` | kernel | One request or trigger per slice, or a tightly-coupled pair, owned end to end. |
 | `[XCUT-1]` | `[review]` | kernel | Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant. |
 | `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals. Depend on its published capability. |
+| `[ERR-1]` | `[review]` | kernel | One small, stable, structured error model per app or published package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice. |
 | `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking. |
 
 ## Coral Production Baseline — the App
@@ -425,10 +427,10 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[IDEM-4]` | `[review]` | production baseline | Never auto-retry a non-idempotent mutation. |
 | `[IDEM-5]` | `[review]` | production baseline | On an at-least-once platform, a mutating handler must be idempotent. |
 | `[IDEM-6]` | `[review]` | production baseline | Classify an unlisted verb by its effect and name it truthfully. Flag an unclear effect. |
-| `[ERR-1]` | `[review]` | production baseline | Use the six-category taxonomy, defined once as a crosscut. |
-| `[ERR-2]` | `[auto]` | production baseline | Raise `{category, code, message}` using the enum. Slices own their `code` strings. |
+| `[ERR-2]` | `[auto]` | production baseline | Raise through the declared taxonomy constructors of the slice's own app or published package, never an ad-hoc error type or a sibling unit's. Slices own their `code` strings. |
 | `[ERR-3]` | `[review]` | production baseline | Slices raise. The root renders. Nothing else renders. |
 | `[ERR-4]` | `[review]` | production baseline | Batch operations are all-or-nothing unless partial outcomes are reported explicitly. |
+| `[ERR-5]` | `[guide]` | production baseline | Coral's recommended starting taxonomy is six categories: `usage`, `validation`, `not_found`, `conflict`, `infrastructure`, `internal`. |
 | `[OBS-1]` | `[guide]` | production baseline | Diagnostics are opt-in, off the data path, and never part of the machine contract. |
 | `[OBS-2]` | `[review]` | production baseline | Configure observability at the root, and emit through the injected crosscut. |
 | `[OBS-3]` | `[review]` | production baseline | Keep diagnostics off the machine-readable contract channel. |
@@ -486,7 +488,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[AGENTIC-7]` | `[review]` | runtime-agent profile | Treat history, memory, and retrieval as state: slice-owned, or a precisely-named retrieval crosscut. |
 | `[AGENTIC-8]` | `[review]` | runtime-agent profile | Dedupe a mutating agent by storing the first result keyed to the request. Never re-run to recover. |
 | `[AGENTIC-13]` | `[review]` | runtime-agent profile | Give every side-effecting tool its own replay protection: a key, a natural key, or a ledger. The stored result is not one. |
-| `[AGENTIC-9]` | `[review]` | runtime-agent profile | Map model failures to the taxonomy, bound schema repair then fail, and never accept malformed output. |
+| `[AGENTIC-9]` | `[review]` | runtime-agent profile | Map model failures onto the declared error model, bound schema repair then fail, and never accept malformed output. |
 | `[AGENTIC-10]` | `[review]` | runtime-agent profile | Treat prompt input and model output as untrusted, default-deny dangerous tools, keep secrets out of prompts entirely, and minimize/redact/retain personal data. |
 | `[AGENTIC-12]` | `[review]` | runtime-agent profile | Pin the model identifier and version the prompt. Record both with each result, and re-run evals before either changes. |
 | `[AGENTIC-11]` | `[review]` | runtime-agent profile | Test the deterministic parts normally, agent behavior by conformance and evals, and harness safety. Never exact-match model text. |
@@ -501,9 +503,9 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[BE-2]` | `[review]` | app profile · backend | The contract is status code + response body + observable side effects: `201` create, `200` read, `204` no body. |
 | `[BE-3]` | `[review]` | app profile · backend | Wire router, middleware, and injection at the root. Crosscuts are singletons, and only request-bound state is per-request. |
 | `[BE-4]` | `[review]` | app profile · backend | A synchronous `POST` may offer an idempotency key. Any platform-redelivered handler must be idempotent. |
-| `[BE-5]` | `[auto]` | app profile · backend | Slices raise the taxonomy. One root middleware renders the body and maps `category` → HTTP status. |
+| `[BE-5]` | `[auto]` | app profile · backend | Slices raise the declared error model. One root middleware renders it and maps every declared category to an HTTP status. |
 | `[BE-6]` | `[review]` | app profile · backend | Authenticate and coarsely authorize at the boundary. Scope every query by owner/tenant id, and default to deny. |
-| `[BE-8]` | `[review]` | app profile · backend | Render authn/authz failures at the boundary, not through the taxonomy: `401` unauthenticated, `403` no capability, `404` scoped miss. |
+| `[BE-8]` | `[review]` | app profile · backend | Render authn/authz failures at the boundary, not through the error model: `401` unauthenticated, `403` no capability, `404` scoped miss. |
 | `[BE-7]` | `[review]` | app profile · backend | Pick one API versioning strategy and apply it system-wide, with URL prefix as the default. Advance it only for a breaking change. |
 
 ## Appendix: CLI
@@ -519,7 +521,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[CLI-5]` | `[guide]` | app profile · cli | Commands are narrow, explicit, composable, and script-friendly. |
 | `[CLI-6]` | `[auto]` | app profile · cli | No interactive prompts by default. |
 | `[CLI-7]` | `[guide]` | app profile · cli | Command names are stable and predictable. |
-| `[CLI-8]` | `[auto]` | app profile · cli | Exit `0` on success, `2` on usage error, `1` on every other failure. |
+| `[CLI-8]` | `[auto]` | app profile · cli | Exit `0` on success, `2` on invalid invocation, `1` on every other failure. |
 | `[CLI-9]` | `[review]` | app profile · cli | Use stable string `code`s on `stderr` for finer scripting precision, not a wider exit-code matrix. |
 | `[CLI-10]` | `[auto]` | app profile · cli | Configure debug mode as one global flag at the root. Slices never configure tracing themselves. |
 | `[CLI-11]` | `[auto]` | app profile · cli | Send trace output to `stderr`, stay quiet by default, and never pollute `--json` on `stdout`. |
@@ -538,7 +540,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[GHA-6]` | `[review]` | app profile · gh-action | Treat the event payload as attacker-controlled. Pass untrusted values through `env:`, never into a `run:` body. |
 | `[GHA-7]` | `[review]` | app profile · gh-action | Declare `permissions:` explicitly and scope them to the run, default to read-only, and never write a secret to an output. |
 | `[GHA-8]` | `[guide]` | app profile · gh-action | Pin third-party actions you call by commit SHA, not by a moving tag. |
-| `[GHA-9]` | `[review]` | app profile · gh-action | Map `category` → exit status and annotation at the entry point, distinguish recoverable from not, never exit `0` on failure. |
+| `[GHA-9]` | `[review]` | app profile · gh-action | Map every declared category → exit status and annotation at the entry point, classify each as recoverable or not, never exit `0` on failure. |
 | `[GHA-10]` | `[auto]` | app profile · gh-action | Keep diagnostics in log groups and annotations, never on the outputs surface. Report no-ops explicitly. |
 | `[GHA-11]` | `[review]` | app profile · gh-action | Treat input and output names as the versioned contract: add freely, never repurpose, deprecate before removing. |
 | `[GHA-12]` | `[review]` | app profile · gh-action | Exercise the entry point with simulated inputs and hostile payload fixtures, and assert a repeated run is a no-op. |
@@ -556,7 +558,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[LIB-5]` | `[auto]` | app profile · library | Never write to `stdout`/`stderr` and never install global handlers. The default diagnostic is silence. |
 | `[LIB-6]` | `[review]` | app profile · library | Prefer pure functions and push every effect to a consumer-provided interface. |
 | `[LIB-7]` | `[review]` | app profile · library | Encode effect semantics in the name, and document idempotency and retry stance for anything doing I/O. |
-| `[LIB-8]` | `[review]` | app profile · library | Raise typed taxonomy errors and never render. The consumer is the root and decides presentation. |
+| `[LIB-8]` | `[review]` | app profile · library | Raise typed, inspectable errors from the declared error model and never render. The consumer is the root and decides presentation. |
 | `[LIB-9]` | `[review]` | app profile · library | Accept an injected logger or hook, define its no-op default, and keep the interface minimal. |
 | `[LIB-10]` | `[review]` | app profile · library | Validate inputs at the public API boundary, and state the trust assumption explicitly. |
 | `[LIB-11]` | `[review]` | app profile · library | Follow semver: add freely, never repurpose, and deprecate before removing. |
@@ -577,7 +579,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[WEB-6]` | `[guide]` | app profile · web | The default web architecture is a single integrated frontend organized internally by capability slice, consuming the design-system crosscut. |
 | `[WEB-7]` | `[review]` | app profile · web | Treat the client as hostile. Authorize at the server boundary, validate every payload, and keep secrets server-side. |
 | `[WEB-8]` | `[auto]` | app profile · web | Follow HTTP method semantics: `GET`/`HEAD` safe and read-only, `POST` non-idempotent, `PUT`/`DELETE` idempotent. |
-| `[WEB-9]` | `[auto]` | app profile · web | Slices raise the taxonomy. A root middleware renders to the right surface: an error view or a structured body. |
+| `[WEB-9]` | `[auto]` | app profile · web | Slices raise the declared error model. A root middleware maps every category to a status and renders the right surface: an error view or a structured body. |
 | `[WEB-10]` | `[review]` | app profile · web | Treat the route/URL structure as the stable contract: never break a route, never silently repurpose one. |
 | `[WEB-11]` | `[review]` | app profile · web | Server state is the source of truth. Client state is a slice-owned cache, and the mutating slice invalidates it. |
 | `[WEB-12]` | `[review]` | app profile · web | Drive a web slice's behavior test through the real surface. No internals, no snapshots, and no mocking its capability call. |

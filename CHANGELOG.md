@@ -39,11 +39,202 @@ a project pinning `VERSION` does not owe it yet.
 ## Unreleased — 0.7.0
 
 A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **The batch takes the highest level of the entries in it, currently major**, because
-the applicability pass below adds `[VER-6]`. Adding a rule is a breaking change under `[VER-2]`. Here the
-code that can fail is a project's `CORAL.md`, which conformed yesterday. Coral is still in `0.y.z`, so
-that major is cut as a **minor** bump (`0.6.0` → `0.7.0`) per semver's major-version-zero clause. The
-level of the change is major either way, and a consuming project reads it as one.
+the batch is cut. **The batch takes the highest level of the entries in it, currently major**, because the
+applicability pass below adds `[VER-6]` and the error-model pass moves `[ERR-1]` into the kernel. Adding a
+rule is a breaking change under `[VER-2]`, and so is making an opt-in rule unconditional. The code that
+can fail is a project's `CORAL.md`, which conformed yesterday, and a kernel-only project that had no
+declared error model. Coral is still in `0.y.z`, so that major is cut as a **minor** bump
+(`0.6.0` → `0.7.0`) per semver's major-version-zero clause. The level of the change is major either way,
+and a consuming project reads it as one. **The working version is already `0.7.0` and does not move
+again** — one batch takes one bump, however many breaking entries it holds.
+
+**`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
+under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
+
+Coral required a predictable error architecture and stated it as a fixed vocabulary. `[ERR-1]` named
+exactly six categories — `usage`, `validation`, `not_found`, `conflict`, `infrastructure`,
+`internal` — and lived in the production baseline. Two things were wrong with that. The
+architectural claim Coral actually needs is that *there is one declared model per app or published
+package, and presentation belongs to a boundary rather than to a slice*, which is agent-justified
+and belongs in the kernel. The six names are a good default vocabulary, which is not. A project with
+a three-category taxonomy was non-conformant for the category count alone, and a project that had
+adopted nothing owed no error model at all.
+
+**`[ERR-1]` is now a kernel rule, stated in `ARCHITECTURE.md`.** Each app or published package declares
+one small, stable, structured error model for its own slices: its categories are declared once for
+that app or published package, every failure a slice raises is constructed through that declared
+model, and presenting a raised failure belongs to a boundary that owns an observable contract, never
+to a slice. It prescribes
+**no number of categories and no names**. A project that declares its own small, stable taxonomy is
+conformant, and needs no `[VER-5]` exception merely because its categories differ from Coral's
+recommended ones. What it still cannot do is let a slice mint a category locally or present a failure in
+passing: changing the taxonomy is a change to a shared declaration, made where that declaration lives,
+and where the right category is genuinely unclear `[AGENT-2]` applies — flag it rather than guess.
+
+**The unit is the app or published package, not the repository.** An app is one deployable unit, and
+the rule binds at that grain. A repository holding a backend and a CLI holds two error models unless
+somebody deliberately shares one, and apps composing into a system acquire no cross-app taxonomy
+from this rule — each raises and presents inside its own boundary. `[XCUT-1]` still decides, per
+app, whether that model becomes a physical crosscut.
+
+**The presentation half is stated as ownership rather than as a root, so it holds for a library.** "One
+boundary owns rendering it" would have been ambiguous for exactly one core profile: a library has no
+composition root of its own (`[ROOT-3]`), never renders, and may have many independent consumers. The
+rule now says presentation belongs to a boundary that owns an observable contract and never to a slice. A
+library satisfies it by declaring the model its slices raise through and presenting nothing; presentation
+happens in each consuming application, at that application's own boundary under its own `[ERR-1]`. Zero
+renderers in the package is the rule met, not an exception to it.
+
+**What the kernel deliberately does not reach.** `[ERR-1]` asks for a classification drawn from a
+declared model. It fixes no field layout and requires no stable per-error identifier, so a kernel-only
+project does not acquire stable error codes by implication. `{category, code, message}` with a
+slice-owned stable `code` is `[ERR-2]`, production baseline; a library's public error identity is
+`[LIB-8]`.
+
+**"Defined once as a crosscut" did not survive the move, deliberately.** The old wording would have made
+`[XCUT-1]` and `[ERR-1]` contradict each other for a one-slice app: `[XCUT-1]` promotes only against
+genuine sharing, and a kernel rule demanding a crosscut regardless would force the `[DUP-4]` failure. The
+invariant is **one definition**. Once two slices consume it, it qualifies as an error crosscut on
+`[XCUT-1]`'s own terms, because it carries exactly the must-not-diverge invariant that rule asks for.
+
+**Its kernel rationale, against the four-part membership test:** drop the operating model and Coral would
+say "have a coherent error strategy" and stop; keep it and the vocabulary must be finite and declared,
+because an agent writing the next slice either loads one small set or reconstructs local convention from
+its neighbours. It defends **bounded context** (one vocabulary to load), **reviewability** (a taxonomy or
+rendering-policy change lands as an architectural diff rather than inside one handler) and **drift
+prevention** (categories, construction and presentation cannot diverge slice by slice). It is not general
+correctness, because it constrains *where the vocabulary is declared and who renders it* rather than how
+failures are handled. And nothing else in the kernel implies it.
+
+**`[ERR-2]` and `[ERR-3]` stay in the production baseline, as refinements of it.** `[ERR-2]` is the
+statically checkable enforcement and `[ERR-3]` is the baseline's realization of the rendering half —
+*slices raise, the root renders, nothing else renders* — so promoting either would put an enforcement
+mechanism in the kernel, which the membership test's fourth clause forbids. `[ERR-4]`, batch transaction
+policy, is untouched.
+
+**`[ERR-2]`'s statement now matches what a checker can decide, and follows `[ERR-1]`'s grain.** It said
+errors carry `{ category, code, message }` and that `category` is "one of the six". A static check
+sees neither the fields nor the argument values — it sees the raised type. The rule now requires a
+slice to raise only through the error model declared for **its own app or published package**, never
+an ad-hoc one and never a sibling unit's, and the rule text says plainly which half is `[auto]`. `{
+category, code, message }` remains the baseline's concrete shape, with slice-owned `code` strings,
+stated as the commentary it always was in practice. **Loosened, not tightened:** every project that
+conformed to the old wording conforms to the new one.
+
+**`coral-lint` learned the same grain, and refuses to guess it.** The `[ERR-2]` check took one
+repository-wide `error_types` allowlist and applied it to every slice, so a repo holding a backend and
+a CLI could pass a backend slice that raised the CLI's constructor — an `[ERR-1]` boundary violation
+reported as clean. `coral.toml` now accepts `[[coral.error_models]]`, one entry per app or published
+package with its own `path` and `types`, and each slice is checked against the model whose path
+contains it, longest path winning. Declaring both forms is a hard config failure. This is the tool's
+implementation of an already-selected rule and pulls in no applicability work.
+
+**Three ways that per-unit check could still report a clean run, all closed.** Each looked like a pass
+and was not one:
+
+- **A repo-wide allowlist across several units.** Where a repo declares several units (`app_dirs` /
+  `library_dirs`) with only the flat `error_types`, the check **skips and says why** instead of
+  unioning the constructors. The flat form still means *one model for everything here*, which is true
+  of a single-unit repo.
+- **A raise matched by its final segment.** Two units routinely name one category the same thing, so
+  comparing `b_errors.validation` against `a_errors.validation` by tail passed a cross-boundary raise —
+  and a locally defined `validation()` passed for the same reason. Raise sites are now resolved to a
+  constructor **identity** through the imports visible at the raise site: `from b_errors import
+  validation` then `raise validation(...)` resolves to `b_errors.validation` and is a finding inside an
+  app that declared `a_errors.validation`, while `from a_errors import validation as invalid` and
+  `import a_errors as errors` both resolve to the declared one.
+- **A file-wide view of those imports.** Python binds names lexically and in source order, and the first
+  resolver did neither: an import anywhere in the file bound every raise site in it. A local `def
+  validation` shadowing the import, a parameter of that name, an import sitting inside a different
+  function, an import written *after* the raise, and two branches importing the name from different
+  modules all passed. `pysource.raised_constructors()` now walks each scope forward, carrying binding
+  state and joining branch outcomes conservatively — agreement survives, disagreement is undecidable —
+  so only one definite binding reaching the raise is accepted. A same-scope `from x import *` unsettles
+  the names it could have replaced.
+- **An analysis that answered "no contradiction found" as if it meant "conformant".** Successive review
+  rounds each found another Python semantic the resolver modelled imprecisely — lexical scope, source
+  order, branches, compile-time locals, class frames, `match` captures, `del`, loop-carried bindings,
+  `finally` on abrupt exits, guarded captures, walrus, exception-target cleanup. Each fix was correct and
+  the pattern was the finding: settling which object a name holds is running the program. The resolver
+  now proves or declines. A name is accepted only where every binding site in the scope that owns it is
+  an import and they agree; a single `def` owning it, or nothing binding it, are the other two provable
+  answers; **everything else skips the check and says why**. Three hundred lines of interpreter came out,
+  and the provable cases — one import, one `def`, an unbound name — are unchanged.
+- **A relative import flattened to its spelling.** `from .errors import validation` and
+  `from ...errors import validation` both read as `errors.validation`, so a published package could
+  climb into its host app and be accepted as its own. The import level is retained and the module is
+  resolved against the repository through `Layout.resolve_import()`, then required to sit inside the
+  unit owning the raising slice. Two units may each call their own constructor `errors.validation`.
+- **A bare constructor declaration.** `types = ["validation"]` names no module. It cannot say which unit
+  owns the constructor, and it never matches what `from errors import validation` resolves to, so it
+  configured a check that could not pass. Both forms now require qualified entries.
+- **An unresolved raise reported as a clean run.** A star import, a rebound name or an unresolvable
+  relative import left the check unable to decide that raise, and a note does not change an outcome.
+  `[ERR-2]` now **skips** and names the raise, the same answer an unowned slice gets.
+- **The flat form covering slices outside the unit it declared.** `app_dirs = ["a"]` with a slice in
+  `b/feat` states an ownership boundary that slice sits outside, and the flat taxonomy was handed to it
+  anyway — the unowned-slice false pass in the other form. Where exactly one unit is declared, a slice
+  outside it now skips the check. A config naming no unit states no boundary, and keeps its reach.
+- **A scoped `path` naming any directory that exists.** Longest-path-wins resolution would have let a
+  *feature package* under an app carry its own taxonomy, which is a second model inside one unit.
+  A scoped path must now name a unit the config already declared in `app_dirs` or `library_dirs`.
+  A published package nested in an app is such a unit and legitimately overrides its host.
+
+**An uncovered slice is no longer a clean run either.** A slice inside no declared model was recorded
+as a note, and a note does not change the outcome: the check still reported `ran` with zero findings
+and the tool exited 0 while that slice was never examined. Unowned slices now **skip** the check and
+name themselves, which is the same answer the multi-unit case gets, for the same reason.
+
+**`[ERR-5]` `[guide]` is the recommended six-category vocabulary, and it is the one new ID in this
+entry.** The list, and the explanation of what each category means, moved there intact, along with why
+*this vocabulary* omits `unauthenticated` and `forbidden`. It is a `[guide]`, so it is rationale and never
+a gate — a new `[guide]` rule is **minor** under `[VER-2]`, not major. It recommends and imposes nothing:
+it does not ask a project on another taxonomy to reproduce its category layout, and it does not require a
+recorded reason for choosing differently. The backend security behavior that used to be argued from the
+taxonomy — `401`, `403`, and a scoped miss rendering as `404` — is owned by `[BE-8]`, which states it in
+terms of the response rather than a category name and binds a backend whatever its taxonomy is called.
+What "custom taxonomy" still never licenses is a category per slice; `[ERR-1]` owns that.
+
+**App profiles no longer depend on baseline adoption for the existence of an error taxonomy.** This was
+the concrete instance of the self-containment gap `CONVENTIONS.md` records. `[BE-5]`, `[WEB-9]`,
+`[GHA-9]`, `[LIB-8]` and `[AGENTIC-9]` told slices to "raise the taxonomy" while the taxonomy was a
+baseline rule, so a project adopting `app-profile: [backend]` and nothing else was told to raise something
+it had selected no definition for. Each now rests on kernel `[ERR-1]` and states its own boundary's
+mapping:
+
+- **`[BE-5]`** requires the root middleware to own a **total** mapping from every declared category to an
+  HTTP status. That totality is **this rule's** requirement, not `[ERR-1]`'s — the kernel asks for one
+  model and presentation owned by a boundary, and the HTTP mapping is the backend's realization of it at
+  the boundary a backend renders from. Adding a
+  category therefore touches two central definitions, the taxonomy declaration and this table, and no
+  slice or handler. A category the renderer does not know is a gap, not a custom taxonomy. The six-row
+  status table stays, labelled as the recommended mapping when the project uses `[ERR-5]`'s default
+  vocabulary.
+- **`[BE-8]`** states the security property as observable behavior — `401` unauthenticated, `403`
+  authenticated without the capability, `404` for a scoped miss — and no longer rests on the literal
+  category name `not_found`. Whatever the taxonomy calls it, the scoped miss must reach the client
+  indistinguishably from a genuine miss.
+- **`[CLI-8]`** keeps the exit-code contract unchanged (`0` / `2` / `1`) and now reads "invalid
+  invocation" rather than "usage error", so it no longer requires a category literally named `usage`. The
+  root owns the mapping; `usage` → `2` is the recommended one under `[ERR-5]`.
+- **`[WEB-9]`** owns its own statement that the root maps every declared category to a status and selects
+  the surface, and that total mapping is attributed to this rule rather than to `[ERR-1]`. `[BE-5]`'s
+  table is cited as an analogous default, not as a hidden dependency.
+- **`[GHA-9]`** requires the entry point to classify every declared category as recoverable or
+  non-recoverable and to own the exit-status and annotation mapping. `infrastructure` retryable,
+  `usage`/`validation` not, are `[ERR-5]` examples rather than universal names.
+- **`[LIB-8]`** keeps typed, inspectable errors and no rendering, and states that reclassifying an
+  already-published error is breaking. `validation` → `400` is now explicitly an `[ERR-5]` example.
+- **`[AGENTIC-9]`** and `[AGENTIC-4]` still require malformed model output to be a structured,
+  non-success failure that never travels downstream, mapped onto the project's category for invalid
+  structured output — `validation` under `[ERR-5]`.
+
+**What a project has to do.** A project that had adopted the production baseline owes nothing new: it
+already had a declared taxonomy, and `[ERR-5]` describes what it already uses. A project that had **not**
+adopted the baseline gains one unconditional rule, `[ERR-1]`, and that is why the change is breaking. A
+project that wanted a different taxonomy can now have one without an exception. A single-app repo running
+`coral-lint` needs no config change; a repo holding several apps or packages moves its `error_types` list
+to one `[[coral.error_models]]` entry per unit, and is told to rather than silently mis-checked.
 
 **Coral rules become applicable by declaration, not by existing. `[VER-6]` is added, the production
 baseline becomes opt-in, and rules carry an architectural scale. Major under `[VER-2]`: a rule is added,
@@ -554,8 +745,9 @@ opt-in under `[VER-6]`, and a generated `CORAL-CONTRACT.md` carries only the app
 document structure was not. `ARCHITECTURE.md` held five kernel rules and seventy `{baseline}` ones in
 twenty-two interleaved sections, so "read the Coral app spine" meant "read the production baseline".
 General production-engineering policy therefore read as a *consequence* of the agents-write /
-humans-review operating model: the error taxonomy, transaction scope, retry semantics, cache
-invalidation, concurrency strategy, forbidden package names, and trust boundaries. It is not one. Its
+humans-review operating model: the recommended error-category vocabulary, transaction scope, retry
+semantics, cache invalidation, concurrency strategy, forbidden package names, and trust boundaries. It is
+not one. Its
 justification survives a human-authored codebase, which is why it is an opt-in layer.
 
 - **[`PRODUCTION.md`](./PRODUCTION.md) is new** and holds the app-scale production baseline: all seventy
@@ -661,12 +853,13 @@ which is why the audit above was done by reading.
 **The guard runs in both directions**, because one direction is self-disabling. A core document may define
 no `opt-in` rule, and every document that **defines a kernel rule must be core**. Without the second,
 deleting the `ARCHITECTURE.md` row would leave the registry non-empty, silently stop the first check
-looking at that document, and leave five kernel rules outside the guard with every test still passing.
+looking at that document, and leave the kernel rules it defines outside the guard with every test still
+passing.
 That would disable protection for the exact document PO-06 exists to protect. The reverse check is derived
 from the kernel block, already the single source of membership, so it introduces no second document list.
 The pair is what makes the registry's claim a checked invariant rather than an assertion: *a reader of
 these documents has met the whole unconditional surface*. Both directions have synthetic coverage, and the
-repository tier now asserts that all ten kernel rules are defined in a core document. It deliberately does
+repository tier now asserts that every kernel rule is defined in a core document. It deliberately does
 not require a core document to define a rule. "Core" means a project reads it before adopting anything,
 and a page could earn that by holding vocabulary or framing alone. Requiring a rule would turn "a new core
 document is one registry row" into a constraint the model does not have.
@@ -689,9 +882,13 @@ and runtime-agent 3. There are two forms:
   map `category`, but the taxonomy is `[ERR-1]`. A project adopting `app-profile: [backend]` alone is
   told to raise a taxonomy it has selected no definition of.
 
+**Those four were repaired later in this same batch**, by the error-model entry above: `[ERR-1]` is now a
+kernel rule, so a profile that renders errors rests on a model every Coral project already owes. The
+explicit-citation form is untouched, and the gap below is the general one.
+
 This is therefore a **composition-model gap, not something specific to the runtime-agent profile**. Coral
-has no way for a rule to say *I refine `[ERR-1]`*, so a project selecting a refinement is neither given
-what it refines nor told the pair is incomplete. Three repairs are possible:
+has no way for a rule to say *I refine `[CONTRACT-1]`*, so a project selecting a refinement is neither
+given what it refines nor told the pair is incomplete. Three repairs are possible:
 
 - rewrite the dependent statements to stand alone
 - declare them conditional refinements that apply only when their base rule is also selected
@@ -740,7 +937,7 @@ Its judge/flag/note rule is made conditional on applicability too. Structure, na
 judged where a rule in the *selected* surface decides them, and observed rather than judged where the
 deciding rule belongs to a layer the project declined. That is the same model as the verdict rule, since
 most structural answers are baseline: `[MODEL-2]`, `[BUCKET-1]`, `[ROOT-1]`, `[XCUT-2]`, `[XCUT-3]` and
-`[STATE-*]`. Its kernel enumeration is completed to all ten rules, split by what each is audited against:
+`[STATE-*]`. Its kernel enumeration is completed to the whole kernel, split by what each is audited against:
 source, `CORAL.md`, or the decision trail (`[AGENT-2]`, `[AGENT-4]`).
 
 The **exception instruction in the generated contract** is worded to keep `revisit_when` usable. An

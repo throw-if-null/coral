@@ -291,8 +291,8 @@ for (const spine of APP_SPINES) {
 //
 // And checked the other way too, because one direction is self-disabling. Dropping
 // ARCHITECTURE.md from the registry would leave the block non-empty, stop the opt-in check
-// looking at it, and leave five kernel rules unguarded with every test still green. So a
-// document that DEFINES a kernel rule must be declared core — derived from the kernel block,
+// looking at it, and leave every kernel rule it defines unguarded with all tests still
+// green. So a document that DEFINES a kernel rule must be declared core — derived from the kernel block,
 // which is already the single source of membership, so it needs no document list of its own.
 //
 // Its problems arrive in `model.problems` with the rest of the classification —

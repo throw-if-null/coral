@@ -86,17 +86,24 @@ tag.
 A moving tag is someone else's mutable code executing inside your privileged context. Pinning is the
 difference between depending on a *version* and depending on whatever that account publishes next.
 
-## Error rendering  → `[ERR-3]`
+## Error rendering  → `[ERR-1]`
 
-**`[GHA-9]`** `[review]` `{app:gh-action}` Slices raise the taxonomy. The entry point maps `category` →
-exit status and annotation, and distinguishes **recoverable** from **non-recoverable** failure.
+**`[GHA-9]`** `[review]` `{app:gh-action}` Slices raise the app's declared error model (`[ERR-1]`). The
+entry point owns the whole mapping from declared category to exit status and annotation, and classifies
+every category as **recoverable** or **non-recoverable**.
 
-The distinction matters more here than for a CLI, because a human decides whether to press re-run.
-`infrastructure` is worth retrying and should say so in its annotation. `usage` and `validation` fail
-identically on every re-run and should say *that*, so nobody spends twenty minutes re-running a malformed
-input. Use `::error::` for step-failing conditions and `::warning::` or `::notice::` for the rest. **Never
-fail silently with exit 0.** A green step that did nothing is the worst outcome the platform allows
-(`[ERR-3]`).
+The distinction matters more here than for a CLI, because a human decides whether to press re-run. So the
+taxonomy has to carry enough information for the entry point to decide recoverability centrally. Any
+small, stable taxonomy can: what it cannot do is leave the decision to each slice, or leave a category
+the entry point has no answer for.
+
+With `[ERR-5]`'s default vocabulary the classification falls out directly. `infrastructure` is worth
+retrying and should say so in its annotation. `usage` and `validation` fail identically on every re-run
+and should say *that*, so nobody spends twenty minutes re-running a malformed input. A project on another
+taxonomy states the same split over its own categories, in one place.
+
+Use `::error::` for step-failing conditions and `::warning::` or `::notice::` for the rest. **Never fail
+silently with exit 0.** A green step that did nothing is the worst outcome the platform allows.
 
 ## Observability  → `[OBS-1]`
 
@@ -176,7 +183,7 @@ payload.
 - `[GHA-5]` Make every mutating run safe under redelivery, via an idempotency key, a natural key, or check-before-write.
 - `[GHA-6]` Treat the event payload as attacker-controlled. Pass untrusted values through `env:`, never into a `run:` body.
 - `[GHA-7]` Declare `permissions:` explicitly and scope them to the run, default to read-only, and never write a secret to an output.
-- `[GHA-9]` Map `category` → exit status and annotation at the entry point, distinguish recoverable from not, never exit `0` on failure.
+- `[GHA-9]` Map every declared category → exit status and annotation at the entry point, classify each as recoverable or not, never exit `0` on failure.
 - `[GHA-10]` Keep diagnostics in log groups and annotations, never on the outputs surface. Report no-ops explicitly.
 - `[GHA-11]` Treat input and output names as the versioned contract: add freely, never repurpose, deprecate before removing.
 - `[GHA-12]` Exercise the entry point with simulated inputs and hostile payload fixtures, and assert a repeated run is a no-op.

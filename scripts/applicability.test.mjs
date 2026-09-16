@@ -1302,6 +1302,24 @@ test('adopting the production baseline alone brings no profile and no runtime-ag
   }
 })
 
+test('a kernel-only project owes an error model and none of the baseline error rules', () => {
+  // PO-07, stated against the resolver rather than against the documents. `adopts: {}` is
+  // kernel-only, so it must carry [ERR-1] — one small, stable, structured error model with one
+  // rendering owner — while carrying nothing else from the family: not the static enforcement,
+  // not the raise/render realization, not batch policy, and not the recommended six-category
+  // vocabulary. The last is what makes "another taxonomy needs no exception" true.
+  const kernelOnly = REAL_ADOPT({}, ['app'])
+  assert.ok(kernelOnly.selected.has('ERR-1'), 'a kernel-only project does not owe an error model')
+  for (const id of ['ERR-2', 'ERR-3', 'ERR-4', 'ERR-5']) {
+    assert.ok(!kernelOnly.selected.has(id), `[${id}] reached a project that adopted nothing`)
+  }
+  // and adopting the baseline is what brings them
+  const withBaseline = REAL_ADOPT({ 'production-baseline': true }, ['app'])
+  for (const id of ['ERR-1', 'ERR-2', 'ERR-3', 'ERR-4', 'ERR-5']) {
+    assert.ok(withBaseline.selected.has(id), `[${id}] is missing from a baseline adopter`)
+  }
+})
+
 test('the system-scale baseline is still system-scale after the app-scale half moved out', () => {
   // Scale is derived from the defining document, so moving seventy rules to a new one is
   // exactly the change that could have altered it by accident. SYSTEM.md keeps its scale row;
@@ -1309,7 +1327,7 @@ test('the system-scale baseline is still system-scale after the app-scale half m
   for (const id of ['CHAN-1', 'CHAN-10', 'SYS-TEST-1', 'ORCH-4']) {
     assert.equal(REAL.rules.get(id).scale, 'system', `[${id}] left system scale`)
   }
-  for (const id of ['STATE-5', 'CONC-1', 'ERR-1', 'BUCKET-1', 'SCOPE-3']) {
+  for (const id of ['STATE-5', 'CONC-1', 'ERR-2', 'BUCKET-1', 'SCOPE-3']) {
     assert.equal(REAL.rules.get(id).scale, 'app', `[${id}] left app scale`)
   }
   // and a one-app project that adopts the baseline takes the first set and not the second

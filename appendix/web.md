@@ -114,12 +114,23 @@ so a `GET` handler must not mutate (`[IDEM-2]`). `POST` is non-idempotent. `PUT`
 idempotent. The client owns retry, and never auto-retries a `POST` (`[IDEM-4]`). Offer an idempotency key
 where a user may double-submit.
 
-## Error rendering  → `[ERR-3]`
+## Error rendering  → `[ERR-1]`
 
-**`[WEB-9]`** `[auto]` `{app:web}` Slices raise the taxonomy, and a root middleware renders. The
-middleware maps `category` → HTTP status (per `[BE-5]`) **and** selects the right surface: a user-facing
-error view or page for navigations, and a structured `{category, code, message}` body for API and fetch
-calls. Slices never render their own HTTP response. `code` strings stay slice-owned (`[ERR-2]`).
+**`[WEB-9]`** `[auto]` `{app:web}` Slices raise the app's declared error model (`[ERR-1]`), and a root
+middleware renders it. The middleware maps **every** declared category to an HTTP status **and** selects
+the right surface: a user-facing error view or page for navigations, and a structured body for API and
+fetch calls. Slices never render their own HTTP response.
+
+Two mappings, one owner. `[ERR-1]` asks for one declared error model and for presentation to be owned by
+a boundary rather than by a slice; **the total category → HTTP-status mapping is this rule's realization
+of that**, not something `[ERR-1]` states. A category the middleware has no status for is a gap in this profile's own requirement, and it
+falls through to whatever a handler does next — which is the per-slice presentation `[ERR-1]` forbids.
+
+The surface decision is this profile's own too, because a web app answers both navigations and fetches
+from the same routes and only the boundary knows which it is looking at. `[BE-5]` states the recommended
+category → status table for `[ERR-5]`'s default vocabulary, and a web app that renders HTTP can copy it;
+it is a default worth copying, not a rule this profile depends on. Under the production baseline the
+structured body is `{category, code, message}` and `code` strings stay slice-owned (`[ERR-2]`).
 
 ## Contract versioning  → `[CONTRACT-2]`
 
@@ -216,7 +227,7 @@ not be where your coverage lives.
 | escalation          | microfrontends, when a named requirement forces runtime independence, flagged |
 | trust / security    | client hostile, authz at the edge, tenant in the data model, deny by default |
 | idempotency         | HTTP method semantics, client owns retry                                 |
-| error rendering     | root maps category → status + error view/JSON                           |
+| error rendering     | root maps every declared category → status + error view/JSON            |
 | contract versioning | the route/URL structure: redirect, never repurpose (`[BE-7]` for the API half) |
 | state / effects     | server is truth, client state is a slice-owned cache, the mutator invalidates |
 | testing             | drive the real surface, no snapshots, authz test + contract-test the panel channel |
@@ -241,7 +252,7 @@ in the prose.
 - `[WEB-5]` Define design tokens, primitives, and interaction patterns once as an injected crosscut.
 - `[WEB-7]` Treat the client as hostile. Authorize at the server boundary, validate every payload, and keep secrets server-side.
 - `[WEB-8]` Follow HTTP method semantics: `GET`/`HEAD` safe and read-only, `POST` non-idempotent, `PUT`/`DELETE` idempotent.
-- `[WEB-9]` Slices raise the taxonomy. A root middleware renders to the right surface: an error view or a structured body.
+- `[WEB-9]` Slices raise the declared error model. A root middleware maps every category to a status and renders the right surface: an error view or a structured body.
 - `[WEB-10]` Treat the route/URL structure as the stable contract: never break a route, never silently repurpose one.
 - `[WEB-11]` Server state is the source of truth. Client state is a slice-owned cache, and the mutating slice invalidates it.
 - `[WEB-12]` Drive a web slice's behavior test through the real surface. No internals, no snapshots, and no mocking its capability call.

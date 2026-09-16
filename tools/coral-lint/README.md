@@ -68,7 +68,7 @@ registries it names.
 | `[CONFIG-2]` | a slice reading `os.environ` / `os.getenv` / `dotenv` / `configparser` directly |
 | `[CONC-1]` | module-level mutable state in a slice that something mutates |
 | `[IDEM-2]` | a read-named slice containing a SQL write or a `.commit()` / `.save()` |
-| `[ERR-2]` | a slice raising an exception type outside the declared taxonomy |
+| `[ERR-2]` | a slice raising an exception type outside its own app or published package's declared taxonomy |
 | `[ROOT-2]` | a root importing something that is neither a crosscut nor a slice, reaching into slice internals, or holding SQL |
 | `[STATE-2]` | a module holding SQL that two or more slices import, which is a shared data-access layer |
 | `[LIB-3]` | a library with a hidden singleton, or that performs work on `import` |
@@ -96,11 +96,91 @@ feature_dirs = ["expenses/expense"]      # dirs whose children are slices
 library_dirs = []                        # dirs that ARE a published library — enables [LIB-*]
 roots        = ["expenses/app.py"]        # composition roots — not slices, not crosscuts
 crosscuts  = ["errors", "money", "period", "db"]
-error_types  = ["errors.validation", "errors.not_found"]
+error_types  = ["errors.validation", "errors.not_found"]   # one app/published package here
 grandfathered = []                        # paths exempt from [BUCKET-1]
 read_verbs   = ["show", "list", "get", "find", "summary", "report", "search", "read"]
 ignore       = []                         # added to the built-in vendor/build list
 ```
+
+### Declaring the error model, or several
+
+`[ERR-1]` scopes the error model to **each app or published package**, not to the repository.
+`error_types` above declares one model for everything in the repo, which is what a single-app repo
+has. A repo holding a backend and a CLI has two, and one shared allowlist would pass a backend slice
+that raised the CLI's constructor. Declare them per unit instead:
+
+```toml
+[[coral.error_models]]
+path  = "services/api"                   # the app or published package this taxonomy belongs to
+types = ["apierrors.validation", "apierrors.not_found"]
+
+[[coral.error_models]]
+path  = "tools/cli"
+types = ["clierrors.usage", "clierrors.internal"]
+```
+
+Each slice is checked against the model whose `path` contains it, longest path winning, so a published
+package nested inside an app resolves to the package. A slice inside no declared model makes `[ERR-2]`
+**skip**, never pass. The flat form is held to the same rule: where the config names exactly one unit in
+`app_dirs` / `library_dirs`, a slice outside it is not covered by that unit's taxonomy and `[ERR-2]`
+skips. A config naming no unit at all states no boundary, and the flat taxonomy covers every slice. Declaring both forms is a hard config failure — two ways to say one thing is two
+sources of truth.
+
+**Every declared constructor must be qualified**, in both forms. Constructors are matched on
+**identity**, and a bare `validation` is a spelling: it cannot say where the constructor lives, it never
+matches what `from errors import validation` resolves to, and across units two taxonomies naming one
+category the same thing would each accept the other's. Write `errors.validation`, not `validation`.
+
+**Raise sites are resolved through the one import binding that reaches them**, not compared by spelling.
+`from apierrors import validation` then `raise validation(...)` resolves to `apierrors.validation`; so do
+`from apierrors import validation as invalid` and `import apierrors as errors`.
+
+**Every accepted raise carries a real binding.** These are the supported forms:
+
+```python
+import errors                          # then  raise errors.validation(...)
+import apierrors as errors             # then  raise errors.validation(...)
+from errors import validation          # then  raise validation(...)
+from errors import validation as bad   # then  raise bad(...)
+from .errors import validation         # relative, resolved and bounded by the unit
+```
+
+**The check answers one of three things, and the third is not a pass.** Accepted means the constructor
+was *proved* to be the declared one. Rejected means it was proved to be something else. Anything the
+analysis cannot settle is reported, and `[ERR-2]` **skips** rather than reporting a clean run it did not
+earn — the same answer an unowned slice gets.
+
+That boundary is deliberate. Proving which object a name holds in general means running the program, and
+a linter that tries earns false confidence instead of precision. So a name is proved only when it has
+**one meaning** in the scope that owns it:
+
+- every binding site for it is an import, and they agree. One `def` or `class` owning the name is the
+  other provable answer — a locally defined constructor, which is the ad-hoc error type `[ERR-2]` exists
+  to catch — and a name nothing binds is a third;
+- the innermost scope with a binding owns the name, which is Python's compile-time local rule: a later
+  assignment in a function does not let an earlier read fall outward;
+- a binding written **below** the raise in the raise's own scope cannot be what it reads;
+- a **class body is not an enclosing scope for its methods**. A constructor imported into a class is an
+  attribute, not a bare name `run(self)` can see. Scopes outside the class stay visible, so a method may
+  still close over the function the class was defined in.
+
+Everything else is undecidable and says so: a parameter, an assignment, a walrus, a `match` capture,
+`del`, `global`/`nonlocal`, an `except ... as` target, two imports that disagree, or a `from x import *`
+anywhere in scope. Loop-carried bindings, `finally` on an abrupt exit, and a guard that fails after its
+pattern captured all fall out of the same rule, because each of them gives the name a second binding.
+
+A **relative** import must stay inside the unit that owns the raising slice. `from .errors import
+validation` and `from ...errors import validation` spell the same name and can reach different packages,
+so the module is resolved against the repository: a published package climbing into its host app is a
+finding, and two units may each call their own constructor `errors.validation` without colliding. This
+applies to the flat form too, against the single unit it declares.
+
+Where an exact binding is unavailable — a star import, a rebound name, an unresolvable relative import —
+`[ERR-2]` **skips** and names the raise. It never reports a clean run over a raise it could not decide.
+
+If a repo declares more than one app or published package (via `app_dirs` / `library_dirs`) but only
+the flat `error_types`, `[ERR-2]` **skips and says so**. It cannot tell which unit owns a slice, and
+answering anyway would report a boundary violation as clean.
 
 `library_dirs` is never inferred, and that is deliberate. A CLI legitimately prints to `stdout`, and a
 service legitimately configures logging at boot. Running `[LIB-5]` against anything that had not declared
@@ -154,7 +234,7 @@ the registry, which is the property the structure exists to buy.
 
 ```bash
 cd tools/coral-lint
-python3 -m pytest -q        # 99 tests
+python3 -m pytest -q        # the unit suite
 python3 -m coral_lint .     # the tool, checked by itself
 ```
 

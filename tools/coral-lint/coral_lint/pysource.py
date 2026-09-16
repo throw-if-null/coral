@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import ast
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 # Deliberately DML only. DDL is excluded because a slice legitimately owns its
@@ -209,6 +209,282 @@ def imports(tree: ast.Module) -> list[ImportRef]:
                 ImportRef(node.module, node.level, tuple(a.name for a in node.names), node.lineno)
             )
     return sorted(refs, key=lambda r: r.line)
+
+
+# What a raise site's constructor name could be proved to be.  [ERR-2]
+#
+# Three answers, and the third is a first-class one. `[ERR-2]` claims a project
+# raises through its declared taxonomy, so the only safe reading of "this tool did
+# not find a contradiction" is *not* "conformant". Accepted means proved; rejected
+# means proved to be something else; anything this model cannot settle is
+# AMBIGUOUS, and the check reports it rather than passing it.
+#
+# That boundary is deliberate. Proving which object a name holds in general is
+# running the program, and a linter that tries earns false confidence instead of
+# precision — the property these checks exist to have.
+IMPORTED = "imported"      # exactly one import binds it, and they agree
+LOCAL_DEF = "local_def"    # a `def`/`class` of that name owns it here
+UNBOUND = "unbound"        # nothing in any visible scope binds it
+AMBIGUOUS = "ambiguous"    # not provable: rebinding, disagreement, or a star import
+
+
+@dataclass(frozen=True)
+class Constructor:
+    """One `raise X(...)`, with what could be proved about the name it spells.
+
+    The call node carries a spelling; the taxonomy is declared in terms of where
+    the constructor lives. `from b_errors import validation` then
+    `raise validation(...)` spells one word, and the part saying it came from
+    `b_errors` is in the `ImportFrom`. So provenance is resolved here, with the
+    rest of the AST facts, rather than in each check.
+
+    **A name is proved only when it has one meaning.** Every binding site for it in
+    the scope that owns it must be an import, and they must agree. One `def` owning
+    it is the other provable answer: a locally defined constructor. Everything else
+    — a parameter, an assignment, a `match` capture, a walrus, `del`, `global`, an
+    `except ... as` target, two imports that disagree, a `from x import *` that
+    could have supplied it — is AMBIGUOUS, because settling it means knowing which
+    assignment ran, and that is execution rather than analysis.
+
+    `level` and `module` are kept unreduced for relative imports. `from .errors`
+    and `from ...errors` spell the same canonical `errors.validation` and can name
+    different packages, so the caller — which has the repository layout — resolves
+    the path and decides whether it stayed inside the owning unit.
+    """
+
+    label: str              # as spelled: "validation", "errors.validation"
+    line: int
+    origin: str
+    target: str = ""        # canonical spelling when IMPORTED: "a_errors.validation"
+    level: int = 0          # relative-import depth; 0 for absolute
+    module: str | None = None   # the `from X import` module; None for `from . import x`
+    attr: str | None = None     # the imported attribute, for `from X import n`
+
+
+@dataclass(frozen=True)
+class _Site:
+    """One place a name is bound, and what it was bound to."""
+
+    kind: str               # IMPORTED, LOCAL_DEF, or AMBIGUOUS for everything else
+    line: int
+    target: str = ""
+    level: int = 0
+    module: str | None = None
+    attr: str | None = None
+
+    @property
+    def identity(self) -> tuple:
+        return (self.kind, self.target, self.level, self.module, self.attr)
+
+
+@dataclass
+class _Scope:
+    """One lexical scope: every binding site in it, and whether a star import is."""
+
+    node: ast.AST
+    is_class: bool
+    sites: dict[str, list[_Site]] = field(default_factory=dict)
+    star: bool = False
+
+    def add(self, name: str, site: _Site) -> None:
+        self.sites.setdefault(name, []).append(site)
+
+
+_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+
+def _pattern_names(pattern: ast.AST | None) -> set[str]:
+    """Names a `match` pattern captures.
+
+    Every nesting form can capture, not just `case x:` — `case [a, *rest]`,
+    `case {"k": v, **rest}`, `case C(x, attr=y)` and `case a | b` all bind through
+    their sub-patterns.
+    """
+    if pattern is None:
+        return set()
+    found: set[str] = set()
+    stack: list[ast.AST] = [pattern]
+    while stack:
+        node = stack.pop()
+        name = getattr(node, "name", None)
+        if isinstance(node, (ast.MatchAs, ast.MatchStar)) and isinstance(name, str):
+            found.add(name)
+        rest = getattr(node, "rest", None)
+        if isinstance(node, ast.MatchMapping) and isinstance(rest, str):
+            found.add(rest)
+        stack.extend(ast.iter_child_nodes(node))
+    return found
+
+
+def _bound_names(node: ast.expr) -> set[str]:
+    """Plain names an assignment or deletion target binds.
+
+    `holder.attr` and `holder[key]` name an object, not a binding, so the head is
+    untouched by them.
+    """
+    found: set[str] = set()
+    stack: list[ast.expr] = [node]
+    while stack:
+        target = stack.pop()
+        if isinstance(target, ast.Name):
+            found.add(target.id)
+        elif isinstance(target, (ast.Tuple, ast.List)):
+            stack.extend(target.elts)
+        elif isinstance(target, ast.Starred):
+            stack.append(target.value)
+    return found
+
+
+def _collect(scope: _Scope) -> None:
+    """Record every binding site in this scope, without descending into others.
+
+    Source order is not tracked, and does not need to be: a name with one binding
+    has one meaning wherever it is read, and a name with several is not proved by
+    picking one of them.
+    """
+    node = scope.node
+
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        args = node.args
+        for arg in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
+            scope.add(arg.arg, _Site(AMBIGUOUS, arg.lineno))
+        for optional in (args.vararg, args.kwarg):
+            if optional is not None:
+                scope.add(optional.arg, _Site(AMBIGUOUS, optional.lineno))
+
+    body: list[ast.AST] = (
+        [node.body] if isinstance(node, ast.Lambda) else list(getattr(node, "body", []))
+    )
+    stack: list[ast.AST] = list(body)
+    while stack:
+        current = stack.pop()
+        line = getattr(current, "lineno", 0)
+        if isinstance(current, ast.Import):
+            for alias in current.names:
+                local = alias.asname or alias.name.split(".")[0]
+                target = alias.name if alias.asname else alias.name.split(".")[0]
+                scope.add(local, _Site(IMPORTED, line, target=target, module=alias.name))
+        elif isinstance(current, ast.ImportFrom):
+            base = current.module or ""
+            for alias in current.names:
+                if alias.name == "*":
+                    scope.star = True
+                    continue
+                local = alias.asname or alias.name
+                target = f"{base}.{alias.name}" if base else alias.name
+                scope.add(local, _Site(
+                    IMPORTED, line, target=target, level=current.level,
+                    module=current.module, attr=alias.name,
+                ))
+        elif isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            scope.add(current.name, _Site(LOCAL_DEF, line))
+            continue  # its body is a scope of its own
+        elif isinstance(current, ast.Lambda):
+            continue
+        elif isinstance(current, ast.Assign):
+            for target_node in current.targets:
+                for name in _bound_names(target_node):
+                    scope.add(name, _Site(AMBIGUOUS, line))
+        elif isinstance(current, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+            for name in _bound_names(current.target):
+                scope.add(name, _Site(AMBIGUOUS, line))
+        elif isinstance(current, (ast.For, ast.AsyncFor)):
+            for name in _bound_names(current.target):
+                scope.add(name, _Site(AMBIGUOUS, line))
+        elif isinstance(current, (ast.With, ast.AsyncWith)):
+            for item in current.items:
+                if item.optional_vars is not None:
+                    for name in _bound_names(item.optional_vars):
+                        scope.add(name, _Site(AMBIGUOUS, line))
+        elif isinstance(current, ast.ExceptHandler) and current.name:
+            # Python also deletes this name when the handler exits, so it is never
+            # a stable binding for anything after it either.
+            scope.add(current.name, _Site(AMBIGUOUS, line))
+        elif isinstance(current, ast.Delete):
+            for target_node in current.targets:
+                for name in _bound_names(target_node):
+                    scope.add(name, _Site(AMBIGUOUS, line))
+        elif isinstance(current, (ast.Global, ast.Nonlocal)):
+            # The binding lives in another scope and anything may rewrite it.
+            for name in current.names:
+                scope.add(name, _Site(AMBIGUOUS, line))
+        elif hasattr(ast, "match_case") and isinstance(current, ast.match_case):
+            for name in _pattern_names(current.pattern):
+                scope.add(name, _Site(AMBIGUOUS, line))
+        stack.extend(ast.iter_child_nodes(current))
+
+
+def _resolve(head: str, line: int, chain: list[_Scope]) -> _Site | None:
+    """What `head` is proved to be at a raise on `line`, or None if unbound.
+
+    The innermost scope with a binding site owns the name — in a function that is
+    Python's compile-time local rule, and it is why a later assignment does not let
+    the read fall outward. Within the owning scope every site must agree, and a
+    site in the raise's *own* scope must also be textually above it: an import
+    below the raise has not run, whatever it names.
+    """
+    if any(scope.star for scope in chain):
+        return _Site(AMBIGUOUS, line)
+
+    own = chain[-1] if chain else None
+    for scope in reversed(chain):
+        sites = scope.sites.get(head)
+        if not sites:
+            continue
+        if scope is own and any(site.line > line for site in sites):
+            # A binding written below the read, in the same scope, cannot be what
+            # the read sees — and if it is the only one, the read is unbound.
+            return _Site(AMBIGUOUS, line)
+        first = sites[0]
+        if any(site.identity != first.identity for site in sites[1:]):
+            return _Site(AMBIGUOUS, line)
+        return first
+    return None
+
+
+def raised_constructors(tree: ast.Module) -> list[Constructor]:
+    """Every `raise <Something>(...)`, with what its name is proved to be.  [ERR-2]
+
+    A bare `raise` (re-raise) and `raise` of a caught name are not new errors, so
+    they are not reported. Every statement is inspected, including one after a
+    `return` or inside a `finally`, because a raise there is as real as any other.
+    """
+    out: list[Constructor] = []
+
+    def visit(node: ast.AST, chain: list[_Scope]) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, _SCOPES):
+                is_class = isinstance(child, ast.ClassDef)
+                scope = _Scope(child, is_class)
+                _collect(scope)
+                # A function defined in a class body does not see the class
+                # namespace, though it still sees every scope outside it — a method
+                # may close over the function its class was defined in. Class bodies
+                # do not nest into each other either, so one filter serves both.
+                visible = [frame for frame in chain if not frame.is_class]
+                visit(child, [*visible, scope])
+                continue
+            if isinstance(child, ast.Raise) and isinstance(child.exc, ast.Call):
+                label = _dotted(child.exc.func)
+                if label:
+                    site = _resolve(label.partition(".")[0], child.lineno, chain)
+                    if site is None:
+                        out.append(Constructor(label, child.lineno, UNBOUND))
+                    elif site.kind == IMPORTED:
+                        rest = label.partition(".")[2]
+                        target = f"{site.target}.{rest}" if rest else site.target
+                        out.append(Constructor(
+                            label, child.lineno, IMPORTED, target=target, level=site.level,
+                            module=site.module, attr=site.attr,
+                        ))
+                    else:
+                        out.append(Constructor(label, child.lineno, site.kind))
+            visit(child, chain)
+
+    module = _Scope(tree, False)
+    _collect(module)
+    visit(tree, [module])
+    return sorted(out, key=lambda c: c.line)
 
 
 def sql_literals(tree: ast.Module) -> list[Hit]:

@@ -1,6 +1,11 @@
 # Worked example: a Go API capability slice (one endpoint, end to end)
 
 > Written against **Coral 0.6.0**.
+>
+> **"Written against" names the latest *released* Coral.** The error-model citations below are
+> **unreleased** and ship in 0.7.0: `[ERR-1]` becomes a kernel rule that names no categories, and
+> `[ERR-5]` becomes the recommended six-category vocabulary. In 0.6.0, `[ERR-1]` is a
+> production-baseline rule that fixes those six names. Delete this note when 0.7.0 is cut.
 
 The [CLI example](./cli-slice) shows a slice in a language that imposes nothing, so each slice is one
 file. This one is the harder case: **a complete Coral slice in Go, where the language forces one
@@ -39,8 +44,14 @@ what makes the slice testable, reusable, and legible.
 ## The cross-cutting crosscuts
 
 Errors are a **crosscut**, not something each handler reinvents (`[XCUT-3]`, `[ERR-1]`). One small
-taxonomy, and exactly one place that turns a domain error into an HTTP status. `[ERR-3]` states it:
-*slices raise, the edge renders*.
+taxonomy, declared once, and exactly one place that turns a domain error into an HTTP status. `[ERR-3]`
+states the second half: *slices raise, the edge renders*.
+
+**This taxonomy is three categories, not Coral's recommended six.** `[ERR-1]` asks for one small, stable,
+declared model and fixes neither the count nor the names, so `Internal` / `NotFound` / `Invalid` is
+conformant as long as the renderer maps all of it (`[BE-5]`). `[ERR-5]`'s six-category vocabulary is the
+default a project takes when it has no reason to differ; this example shows what the other choice looks
+like.
 
 ```go
 // internal/errs/errs.go

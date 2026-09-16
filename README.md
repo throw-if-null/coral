@@ -18,7 +18,7 @@ everything else:
 - tests beside the code they verify
 - no `utils` bucket
 - crosscuts injected rather than reached for
-- a fixed error taxonomy
+- error-model enforcement, plus a recommended error-category vocabulary
 - transaction and retry policy
 - no shared database between apps
 
@@ -74,9 +74,10 @@ it. `npm run rules:index` generates the page from the documents, and the build f
 behind them. An index that can drift from what it indexes is worse than no index.
 
 **Only a small part of Coral is imposed because an agent writes the code.** That subset is the
-[kernel](./CONVENTIONS.md#the-coral-kernel): ten rules, named and justified one at a time. Coral publishes
-general production-engineering policy separately, as the production baseline and the app profiles. A
-project adopts that policy rather than inheriting it. The build enforces the separation structurally: it
+[kernel](./CONVENTIONS.md#the-coral-kernel): a small set of rules, named and justified one at a time, and
+counted in [`rules.md`](./rules.md)'s layer tally. Coral publishes general production-engineering policy
+separately, as the production baseline and the app profiles. A project adopts that policy rather than
+inheriting it. The build enforces the separation structurally: it
 rejects an opt-in rule defined in a [core document](./CONVENTIONS.md#core-documents).
 
 Rules carry stable IDs like `[DUP-2]`, and three independent classifications:
@@ -86,6 +87,9 @@ Rules carry stable IDs like `[DUP-2]`, and three independent classifications:
   asked to reason about HTTP status codes or runtime-AI rules
 - an **[architectural scale](./CONVENTIONS.md#architectural-scale)** saying whether it governs one app or
   several apps composing
+
+A rule binds whether or not a tool can verify it yet:
+[rules define conformance, and tools implement partial verification of them](./CONVENTIONS.md#rules-and-verification).
 
 On the live site every citation links to its definition. The build fails on any of the following:
 

@@ -5,11 +5,12 @@ description: >
   where does it diverge? The verdict is architectural CONFORMANCE to the rule surface the project's own
   CORAL.md resolves to — the Coral kernel unconditionally, plus the production baseline and the
   app / runtime / language profiles that file explicitly adopts, at the scales it declares ([VER-6]).
-  Capability slicing, the five categories, published-capability composition and behavior-first testing are
-  kernel and always count; bucket packages, role-revealing package names, named and injected crosscuts,
-  thin composition, the error taxonomy and the rest of the production discipline are production-baseline
-  policy and count only where that layer is adopted. Structural / naming / cross-cutting-placement
-  divergences inside the selected surface ARE the findings; security / correctness / reliability bugs are
+  Capability slicing, the five categories, published-capability composition, behavior-first testing and
+  one declared error model are kernel and always count; bucket packages, role-revealing package names,
+  named and injected crosscuts, thin composition, the recommended error-category vocabulary and the rest
+  of the production discipline are production-baseline policy and count only where that layer is adopted.
+  Structural / naming / cross-cutting-placement divergences inside the selected surface ARE the findings;
+  security / correctness / reliability bugs are
   recorded as awareness notes for the team, never the headline and never the answer. Use when asked to
   audit, review, or scrutinize a repo / service / library for Coral alignment. Produces a heavy diagnostic
   report that seeds a SEPARATE planning session; it does NOT plan the refactor or choose big-bang vs
@@ -25,9 +26,14 @@ description: >
 > target. It is not a claim that everything below exists in 0.6.0.** This skill already
 > implements `[VER-6]`, which is **unreleased** and ships in 0.7.0: `CORAL.md` adoption
 > declarations, the undeclared-normative-surface finding, and scale filtering are all
-> 0.7.0 behaviour. A project targeting 0.6.0 or earlier has no adoption declaration and is
-> not wrong for it — audit it against its own version's applicability semantics, not
-> against the ones below. Delete this note when 0.7.0 is cut.
+> 0.7.0 behaviour. The same holds for the error model below: `[ERR-1]` is a kernel rule
+> naming no categories, and `[ERR-5]` is the recommended six-category vocabulary, both
+> 0.7.0. In 0.6.0 and earlier `[ERR-1]` is a production-baseline rule that fixes those six
+> names, so a project targeting one of those versions is audited against *that* — six
+> categories, and only where the baseline was adopted. A project targeting 0.6.0 or earlier
+> has no adoption declaration either and is not wrong for it — audit it against its own
+> version's applicability semantics, not against the ones below. Delete this note when
+> 0.7.0 is cut.
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not
@@ -60,10 +66,12 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
    the declaration, never by the code's shape:
 
    - **kernel** — always counts, for every Coral project, with nothing to adopt and nothing to decline.
-     Ten rules, and they audit against three different things. Against the **source**: capability slicing
-     and the five categories (`[MODEL-1]`), one trigger owned end to end (`[BOUND-2]`), promotion to a
-     crosscut gated on a must-not-diverge invariant (`[XCUT-1]`), consuming another slice only through its
-     published capability (`[COMPOSE-1]`), behavior-first tests at the entry point (`[TEST-1]`). Against
+     They audit against three different things. Against the **source**: capability slicing and the
+     five categories (`[MODEL-1]`), one trigger owned end to end (`[BOUND-2]`), promotion to a
+     crosscut gated on a must-not-diverge invariant (`[XCUT-1]`), consuming another slice only
+     through its published capability (`[COMPOSE-1]`), one small declared error model per app or
+     published package with presentation owned by a boundary rather than by slices (`[ERR-1]`),
+     behavior-first tests at the entry point (`[TEST-1]`). Against
      **`CORAL.md`**: `[VER-3]`, `[VER-5]`, `[VER-6]`. Against **provenance** — commit authorship, review,
      session history, not the final state of the code: `[AGENT-2]` (ambiguity flagged, not guessed) and
      `[AGENT-4]` (a human authors every exception and extension); where that evidence is unavailable these
@@ -72,9 +80,9 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
    - **production baseline** — counts only where `production-baseline` is adopted, and only at the scales
      declared. This is where **no bucket packages** (`[BUCKET-*]`), **role-revealing package names**
      (`[MODEL-2]`), **precisely named and injected crosscuts** (`[XCUT-2]`, `[XCUT-3]`), **thin
-     composition** (`[ROOT-1]`), the **error taxonomy** (`[ERR-*]`), state ownership, concurrency,
-     idempotency, configuration and trust-boundary policy all live. Most of what an auditor reaches for
-     first is in this tier.
+     composition** (`[ROOT-1]`), the **error-model refinements and recommended vocabulary**
+     (`[ERR-2]`–`[ERR-5]`), state ownership, concurrency, idempotency, configuration and trust-boundary
+     policy all live. Most of what an auditor reaches for first is in this tier.
    - **app / runtime-agent / language profiles** — count only for the profiles named in `adopts`.
    - **bugs** — security / correctness / reliability defects, *however severe*, go in **Notes for human
      awareness**. Unchanged: they are recorded so the team knows, and never become the headline or the
@@ -236,8 +244,10 @@ audited against, in full:**
 
 - against the **source** — `[MODEL-1]` (the five categories), `[BOUND-2]` (one trigger, owned end to end),
   `[XCUT-1]` (promotion to a crosscut needs a must-not-diverge invariant), `[COMPOSE-1]` (published
-  capability, never internals), `[TEST-1]` (behavior-first at the entry point). Five rules; that is the
-  whole structural surface.
+  capability, never internals), `[ERR-1]` (one small, stable, structured error model declared once
+  for the app or published package, presented at a boundary rather than inside slices — **not** a
+  fixed list of category names, and **not** a required field layout or stable error id), `[TEST-1]`
+  (behavior-first at the entry point). Six rules; that is the whole structural surface.
 - against **`CORAL.md`** — `[VER-3]` (a target is declared), `[VER-5]` (deviations are explicit and
   path-scoped), `[VER-6]` (what it adopts is declared).
 - against the **way architectural decisions were made** — `[AGENT-2]` (an ambiguous architectural decision
@@ -245,8 +255,8 @@ audited against, in full:**
   extension). These bind **process**, not source, and they are the two kernel rules a repository audit
   usually cannot decide — see below.
 
-Ten rules, which is the whole kernel. Read the kernel block in `CONVENTIONS.md` for the current
-membership rather than trusting this list — it is the single source, and this is a reading aid.
+That is the whole kernel. Read the kernel block in `CONVENTIONS.md` for the current membership rather
+than trusting this list — it is the single source, and this is a reading aid.
 
 **Applicable is not the same as auditable, and `[AGENT-2]` / `[AGENT-4]` are where the two come apart.**
 Both bind every Coral project. Neither is decidable from the final state of a repository, and inferring
@@ -297,7 +307,9 @@ The order below is the baseline's:
   adapter → slice) — `[EFFECT-*]` / `[STATE-*]`
 - configuration: resolved and validated at the root, injected, never read ambiently from a slice —
   `[CONFIG-*]`
-- errors: taxonomy, raise-vs-render, swallowing — `[ERR-*]`
+- errors: the declared model and who presents it (`[ERR-1]`, kernel — judge the shape, never the category
+  names; a library package correctly presents nothing at all, and its consumers own presentation);
+  raised-type discipline, `{category, code, message}`, raise-vs-render and swallowing — `[ERR-2]`–`[ERR-5]`
 - trust boundary, secrets, authz — `[TRUST-*]`
 - delivery guarantees & contracts (events/channel, versioning) — `[CHAN-*]` / `[CONTRACT-*]`
 - testing: is it injectable, or a boot-the-world coupling magnet? — `[TEST-*]` / `[SYS-TEST-*]`
@@ -345,7 +357,9 @@ from the family names. **`PRODUCTION.md` is where the production baseline's app-
 and for a project that has adopted the baseline that is most of its applicable surface; `ARCHITECTURE.md`
 holds only the kernel's app-scale rules and the governance rules that frame them. That split arrived in
 Coral 0.7.0 — in a release the project's `targets` predates, those same rules are defined in
-`ARCHITECTURE.md` instead. The rule IDs are unchanged either way, so read whichever layout that version
+`ARCHITECTURE.md` instead. `[ERR-1]` moved the other way in the same release — it is a kernel rule in
+`ARCHITECTURE.md` from 0.7.0, and a production-baseline rule in `PRODUCTION.md` before it, where it also
+named six fixed categories. The rule IDs are unchanged either way, so read whichever layout that version
 has; `rules.md` in any release maps every ID to the document defining it.
 
 ### 4. Verify, don't infer
@@ -365,9 +379,10 @@ session; heaviness is intentional — the planner needs full context. Include:
 - The **audited surface**, stated before anything else: the Coral version targeted, the scales declared,
   and the scopes adopted — the set every finding below is measured against. Name what is **not** in it as
   well, in one line, so a reader cannot mistake a short findings list for a clean repository: "the
-  production baseline is not adopted, so `[BUCKET-*]`, `[ERR-*]`, `[STATE-*]`, `[CONC-*]`, `[CONFIG-*]`
-  and `[ROOT-*]` were not audited." Name any **applicable rule you could not verify** here too, with the
-  evidence that was missing — `[AGENT-2]` and `[AGENT-4]` normally land here, because provenance is rarely
+  production baseline is not adopted, so `[BUCKET-*]`, `[ERR-2]`–`[ERR-5]`, `[STATE-*]`, `[CONC-*]`,
+  `[CONFIG-*]` and `[ROOT-*]` were not audited." Name any **applicable rule you could not verify** here
+  too, with the evidence that was missing — `[AGENT-2]` and `[AGENT-4]` normally land here, because
+  provenance is rarely
   available to an outside audit. A rule reported as unverified is neither a finding nor a pass — so listing
   it here is not enough on its own: an applicable rule left unverified makes the verdict **indeterminate**
   rather than `yes`, and this section is where the reader sees which rules that rests on. If the

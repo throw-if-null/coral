@@ -62,12 +62,24 @@ ambient globals (`[XCUT-3]`) or read configuration directly (`[CONFIG-2]`).
 - `GET`, `PUT` and `DELETE` are idempotent. `POST` is not (`[IDEM-1]`). Never auto-retry a `POST`
   (`[IDEM-4]`).
 
-## Error rendering & status map  → `[ERR-3]`
+## Error rendering & status map  → `[ERR-1]`
 
-**`[BE-5]`** `[auto]` `{app:backend}` Slices raise the taxonomy. A single root error-handling middleware
-renders the `{category, code, message}` body and maps `category` → HTTP status. No slice constructs its
-own HTTP response. That is what makes this statically checkable: a status-code write inside a slice
-module is a violation.
+**`[BE-5]`** `[auto]` `{app:backend}` Slices raise the app's declared error model (`[ERR-1]`), and a
+single root error-handling middleware renders it and maps **every** declared category to an HTTP status.
+No slice chooses a status or constructs its own error response. That is what makes this statically
+checkable: a status-code write inside a slice module is a violation.
+
+**The mapping is total, and this rule is what requires that.** `[ERR-1]` asks for one declared model and
+for presentation to be owned by a boundary rather than by a slice; requiring a status for *every*
+declared category is this profile's realization of that half, at the boundary a backend renders from. The middleware knows a status for every category the project declared, so
+adding a category touches two central definitions — the taxonomy declaration and this mapping table —
+and no slice or handler. That is the property worth having: the blast radius is the architectural
+definitions, never every call site. A category the renderer does not know is not a custom taxonomy; it is
+a gap that falls through to whatever a handler does next, which is the per-slice presentation `[ERR-1]`
+forbids. A project that declares its own taxonomy is conformant here exactly when the root maps all of
+it.
+
+**The recommended mapping, when the project uses `[ERR-5]`'s default taxonomy:**
 
 | category         | HTTP status |
 | ---------------- | ----------- |
@@ -78,9 +90,13 @@ module is a violation.
 | `infrastructure` | `503` (or `500`) |
 | `internal`       | `500`       |
 
-The `code` strings stay slice-owned (`[ERR-2]`). **`401` and `403` are absent from this map by
-construction**, not by omission: no slice raises them, so they are not taxonomy categories
-(`[ERR-1]`). They are rendered by the middleware that denies the request, per `[BE-8]`.
+A project on another taxonomy writes its own table at the same place, under the same total-mapping rule.
+Under the production baseline the rendered body is `{category, code, message}` and the `code` strings stay
+slice-owned (`[ERR-2]`).
+
+**`401` and `403` are absent from this map by construction**, not by omission: no slice raises them, so
+they belong to no error category. They are rendered by the middleware that denies the request, per
+`[BE-8]`.
 
 ## Trust / security  → `[TRUST-1]` `[TRUST-2]`
 
@@ -96,8 +112,8 @@ nothing. *May this principal see expense 947* is answerable only from domain sta
 owner is in the row. Moving that check to the boundary means the middleware loads the resource. That
 either duplicates the slice's query, or hands the slice a pre-loaded entity and dissolves its ownership of
 its own state (`[STATE-1]`). Scoping the query is the same check, done where the answer already is. A
-`WHERE tenant_id = $1` that matches nothing is an authorization denial expressed as `not_found`
-(`[ERR-1]`, `[BE-8]`).
+`WHERE tenant_id = $1` that matches nothing is an authorization denial expressed as the taxonomy's
+missing-resource category — `not_found` under `[ERR-5]`'s default vocabulary (`[ERR-1]`, `[BE-8]`).
 
 Decide this *before* writing the slice, because it changes the schema, the slice signature, and the
 tests. It is the one slot in this appendix that is expensive to retrofit. Secrets come from the config
@@ -105,7 +121,7 @@ crosscut, never inline (`[CONFIG-4]`). **Default to deny:** a slice with no expl
 is not shippable.
 
 **`[BE-8]`** `[review]` `{app:backend}` Render authentication and authorization failures at the boundary
-that decides them, never through the error taxonomy: **`401`** when the caller is unauthenticated,
+that decides them, never through the error model: **`401`** when the caller is unauthenticated,
 **`403`** when an authenticated caller lacks the capability, and **`404`** when a scoped query does not
 match.
 
@@ -118,7 +134,11 @@ Returning `401` for a real permission denial sends it into a refresh loop that c
 
 `404` for a scoped miss is a deliberate misstatement, and it is required rather than permitted. The
 alternative tells an unauthorized caller that expense 947 exists, which is exactly the fact they were
-denied (`[ERR-1]`). The slice makes no misstatement of its own. It raises `not_found` because its scoped
+denied. **The requirement is the observable behavior, not a category name.** A scoped miss must reach the
+client as a `404` that is indistinguishable from a genuine miss, whatever the project's taxonomy calls
+it. Under `[ERR-5]`'s default vocabulary that category is `not_found`; on another taxonomy it is whichever
+category `[BE-5]`'s table maps to `404`, and the equivalence must hold in the body as well as the status.
+The slice makes no misstatement of its own. It raises the missing-resource category because its scoped
 query found nothing, and `[BE-5]` maps it like any other. Do not add a `forbidden` category to make this
 "more honest". The honesty is the vulnerability.
 
@@ -187,9 +207,9 @@ project adopts the production baseline. `[guide]` rules are rationale and live o
 - `[BE-2]` The contract is status code + response body + observable side effects: `201` create, `200` read, `204` no body.
 - `[BE-3]` Wire router, middleware, and injection at the root. Crosscuts are singletons, and only request-bound state is per-request.
 - `[BE-4]` A synchronous `POST` may offer an idempotency key. Any platform-redelivered handler must be idempotent.
-- `[BE-5]` Slices raise the taxonomy. One root middleware renders the body and maps `category` → HTTP status.
+- `[BE-5]` Slices raise the declared error model. One root middleware renders it and maps every declared category to an HTTP status.
 - `[BE-6]` Authenticate and coarsely authorize at the boundary. Scope every query by owner/tenant id, and default to deny.
-- `[BE-8]` Render authn/authz failures at the boundary, not through the taxonomy: `401` unauthenticated, `403` no capability, `404` scoped miss.
+- `[BE-8]` Render authn/authz failures at the boundary, not through the error model: `401` unauthenticated, `403` no capability, `404` scoped miss.
 - `[BE-7]` Pick one API versioning strategy and apply it system-wide, with URL prefix as the default. Advance it only for a breaking change.
 
 <!-- coral:contract:end -->
