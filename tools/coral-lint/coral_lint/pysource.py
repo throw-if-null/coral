@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import ast
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 # Deliberately DML only. DDL is excluded because a slice legitimately owns its
@@ -339,6 +339,47 @@ def _targets(node: ast.expr, state: _State) -> None:
         _targets(node.value, state)
 
 
+def _pattern_names(pattern: ast.AST | None) -> set[str]:
+    """Names a `match` pattern captures.
+
+    A capture is an ordinary local binding holding arbitrary runtime data, so it
+    never carries a constructor identity. Every nesting form can capture, not just
+    `case x:` — `case [a, *rest]`, `case {"k": v, **rest}`, `case C(x, attr=y)` and
+    `case a | b` all bind through their sub-patterns.
+    """
+    if pattern is None:
+        return set()
+    found: set[str] = set()
+    stack: list[ast.AST] = [pattern]
+    while stack:
+        node = stack.pop()
+        name = getattr(node, "name", None)
+        if isinstance(node, (ast.MatchAs, ast.MatchStar)) and isinstance(name, str):
+            found.add(name)
+        rest = getattr(node, "rest", None)
+        if isinstance(node, ast.MatchMapping) and isinstance(rest, str):
+            found.add(rest)
+        stack.extend(ast.iter_child_nodes(node))
+    return found
+
+
+def _deleted_names(node: ast.Delete) -> set[str]:
+    """Plain names a `del` unbinds.
+
+    `del holder.attr` and `del holder[key]` touch an object, not a name, so the
+    head is neither newly local nor unbound by them.
+    """
+    found: set[str] = set()
+    stack: list[ast.expr] = list(node.targets)
+    while stack:
+        target = stack.pop()
+        if isinstance(target, ast.Name):
+            found.add(target.id)
+        elif isinstance(target, (ast.Tuple, ast.List)):
+            stack.extend(target.elts)
+    return found
+
+
 def _local_names(scope: ast.AST) -> set[str]:
     """Names Python makes local to this function, whatever the execution order.
 
@@ -348,8 +389,9 @@ def _local_names(scope: ast.AST) -> set[str]:
     or `nonlocal` are explicitly not local and are removed.
 
     Deliberately not a symbol table. It covers the binding forms this resolver
-    already models, and it is used only to stop a fall-through, never to claim an
-    identity.
+    already models — assignment, import, `def`/`class`, loop and `with` targets,
+    `except ... as`, `del`, and `match` captures — and it is used only to stop a
+    fall-through, never to claim an identity.
     """
     names: set[str] = set()
     declared: set[str] = set()
@@ -391,6 +433,11 @@ def _local_names(scope: ast.AST) -> set[str]:
                     targets(item.optional_vars)
         elif isinstance(node, ast.ExceptHandler) and node.name:
             names.add(node.name)
+        elif isinstance(node, ast.Delete):
+            # `del x` makes `x` local too, and leaves it unbound from that point.
+            names.update(_deleted_names(node))
+        elif hasattr(ast, "match_case") and isinstance(node, ast.match_case):
+            names.update(_pattern_names(node.pattern))
         elif isinstance(node, (ast.Global, ast.Nonlocal)):
             declared.update(node.names)
         stack.extend(ast.iter_child_nodes(node))
@@ -443,6 +490,33 @@ def _lookup(
         if head in frame.names:
             return frame.names[head], star
     return None, star
+
+
+@dataclass
+class _Flow:
+    """How a block can leave, and what a handler could have seen inside it.
+
+    `normal` is None where the block cannot fall through — every path ended in
+    `break`, `continue`, `return` or `raise`. `brk` and `cont` carry the state at
+    those exits, because the statement after the loop sees them and the statements
+    between them and the loop's end never run.
+
+    `seen` is every state observable *inside* the block: an exception can be raised
+    at any point, so a `try` handler may run with any prefix of its body applied.
+    Joining the endpoints alone hides a binding that only some prefixes have.
+    """
+
+    normal: _State | None
+    brk: _State | None = None
+    cont: _State | None = None
+    seen: list[_State] = field(default_factory=list)
+
+
+def _join(*states: _State | None) -> _State | None:
+    live = [s for s in states if s is not None]
+    if not live:
+        return None
+    return _merge(live) if len(live) > 1 else live[0].copy()
 
 
 def raised_constructors(tree: ast.Module) -> list[Constructor]:
@@ -499,87 +573,157 @@ def raised_constructors(tree: ast.Module) -> list[Constructor]:
                 multi.add(name)
             state.bind(name, bound)
 
-        def step(node: ast.AST, state: _State) -> _State:
-            """Apply one statement, returning the state that follows it."""
+        def step(node: ast.AST, state: _State) -> _Flow:
+            """Apply one statement, returning how it can leave and what it exposes."""
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 before = dict(state.names)
                 _import_binds(node, state)
                 for name, bound in state.names.items():
                     if name in before and before[name] != bound:
                         multi.add(name)
-                return state
+                return _Flow(state, seen=[state.copy()])
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 for decorator in node.decorator_list:
                     walk_expr(decorator, state)
                 bind_watched(node.name, _Bound(LOCAL_DEF))
                 nested.append(node)
-                return state
+                return _Flow(state, seen=[state.copy()])
             if isinstance(node, ast.Assign):
                 walk_expr(node.value, state)
                 for target in node.targets:
                     _targets(target, state)
-                return state
+                return _Flow(state, seen=[state.copy()])
             if isinstance(node, (ast.AnnAssign, ast.AugAssign)):
                 if node.value is not None:
                     walk_expr(node.value, state)
                 _targets(node.target, state)
-                return state
+                return _Flow(state, seen=[state.copy()])
+            if isinstance(node, ast.Delete):
+                walk_expr(node, state)
+                for name in _deleted_names(node):
+                    # The name is unbound from here. Inside a function it stays
+                    # local — reading it is UnboundLocalError, not the enclosing
+                    # scope's binding — which `locals_` carries for the lookup.
+                    state.names.pop(name, None)
+                return _Flow(state, seen=[state.copy()])
             if isinstance(node, (ast.Global, ast.Nonlocal)):
                 for name in node.names:
                     state.bind(name, _Bound(REBOUND))
-                return state
+                return _Flow(state, seen=[state.copy()])
             if isinstance(node, ast.Raise):
                 record(node, state, chain, locals_)
                 walk_expr(node, state, skip_raise=True)
-                return state
+                # An exception leaves this block, so nothing after it runs.
+                return _Flow(None, seen=[state.copy()])
+            if isinstance(node, ast.Return):
+                if node.value is not None:
+                    walk_expr(node.value, state)
+                return _Flow(None, seen=[state.copy()])
+            if isinstance(node, ast.Break):
+                return _Flow(None, brk=state, seen=[state.copy()])
+            if isinstance(node, ast.Continue):
+                return _Flow(None, cont=state, seen=[state.copy()])
             if isinstance(node, ast.If):
-                taken, other = state.copy(), state.copy()
                 walk_expr(node.test, state)
-                return _merge([run_block(node.body, taken), run_block(node.orelse, other)])
-            if isinstance(node, (ast.For, ast.AsyncFor)):
-                walk_expr(node.iter, state)
-                looped = state.copy()
-                _targets(node.target, looped)
-                # The body may run zero times, so the state before it also reaches
-                # whatever follows.
-                after = _merge([state.copy(), run_block(node.body, looped)])
-                return _merge([after, run_block(node.orelse, after.copy())])
-            if isinstance(node, ast.While):
-                walk_expr(node.test, state)
-                after = _merge([state.copy(), run_block(node.body, state.copy())])
-                return _merge([after, run_block(node.orelse, after.copy())])
+                taken = run_block(node.body, state.copy())
+                other = run_block(node.orelse, state.copy())
+                return _Flow(
+                    _join(taken.normal, other.normal),
+                    brk=_join(taken.brk, other.brk),
+                    cont=_join(taken.cont, other.cont),
+                    seen=[state.copy(), *taken.seen, *other.seen],
+                )
+            if isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
+                entry = state.copy()
+                if isinstance(node, (ast.For, ast.AsyncFor)):
+                    walk_expr(node.iter, state)
+                    entry = state.copy()
+                    _targets(node.target, entry)
+                else:
+                    walk_expr(node.test, state)
+                body = run_block(node.body, entry)
+                # `continue` returns to the header, so its state also reaches the
+                # loop's end on a later iteration. Zero iterations reach it too.
+                no_break = _join(state.copy(), body.normal, body.cont)
+                after = run_block(node.orelse, no_break.copy()) if no_break else _Flow(None)
+                return _Flow(
+                    _join(after.normal, body.brk),
+                    brk=_join(after.brk),
+                    cont=_join(after.cont),
+                    seen=[state.copy(), *body.seen, *after.seen],
+                )
             if isinstance(node, (ast.With, ast.AsyncWith)):
                 for item in node.items:
                     walk_expr(item.context_expr, state)
                     if item.optional_vars is not None:
                         _targets(item.optional_vars, state)
-                return run_block(node.body, state)
+                inner = run_block(node.body, state)
+                return _Flow(inner.normal, inner.brk, inner.cont, [state.copy(), *inner.seen])
             if isinstance(node, ast.Try) or (
                 hasattr(ast, "TryStar") and isinstance(node, ast.TryStar)
             ):
-                # Any statement in the body may be where it failed, so a handler
-                # sees somewhere between none and all of the body's bindings.
-                after_body = run_block(node.body, state.copy())
-                outcomes = [_merge([state.copy(), after_body])]
+                body = run_block(node.body, state.copy())
+                # A handler runs from wherever the body failed, which is any point
+                # in it. Joining only the endpoints hides a binding that exists
+                # after some prefixes and not others.
+                entry = _join(state.copy(), *body.seen)
+                outcomes: list[_Flow] = []
+                if body.normal is not None:
+                    outcomes.append(run_block(node.orelse, body.normal))
                 for handler in node.handlers:
-                    caught = _merge([state.copy(), after_body])
+                    caught = entry.copy() if entry else state.copy()
                     if handler.name:
                         caught.bind(handler.name, _Bound(REBOUND))
                     outcomes.append(run_block(handler.body, caught))
-                outcomes.append(run_block(node.orelse, after_body.copy()))
-                joined = _merge(outcomes)
-                return run_block(node.finalbody, joined)
+                joined = _join(*(o.normal for o in outcomes))
+                after = run_block(node.finalbody, joined.copy()) if joined else _Flow(None)
+                return _Flow(
+                    after.normal,
+                    brk=_join(body.brk, after.brk, *(o.brk for o in outcomes)),
+                    cont=_join(body.cont, after.cont, *(o.cont for o in outcomes)),
+                    seen=[state.copy(), *body.seen, *after.seen,
+                          *(s for o in outcomes for s in o.seen)],
+                )
             if hasattr(ast, "Match") and isinstance(node, ast.Match):
                 walk_expr(node.subject, state)
-                arms = [run_block(case.body, state.copy()) for case in node.cases]
-                return _merge([state.copy(), *arms]) if arms else state
+                arms: list[_Flow] = []
+                for case in node.cases:
+                    armed = state.copy()
+                    # A capture holds arbitrary matched data, never an identity.
+                    for name in _pattern_names(case.pattern):
+                        armed.bind(name, _Bound(REBOUND))
+                    if case.guard is not None:
+                        walk_expr(case.guard, armed)
+                    arms.append(run_block(case.body, armed))
+                return _Flow(
+                    _join(state.copy(), *(a.normal for a in arms)),
+                    brk=_join(*(a.brk for a in arms)),
+                    cont=_join(*(a.cont for a in arms)),
+                    seen=[state.copy(), *(s for a in arms for s in a.seen)],
+                )
             walk_expr(node, state)
-            return state
+            return _Flow(state, seen=[state.copy()])
 
-        def run_block(stmts: list[ast.stmt], state: _State) -> _State:
+        def run_block(stmts: list[ast.stmt], state: _State) -> _Flow:
+            """Run statements in source order, carrying exits forward."""
+            normal: _State | None = state
+            last = state
+            brk: _State | None = None
+            cont: _State | None = None
+            seen: list[_State] = [state.copy()]
             for stmt in stmts:
-                state = step(stmt, state)
-            return state
+                if normal is None:
+                    # Unreachable. Its raises are still reported, against the last
+                    # live state, but it cannot change how this block exits.
+                    step(stmt, last.copy())
+                    continue
+                last = normal
+                flow = step(stmt, normal)
+                seen.extend(flow.seen)
+                brk = _join(brk, flow.brk)
+                cont = _join(cont, flow.cont)
+                normal = flow.normal
+            return _Flow(normal, brk, cont, seen)
 
         def walk_expr(node: ast.AST, state: _State, skip_raise: bool = False) -> None:
             """Catch raises and nested scopes inside an expression or statement."""
@@ -592,9 +736,14 @@ def raised_constructors(tree: ast.Module) -> list[Constructor]:
                     record(child, state, chain, locals_)
                 walk_expr(child, state)
 
-        final = run_block(list(getattr(scope, "body", [])), state) if not isinstance(scope, ast.Lambda) else state
         if isinstance(scope, ast.Lambda):
             walk_expr(scope, state)
+            final = state
+        else:
+            flow = run_block(list(getattr(scope, "body", [])), state)
+            # A closure runs later, so it sees whatever this scope ended up with on
+            # any path out of it.
+            final = _join(flow.normal, flow.brk, flow.cont) or state
 
         summary = _Frame(
             names={

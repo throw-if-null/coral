@@ -151,6 +151,16 @@ and was not one:
   state and joining branch outcomes conservatively — agreement survives, disagreement is undecidable —
   so only one definite binding reaching the raise is accepted. A same-scope `from x import *` unsettles
   the names it could have replaced.
+- **Control flow summarized by its endpoints.** A `try` handler was entered with the join of the states
+  before and after the whole body, which hides a binding that only some prefixes have: a body importing
+  `b_errors`, calling out, then importing `a_errors` reaches its handler as `b_errors` when the call
+  throws. `break` and `continue` were walked through as if execution continued, so an import after them
+  restored a binding that never runs. Blocks now return how they can leave — normal, `break`, `continue`
+  — plus every state observable inside them, and handlers join the latter.
+- **`match` captures and `del` invisible to the resolver.** A capture is an ordinary local holding
+  matched data, and `del` unbinds a name and makes it local; neither was modelled, so both fell through
+  to an enclosing import. Captures are collected from every nesting form, not just `case x:`, and
+  `del holder.attr` is correctly left alone.
 - **Function locals resolved outward before they were set.** Python decides a function's locals at
   compile time: a name bound anywhere in the body is local to all of it, so a raise above that statement
   reads an unset local rather than the module's binding of the same name. The forward walk answered

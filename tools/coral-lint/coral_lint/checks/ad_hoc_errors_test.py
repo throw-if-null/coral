@@ -762,3 +762,181 @@ def test_the_flat_form_accepts_a_relative_import_inside_its_sole_unit(make_layou
     )
     result = ad_hoc_errors.run(make_layout(tree, coral_toml=SOLE_PKG_CFG))
     assert result.ran and result.findings == ()
+
+
+# ── match captures are runtime data, never an identity ──────────────────────
+
+
+def test_a_match_capture_used_as_the_constructor_does_not_pass(make_layout):
+    # `validation` here is whatever the subject held, not the imported one.
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run(value):\n    match value:\n"
+            "        case {'error': validation}:\n            raise validation('b', 'n')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_later_match_capture_makes_the_name_a_function_local(make_layout):
+    # The capture binds somewhere in the body, so the earlier read is an unset
+    # local rather than the module's import.
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run(value):\n    raise validation('b', 'n')\n\n"
+            "    match value:\n        case {'error': validation}:\n            pass\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_nested_rest_capture_is_collected_too(make_layout):
+    # Captures nest: sequence, star, mapping `**rest`, class and or-patterns all
+    # bind through their sub-patterns.
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run(value):\n    match value:\n"
+            "        case [1, *validation]:\n            raise validation('b', 'n')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_non_capturing_pattern_does_not_shadow_the_outer_binding(make_layout):
+    # `case 1:` binds nothing, so the import is still what the arm reads.
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run(value):\n    match value:\n"
+            "        case 1:\n            raise validation('o', 'k')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+# ── `del` unbinds, and makes the name local ─────────────────────────────────
+
+
+def test_a_deleted_name_is_no_longer_the_imported_constructor(make_layout):
+    lay = make_layout(
+        _a(
+            "def run():\n    from a_errors import validation\n    del validation\n"
+            "    raise validation('b', 'n')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_later_del_makes_the_name_local_from_function_entry(make_layout):
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run():\n    raise validation('b', 'n')\n    del validation\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_deleting_an_attribute_does_not_unset_the_constructor(make_layout):
+    # `del holder.validation` touches an object, not the name.
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run(holder):\n    del holder.validation\n    raise validation('o', 'k')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+# ── a handler sees any prefix of the body; break and continue skip the rest ──
+
+
+def test_a_handler_sees_the_bindings_of_a_partly_executed_body(make_layout):
+    # The state before the try and after the whole body are both `a_errors`, but
+    # if the middle call throws, the handler runs with `b_errors`. Joining the
+    # endpoints hides that path.
+    lay = make_layout(
+        _a(
+            "def run():\n    from a_errors import validation\n\n    try:\n"
+            "        from b_errors import validation\n        operation()\n"
+            "        from a_errors import validation\n"
+            "    except Exception:\n        raise validation('b', 'n')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_handler_where_every_prefix_agrees_still_passes(make_layout):
+    # The conservative join must not make ordinary try/except undecidable.
+    lay = make_layout(
+        _a(
+            "def run():\n    from a_errors import validation\n\n    try:\n"
+            "        operation()\n"
+            "    except Exception:\n        raise validation('o', 'k')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+def test_a_break_carries_its_binding_past_the_rest_of_the_loop_body(make_layout):
+    # After one iteration the binding is `b_errors`; the import after `break`
+    # never runs. Walking straight through the body restores `a_errors`.
+    lay = make_layout(
+        _a(
+            "def run(items):\n    from a_errors import validation\n\n"
+            "    for item in items:\n        from b_errors import validation\n"
+            "        break\n        from a_errors import validation\n\n"
+            "    raise validation('b', 'n')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_continue_does_the_same(make_layout):
+    lay = make_layout(
+        _a(
+            "def run(items):\n    from a_errors import validation\n\n"
+            "    for item in items:\n        from b_errors import validation\n"
+            "        continue\n        from a_errors import validation\n\n"
+            "    raise validation('b', 'n')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_loop_that_rebinds_nothing_leaves_the_constructor_alone(make_layout):
+    lay = make_layout(
+        _a(
+            "def run(items):\n    from a_errors import validation\n\n"
+            "    for item in items:\n        operation(item)\n\n"
+            "    raise validation('o', 'k')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()

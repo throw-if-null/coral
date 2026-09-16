@@ -161,6 +161,12 @@ Resolution is **lexical and in source order**, because Python is both:
 - two branches importing the same name from different modules are not one identity, and neither is a name
   a same-scope `from x import *` could have replaced. Branch outcomes are joined conservatively:
   agreement survives, disagreement is undecidable;
+- `break` and `continue` carry their binding past the rest of the loop body, so an import after them
+  cannot restore an earlier one. A `try` handler is entered with the join of every state observable
+  inside the body, because an exception can be raised at any point in it, not only at its ends;
+- a `match` capture holds arbitrary matched data and is never an identity. It also makes the name local,
+  as `del` does — and `del` unbinds it from that point, while `del holder.attr` touches an object rather
+  than a name;
 - a **class body is not an enclosing scope for its methods**. A constructor imported into a class is an
   attribute, not a bare name `run(self)` can see. Scopes outside the class stay visible, so a method may
   still close over the function the class was defined in.
