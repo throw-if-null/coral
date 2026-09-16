@@ -151,32 +151,15 @@ and was not one:
   state and joining branch outcomes conservatively — agreement survives, disagreement is undecidable —
   so only one definite binding reaching the raise is accepted. A same-scope `from x import *` unsettles
   the names it could have replaced.
-- **Control flow summarized by its endpoints.** A `try` handler was entered with the join of the states
-  before and after the whole body, which hides a binding that only some prefixes have: a body importing
-  `b_errors`, calling out, then importing `a_errors` reaches its handler as `b_errors` when the call
-  throws. `break` and `continue` were walked through as if execution continued, so an import after them
-  restored a binding that never runs. Blocks now return how they can leave — normal, `break`, `continue`
-  — plus every state observable inside them, and handlers join the latter.
-- **`match` captures and `del` invisible to the resolver.** A capture is an ordinary local holding
-  matched data, and `del` unbinds a name and makes it local; neither was modelled, so both fell through
-  to an enclosing import. Captures are collected from every nesting form, not just `case x:`, and
-  `del holder.attr` is correctly left alone.
-- **Function locals resolved outward before they were set.** Python decides a function's locals at
-  compile time: a name bound anywhere in the body is local to all of it, so a raise above that statement
-  reads an unset local rather than the module's binding of the same name. The forward walk answered
-  *which import has run*, which is a different question, and resolved such a raise to the enclosing
-  scope. A per-function pre-scan now stops that fall-through; `global` and `nonlocal` opt out.
-- **A qualified spelling accepted without a binding.** `raise errors.validation(...)` was accepted when
-  the declaration contained that text, even where nothing bound `errors` — a `NameError` at runtime, and
-  the text match this resolver spent several rounds removing. Nothing is accepted on spelling now: an
-  unbound head is a finding whether bare or dotted, and every accepted raise carries a real import.
-- **The flat form skipping relative-import containment.** It passed no unit into the verdict, so the
-  rule that a relative import must stay inside the owning unit applied only to the scoped form. The
-  single declared unit is now passed through; `None` is left only for a config that declares no unit.
-- **A class namespace treated as an enclosing scope.** A constructor imported into a class body is an
-  attribute, not a bare name its methods can see, so a method could be accepted against a binding Python
-  would never give it. The class frame is skipped when resolving inside its methods, while scopes
-  outside the class stay visible: a method may still close over the function the class sits in.
+- **An analysis that answered "no contradiction found" as if it meant "conformant".** Successive review
+  rounds each found another Python semantic the resolver modelled imprecisely — lexical scope, source
+  order, branches, compile-time locals, class frames, `match` captures, `del`, loop-carried bindings,
+  `finally` on abrupt exits, guarded captures, walrus, exception-target cleanup. Each fix was correct and
+  the pattern was the finding: settling which object a name holds is running the program. The resolver
+  now proves or declines. A name is accepted only where every binding site in the scope that owns it is
+  an import and they agree; a single `def` owning it, or nothing binding it, are the other two provable
+  answers; **everything else skips the check and says why**. Three hundred lines of interpreter came out,
+  and the provable cases — one import, one `def`, an unbound name — are unchanged.
 - **A relative import flattened to its spelling.** `from .errors import validation` and
   `from ...errors import validation` both read as `errors.validation`, so a published package could
   climb into its host app and be accepted as its own. The import level is retained and the module is

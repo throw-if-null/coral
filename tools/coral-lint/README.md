@@ -145,31 +145,29 @@ from errors import validation as bad   # then  raise bad(...)
 from .errors import validation         # relative, resolved and bounded by the unit
 ```
 
-A name nothing in scope binds is a **finding**, whether it is written `validation` or
-`errors.validation`. The second is a `NameError` in Python unless `errors` is bound, and matching the
-text of a declaration proves nothing about where the constructor came from.
+**The check answers one of three things, and the third is not a pass.** Accepted means the constructor
+was *proved* to be the declared one. Rejected means it was proved to be something else. Anything the
+analysis cannot settle is reported, and `[ERR-2]` **skips** rather than reporting a clean run it did not
+earn — the same answer an unowned slice gets.
 
-Resolution is **lexical and in source order**, because Python is both:
+That boundary is deliberate. Proving which object a name holds in general means running the program, and
+a linter that tries earns false confidence instead of precision. So a name is proved only when it has
+**one meaning** in the scope that owns it:
 
-- an import inside another function binds nothing here, and a local `def`, a parameter or an assignment
-  of the same name shadows one that would otherwise be visible. A locally defined `validation()` is a
-  finding — that is the ad-hoc error type `[ERR-2]` exists to catch;
-- an import written **after** the raise has not run yet, and does not bind it;
-- a name bound anywhere in a function body is **local to all of it**, which Python decides at compile
-  time. A raise above that statement reads an unset local, not the module's binding of the same name,
-  so it is undecidable rather than resolved outward. `global` and `nonlocal` opt out;
-- two branches importing the same name from different modules are not one identity, and neither is a name
-  a same-scope `from x import *` could have replaced. Branch outcomes are joined conservatively:
-  agreement survives, disagreement is undecidable;
-- `break` and `continue` carry their binding past the rest of the loop body, so an import after them
-  cannot restore an earlier one. A `try` handler is entered with the join of every state observable
-  inside the body, because an exception can be raised at any point in it, not only at its ends;
-- a `match` capture holds arbitrary matched data and is never an identity. It also makes the name local,
-  as `del` does — and `del` unbinds it from that point, while `del holder.attr` touches an object rather
-  than a name;
+- every binding site for it is an import, and they agree. One `def` or `class` owning the name is the
+  other provable answer — a locally defined constructor, which is the ad-hoc error type `[ERR-2]` exists
+  to catch — and a name nothing binds is a third;
+- the innermost scope with a binding owns the name, which is Python's compile-time local rule: a later
+  assignment in a function does not let an earlier read fall outward;
+- a binding written **below** the raise in the raise's own scope cannot be what it reads;
 - a **class body is not an enclosing scope for its methods**. A constructor imported into a class is an
   attribute, not a bare name `run(self)` can see. Scopes outside the class stay visible, so a method may
   still close over the function the class was defined in.
+
+Everything else is undecidable and says so: a parameter, an assignment, a walrus, a `match` capture,
+`del`, `global`/`nonlocal`, an `except ... as` target, two imports that disagree, or a `from x import *`
+anywhere in scope. Loop-carried bindings, `finally` on an abrupt exit, and a guard that fails after its
+pattern captured all fall out of the same rule, because each of them gives the name a second binding.
 
 A **relative** import must stay inside the unit that owns the raising slice. `from .errors import
 validation` and `from ...errors import validation` spell the same name and can reach different packages,

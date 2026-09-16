@@ -496,7 +496,8 @@ types = ["pkg_errors.invalid"]
 
 
 def test_an_import_after_the_raise_does_not_bind_it(make_layout):
-    # The later import has not run. Reducing the scope to one map picked it anyway.
+    # Two imports own the name in this scope, so which one the raise reads is not
+    # a question the AST settles. Not proved either way, and not reported clean.
     lay = make_layout(
         _a(
             "def run():\n"
@@ -507,7 +508,23 @@ def test_an_import_after_the_raise_does_not_bind_it(make_layout):
         coral_toml=SAME_TAIL_CFG,
     )
     result = ad_hoc_errors.run(lay)
-    assert result.ran and len(result.findings) == 1
+    assert not result.ran and result.findings == ()
+
+
+def test_an_import_below_a_raise_cannot_bind_it_even_when_it_is_the_only_one(make_layout):
+    # The dangerous direction of the same shape: the single import names the
+    # DECLARED constructor, so accepting it would report clean for a read that is
+    # an UnboundLocalError at runtime.
+    lay = make_layout(
+        _a(
+            "def run():\n"
+            "    raise validation('bad', 'nope')\n"
+            "    from a_errors import validation\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
 
 
 def test_branches_importing_different_modules_do_not_pass(make_layout):
@@ -554,7 +571,11 @@ def test_a_later_star_import_unsettles_an_explicit_binding(make_layout):
     assert not result.ran and result.findings == ()
 
 
-def test_an_explicit_import_after_a_star_is_definite_again(make_layout):
+def test_a_star_import_anywhere_in_scope_leaves_the_name_unproved(make_layout):
+    # Deliberately conservative, and a narrowing from an earlier revision that
+    # accepted an explicit import written after the star. Deciding that needs the
+    # order the star's exports are applied in, which is the module's runtime
+    # behavior rather than its text. `[ERR-2]` says so instead of choosing.
     lay = make_layout(
         _a(
             "from b_errors import *\nfrom a_errors import validation\n\n"
@@ -563,7 +584,7 @@ def test_an_explicit_import_after_a_star_is_definite_again(make_layout):
         coral_toml=SAME_TAIL_CFG,
     )
     result = ad_hoc_errors.run(lay)
-    assert result.ran and result.findings == ()
+    assert not result.ran and result.findings == ()
 
 
 # ── a class namespace is not an enclosing scope for its methods ──────────────
@@ -935,6 +956,182 @@ def test_a_loop_that_rebinds_nothing_leaves_the_constructor_alone(make_layout):
             "def run(items):\n    from a_errors import validation\n\n"
             "    for item in items:\n        operation(item)\n\n"
             "    raise validation('o', 'k')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+# ── proved, proved different, or visibly undecidable ─────────────────────────
+#
+# These are the cases that need a running program to settle. The resolver does not
+# try: a name with more than one binding, or one binding it cannot read a value
+# from, is reported rather than guessed. Each is paired with the shape that stays
+# provable, so the conservatism is bounded.
+
+
+def test_a_loop_carried_binding_leaves_a_raise_in_the_body_unproved(make_layout):
+    # First iteration binds `b_errors` and continues; the second reaches the raise
+    # with it. Analyzing the body once from the loop entry would miss that.
+    lay = make_layout(
+        _a(
+            "def run(items):\n    from a_errors import validation\n\n"
+            "    for item in items:\n        if item:\n"
+            "            from b_errors import validation\n            continue\n\n"
+            "        raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_loop_that_cannot_change_the_constructor_stays_proved(make_layout):
+    lay = make_layout(
+        _a(
+            "def run(items):\n    from a_errors import validation\n\n"
+            "    for item in items:\n        operation(item)\n\n"
+            "    raise validation('ok', 'fine')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+def test_a_finally_that_rebinds_leaves_a_later_raise_unproved(make_layout):
+    # `finally` runs on the way out of the `break`, so the raise after the loop
+    # sees `b_errors` — a path an exit-state model has to be told about.
+    lay = make_layout(
+        _a(
+            "def run(items):\n    from a_errors import validation\n\n"
+            "    for item in items:\n        try:\n            break\n"
+            "        finally:\n            from b_errors import validation\n\n"
+            "    raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_raise_inside_finally_is_inspected_even_with_no_normal_exit(make_layout):
+    # The protected block returns, so `finally` is the only way out. Its raise is
+    # as real as any other.
+    lay = make_layout(
+        _a("def run():\n    try:\n        return\n    finally:\n        raise ValueError('nope')\n"),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and len(result.findings) == 1
+    assert "ValueError" in result.findings[0].message
+
+
+def test_a_plain_try_finally_stays_proved(make_layout):
+    lay = make_layout(
+        _a(
+            "def run():\n    from a_errors import validation\n\n"
+            "    try:\n        operation()\n    finally:\n        cleanup()\n\n"
+            "    raise validation('ok', 'fine')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+def test_a_guarded_capture_leaves_the_name_unproved_after_the_match(make_layout):
+    # The pattern captures, the guard then fails, and the body that would restore
+    # the import never runs. The capture survives.
+    lay = make_layout(
+        _a(
+            "def run(value):\n    from a_errors import validation\n\n"
+            "    match value:\n        case validation if False:\n"
+            "            from a_errors import validation\n\n"
+            "    raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_later_case_reading_an_earlier_guard_failed_capture_is_unproved(make_layout):
+    lay = make_layout(
+        _a(
+            "def run(value):\n    from a_errors import validation\n\n"
+            "    match value:\n        case validation if False:\n            pass\n"
+            "        case _:\n            raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_guarded_case_that_captures_nothing_relevant_stays_proved(make_layout):
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run(value):\n    match value:\n"
+            "        case 1 if value:\n            raise validation('ok', 'fine')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+def test_a_walrus_rebinding_the_constructor_leaves_it_unproved(make_layout):
+    lay = make_layout(
+        _a(
+            "def run():\n    from a_errors import validation\n\n"
+            "    if (validation := choose_constructor()):\n"
+            "        raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_walrus_on_an_unrelated_name_stays_proved(make_layout):
+    lay = make_layout(
+        _a(
+            "from a_errors import validation\n\n"
+            "def run():\n    if (chosen := choose_constructor()):\n"
+            "        raise validation('ok', 'fine')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert result.ran and result.findings == ()
+
+
+def test_an_exception_target_does_not_survive_its_handler(make_layout):
+    # Python deletes the `except ... as` name when the handler exits, so the import
+    # inside the handler is not what the later read gets.
+    lay = make_layout(
+        _a(
+            "def run():\n    from a_errors import validation as own_validation\n\n"
+            "    try:\n        raise own_validation('x', 'x')\n"
+            "    except Exception as validation:\n"
+            "        from a_errors import validation\n\n"
+            "    raise validation('bad', 'nope')\n"
+        ),
+        coral_toml=SAME_TAIL_CFG,
+    )
+    result = ad_hoc_errors.run(lay)
+    assert not result.ran and result.findings == ()
+
+
+def test_a_handler_not_using_the_constructor_name_stays_proved(make_layout):
+    lay = make_layout(
+        _a(
+            "def run():\n    from a_errors import validation\n\n"
+            "    try:\n        operation()\n    except Exception as exc:\n        log(exc)\n\n"
+            "    raise validation('ok', 'fine')\n"
         ),
         coral_toml=SAME_TAIL_CFG,
     )

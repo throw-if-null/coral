@@ -77,13 +77,13 @@ def _verdict(
 
     Identity, never spelling, and the identity has two halves.
 
-    **What the name resolves to.** `raise validation(...)` after
-    `from b_errors import validation` is `b_errors.validation`, a finding inside an
-    app that declared `a_errors.validation`. A local `def validation` shadows the
-    import and is an ad-hoc error type, which is what this rule forbids. Anything
-    that is not one definite binding at the raise — a parameter, an assignment, two
-    branches importing different modules, a star import that could have replaced
-    the name — is UNKNOWN rather than guessed either way.
+    **What the name is proved to be.** `raise validation(...)` where one import
+    binds it from `b_errors` is `b_errors.validation`, a finding inside an app that
+    declared `a_errors.validation`. A `def validation` owning the name is an ad-hoc
+    error type, which is what this rule forbids. A name nothing binds is neither.
+    Everything else — a parameter, an assignment, a `match` capture, a walrus,
+    `del`, an `except ... as` target, two imports that disagree, a star import — is
+    UNKNOWN, because settling it means knowing which assignment ran.
 
     **Where it lives.** A relative import spells the same canonical name at any
     depth: `from .errors import validation` and `from ...errors import validation`
@@ -101,15 +101,16 @@ def _verdict(
     `raise validation(...)`.
     """
     if ctor.origin == pysource.LOCAL_DEF:
+        # A `def` of that name owns it here: a locally defined constructor, which
+        # is the ad-hoc error type this rule forbids.
         return REJECT
-    if ctor.origin in (pysource.REBOUND, pysource.AMBIGUOUS, pysource.LOCAL_UNSET):
+    if ctor.origin == pysource.AMBIGUOUS:
         return UNKNOWN
     if ctor.origin == pysource.UNBOUND:
-        # Nothing in scope binds the head, so there is no provenance to compare —
-        # a qualified spelling is not evidence, it is the same text match this
-        # check spent its design removing. A star import could have supplied it;
-        # anything else is not the declared constructor.
-        return UNKNOWN if ctor.star else REJECT
+        # Nothing in any visible scope binds the head, so there is no provenance to
+        # compare — a qualified spelling is not evidence, it is the same text match
+        # this check spent its design removing.
+        return REJECT
 
     if ctor.level > 0 and unit is not None:
         targets = layout.resolve_import(source, _Ref(ctor.module, ctor.level, ctor.attr))
