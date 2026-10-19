@@ -897,7 +897,6 @@ project which never adopted the rule is a false positive by construction (`[VER-
 
 **Tier 1, static checks (deterministic, blocking).** One per `[auto]` rule **defined in this document**.
 Each appendix carries its own. Each check cites the rule ID it enforces, so a failure points back here.
-Some of these ship as [`tools/coral-lint`](./tools/coral-lint/README.md), and some do not yet.
 
 | Rule | Check |
 |---|---|
@@ -911,14 +910,6 @@ Some of these ship as [`tools/coral-lint`](./tools/coral-lint/README.md), and so
 | `[CONFIG-4]` | no literal secret in source, and no secret on a logged or published field |
 | `[IDEM-2]` | a read-named slice makes no one-hop write/mutation call |
 | `[ERR-2]` | raised errors use the owning app or published package's declared taxonomy constructors, not ad-hoc types |
-
-> **Which of these run is the tool's answer, not this table's.** These documents own the *rules*.
-> `coral-lint` owns the *implementation status*, reports it on every run, and prints the full map under
-> `coral-lint --coverage`, including a stated reason for each rule it does not check. Keeping the status
-> in one place is `[XCUT-4]` applied to this page. A status column here would be a second copy, and it
-> would be wrong within a month. A test in the tool reads the `[auto]` rules straight out of these docs
-> and fails if any rule is neither implemented nor explicitly excused, so the two cannot drift apart
-> silently.
 
 **Tier 2, LLM reviewer (advisory first, graduated to blocking per check once low-false-positive).**
 Reserved for `[review]` rules a static check cannot decide:

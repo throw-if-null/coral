@@ -48,6 +48,22 @@ declared error model. Coral is still in `0.y.z`, so that major is cut as a **min
 and a consuming project reads it as one. **The working version is already `0.7.0` and does not move
 again** — one batch takes one bump, however many breaking entries it holds.
 
+**`tools/coral-lint` is removed. Patch-level: the tool was outside the versioned rule set, no rule was
+added, tightened, loosened, or retired, and no ID or enforcement class moved.**
+
+Coral's claim is that predictable boundaries let an agent develop and evolve software while a human
+keeps architectural authority. A linter tests rule obedience, and obedience is not the claim. Until the
+architecture has been tested against the claim it makes, no Coral-specific checker is required or
+maintained, so the one that existed is deleted rather than left half-built: `tools/coral-lint/` with its
+checks, tests, packaging, `CORAL.md` and `coral.toml`, and the `check:lint` script that ran it. Git
+history keeps it.
+
+Nothing a project cites changes. Every rule keeps its ID, its text and its `[auto]`, `[review]` or
+`[guide]` class, and `rules.lock` and `rules.md` are byte-identical. `check:lint` was never part of
+`npm test`, so no build gate changes. The linter's own `CORAL.md` was one of two adherence records the
+build resolved. The worked example in `CONVENTIONS.md` remains, and the gate still discovers any real
+record in the doc tree. The enforcement tiers and the `[auto]` definition are not restated by this entry.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

@@ -95,8 +95,8 @@ That combination is the definition of an escalation, not of a pass. The agent re
 the compliant alternatives, and why choosing between them would create an architectural boundary. It then
 stops (`[AGENT-2]`), because an agent never settles it itself (`[AGENT-4]`). If the team decides the layout
 stays, that decision is an **Exception** in the project's `CORAL.md`, recorded against `BUCKET-1` and
-scoped to those two paths (`[VER-5]`). Recording it is also the only thing that stops `coral-lint`
-reporting it again on every run.
+scoped to those two paths (`[VER-5]`). Recording it is also the only thing that stops a tool reporting
+it again on every run.
 
 Carry this distinction away: *"the rule does not apply here"* and *"the rule applies and we are knowingly
 not complying"* are different claims with different costs. Only the second is available for `models` and

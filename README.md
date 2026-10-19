@@ -174,33 +174,6 @@ The generator only ever removes or replaces files it wrote. It refuses anything 
 rather than overwriting it. [`CONVENTIONS.md`](./CONVENTIONS.md#the-generated-execution-contract)
 documents it.
 
-## The linter
-
-[`tools/coral-lint/`](./tools/coral-lint/) implements Tier 1: the `[auto]` rules a static check can
-decide. Eleven are checked today: `[BUCKET-1]`, `[XCUT-2]`, `[STRUCT-1]`, `[ROOT-2]`, `[STATE-2]`,
-`[CONFIG-2]`, `[CONC-1]`, `[IDEM-2]`, `[ERR-2]`, plus `[LIB-3]` and `[LIB-5]` for published libraries.
-`--coverage` lists every other `[auto]` rule with a stated reason it is not checked yet, so nothing is
-silently uncovered.
-
-**It is not a blocking conformance gate today.** Every rule it checks is production-baseline or
-app-profile, so none of them binds a project that has not adopted that layer (`[VER-6]`). The tool cannot
-resolve a project's declaration yet. It therefore **fails closed**: by default it reports a configuration
-error rather than findings, and `--ignore-applicability` produces output that is explicitly advisory
-rather than a conformance verdict.
-[Its README](./tools/coral-lint/README.md#applicability--read-this-before-treating-it-as-a-gate) states
-what closing that gap needs.
-
-```bash
-cd tools/coral-lint
-python3 -m coral_lint /path/to/repo --ignore-applicability   # advisory; exit 1 on findings
-python3 -m coral_lint --coverage                             # what runs, and why the rest doesn't
-```
-
-No dependencies, Python 3.11+. `[BUCKET-1]` needs no configuration, so it is useful immediately. The other
-checks read a `coral.toml` in the audited repo. That file declares where the repo's slices live.
-Guessing is how a linter earns false positives. The linter is itself a Coral CLI, one slice per check, and it passes
-its own gates.
-
 ## The audit skill
 
 [`.claude/skills/coral-audit/`](./.claude/skills/coral-audit) is the operational counterpart to the docs.
