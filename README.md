@@ -82,14 +82,16 @@ rejects an opt-in rule defined in a [core document](./CONVENTIONS.md#core-docume
 
 Rules carry stable IDs like `[DUP-2]`, and three independent classifications:
 
-- an **enforcement class** (`[auto]` / `[review]` / `[guide]`) saying how the rule is checked
+- an **[enforcement class](./CONVENTIONS.md#enforcement-classes)** saying whether the rule is decidable
+  by deterministic analysis in principle (`[auto]`), needs judgment (`[review]`), or is rationale rather
+  than a gate (`[guide]`)
 - an **[ownership layer](./CONVENTIONS.md#ownership-layers)** saying who has to read it, so a CLI is not
   asked to reason about HTTP status codes or runtime-AI rules
 - an **[architectural scale](./CONVENTIONS.md#architectural-scale)** saying whether it governs one app or
   several apps composing
 
-A rule binds whether or not a tool can verify it yet:
-[rules define conformance, and tools implement partial verification of them](./CONVENTIONS.md#rules-and-verification).
+A rule binds whether or not anything verifies it yet:
+[rules define conformance, and verification is separate and partial](./CONVENTIONS.md#rules-and-verification).
 
 On the live site every citation links to its definition. The build fails on any of the following:
 

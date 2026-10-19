@@ -384,10 +384,9 @@ baseline's placement rules, so it is stated with them, in
 
 The rule IDs and enforcement classes exist so the architecture can be **checked**, not only read. The
 first line of drift control is structural: a genuine crosscut (`[XCUT]`) has one copy and nothing to
-drift. The tiers below are the backstop for what passes that line.
+drift. What follows is the backstop for what passes that line.
 
-Two things are checked today. This repository enforces its **own** consistency at build time, in four
-groups:
+This repository enforces its **own** consistency at build time, in four groups:
 
 - Each rule is **classified**: exactly one enforcement class, exactly one ownership layer, and one
   architectural scale. Kernel membership is read only from `CONVENTIONS.md`'s kernel block. Every other
@@ -407,35 +406,30 @@ groups:
 Malformed metadata fails the build rather than being skipped. A skipped rule is one that leaves a layer
 without the page changing, so the page still reads correctly while the classification is wrong.
 
-**Where the concrete checks are.** Every `[auto]` rule Coral publishes at app scale belongs to the
-production baseline or to an app profile, so the per-rule Tier 1 mapping is stated with those rules.
-[`PRODUCTION.md`](./PRODUCTION.md#enforcement-of-the-baseline) carries it for the baseline, and each
-appendix carries it for its own profile. This document's own rules are all `[review]`. Their gate is the
-human architectural review the operating model already assumes.
+**Where the decidable reading of each `[auto]` rule is.** Every `[auto]` rule Coral publishes at app
+scale belongs to the production baseline or to an app profile, so what each one decides is stated with
+those rules. [`PRODUCTION.md`](./PRODUCTION.md#enforcement-of-the-baseline) carries it for the baseline.
+An appendix's `[auto]` rules carry theirs in the rule definitions. This document's own rules are all
+`[review]`. Their gate is the human architectural review the operating model already assumes.
 
-**Tier 1, static checks (deterministic, blocking).** One per `[auto]` rule, each citing the rule ID it
-enforces so a failure points back at a definition.
+A project's conformance to the rules it adopts is verified by two means.
 
-**Tier 2, LLM reviewer (advisory first, graduated to blocking per check once low-false-positive).**
-Reserved for `[review]` rules a static check cannot decide: cross-slice drift, "this is the Nth copy, so
-promote per `[XCUT-1]`?" classification calls, crosscut-vs-bucket judgments, and state-ownership
-disputes.
+**Behavior tests.** Some `[review]` rules are cheap to assert and expensive to decide by static analysis.
+Cover them in the slice's own tests.
 
-**Tier 3, behavior tests.** Some `[review]` rules are cheap to assert and expensive to lint. Cover them
-in the slice's own tests rather than pretending a linter can decide them.
+**Review.** Review covers the `[auto]` rules by their decidable reading, and the `[review]` rules by
+judgment: cross-slice drift, "this is the Nth copy, so promote per `[XCUT-1]`?" classification calls,
+crosscut-vs-bucket judgments, and state-ownership disputes. A reviewer may use an LLM.
 
-**Four constraints that keep enforcement from fighting the architecture:**
+**Three constraints that keep review from fighting the architecture:**
 
-1. **Static-first.** A gate that flakily passes a forbidden bucket loses all credibility.
-2. **Flag drift as a question, never force convergence.** Suggest "A and B diverged. Is that intended,
+1. **Flag drift as a question, never force convergence.** Suggest "A and B diverged. Is that intended,
    or a missed `[XCUT]` promotion?" for a human to adjudicate. A "make everything consistent" reviewer
    would push agents back into premature shared abstractions, which is an anti-`[DUP]` engine.
-3. **One slice at a time.** The reviewer gets the project's applicable contract as input, cites IDs, and
-   reviews one slice per pass. Slices are context-sized, so review stays tractable.
-4. **The human is the final gate on anything irreversible.** The reviewer multiplies human attention. It
-   does not replace the "humans review" half of the operating model.
-
-New convention → new rule ID → new `[auto]` check (or `[review]` note) → enforced going forward.
+2. **One slice at a time.** A review pass takes the project's applicable contract as input, cites rule
+   IDs, and covers one slice. Slices are context-sized, so review stays tractable.
+3. **The human is the final gate on anything irreversible.** Review multiplies human attention. It does
+   not replace the "humans review" half of the operating model.
 
 ---
 

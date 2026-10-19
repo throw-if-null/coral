@@ -271,33 +271,23 @@ channel, so `web.md` legitimately references `[CHAN-*]` and `[SYS-TEST-*]`.
 
 Each rule carries **exactly one**, and the docs build fails otherwise:
 
-- `[auto]`: statically checkable. A linter can decide it without judgment.
+- `[auto]`: decidable by deterministic analysis in principle. The class describes the rule, not a
+  checker. No Coral tool is promised for it.
 - `[review]`: needs LLM or human judgment.
 - `[guide]`: rationale or principle. It shapes decisions but is not a pass/fail gate.
 
 The class is read from the [metadata slot](#where-a-rule-s-layer-is-recorded) next to the rule ID, so a
 rule that *discusses* `[review]` in its prose neither gains a second class nor supplies a missing one.
 
-The resulting coverage map shows which rules a tool can enforce and which depend on a reader following
-them. Classify honestly. A rule marked `[auto]` that no linter could decide is a promise the architecture
-cannot keep, and it costs more credibility than an honest `[review]`.
-
-A new convention becomes a clean unit of work: new rule ID → new `[auto]` check (or `[review]` note) →
-enforced going forward.
+The resulting coverage map shows which rules are decidable without judgment and which are not. Classify
+honestly. A rule marked `[auto]` that no deterministic analysis could decide is a promise the
+architecture cannot keep, and it costs more credibility than an honest `[review]`.
 
 ### Rules and verification
 
-Rules define conformance. Tools implement partial, evolving verification of those rules. Tool coverage
-must never redefine or narrow the architecture.
-
-A rule remains applicable whether or not Coral currently has a tool capable of verifying it
-automatically. A missing or incomplete checker is a limitation of the tooling, not an exception to the
-rule. Conversely, the implementation details or constraints of a checker must not become architectural
-requirements unless they are independently justified and promoted into the rules.
-
-Coral's tooling should therefore distinguish **conformance** from **verification coverage**. Where a rule
-can be checked deterministically, a tool may enforce it. Where it cannot, the tool should report that
-limitation rather than silently weakening the rule to match what it can prove.
+Rules define conformance. Verification is separate from conformance and is partial: a rule binds whether
+or not review, a test, or a check verifies it. The limits of whatever verifies a rule do not become
+architectural requirements unless they are independently justified and promoted into the rules.
 
 ## Prose vs. contract
 
