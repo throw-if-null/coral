@@ -407,10 +407,6 @@ groups:
 Malformed metadata fails the build rather than being skipped. A skipped rule is one that leaves a layer
 without the page changing, so the page still reads correctly while the classification is wrong.
 
-Separately, [`tools/coral-lint`](./tools/coral-lint/README.md) implements a growing subset of Tier 1
-against a target repository. It is advisory rather than blocking until it can resolve that project's
-`[VER-6]` declaration. Every rule it checks is one a project has to adopt.
-
 **Where the concrete checks are.** Every `[auto]` rule Coral publishes at app scale belongs to the
 production baseline or to an app profile, so the per-rule Tier 1 mapping is stated with those rules.
 [`PRODUCTION.md`](./PRODUCTION.md#enforcement-of-the-baseline) carries it for the baseline, and each
@@ -418,8 +414,7 @@ appendix carries it for its own profile. This document's own rules are all `[rev
 human architectural review the operating model already assumes.
 
 **Tier 1, static checks (deterministic, blocking).** One per `[auto]` rule, each citing the rule ID it
-enforces so a failure points back at a definition. Some ship as
-[`tools/coral-lint`](./tools/coral-lint/README.md) and some do not yet.
+enforces so a failure points back at a definition.
 
 **Tier 2, LLM reviewer (advisory first, graduated to blocking per check once low-false-positive).**
 Reserved for `[review]` rules a static check cannot decide: cross-slice drift, "this is the Nth copy, so

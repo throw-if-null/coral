@@ -319,18 +319,19 @@ if (model.classified) problems.push(...checkContractScopes(SRC, rules))
 // Gate 10 — every adherence record this repository publishes actually resolves.
 //
 // Two kinds, and both matter for the same reason. CONVENTIONS.md prints a whole
-// `CORAL.md` as a worked EXAMPLE, and every consuming project copies it. `tools/coral-lint`
-// keeps a REAL one, because it is a Coral CLI and PO-04 says a project declares what it
-// adopts. Each names ownership keys, profile names and scales — all registry values that
-// can be renamed here without the record following — and each declares a target version,
-// which between releases is not the version in `VERSION`.
+// `CORAL.md` as a worked EXAMPLE, and every consuming project copies it. A REAL one is any
+// `CORAL.md` in the doc tree: PO-04 says a project declares what it adopts, so a Coral
+// tool kept in this repository carries one. Each names ownership keys, profile names and
+// scales — all registry values that can be renamed here without the record following —
+// and each declares a target version, which between releases is not the version in
+// `VERSION`.
 //
 // A machine-readable format whose published records the machine has never read has one
 // untested user, and it is the most important one. So the build resolves them with the same
 // resolver a project's tooling would use. `[VER-6]` is the rule this enforces for consuming
 // projects; this is Coral holding its own files to it.
 //
-// The real records are DISCOVERED rather than listed, so a second one is covered by
+// The real records are DISCOVERED rather than listed, so a new one is covered by
 // existing rather than by somebody remembering this gate.
 //
 // Only runs once the model is classified — resolving an adoption against a taxonomy the
@@ -552,13 +553,6 @@ export default withMermaid(defineConfig({
         ],
       },
       { text: 'Versioning & changelog', link: '/CHANGELOG' },
-      {
-        text: 'Enforcement',
-        collapsed: false,
-        items: [
-          { text: 'coral-lint — Tier 1 checks', link: '/tools/coral-lint/README' },
-        ],
-      },
     ],
     socialLinks: [
       { icon: 'github', link: 'https://github.com/ClimateView/coral' },

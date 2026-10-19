@@ -1793,8 +1793,8 @@ function walk(dir, srcDir) {
 
 // Everything else is discovered, so a new appendix or example is registered just by
 // existing. Only the ROOT README.md is excluded — it is srcExclude'd, so a
-// definition there would point at a page that isn't built. A nested README
-// (tools/coral-lint/) IS built and IS scanned.
+// definition there would point at a page that isn't built. A nested README IS built
+// and IS scanned.
 export function docFiles(srcDir) {
   return [...new Set([...SPINE, ...walk(srcDir, srcDir).sort()])].filter((rel) => rel !== 'README.md')
 }

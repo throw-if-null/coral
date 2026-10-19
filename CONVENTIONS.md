@@ -494,7 +494,7 @@ written.
 **`[VER-5]` `[auto]`** — Every exception and extension in `CORAL.md` is recorded as a **machine-readable
 entry naming the rule ID it concerns and the path it scopes**.
 
-An exception a tool cannot read is an exception the tool re-reports forever. `coral-lint` has no way to
+An exception a tool cannot read is an exception the tool re-reports forever. A tool has no way to
 honour a decision written as prose, so an approved `internal/models` package fails the gate on every run.
 The team then learns to ignore the output, and the register stops being believed, which costs more than
 the original violation. The same applies to agents. `[AGENT-5]` tells one to read `CORAL.md` before
@@ -1072,7 +1072,7 @@ today. Every rule it publishes is stated in language-neutral terms, and the work
 Python are illustrations of neutral rules rather than bindings of them. A language binding is what you
 would write if a language forced a *different* realization of a Coral concept. The layer exists so that
 rule has somewhere to go that is not the baseline, and inventing one to populate the layer would be worse
-than leaving it empty. `coral-lint`'s Python internals are a tool's implementation, not a binding either.
+than leaving it empty.
 
 Every registered `app:` or `lang:` profile's rules are **defined in that profile's own document**, and
 the build holds them to it. A rule kept in a broadly-loaded document is read as binding however it is
