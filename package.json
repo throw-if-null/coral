@@ -29,10 +29,10 @@
   },
   "homepage": "https://github.com/ClimateView/coral#readme",
   "devDependencies": {
-    "mermaid": "^11.17.2",
+    "mermaid": "^12.2.0",
     "vitepress": "^1.6.4",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "wrangler": "4.146.0",
+    "wrangler": "4.151.2",
     "yaml": "^2.9.0"
   }
 }
