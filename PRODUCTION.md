@@ -889,16 +889,17 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 
 ## Enforcement of the baseline
 
-The generic tier model is in [`ARCHITECTURE.md`](./ARCHITECTURE.md#enforcement-drift-control). It covers
-static checks, LLM review, behavior tests, and the four constraints that keep enforcement from working
-against the architecture. What follows is the concrete mapping for the rules **this document** defines.
-It applies to a project that has adopted the baseline, and to no other. A check that fires against a
-project which never adopted the rule is a false positive by construction (`[VER-6]`).
+This section states the decidable reading of each `[auto]` rule **this document** defines, and the
+`[review]` rules that review and behavior tests cover. It applies to a project that has adopted the
+baseline, and to no other. A finding against a project which never adopted the rule is a false positive
+by construction (`[VER-6]`). The verification means, and the constraints on review, are in
+[`ARCHITECTURE.md`](./ARCHITECTURE.md#enforcement-drift-control).
 
-**Tier 1, static checks (deterministic, blocking).** One per `[auto]` rule **defined in this document**.
-Each appendix carries its own. Each check cites the rule ID it enforces, so a failure points back here.
+**The decidable reading of each `[auto]` rule.** Each row states what a reviewer, or a future check,
+decides for the rule. It promises no tool. An appendix's `[auto]` rules carry theirs in the rule
+definitions.
 
-| Rule | Check |
+| Rule | Decidable reading |
 |---|---|
 | `[BUCKET-1]` | no `utils/`, `services/`, `helpers/`, `common/`, or generic `models/` directory |
 | `[STRUCT-1]` | every slice ships its tests (colocated, or a mirror exists) |
@@ -911,14 +912,13 @@ Each appendix carries its own. Each check cites the rule ID it enforces, so a fa
 | `[IDEM-2]` | a read-named slice makes no one-hop write/mutation call |
 | `[ERR-2]` | raised errors use the owning app or published package's declared taxonomy constructors, not ad-hoc types |
 
-**Tier 2, LLM reviewer (advisory first, graduated to blocking per check once low-false-positive).**
-Reserved for `[review]` rules a static check cannot decide:
+**What review decides.** `[review]` rules that no deterministic analysis decides, for example:
 
 - cross-slice drift in date, money, or error formats
 - "this is the Nth copy, so promote per `[XCUT-1]`?" classification calls
 - `[XCUT-5]` crosscut-versus-bucket judgments
 - `[STATE-5]` ownership disputes
 
-**Tier 3, behavior tests.** Some `[review]` rules are cheap to assert and expensive to lint: `[OBS-3]`,
-`[ERR-3]`, `[ERR-4]`, `[IDEM-5]`, and the authorization half of `[TEST-4]`. Cover them in the slice's
-own tests rather than expecting a linter to decide them.
+**What behavior tests cover.** Some `[review]` rules are cheap to assert and expensive to decide by static
+analysis: `[OBS-3]`, `[ERR-3]`, `[ERR-4]`, `[IDEM-5]`, and the authorization half of `[TEST-4]`. Cover
+them in the slice's own tests.

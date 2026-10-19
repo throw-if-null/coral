@@ -64,6 +64,30 @@ Nothing a project cites changes. Every rule keeps its ID, its text and its `[aut
 build resolved. The worked example in `CONVENTIONS.md` remains, and the gate still discovers any real
 record in the doc tree. The enforcement tiers and the `[auto]` definition are not restated by this entry.
 
+**The enforcement tiers are retired, and `[auto]` no longer promises a checker. Patch-level: prose that
+leaves conformance unchanged. No rule was added, tightened, loosened, or retired, and no ID or
+enforcement class moved.**
+
+`ARCHITECTURE.md` and `PRODUCTION.md` described enforcement in three tiers: blocking static checks, one
+per `[auto]` rule; an LLM reviewer, advisory first and graduated to blocking per check; and behavior
+tests. The static tier never ran, and the graduation lifecycle described a tool that does not exist.
+The two documents now state two verification means, behavior tests in the slice's own tests and review,
+and three constraints on review: flag drift as a question, one slice per pass with the applicable
+contract as input, and the human as the final gate on anything irreversible. "Static-first" goes with
+the static tier. The per-rule table in `PRODUCTION.md` stays as the decidable reading of each `[auto]`
+rule the baseline defines. It states what a reviewer or a future check decides, and it promises no tool.
+
+`CONVENTIONS.md` now defines `[auto]` as decidable by deterministic analysis in principle. The class
+describes the rule, not a checker, and no Coral tool is promised for it. `index.md` and `README.md`
+restate that definition. The sentence "new rule ID → new `[auto]` check (or `[review]` note) → enforced
+going forward" is removed from `CONVENTIONS.md` and `ARCHITECTURE.md`.
+
+"Rules and verification" in `CONVENTIONS.md`, added earlier in this batch, keeps its principle and loses
+its tool wording. The reversal is deliberate. Conformance and verification coverage stay separate, and a
+rule still binds whether or not anything verifies it. The section no longer describes Coral tooling that
+enforces decidable rules and reports its own limitations, because no such tooling is maintained. Every
+rule keeps its ID, text, and class, and `rules.lock` and `rules.md` are byte-identical.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

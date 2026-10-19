@@ -205,9 +205,10 @@ Otherwise, in order:
   runtime.
 - [Worked examples](/examples/cli-slice): real code, in Python and Go.
 
-Every rule carries an ID like `[DUP-2]` and exactly one enforcement class. `[auto]` means a linter can
-decide it. `[review]` means it needs a person's judgment. `[guide]` means it is rationale rather than a
-pass/fail gate.
+Every rule carries an ID like `[DUP-2]` and exactly one
+[enforcement class](/CONVENTIONS#enforcement-classes). `[auto]` means deterministic analysis can decide
+it in principle, and no Coral tool is promised. `[review]` means it needs a person's judgment. `[guide]`
+means it is rationale rather than a pass/fail gate.
 
 On this site each citation links to its definition. The build fails if a citation has no definition, if a
 rule has no class, or if a published ID disappears. The documents' internal consistency is checked rather
