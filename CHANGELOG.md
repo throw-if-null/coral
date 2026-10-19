@@ -18,8 +18,8 @@ than to adding an API endpoint.
 **Coral is currently in `0.y.z`**, semver's major-version-zero phase. The rule set is not yet stable, so
 a change that *would* be major bumps the **minor** instead. Rules are still arriving in batches while the
 appendices are filled, and spending a major per batch would put Coral at version 6 with nothing stable to
-show for it. `1.0.0` is cut when **every appendix is complete**, meaning every slot carries either an
-app-type rule or an explicit "spine-sufficient" note. That is a checkable condition.
+show for it. The `1.0.0` condition is stated once, under `[VER-2]` in
+[`CONVENTIONS.md`](./CONVENTIONS.md#versioning-and-local-deviations).
 
 Rule IDs are append-only (`[VER-1]`): never renumbered, never recycled, never removed. `rules.lock` is the
 checked-in record of every published ID and its enforcement class, and the build fails on any drift
@@ -87,6 +87,29 @@ its tool wording. The reversal is deliberate. Conformance and verification cover
 rule still binds whether or not anything verifies it. The section no longer describes Coral tooling that
 enforces decidable rules and reports its own limitations, because no such tooling is maintained. Every
 rule keeps its ID, text, and class, and `rules.lock` and `rules.md` are byte-identical.
+
+**The `1.0.0` condition under `[VER-2]` gains a second part: the rule set has been used. Clarification,
+minor under `[VER-2]`. The batch is already major, so the working version stays `0.7.0`.**
+
+`[VER-2]` tied `1.0.0` to one condition, that every core appendix is complete. Completeness is now
+necessary and not sufficient. `1.0.0` is cut when every core appendix is complete, and the rule set has
+been used to build and change at least one real application, and the findings from that use have been
+acted on. The `0.3.0` note below held `1.0.0` back because the rules had not been read. That reason is
+now part of the condition rather than a note beside it.
+
+The condition is stated once, in `CONVENTIONS.md` under `[VER-2]`. The Appendix Index in
+`ARCHITECTURE.md` and the header of this file link to it instead of restating it. The header's
+restatement had drifted: it said "every appendix", and the rule says every *core* appendix.
+
+`README.md` and `index.md` now state what Coral claims, what is not a goal for `1.0.0`, how the claim
+is validated, and what would count against it. The claim is that Coral's conventions let a coding agent
+implement, change, and replace features with less human implementation work, while a human keeps
+architectural control. A Coral-specific linter, a multi-agent harness, and a conformance score used as a
+quality measure are not goals for `1.0.0`. Coral is validated by use on real projects first. A
+controlled comparison against other architectures is deferred. No empirical validation exists yet.
+
+`[VER-2]`'s first sentence is unchanged, so its contract line and its entry in `rules.md` are unchanged.
+No rule ID or enforcement class moved, and `rules.lock` and `rules.md` are unchanged.
 
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
