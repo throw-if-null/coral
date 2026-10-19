@@ -14,8 +14,8 @@ hero:
 ## What this is
 
 Coral is a set of rules for organising code in a repository. Coding agents follow it, and so do people.
-The rules are therefore stated explicitly and numbered. Most of them are checkable by a program rather
-than by argument.
+The rules are therefore stated explicitly and numbered. Each one can be cited and checked rather than
+argued about.
 
 The organising principle is one sentence: **one trigger, one owning capability, end to end.**
 
@@ -180,6 +180,31 @@ Some domains have one central concept that every feature reaches into: a tax eng
 pricing solver. Splitting those by capability cuts across the thing that holds the complexity. The result
 is worse than a conventional layout. Coral states this as a rule rather than a footnote, `[SCOPE-2]`. The
 recommendation there is to use something else and say so.
+
+## What Coral claims, and how it is judged
+
+Coral's claim is that its conventions let a coding agent implement, change, and replace features with less
+human implementation work, while a human keeps architectural control. The conventions separate **stable
+behavior contracts** from **replaceable implementations**. A behavior contract is what callers and tests
+depend on, and it changes only deliberately. The implementation behind it can be changed or rewritten by
+an agent without the contract moving. The human decides where the contracts and the boundaries are. The
+agent does the implementation work inside them.
+
+**Three things are not goals for `1.0.0`:** a Coral-specific linter, a multi-agent harness, and a
+conformance score used as a quality measure. Obedience to the rules is not the claim, and a count of
+satisfied rules does not measure whether the claim holds.
+
+**Coral is validated by use on real projects first.** Building and changing an application with the rule
+set, and acting on what that use finds, comes before any other evidence. A controlled comparison against
+other architectures is deferred. No empirical validation exists yet, and nothing in these documents
+reports one.
+
+**The claim is testable, and any of these counts against it:**
+
+- an agent repeatedly misreads a rule
+- escalations to the human are mostly avoidable
+- a replacement breaks a behavior contract
+- human implementation work stays necessary
 
 ## How to read the rest
 

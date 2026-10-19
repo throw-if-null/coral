@@ -462,8 +462,9 @@ mechanism, trust/security, contract versioning, and testing mechanics.
 A deferred slot points at the app-scale rule it instantiates, in this document or in
 [`PRODUCTION.md`](./PRODUCTION.md). Deferring is an answer, not a gap. It means that rule needs no
 app-type-specific form here, and saying so is what lets a reader stop looking. A slot that is neither is
-listed under "slots still to fill" on the appendix itself, so the gap is named rather than implied.
-`[VER-2]` ties `1.0.0` to every **core** appendix being complete by this definition.
+listed under "slots still to fill" on the appendix itself, so the gap is named rather than implied. The
+`1.0.0` condition under `[VER-2]`, stated in
+[`CONVENTIONS.md`](./CONVENTIONS.md#versioning-and-local-deviations), uses this definition of complete.
 
 ### Core appendices
 

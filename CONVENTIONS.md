@@ -441,9 +441,13 @@ the **minor** instead (`0.1.0` → `0.2.0`), per semver's major-version-zero cla
 state while appendices are still being filled. Rules are still arriving in batches, and spending a major
 per batch would put Coral at version 6 with nothing stable to show for it.
 
-**`1.0.0` is cut when every *core* appendix is complete**, meaning every slot either carries an app-type
-rule or an explicit "spine-sufficient" note. That is a checkable condition, so the promise `1.0.0` makes
-is a real one. From there, an added rule costs a major, and a project can pin with confidence.
+**`1.0.0` is cut when every *core* appendix is complete and the rule set has been used.** Complete means
+every slot either carries an app-type rule or an explicit "spine-sufficient" note. Used means the rule set
+has been used to build and change at least one real application, and the findings from that use have been
+acted on. Completeness is necessary and not sufficient: a complete rule set that nobody has built with has
+been written, not tested, and a stability promise on it would rest on reading alone. Both parts are
+checkable, the first from the documents and the second from the recorded findings, so the promise `1.0.0`
+makes is a real one. From there, an added rule costs a major, and a project can pin with confidence.
 
 **An appendix marked ADDENDUM is outside that condition, and outside the version discipline.** An
 addendum covers an app type nobody here has built yet. It is written from reading rather than from

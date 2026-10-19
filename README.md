@@ -33,6 +33,31 @@ where the architecture does not fit.
 Coral is a poor fit for dense domains where every feature reaches into one central concept: a tax engine,
 a scheduler, a solver. `[SCOPE-2]` states that limit as a rule.
 
+## What Coral claims, and how it is judged
+
+Coral's claim is that its conventions let a coding agent implement, change, and replace features with less
+human implementation work, while a human keeps architectural control. The conventions separate **stable
+behavior contracts** from **replaceable implementations**. A behavior contract is what callers and tests
+depend on, and it changes only deliberately. The implementation behind it can be changed or rewritten by
+an agent without the contract moving. The human decides where the contracts and the boundaries are. The
+agent does the implementation work inside them.
+
+**Three things are not goals for `1.0.0`:** a Coral-specific linter, a multi-agent harness, and a
+conformance score used as a quality measure. Obedience to the rules is not the claim, and a count of
+satisfied rules does not measure whether the claim holds.
+
+**Coral is validated by use on real projects first.** Building and changing an application with the rule
+set, and acting on what that use finds, comes before any other evidence. A controlled comparison against
+other architectures is deferred. No empirical validation exists yet, and nothing in these documents
+reports one.
+
+**The claim is testable, and any of these counts against it:**
+
+- an agent repeatedly misreads a rule
+- escalations to the human are mostly avoidable
+- a replacement breaks a behavior contract
+- human implementation work stays necessary
+
 ## The documents
 
 Start with [`CONVENTIONS.md`](./CONVENTIONS.md). It defines the eight nouns every other document uses, the
