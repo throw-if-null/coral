@@ -28,9 +28,9 @@ code has one of five known roles.
 that owned behavior sits is Coral's **production baseline**: **code grouped by what it does, not by what
 kind of code it is**. The baseline requires packages named for the capability or concern they own. It
 forbids a global `handlers` / `services` / `repositories` layer. It puts tests beside the code they
-verify. It is
-[optional and adopted explicitly](/PRODUCTION). Most projects that want Coral want it. A project can still
-own its triggers end to end without taking on Coral's opinion about what the directories are called.
+verify. It is the
+[recommended default for an application](/PRODUCTION), and a project adopts it explicitly. A project can
+still own its triggers end to end without taking on Coral's opinion about what the directories are called.
 
 ## What that looks like
 

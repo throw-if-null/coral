@@ -111,6 +111,18 @@ controlled comparison against other architectures is deferred. No empirical vali
 `[VER-2]`'s first sentence is unchanged, so its contract line and its entry in `rules.md` are unchanged.
 No rule ID or enforcement class moved, and `rules.lock` and `rules.md` are unchanged.
 
+**The recommended adoption configuration is recorded as a template, and the production baseline is
+stated as the recommended default for an application. Patch-level: prose and a template. No rule was
+added, tightened, loosened, or retired, and no ID or enforcement class moved.**
+
+`templates/CORAL.md` is an adherence record for the kernel, the production baseline, and the `backend`
+app profile, at `app` scale, with no exceptions and no extensions. Its `targets` names the working
+version, because the build resolves every `CORAL.md` in the tree against the rule set these documents
+describe. `README.md` gains a "Start a project" section: copy the template, run `contract:generate` from
+the Coral checkout, and add an agent instructions file that loads `CORAL-CONTRACT.md`. The generator
+first ships in `0.7.0`. `README.md` and `index.md` state that the baseline is the recommended default
+where they introduce it. Adoption stays explicit, and `rules.lock` and `rules.md` are unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 
