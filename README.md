@@ -141,7 +141,9 @@ configuration for a backend app: `scales: [app]`, `production-baseline: true`, `
 no exceptions, no extensions.
 
 1. Copy the template to the project root as `CORAL.md`. Set the project name in the heading. Set
-   `targets` to the released version of the Coral checkout the project generates from.
+   `targets` to the version of the Coral checkout the project generates from: `VERSION` on a release
+   tag, or the version named by the `## Unreleased` heading in `CHANGELOG.md` on `main`. The
+   generator refuses a mismatch and names the version it expects.
 2. From that checkout, generate the execution contract:
 
    ```bash
@@ -157,8 +159,9 @@ no exceptions, no extensions.
    ```markdown
    ## Coral
 
-   Load `CORAL-CONTRACT.md` before you change code. It holds every Coral rule that applies to this
-   project, plus the project's accepted exceptions and extensions. It is generated. Do not edit it.
+   Load `CORAL-CONTRACT.md` before you change code. It holds every `[auto]` and `[review]` Coral
+   rule that applies to this project, plus the project's accepted exceptions and extensions. It is
+   generated. Do not edit it.
    ```
 
 Three things are outside the canonical configuration:
