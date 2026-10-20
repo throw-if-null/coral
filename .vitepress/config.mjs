@@ -544,6 +544,13 @@ export default withMermaid(defineConfig({
         items: [{ text: 'Agentic App (LLM)', link: '/appendix/agentic-app' }],
       },
       {
+        // Not a layer a project adopts: a protocol defines no rule, and the heading says so,
+        // because every heading above it names something a project takes on or does not.
+        text: 'Protocols — define no rule',
+        collapsed: false,
+        items: [{ text: 'Deciding and escalating', link: '/guides/deciding-and-escalating' }],
+      },
+      {
         text: 'Worked examples',
         collapsed: false,
         items: [
