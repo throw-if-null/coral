@@ -78,10 +78,10 @@ From there, in the order a project decides things:
    Coral codebase without being adopted. It is short.
 2. [`PRODUCTION.md`](./PRODUCTION.md): the **production baseline** for one app, and the decision whether
    to take it. It covers package naming, buckets, state ownership, concurrency, idempotency, errors,
-   config, observability, contracts, trust, testing, and growth. It is **optional and subordinate**. Coral
-   publishes it as an opinionated production-engineering policy. It applies only where a project's
-   `CORAL.md` says `production-baseline: true`. Its justification is that the software needs it, not that
-   an agent wrote it.
+   config, observability, contracts, trust, testing, and growth. It is **the recommended default for an
+   application**, and it stays optional. Coral publishes it as an opinionated production-engineering
+   policy, and it applies only where a project's `CORAL.md` says `production-baseline: true`. Its
+   justification is that the software needs it, not that an agent wrote it.
 3. [`SYSTEM.md`](./SYSTEM.md): how separately-built apps compose over a channel. It is optional as well.
    It carries two independent opt-ins: the system-scale production baseline, and the runtime-agent
    orchestration rules. Neither implies the other.
@@ -127,10 +127,50 @@ On the live site every citation links to its definition. The build fails on any 
 - an opt-in rule is defined in a core document
 - a published rule ID has disappeared or been reclassified
 - the rule index is stale
-- the worked `CORAL.md` in `CONVENTIONS.md` stops resolving
+- a `CORAL.md` in this repository stops resolving: the worked example in `CONVENTIONS.md`, or the
+  template in `templates/`
 - a link fragment does not resolve
 
 The documents' drift control is structural, not goodwill.
+
+## Start a project
+
+The recommended configuration is the kernel, the production baseline, and one app profile. Kernel-only
+is the exception, not the default. [`templates/CORAL.md`](./templates/CORAL.md) records that
+configuration for a backend app: `scales: [app]`, `production-baseline: true`, `app-profile: [backend]`,
+no exceptions, no extensions.
+
+1. Copy the template to the project root as `CORAL.md`. Set the project name in the heading. Set
+   `targets` to the version of the Coral checkout the project generates from: `VERSION` on a release
+   tag, or the version named by the `## Unreleased` heading in `CHANGELOG.md` on `main`. The
+   generator refuses a mismatch and names the version it expects.
+2. From that checkout, generate the execution contract:
+
+   ```bash
+   npm run contract:generate -- --project /path/to/project
+   ```
+
+   The generator first ships in `0.7.0`. A project that targets an earlier version has no generator to
+   run. [Versioning](#versioning-and-how-a-project-records-where-it-differs) describes the generator and
+   its output, `CORAL-CONTRACT.md`.
+3. Add an agent instructions file, `CLAUDE.md` or `AGENTS.md`, to the project root. It tells the agent
+   to load the generated contract:
+
+   ```markdown
+   ## Coral
+
+   Load `CORAL-CONTRACT.md` before you change code. It holds every `[auto]` and `[review]` Coral
+   rule that applies to this project, plus the project's accepted exceptions and extensions. It is
+   generated. Do not edit it.
+   ```
+
+Three things are outside the canonical configuration:
+
+- System scale is off: `scales: [app]` declares one deployable app, so no `SYSTEM.md` rule binds.
+- The runtime-agent addendum is off: `runtime-agent-profile: false`, and an app that calls a model at
+  runtime sets it to `true`.
+- The other app profiles, `cli`, `web`, `library`, and `gh-action`, are not chosen; an app of another
+  shape names its profile in `app-profile` instead of `backend`.
 
 ## Versioning, and how a project records where it differs
 
