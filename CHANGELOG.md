@@ -123,6 +123,19 @@ the Coral checkout, and add an agent instructions file that loads `CORAL-CONTRAC
 first ships in `0.7.0`. `README.md` and `index.md` state that the baseline is the recommended default
 where they introduce it. Adoption stays explicit, and `rules.lock` and `rules.md` are unchanged.
 
+**A decision and escalation protocol for agents is published as `guides/deciding-and-escalating.md`.
+Patch-level: a protocol document that defines no rule. No rule was added, tightened, loosened, or
+retired, and no ID or enforcement class moved.**
+
+The document sorts an implementation decision into one of three classes, each with a test: agent-owned,
+constrained, and human-owned. It defines the escalation record an agent writes when it asks, where a
+human decision is recorded so a later session does not reopen it (`CORAL.md` for a rule deviation, a
+project decision log for the rest), and the classification a review applies to each escalation:
+warranted, avoidable, or missed. It cites `[AGENT-1]` to `[AGENT-5]` and the `CORAL.md` format under
+`[VER-5]`, and restates none of them. The sidebar gains a protocols group that is not an adoption layer.
+The README's "Start a project" snippet tells the agent to load the protocol from the live site, and
+"The documents" names `guides/`. `rules.lock` and `rules.md` are unchanged.
+
 **A behavioral verification protocol is published as a guide. Patch-level: prose. No rule was added,
 tightened, loosened, or retired, and no ID or enforcement class moved.**
 
@@ -135,8 +148,8 @@ approves, and both land in one change. It states the relationship to the slice's
 integration tests, and the replacement check: a feature is replaceable when its acceptance tests pass
 against the new implementation without edits, or with edits a human approved. It cites `[TEST-1]` to
 `[TEST-4]`, `[ERR-1]`, and `[ERR-2]`, and prescribes no test framework, layout, or boilerplate beyond
-what those rules require. The sidebar gains a guides group, which is not an adoption layer, and the
-README "Start a project" snippet tells the agent to load the protocol. `rules.lock` and `rules.md` are
+what those rules require. The sidebar's protocols group and the README's "The documents" section list
+the guide, and the "Start a project" snippet tells the agent to load it. `rules.lock` and `rules.md` are
 unchanged.
 
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
