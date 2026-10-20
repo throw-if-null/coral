@@ -548,7 +548,10 @@ export default withMermaid(defineConfig({
         // because every heading above it names something a project takes on or does not.
         text: 'Protocols — define no rule',
         collapsed: false,
-        items: [{ text: 'Deciding and escalating', link: '/guides/deciding-and-escalating' }],
+        items: [
+          { text: 'Deciding and escalating', link: '/guides/deciding-and-escalating' },
+          { text: 'Behavioral verification', link: '/guides/behavioral-verification' },
+        ],
       },
       {
         text: 'Worked examples',

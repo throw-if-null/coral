@@ -96,6 +96,8 @@ rules would have been overkill.
 [`guides/`](./guides) holds protocols. They define no rule.
 [Deciding and escalating](./guides/deciding-and-escalating.md) sorts an agent's implementation decisions
 into the ones it makes alone, the ones it verifies first, and the ones a human makes.
+[Behavioral verification](./guides/behavioral-verification.md) states how a project writes an
+acceptance criterion and how it changes expected behavior.
 
 [`rules.md`](./rules.md) lists every rule on one page, grouped by document. Each entry carries its class,
 its ownership layer, its scale, and a one-line statement. Use it to look a rule up rather than to read for
@@ -158,7 +160,8 @@ no exceptions, no extensions.
    run. [Versioning](#versioning-and-how-a-project-records-where-it-differs) describes the generator and
    its output, `CORAL-CONTRACT.md`.
 3. Add an agent instructions file, `CLAUDE.md` or `AGENTS.md`, to the project root. It tells the agent
-   to load the generated contract and the decision protocol:
+   to load the generated contract, the decision protocol, and the
+   [behavioral verification protocol](./guides/behavioral-verification.md):
 
    ```markdown
    ## Coral
@@ -169,6 +172,11 @@ no exceptions, no extensions.
 
    Load https://coral.appsandtools.work/guides/deciding-and-escalating before you change code. It is
    the protocol for which decisions are yours, which you verify first, and which a human makes. It
+   defines no rule.
+
+   Load the behavioral verification protocol,
+   <https://coral.appsandtools.work/guides/behavioral-verification>, before you write or change a
+   test. It states how an acceptance criterion is written and how expected behavior changes. It
    defines no rule.
    ```
 

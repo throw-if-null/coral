@@ -136,6 +136,22 @@ warranted, avoidable, or missed. It cites `[AGENT-1]` to `[AGENT-5]` and the `CO
 The README's "Start a project" snippet tells the agent to load the protocol from the live site, and
 "The documents" names `guides/`. `rules.lock` and `rules.md` are unchanged.
 
+**A behavioral verification protocol is published as a guide. Patch-level: prose. No rule was added,
+tightened, loosened, or retired, and no ID or enforcement class moved.**
+
+`guides/behavioral-verification.md` defines no rule. It states the acceptance criterion format: one
+observable trigger, one observable outcome, at a boundary a user or a caller can see, with the outcome
+stated independently of the implementation. It gives one example, for the `backend` profile. It
+defines a coverage checklist with the condition under which each item applies, and the change process
+for expected behavior: an agent proposes the criterion text and the test diff together, a human
+approves, and both land in one change. It states the relationship to the slice's own unit and
+integration tests, and the replacement check: a feature is replaceable when its acceptance tests pass
+against the new implementation without edits, or with edits a human approved. It cites `[TEST-1]` to
+`[TEST-4]`, `[ERR-1]`, and `[ERR-2]`, and prescribes no test framework, layout, or boilerplate beyond
+what those rules require. The sidebar's protocols group and the README's "The documents" section list
+the guide, and the "Start a project" snippet tells the agent to load it. `rules.lock` and `rules.md` are
+unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 
