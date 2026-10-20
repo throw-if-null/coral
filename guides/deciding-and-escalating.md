@@ -149,7 +149,8 @@ Example entry:
 ## Worked examples
 
 Three per class: a warranted escalation, an avoidable escalation, and a silent decision that should have
-been escalated.
+been escalated. Each example is filed under the class the decision presented as; where the test moves it
+to another class, the example says so.
 
 ### Agent-owned
 
