@@ -544,6 +544,15 @@ export default withMermaid(defineConfig({
         items: [{ text: 'Agentic App (LLM)', link: '/appendix/agentic-app' }],
       },
       {
+        // Not an adoption layer. A guide is a protocol for applying rules a project has
+        // already adopted, and it defines none, so a CORAL.md has nothing in it to adopt.
+        // Every group above names something a project chooses; the heading says this one
+        // is not that, so a reader scanning the sidebar does not count it as one more.
+        text: 'Guides — protocols that define no rule',
+        collapsed: false,
+        items: [{ text: 'Behavioral verification', link: '/guides/behavioral-verification' }],
+      },
+      {
         text: 'Worked examples',
         collapsed: false,
         items: [

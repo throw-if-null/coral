@@ -154,7 +154,8 @@ no exceptions, no extensions.
    run. [Versioning](#versioning-and-how-a-project-records-where-it-differs) describes the generator and
    its output, `CORAL-CONTRACT.md`.
 3. Add an agent instructions file, `CLAUDE.md` or `AGENTS.md`, to the project root. It tells the agent
-   to load the generated contract:
+   to load the generated contract and the
+   [behavioral verification protocol](./guides/behavioral-verification.md):
 
    ```markdown
    ## Coral
@@ -162,6 +163,11 @@ no exceptions, no extensions.
    Load `CORAL-CONTRACT.md` before you change code. It holds every `[auto]` and `[review]` Coral
    rule that applies to this project, plus the project's accepted exceptions and extensions. It is
    generated. Do not edit it.
+
+   Load the behavioral verification protocol,
+   <https://coral.appsandtools.work/guides/behavioral-verification>, before you write or change a
+   test. It states how an acceptance criterion is written and how expected behavior changes. It
+   defines no rule.
    ```
 
 Three things are outside the canonical configuration:
