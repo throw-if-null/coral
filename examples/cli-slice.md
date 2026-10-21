@@ -7,9 +7,9 @@
 > `[ERR-5]` becomes the recommended six-category vocabulary. In 0.6.0, `[ERR-1]` is a
 > production-baseline rule that fixes those six names. Delete this note when 0.7.0 is cut.
 
-The [Go example](./go-api-slice) shows a slice in a language that *forces* a capability across several
-packages. This one shows the opposite: **a CLI in Python, where nothing forces banding, so a slice is one
-file.** Same architecture, different shape. That is what `[MODEL-2]` states.
+The [Go example](./go-api-slice) shows one package per capability, with Go's import-cycle rule and
+single-package code generation shaping the tree around it. This one is lighter still: **a CLI in Python,
+where a slice is one file.** Same architecture, different shape. That is what `[MODEL-2]` states.
 
 It also walks two commands rather than one, because the second is what makes three rules concrete: the
 mandatory `--json` read contract (`[CLI-3]`), read-never-mutates (`[IDEM-2]`), and the moment a second

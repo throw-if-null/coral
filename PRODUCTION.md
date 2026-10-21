@@ -194,10 +194,10 @@ This is statically decidable, and it is the check that enforces `[ROOT-1]`. Busi
 almost always appears as an import of the thing it operates on: a slice's behavior, its queries, or its
 schema. The root imports crosscuts and adapters in order to construct and inject them (`[ROOT-1]`,
 `[MODEL-4]`), and it imports a slice's published entry point in order to register it. Those imports are
-wiring, and a language with constructor injection cannot wire without them. Where a language puts a
-slice's entry point and its behavior in one package, as Go does, the check reads what the root references
-in that package, not the import line alone. Pair the check with a size budget appropriate to your stack.
-If the root is the largest file in the app, `[ROOT-1]` is being violated whatever the imports say.
+wiring, and a language with constructor injection cannot wire without them. Where a slice's entry point
+and its behavior share one package, the check reads what the root references in that package, not the
+import line alone. Pair the check with a size budget appropriate to your stack. If the root is the
+largest file in the app, `[ROOT-1]` is being violated whatever the imports say.
 
 **`[ROOT-3]` `[guide]` `{baseline}`** — **Each appendix names its root form**, including the app types
 that have no root of their own. For a library the *consumer* is the composition root, so the package
@@ -763,9 +763,9 @@ composition slice (`[COMPOSE-4]`), and flag for review.
 ## 21. Variations on the canonical slice
 
 The [canonical slice](./CONVENTIONS.md#the-canonical-slice) lives in `CONVENTIONS.md`. Read it there,
-once. [`examples/go-api-slice.md`](./examples/go-api-slice.md) is the same shape in real Go, including
-how the bands fall out under a real language's constraints. Three variations come up often enough to
-name:
+once. [`examples/go-api-slice.md`](./examples/go-api-slice.md) is the same shape in real Go: one package
+per capability, with a shared persistence adapter behind a port the slice declares. Three variations come
+up often enough to name:
 
 **Lookup-then-mutate (`edit`/`update`, `not_found`).** A slice that changes an existing record validates
 input purely, then performs the lookup-and-write as **one** effect. If the write affects zero rows it

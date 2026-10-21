@@ -447,8 +447,8 @@ crosscut-vs-bucket judgments, and state-ownership disputes. A reviewer may use a
   rule.
 - **Worked examples**:
   - [`examples/cli-slice.md`](./examples/cli-slice.md): two CLI slices in Python, one file each.
-  - [`examples/go-api-slice.md`](./examples/go-api-slice.md): an HTTP slice in Go, where the language
-    forces banding.
+  - [`examples/go-api-slice.md`](./examples/go-api-slice.md): an HTTP slice in Go, one package per
+    capability, with a shared persistence adapter behind a port the slice declares.
   - [`examples/backend-review.md`](./examples/backend-review.md): the rules applied to a real service,
     including where they would be overkill.
 

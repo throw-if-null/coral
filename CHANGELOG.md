@@ -161,9 +161,9 @@ the root to construct crosscuts and `[MODEL-4]` requires it to wire the persiste
 language with constructor injection the root imports what it constructs, so every Go root failed the
 decidable reading. The rule now reads: the root imports no slice-internal module and makes no
 state-access call. The commentary names what the root imports in order to wire, and states that where
-a language puts a slice's entry point and its behavior in one package the check reads what the root
-references. The contract line, the decidable-reading row, the vocabulary table in `CONVENTIONS.md`, and
-`rules.md` carry the same reading. The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
+a slice's entry point and its behavior share one package the check reads what the root references. The
+contract line, the decidable-reading row, the vocabulary table in `CONVENTIONS.md`, and `rules.md`
+carry the same reading. The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
 
 **`[BE-8]` states the scoped-miss `404` as raised through the error model. Clarified, minor under
 `[VER-2]`; the working version stays `0.7.0`.**
