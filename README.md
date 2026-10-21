@@ -89,9 +89,10 @@ From there, in the order a project decides things:
    Action). It also holds the runtime-agent addendum an app of any shape adds when it calls a model at
    runtime. Each is adopted by name.
 
-[`examples/`](./examples) holds worked code. It includes
-[a real service reviewed against the rules](./examples/backend-review.md). That review states where the
-rules would have been overkill.
+[`examples/`](./examples) holds worked code. The Go example is an executable project,
+[`examples/go-api-slice/`](./examples/go-api-slice), and its page excerpts the code. The directory also
+holds [a real service reviewed against the rules](./examples/backend-review.md); that review states
+where the rules would have been overkill.
 
 [`guides/`](./guides) holds protocols. They define no rule.
 [Deciding and escalating](./guides/deciding-and-escalating.md) sorts an agent's implementation decisions
