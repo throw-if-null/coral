@@ -159,8 +159,8 @@ value, the value on each side of the limit is a criterion. This item is the obse
 `code` from the declared error model (`[ERR-2]`), rendered by the root and by nothing else
 (`[ERR-3]`), and for a backend the status the root maps the category to (`[BE-5]`). The body carries
 no diagnostic output (`[OBS-3]`). A batch or bulk trigger has a criterion for the failure of one item:
-all-or-nothing, or the explicit partial report the contract promises (`[ERR-4]`). Authentication and
-authorization failures are not rendered through the error model (`[BE-8]`); they are item 7.
+all-or-nothing, or the explicit partial report the contract promises (`[ERR-4]`). `401` and `403` are
+not rendered through the error model (`[BE-8]`); they are item 7, with the scoped-miss `404`.
 
 ### 3. Compatibility of published surfaces
 
@@ -235,11 +235,12 @@ yields no criterion beyond validation of input at the public surface.
 **What it is:** who may trigger the feature, what they may see, and what happens before any effect.
 
 **The criterion states**, for a backend: an unauthenticated call returns `401` and has no effect; an
-authenticated call without the capability returns `403` and has no effect; a call for a resource of
-another owner or tenant returns `404`, with a body indistinguishable from a genuine miss; and none of
-these bodies carries a slice-owned `code` (`[BE-8]`). Malformed input is rejected before any effect is
-observable (`[TRUST-1]`), which is item 2 stated with the effect in the Then. This is the authorization
-at the boundary `[TEST-4]` names.
+authenticated call without the capability returns `403` and has no effect; and neither of those bodies
+carries a slice-owned `code` (`[BE-8]`). A call for a resource of another owner or tenant returns `404`
+with a body equal to the body of a genuine miss: the missing-resource category and the slice's `code`,
+raised through the error model and rendered by the root (`[BE-5]`, `[BE-8]`). Malformed input is
+rejected before any effect is observable (`[TRUST-1]`), which is item 2 stated with the effect in the
+Then. This is the authorization at the boundary `[TEST-4]` names.
 
 ## Changing expected behavior
 

@@ -187,12 +187,17 @@ and a status is what makes the job testable at its entry point like every other 
 sub-capabilities, constructs crosscuts and injects them, configures bootstrap, and contains no business
 logic, no state-access calls, and no slice-specific validation.
 
-**`[ROOT-2]` `[auto]` `{baseline}`** — The root module imports no persistence or domain-internal module.
+**`[ROOT-2]` `[auto]` `{baseline}`** — The root module imports no slice-internal module and makes no
+state-access call.
 
 This is statically decidable, and it is the check that enforces `[ROOT-1]`. Business logic in the root
-almost always appears as an import of the thing it operates on. Pair it with a size budget appropriate
-to your stack. If the root is the largest file in the app, `[ROOT-1]` is being violated whatever the
-imports say.
+almost always appears as an import of the thing it operates on: a slice's behavior, its queries, or its
+schema. The root imports crosscuts and adapters in order to construct and inject them (`[ROOT-1]`,
+`[MODEL-4]`), and it imports a slice's published entry point in order to register it. Those imports are
+wiring, and a language with constructor injection cannot wire without them. Where a language puts a
+slice's entry point and its behavior in one package, as Go does, the check reads what the root references
+in that package, not the import line alone. Pair the check with a size budget appropriate to your stack.
+If the root is the largest file in the app, `[ROOT-1]` is being violated whatever the imports say.
 
 **`[ROOT-3]` `[guide]` `{baseline}`** — **Each appendix names its root form**, including the app types
 that have no root of their own. For a library the *consumer* is the composition root, so the package
@@ -805,7 +810,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 - `[BOUND-3]` Use the boundary form the appendix fixes. Do not invent a new one.
 - `[BOUND-5]` A scheduled/background trigger is a slice: observable outcome, overlap-safe, tested.
 - `[ROOT-1]` Keep the root thin: register, construct, inject, bootstrap. No business logic.
-- `[ROOT-2]` The root imports no persistence or domain-internal module.
+- `[ROOT-2]` The root imports no slice-internal module and makes no state-access call. Importing a crosscut, an adapter, or a slice's entry point to wire it is not a violation.
 
 ### Forbidden moves
 - `[BUCKET-1]` Do not create or expand `shared`/`common`/`utils`/`helpers`/`services`/`repository`/generic `models`.
@@ -904,7 +909,7 @@ definitions.
 | `[BUCKET-1]` | no `utils/`, `services/`, `helpers/`, `common/`, or generic `models/` directory |
 | `[STRUCT-1]` | every slice ships its tests (colocated, or a mirror exists) |
 | `[STRUCT-3]` / `[XCUT-2]` | top-level modules match an allowlist of precise names |
-| `[ROOT-2]` | the root module imports no persistence or domain-internal module |
+| `[ROOT-2]` | the root module imports no slice-internal module (a slice's behavior, queries, or schema) and makes no state-access call; an import that constructs, injects, or registers is wiring |
 | `[STATE-2]` | no shared repository/data-access package |
 | `[CONC-1]` | no mutable module-level or static state in a slice module |
 | `[CONFIG-2]` | no slice module references the environment or config-file API |
