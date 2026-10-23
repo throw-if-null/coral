@@ -356,6 +356,15 @@ each with its own root. All three now state one composition root per executable 
 `examples/go-api-slice.md` describes its two roots in those terms. `rules.lock` and `rules.md` are
 unchanged.
 
+**`[WEB-1]` names the slice's unit as one page-action or business operation, triggered by its route or
+endpoint. Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The rule, its contract line, and the slot summary read "one route / page-action / endpoint", which for an
+HTTP endpoint made the route the slice's unit, while `[BE-1]` makes the slice one business operation and
+the route its trigger. All three now state the unit as one page-action or business operation and the route
+or endpoint as its trigger, citing `[BE-1]`. `rules.md` carries the new contract line. The enforcement
+class stays `[review]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

@@ -571,7 +571,7 @@ production baseline takes the app-scale part of that group and not the rest.
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
-| `[WEB-1]` | `[review]` | app profile · web | A slice is one route/page-action/endpoint, with its UI and its handler in the same slice. |
+| `[WEB-1]` | `[review]` | app profile · web | A slice is one page-action or business operation, triggered by its route or endpoint, with its UI and its handler in the same slice. |
 | `[WEB-2]` | `[guide]` | app profile · web | Microfrontends are an escalation pattern, not the default. |
 | `[WEB-3]` | `[review]` | app profile · web | Keep the composition shell to layout and routing. It mounts slices and holds no business logic. |
 | `[WEB-4]` | `[auto]` | app profile · web | Depend only on another slice's published surface: a typed import when integrated, a channel with no import edge when runtime-isolated. |
