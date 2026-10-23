@@ -287,6 +287,9 @@ npm run docs:build    # static site → .vitepress/dist
 npm run docs:preview  # serve the built site
 ```
 
+GitHub Actions runs `npm test`, which is `npm run docs:build`, and the Go example's build and tests in
+`examples/go-api-slice/` on every pull request and push to `main`.
+
 ## Deployment
 
 **Cloudflare Workers Static Assets** hosts the site at
