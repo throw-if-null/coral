@@ -144,7 +144,7 @@ const conventions = ({ layers = LAYER_ROWS, scales = SCALE_ROWS, profiles = PROF
  * A whole fixture repository.
  *
  * `BASE-1` and `RT-1` are small-scale; `BASE-2` and `RT-2` are large-scale, because
- * they live in `SPREAD.md`. That is the split PO-04 exists to close — one ownership
+ * they live in `SPREAD.md`. That is the split the scale axis closes — one ownership
  * layer, two audiences — and it is built into the fixture rather than asserted about
  * the real documents, so a test about it says something about the mechanism.
  */
@@ -1247,13 +1247,13 @@ test('a kernel-only project on the real rule set owes exactly the kernel', () =>
   assert.deepEqual([...r.selected].sort(), [...REAL.kernel].sort())
 })
 
-// ── PO-06: the split is a document move, and applicability did not follow it ──
+// ── The app-scale baseline in PRODUCTION.md: applicability reads ownership, not pages ──
 //
-// The documents moved; the resolver did not, and must not. These pin the four claims a
-// reader of that change has to be able to check: that adopting a profile is not a back door
-// into the baseline, that adopting the runtime-agent profile is not either, that the
-// system-scale baseline is still system-scale after the app-scale half left ARCHITECTURE.md,
-// and that the resolver reads ownership and scale rather than the page a rule is written on.
+// The resolver reads a rule's ownership and scale, never the document it is written on. These
+// pin the four claims that depend on it: that adopting a profile is not a back door into the
+// baseline, that adopting the runtime-agent profile is not either, that the system-scale
+// baseline is system-scale although the app-scale half lives in PRODUCTION.md, and that the
+// resolver reads ownership and scale rather than the page a rule is written on.
 
 const REAL_ADOPT = (adopts, scales = ['app']) =>
   clean(resolve({ targets: VERSION, scales, adopts }, { model: REAL, version: VERSION }))
@@ -1303,7 +1303,7 @@ test('adopting the production baseline alone brings no profile and no runtime-ag
 })
 
 test('a kernel-only project owes an error model and none of the baseline error rules', () => {
-  // PO-07, stated against the resolver rather than against the documents. `adopts: {}` is
+  // The error-model split, stated against the resolver rather than against the documents. `adopts: {}` is
   // kernel-only, so it must carry [ERR-1] — one small, stable, structured error model with one
   // rendering owner — while carrying nothing else from the family: not the static enforcement,
   // not the raise/render realization, not batch policy, and not the recommended six-category
