@@ -27,14 +27,17 @@ DATABASE_URL='postgres://postgres:coral@localhost:5432/postgres?sslmode=disable'
 podman stop coral-pg
 ```
 
-To run the service, create the table with `psql "$DATABASE_URL" -f internal/document/schema.sql`, then:
+To run the service, apply the migrations, then start the API:
 
 ```bash
-DATABASE_URL='postgres://postgres:coral@localhost:5432/postgres?sslmode=disable' go run ./cmd/api
+export DATABASE_URL='postgres://postgres:coral@localhost:5432/postgres?sslmode=disable'
+go run ./cmd/migrate
+go run ./cmd/api
 ```
 
-`ADDR` sets the listen address; the default is `:8080`. Startup fails when `DATABASE_URL` is missing
-or the database is unreachable.
+`go run ./cmd/migrate` applies every migration not yet recorded in `schema_migrations` and logs each
+one; a second run applies nothing. `ADDR` sets the API's listen address; the default is `:8080`. Both
+commands fail at startup when `DATABASE_URL` is missing or the database is unreachable.
 
 ## Decisions
 
@@ -44,6 +47,10 @@ or the database is unreachable.
   Resource-level authorization is the `tenant_id` clause of the query (`[BE-6]`).
 - Error model: three categories, `internal`, `not_found`, and `invalid`, declared in `internal/errs`.
   The root maps them to `500`, `404`, and `400`.
+- Migrations: the owning package defines them, under `internal/document/migrations/`; the `db` crosscut
+  runs them; `go run ./cmd/migrate` triggers them as a separate step before the API starts. The API
+  does not run them at startup. Whether an app migrates at startup is a per-app decision, and this
+  project chose the separate step.
 
 ## Coral
 

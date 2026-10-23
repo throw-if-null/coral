@@ -182,9 +182,13 @@ Conformance under the commentary's reading is unchanged. The enforcement class s
 Patch-level: example code and prose. No rule was added, tightened, loosened, or retired, and no ID or
 enforcement class moved.**
 
-The project builds, passes `go vet`, and runs its tests with `go test ./...`. It carries the template's
-`CORAL.md` with `targets: "0.7.0"`, the generated `CORAL-CONTRACT.md`, and an `AGENTS.md` holding the
-README's agent-instructions snippet. The directory is excluded from the rule scanner and from the site.
+The project builds, passes `go vet`, and runs its tests with `go test ./...`. It has two roots:
+`cmd/api` serves, and `cmd/migrate` applies the migrations the owning package defines under
+`internal/document/migrations/` through a `db` crosscut that owns the pool and the migration ledger
+and holds no capability's query or schema. The API does not migrate at startup; the project's README
+records that as its choice. It carries the template's `CORAL.md` with `targets: "0.7.0"`, the
+generated `CORAL-CONTRACT.md`, and an `AGENTS.md` holding the README's agent-instructions snippet. The
+directory is excluded from the rule scanner and from the site.
 A test under `scripts/`, run by `check:rules`, resolves the project's record, regenerates its contract,
 and fails when the committed file differs, and holds every Go and SQL fence on the page to being a
 verbatim excerpt of a project file.
@@ -196,14 +200,14 @@ every declared category to a status; handlers return a failure and write only th
 (`[BE-5]`, `[ERR-3]`). A request without a verified tenant is rejected by the middleware with `401` and
 a minimal body (`[BE-8]`), and a scoped miss reaches the client as a `404` whose body equals a genuine
 miss. Routes carry the `/v1` prefix, and the strategy is written down (`[BE-7]`). Configuration is
-resolved and validated at the root, and startup fails on a missing `DATABASE_URL` or an unreachable
-database (`[CONFIG-1]`, `[CONFIG-3]`). Every `code` is minted by the slice (`[ERR-2]`), and no unit
-test duplicates a behavior test (`[TEST-3]`). The behavior tests run at the HTTP boundary against an
-in-memory store and state their criteria in the behavioral verification protocol's format. A
-tenant-isolation test against a real Postgres runs when `DATABASE_URL` is set and skips otherwise. The
-page cites the code by GitHub URL, quotes `[ERR-3]` as the rule states it, and names only import cycles
-and single-package code generation as Go constraints. `rules.lock` and `rules.md` are unchanged by
-this entry.
+a crosscut both roots consume, and either root fails at startup on a missing `DATABASE_URL` or an
+unreachable database (`[CONFIG-1]`, `[CONFIG-3]`). Every `code` is minted by the slice (`[ERR-2]`),
+and no unit test duplicates a behavior test (`[TEST-3]`). The behavior tests run at the HTTP boundary
+against an in-memory store and state their criteria in the behavioral verification protocol's format.
+A tenant-isolation test and a migration test against a real Postgres run when `DATABASE_URL` is set
+and skip otherwise. The page cites the code by GitHub URL, quotes `[ERR-3]` as the rule states it, and
+names only import cycles and single-package code generation as Go constraints. `rules.lock` and
+`rules.md` are unchanged by this entry.
 
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**

@@ -17,8 +17,8 @@ and this page excerpts it. Every Go and SQL fence below is a verbatim excerpt of
 the build fails when one is not. The [third example](./backend-review) goes the other direction and
 *reviews* a real service for where it drifts.
 
-The example is deliberately tiny: one slice, with the two crosscuts a second slice would share. It shows
-the N-slice shape at N=1, and the shape stays the same as the service grows.
+The example is deliberately tiny: one slice, two roots, and the crosscuts a second slice would share.
+It shows the N-slice shape at N=1, and the shape stays the same as the service grows.
 
 The capability: **fetch one document, scoped to the caller's tenant.** `GET /v1/documents/{id}`. The
 `/v1` prefix is the API versioning strategy, the URL prefix `[BE-7]` defaults to, and the project's
@@ -28,25 +28,34 @@ writes it down.
 ## The shape
 
 A capability is one **slice**, in one package, plus the **crosscuts** it uses and the **adapter** that
-implements its persistence port:
+implements its persistence port. Two **roots** wire the same packages: one serves, one migrates.
 
 ```text
-cmd/api/main.go        ← the composition root: config, crosscuts, adapter, slice; then runs
+cmd/
+  api/main.go          ← the root that serves: config, crosscuts, adapter, slice; then runs
+  migrate/main.go      ← the root that migrates: applies the migrations the slice package defines
 internal/
   document/            ← the slice: body and HTTP edge of one capability, in one package
-    document.go        ←   the entity, the Store port, the schema, Register
+    document.go        ←   the entity, the Store port, the migrations it owns, Register
     get.go             ←   the get operation: body (Get) and edge (getHandler)
     get_test.go        ←   behavior tests at the HTTP boundary, against an in-memory Store
-    schema.sql         ←   the documents table, defined here and nowhere else
+    migrations/        ←   the documents table, defined here and nowhere else
+      0001_create_documents.sql
   errs/                ← crosscut: the error model, and the handler the root registers to render it
   reqctx/              ← crosscut: who is calling (tenant), established at the trust boundary
+  db/                  ← crosscut: the connection pool, and the runner that applies migrations
+    db.go
+    migrate_test.go    ←   migrations apply once, against a real Postgres, when DATABASE_URL is set
+  config/              ← crosscut: every setting the app reads, resolved and validated once
   store/               ← adapter: implements document.Store with pgx (sqlc output in a real service)
     postgres.go
     postgres_test.go   ←   tenant isolation against a real Postgres, when DATABASE_URL is set
+  pgtest/              ← test support: a disposable Postgres schema; only tests import it
 ```
 
 The dependency arrows point one way: `store → document → errs, reqctx`. The slice imports no `pgx`,
-the adapter imports the slice's port, and the root imports all of them in order to wire them.
+the adapter imports the slice's port, and the roots import all of them in order to wire them. `db`
+and `config` are consumed by the two roots and by no slice.
 
 `[BE-1]` names a slice directory for the singular capability plus its effect verb, `document/get`. This
 package holds one operation, so the package is the slice and the effect verb is the file name,
@@ -154,11 +163,11 @@ func ErrorHandler(log *slog.Logger) fiber.ErrorHandler {
 }
 ```
 
-Identity is the other crosscut. The tenant is established at the **trust boundary** by middleware that
-reads a gateway-verified header (`[TRUST-1]`, `[BE-6]`). A request without a well-formed header is
-unauthenticated, and the middleware rejects it with `401` and a minimal body, never through the error
-model (`[BE-8]`). The trust boundary is stated (`[TRUST-2]`): the service trusts the gateway and
-nothing in front of it.
+Identity is the other crosscut the slice consumes. The tenant is established at the **trust boundary**
+by middleware that reads a gateway-verified header (`[TRUST-1]`, `[BE-6]`). A request without a
+well-formed header is unauthenticated, and the middleware rejects it with `401` and a minimal body,
+never through the error model (`[BE-8]`). The trust boundary is stated (`[TRUST-2]`): the service
+trusts the gateway and nothing in front of it.
 [`internal/reqctx/reqctx.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/internal/reqctx/reqctx.go):
 
 ```go
@@ -196,13 +205,18 @@ func Authenticate(c *fiber.Ctx) error {
 There is no `403` path. Every verified tenant may call `GET /v1/documents/{id}`, so coarse capability
 authorization has nothing to decide. Resource-level authorization is the scoped query, below.
 
+Two more crosscuts serve the roots. `config` resolves and validates every setting the app reads
+(`[CONFIG-1]`, `[CONFIG-3]`); both roots consume it, which is the second consumer `[XCUT-1]` asks
+for. `db` owns the connection pool and runs migrations, and is described with the schema below.
+
 ## The slice
 
 The capability is one package, `document`.
 [`document.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/internal/document/document.go)
-holds what every operation of the capability shares: the entity, the persistence port, the schema, and
-`Register`. The port lists exactly what this capability needs, and the adapter implements it
-(`[STATE-2]`). The `documents` table has one owning package, so its schema lives here (`[STATE-5]`):
+holds what every operation of the capability shares: the entity, the persistence port, the migrations,
+and `Register`. The port lists exactly what this capability needs, and the adapter implements it
+(`[STATE-2]`). The `documents` table has one owning package, so its migrations live here
+(`[STATE-5]`):
 
 ```go
 // Document is the entity this capability owns. TenantID is part of the record because
@@ -225,25 +239,18 @@ type Store interface {
 // ErrNoRows is what a Store returns when the scoped query matches nothing.
 var ErrNoRows = errors.New("no rows")
 
-// Schema defines the documents table. This package owns the table, so the schema is
-// defined here and nowhere else.
-//
-//go:embed schema.sql
-var Schema string
+//go:embed migrations/*.sql
+var migrationFiles embed.FS
+
+// Migrations holds this package's schema migrations, one SQL file each, which the db
+// crosscut applies in file-name order. This package owns the documents table, so its schema
+// is defined here and nowhere else.
+var Migrations, _ = fs.Sub(migrationFiles, "migrations")
 
 // Register mounts the capability's triggers on r. The root passes r already versioned.
 func Register(r fiber.Router, s Store) {
 	r.Get("/documents/:id", getHandler(s))
 }
-```
-
-```sql
-CREATE TABLE documents (
-    id        uuid PRIMARY KEY,
-    tenant_id uuid NOT NULL,
-    title     text NOT NULL,
-    body      text NOT NULL
-);
 ```
 
 [`get.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/internal/document/get.go)
@@ -330,35 +337,140 @@ func (p *PG) GetByID(ctx context.Context, tenantID, id uuid.UUID) (document.Docu
 }
 ```
 
+## The schema and its migrations
+
+The owning package defines the schema, as migrations under
+[`internal/document/migrations/`](https://github.com/throw-if-null/coral/tree/main/examples/go-api-slice/internal/document/migrations)
+(`[STATE-5]`). The slice package embeds them and exports them as `document.Migrations`, so the table
+is defined in one place and the package that owns it:
+
+```sql
+CREATE TABLE documents (
+    id        uuid PRIMARY KEY,
+    tenant_id uuid NOT NULL,
+    title     text NOT NULL,
+    body      text NOT NULL
+);
+```
+
+The `db` crosscut runs them. It is the small, precisely named crosscut `PRODUCTION.md` § 11 allows
+for connection management, pooling, and migration execution: it owns the pool and the
+`schema_migrations` ledger, and it holds no query of any capability and defines no schema
+(`[STATE-1]`, `[STATE-2]`). `Migrate` takes one `Set` per owning package, applies each file the
+ledger does not record in one transaction with its record, and returns what it applied.
+[`internal/db/db.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/internal/db/db.go):
+
+```go
+// Set is one package's migrations: the SQL files it owns, applied in file-name order and
+// recorded under Owner.
+type Set struct {
+	Owner string
+	FS    fs.FS
+}
+
+const ledger = `CREATE TABLE IF NOT EXISTS schema_migrations (
+	name       text PRIMARY KEY,
+	applied_at timestamptz NOT NULL DEFAULT now()
+)`
+
+// Migrate applies every migration in sets that schema_migrations does not record, one
+// transaction per file, and returns the names it applied, in order.
+func Migrate(ctx context.Context, pool *pgxpool.Pool, sets ...Set) ([]string, error) {
+	if _, err := pool.Exec(ctx, ledger); err != nil {
+		return nil, fmt.Errorf("schema_migrations: %w", err)
+	}
+	var applied []string
+	for _, set := range sets {
+		files, err := fs.Glob(set.FS, "*.sql")
+		if err != nil {
+			return applied, err
+		}
+		sort.Strings(files)
+		for _, file := range files {
+			name := set.Owner + "/" + file
+			var recorded bool
+			const q = `SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = $1)`
+			if err := pool.QueryRow(ctx, q, name).Scan(&recorded); err != nil {
+				return applied, fmt.Errorf("%s: %w", name, err)
+			}
+			if recorded {
+				continue
+			}
+			if err := apply(ctx, pool, set.FS, file, name); err != nil {
+				return applied, fmt.Errorf("%s: %w", name, err)
+			}
+			applied = append(applied, name)
+		}
+	}
+	return applied, nil
+}
+
+// apply runs one migration file and records it in the same transaction. Postgres DDL is
+// transactional, so a failure leaves neither the change nor the record.
+func apply(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS, file, name string) error {
+	sql, err := fs.ReadFile(fsys, file)
+	if err != nil {
+		return err
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, string(sql)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO schema_migrations (name) VALUES ($1)`, name); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+```
+
+The trigger is a separate command,
+[`cmd/migrate/main.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/cmd/migrate/main.go),
+a second thin root: it resolves configuration, opens the pool, passes the owning package's set to
+`db.Migrate`, and logs each applied name. The API does not run migrations at startup. Whether an app
+migrates at startup or as a separate step is a per-app human decision; this project's choice, the
+separate step, is recorded in its `README.md`:
+
+```go
+func run(log *slog.Logger) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	applied, err := db.Migrate(ctx, pool, db.Set{Owner: "document", FS: document.Migrations})
+	for _, name := range applied {
+		log.Info("applied", "migration", name)
+	}
+	if err != nil {
+		return err
+	}
+	log.Info("schema is current", "applied", len(applied))
+	return nil
+}
+```
+
 ## The composition root
 
 [`cmd/api/main.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/cmd/api/main.go)
-wires and runs, and holds no business logic (`[ROOT-1]`). It resolves and validates the configuration
-it has (`[CONFIG-1]`): a missing `DATABASE_URL` fails startup, and so does an unreachable database,
-because `pgxpool.New` parses and does not connect (`[CONFIG-3]`). No slice needs configuration, so
-there is nothing to inject. It registers the one error handler, the authentication middleware, and the
-slice under the `/v1` group. Importing the crosscuts, the adapter, and the slice's `Register` is
-wiring, which `[ROOT-2]` permits. What it forbids is reaching into a slice's behavior or making a
-state-access call:
+wires and runs, and holds no business logic (`[ROOT-1]`). It resolves configuration through the
+`config` crosscut, so a missing `DATABASE_URL` fails startup, and takes the pool from `db.Open`,
+which parses and pings, so an unreachable database fails startup as well (`[CONFIG-3]`). It registers
+the one error handler, the authentication middleware, and the slice under the `/v1` group. Importing
+the crosscuts, the adapter, and the slice's `Register` is wiring, which `[ROOT-2]` permits. What it
+forbids is reaching into a slice's behavior or making a state-access call:
 
 ```go
-// config is every setting the app reads, resolved and validated once, here.
-type config struct {
-	DatabaseURL string
-	Addr        string
-}
-
-func loadConfig() (config, error) {
-	cfg := config{DatabaseURL: os.Getenv("DATABASE_URL"), Addr: os.Getenv("ADDR")}
-	if cfg.DatabaseURL == "" {
-		return config{}, errors.New("DATABASE_URL is required")
-	}
-	if cfg.Addr == "" {
-		cfg.Addr = ":8080"
-	}
-	return cfg, nil
-}
-
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	if err := run(log); err != nil {
@@ -368,23 +480,18 @@ func main() {
 }
 
 func run(log *slog.Logger) error {
-	cfg, err := loadConfig()
+	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
-
-	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("DATABASE_URL: %w", err)
-	}
-	defer pool.Close()
-	// pgxpool.New parses and does not connect. Ping now, so an unreachable database fails
-	// startup rather than the first request.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := pool.Ping(ctx); err != nil {
-		return fmt.Errorf("database: %w", err)
+	// Migrations are a separate step, cmd/migrate, by decision: the API never runs them.
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
 	}
+	defer pool.Close()
 
 	app := fiber.New(fiber.Config{ErrorHandler: errs.ErrorHandler(log)})
 	app.Use(reqctx.Authenticate)
@@ -392,6 +499,25 @@ func run(log *slog.Logger) error {
 	v1 := app.Group("/v1")
 	document.Register(v1, store.NewPG(pool))
 	return app.Listen(cfg.Addr)
+}
+```
+
+```go
+// Open parses url, opens a pool, and pings it, so a missing, malformed, or unreachable
+// database fails at construction rather than at first use.
+func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
+	if url == "" {
+		return nil, errors.New("database URL is empty")
+	}
+	pool, err := pgxpool.New(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ping: %w", err)
+	}
+	return pool, nil
 }
 ```
 
@@ -502,22 +628,24 @@ func TestGet_hidesOtherTenantsDocument(t *testing.T) {
 There is no body test. Each branch of `Get` is reached by one request, so a direct test of it would
 duplicate the behavior tests, which `[TEST-3]` forbids.
 
-**The in-memory tests cannot verify one thing**: the SQL in `store/postgres.go`, including the
-`tenant_id = $1` clause that *is* the tenant isolation (`[BE-6]`). `[TEST-1]`'s "real or realistic
-temporary infrastructure" means that query needs a real Postgres.
-[`postgres_test.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/internal/store/postgres_test.go)
-runs when `DATABASE_URL` is set, creates a schema of its own from `document.Schema`, asserts that the
-owner reads the row and another tenant does not, and drops the schema. Without `DATABASE_URL` it skips
-and names the variable:
+**The in-memory tests cannot verify two things**: the SQL in `store/postgres.go`, including the
+`tenant_id = $1` clause that *is* the tenant isolation (`[BE-6]`), and the migrations. `[TEST-1]`'s
+"real or realistic temporary infrastructure" means both need a real Postgres. Two tests run when
+`DATABASE_URL` is set and skip, naming the variable, when it is not. Each takes a disposable schema
+from the `pgtest` helper, which creates it and drops it when the test ends.
+[`internal/db/migrate_test.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/internal/db/migrate_test.go)
+applies the slice package's migrations twice: the first run applies
+`document/0001_create_documents.sql` and the table exists, the second applies nothing.
+[`internal/store/postgres_test.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/internal/store/postgres_test.go)
+migrates the same way, then asserts that the owner reads the row and another tenant does not:
 
 ```go
 func TestPG_scopesByTenant(t *testing.T) {
-	url := os.Getenv("DATABASE_URL")
-	if url == "" {
-		t.Skip("DATABASE_URL is not set; the Postgres tenant-isolation test needs a database URL")
-	}
+	pool := pgtest.Schema(t)
 	ctx := context.Background()
-	pool := temporarySchema(t, url)
+	if _, err := db.Migrate(ctx, pool, db.Set{Owner: "document", FS: document.Migrations}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
 	owner, other, id := uuid.New(), uuid.New(), uuid.New()
 	const insert = `INSERT INTO documents (id, tenant_id, title, body) VALUES ($1, $2, $3, $4)`
 	if _, err := pool.Exec(ctx, insert, id, owner, "Hello", "World"); err != nil {
@@ -546,8 +674,9 @@ go test ./...
 
 from `examples/go-api-slice/` builds the project and runs every test. The project's
 [`README.md`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/README.md)
-has the `podman run` recipe for the Postgres test, the command that runs the service, and the command
-that regenerates its `CORAL-CONTRACT.md`.
+has the `podman run` recipe for the Postgres tests, the two commands that run the service,
+`go run ./cmd/migrate` and then `go run ./cmd/api`, and the command that regenerates its
+`CORAL-CONTRACT.md`.
 
 ## How it fits together: the request's journey
 
@@ -595,23 +724,28 @@ That inversion is what makes it an adapter rather than a data-access layer. In a
 the arrow runs the other way. The repository package defines the API, and every slice consumes whatever
 it offers, so the repository accumulates every caller's needs and no slice can be understood alone.
 
-Apply `[XCUT-5]`'s test: *would removing it break an invariant, or only break access to data?* `errs`
-and `reqctx` are crosscuts, because they carry invariants. `store` is neither a crosscut nor a bucket.
-It is an **adapter**: an injected implementation of a slice-owned interface (`[MODEL-4]`).
+Apply `[XCUT-5]`'s test: *would removing it break an invariant, or only break access to data?* `errs`,
+`reqctx`, `db`, and `config` are crosscuts, because each carries an invariant: one error model, one
+identity, one pool and one migration ledger, one validated configuration. `store` is neither a
+crosscut nor a bucket. It is an **adapter**: an injected implementation of a slice-owned interface
+(`[MODEL-4]`).
 
 The slice package is named *by capability* (`document`, not `services/` or `handlers/`) and owns its
-own types, errors, and schema. The `documents` table has exactly one owning package, so its schema lives
-in `document` (`[STATE-5]`).
+own types, errors, and migrations. The `documents` table has exactly one owning package, so its
+migrations live in `document` (`[STATE-5]`).
 
 ## Mapping to the five categories  → `[MODEL-1]`
 
 | Category | Here |
 |---|---|
-| **slice** | `document`: one capability in one package, holding the body (`Get`) and the HTTP edge (`getHandler`) |
+| **slice** | `document`: one capability in one package, holding the body (`Get`), the HTTP edge (`getHandler`), and the migrations of the table it owns |
 | **adapter** | `store`, which implements the slice-declared `Store` interface, injected at the root (`[MODEL-4]`) |
 | **published contract** | the exported `Get`, the `Document` type, the `Store` interface, and the typed `errs` it raises. That is all another slice may depend on |
-| **crosscuts** | `errs` (the error model and its rendering) and `reqctx` (caller identity), injected, carrying invariants |
-| **composition root** | `cmd/api/main.go`: resolves config, wires and runs, holds no logic (`[ROOT-1]`) |
+| **crosscuts** | `errs` (the error model and its rendering) and `reqctx` (caller identity), consumed by the slice; `db` (pool and migrations) and `config` (settings), consumed by the roots |
+| **composition root** | `cmd/api/main.go` and `cmd/migrate/main.go`: each resolves config, wires and runs, holds no logic (`[ROOT-1]`) |
+
+`pgtest` is test support, imported by the two Postgres tests and by no application package. It stands
+with the test files, outside the table.
 
 ## Scaling up (what a write adds)
 

@@ -5,8 +5,9 @@ package document
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"errors"
+	"io/fs"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -32,11 +33,13 @@ type Store interface {
 // ErrNoRows is what a Store returns when the scoped query matches nothing.
 var ErrNoRows = errors.New("no rows")
 
-// Schema defines the documents table. This package owns the table, so the schema is
-// defined here and nowhere else.
-//
-//go:embed schema.sql
-var Schema string
+//go:embed migrations/*.sql
+var migrationFiles embed.FS
+
+// Migrations holds this package's schema migrations, one SQL file each, which the db
+// crosscut applies in file-name order. This package owns the documents table, so its schema
+// is defined here and nowhere else.
+var Migrations, _ = fs.Sub(migrationFiles, "migrations")
 
 // Register mounts the capability's triggers on r. The root passes r already versioned.
 func Register(r fiber.Router, s Store) {
