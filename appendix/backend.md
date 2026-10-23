@@ -121,9 +121,10 @@ crosscut, never inline (`[CONFIG-4]`). **Default to deny:** a slice with no expl
 is not shippable.
 
 **`[BE-8]`** `[review]` `{app:backend}` Render authentication and authorization failures at the boundary
-that decides them, never through the error model: **`401`** when the caller is unauthenticated,
-**`403`** when an authenticated caller lacks the capability, and **`404`** when a scoped query does not
-match.
+that decides them, never through the error model: **`401`** when the caller is unauthenticated, and
+**`403`** when an authenticated caller lacks the capability. A scoped query that does not match raises
+the missing-resource category in the slice; `[BE-5]` renders it, and it reaches the client as a **`404`**
+indistinguishable from a genuine miss.
 
 Keep `401` and `403` apart. A client can act on the difference, and cannot act on the wrong one. `401`
 means *we do not know who you are*: the credential is absent, malformed, or expired. Retrying with a
@@ -209,7 +210,7 @@ project adopts the production baseline. `[guide]` rules are rationale and live o
 - `[BE-4]` A synchronous `POST` may offer an idempotency key. Any platform-redelivered handler must be idempotent.
 - `[BE-5]` Slices raise the declared error model. One root middleware renders it and maps every declared category to an HTTP status.
 - `[BE-6]` Authenticate and coarsely authorize at the boundary. Scope every query by owner/tenant id, and default to deny.
-- `[BE-8]` Render authn/authz failures at the boundary, not through the error model: `401` unauthenticated, `403` no capability, `404` scoped miss.
+- `[BE-8]` Render authn/authz failures at the boundary, not through the error model: `401` unauthenticated, `403` no capability. A scoped miss raises the missing-resource category in the slice, and `[BE-5]` renders it as a `404` indistinguishable from a genuine miss.
 - `[BE-7]` Pick one API versioning strategy and apply it system-wide, with URL prefix as the default. Advance it only for a breaking change.
 
 <!-- coral:contract:end -->

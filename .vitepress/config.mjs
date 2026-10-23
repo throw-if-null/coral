@@ -467,8 +467,9 @@ export default withMermaid(defineConfig({
   lastUpdated: true,
   // Not rendered site pages. README.md is the repo landing page; a `CORAL.md` is a
   // project's own adherence record — data the build reads (Gate 10) rather than
-  // documentation the site publishes.
-  srcExclude: ['README.md', '**/CORAL.md'],
+  // documentation the site publishes; examples/go-api-slice/ is an executable project
+  // whose Markdown is the project's, and whose page is examples/go-api-slice.md.
+  srcExclude: ['README.md', '**/CORAL.md', 'examples/go-api-slice/**'],
   head: [
     ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: asset('favicon-32.png') }],
     ['link', { rel: 'icon', type: 'image/png', href: asset('logo.png') }],

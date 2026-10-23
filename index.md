@@ -62,10 +62,10 @@ There is no `handlers/` directory holding the argument parsing, no `services/` d
 logic, and no `repositories/` directory holding the SQL.
 
 The same shape holds for a backend: one directory per endpoint or event handler, with its tests, and the
-shared parts constructed at startup. [An HTTP endpoint in Go](/examples/go-api-slice) works through a
-harder case. A language's own rules, such as import cycles and code generation, can force one capability
-to span more than one package. That stays legitimate as long as every package is named for that
-capability.
+shared parts constructed at startup. [An HTTP endpoint in Go](/examples/go-api-slice) shows the same
+shape in a compiled language: the slice is one package, and Go's import-cycle rule and single-package
+code generation shape the tree around it, as one shared persistence adapter behind a port the slice
+declares, with one-way arrows.
 
 ## The five kinds of code
 

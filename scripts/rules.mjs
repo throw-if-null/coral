@@ -135,6 +135,11 @@ export const PRODUCTION_SPINE = 'PRODUCTION.md'
 export const APP_SPINES = [APP_SPINE, PRODUCTION_SPINE]
 const SPINE = ['CONVENTIONS.md', APP_SPINE, PRODUCTION_SPINE, SYSTEM_SPINE]
 const SKIP = new Set(['node_modules', 'public'])
+// Directories that hold a consuming project rather than documentation, as paths from the
+// repository root. A project's Markdown is the project's: its generated contract repeats
+// every rule line and would read as a second definition (Gate 1), and its README is not a
+// page. A test under scripts/ resolves the project's CORAL.md in place of Gate 10.
+const SKIP_PATHS = new Set(['examples/go-api-slice'])
 
 // A changelog RECORDS rules; it does not define them. But it quotes each new rule
 // in the very shape a definition uses — `- **`[WEB-11]`** `[review]` — server
@@ -1785,16 +1790,19 @@ function walk(dir, srcDir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     if (e.name.startsWith('.') || SKIP.has(e.name)) continue
     const abs = path.join(dir, e.name)
-    if (e.isDirectory()) out.push(...walk(abs, srcDir))
-    else if (e.name.endsWith('.md')) out.push(path.relative(srcDir, abs))
+    const rel = path.relative(srcDir, abs)
+    if (e.isDirectory()) {
+      if (SKIP_PATHS.has(rel.split(path.sep).join('/'))) continue
+      out.push(...walk(abs, srcDir))
+    } else if (e.name.endsWith('.md')) out.push(rel)
   }
   return out
 }
 
 // Everything else is discovered, so a new appendix or example is registered just by
-// existing. Only the ROOT README.md is excluded — it is srcExclude'd, so a
-// definition there would point at a page that isn't built. A nested README IS built
-// and IS scanned.
+// existing. The ROOT README.md is excluded — it is srcExclude'd, so a definition there
+// would point at a page that isn't built — and so are the project directories in
+// SKIP_PATHS. Any other nested README IS built and IS scanned.
 export function docFiles(srcDir) {
   return [...new Set([...SPINE, ...walk(srcDir, srcDir).sort()])].filter((rel) => rel !== 'README.md')
 }

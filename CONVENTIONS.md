@@ -50,7 +50,7 @@ discipline therefore sits with the rules, not with the words:
 |---|---|
 | a **crosscut** is one concern several slices need | give it a precise, domain- or infrastructure-oriented name (`[XCUT-2]`). Consume it through its published surface, and **inject** anything holding config, a connection or per-trigger state (`[XCUT-3]`). Promote to one only against a must-not-diverge invariant (`[XCUT-1]`, kernel) |
 | an **adapter** connects behavior to an external system | the **slice** declares the port and the adapter implements it, so the dependency runs adapter → slice, and the adapter owns no application behavior (`[MODEL-4]`) |
-| a **composition root** is the wiring and bootstrap boundary | keep it **thin**: register, construct, inject, bootstrap, with no business logic and no state access (`[ROOT-1]`). Import no persistence or domain-internal module (`[ROOT-2]`) |
+| a **composition root** is the wiring and bootstrap boundary | keep it **thin**: register, construct, inject, bootstrap, with no business logic and no state access (`[ROOT-1]`). Import no slice-internal module (`[ROOT-2]`) |
 | a **channel** is the pathway between apps and its contract | it is the **only** coupling, and apps never share a datastore (`[CHAN-1]`, `[CHAN-3]`). It is versioned (`[CHAN-4]`) and takes one of three forms (`[CHAN-2]`) |
 
 Every rule in the right-hand column is **production baseline** except `[XCUT-1]`. Each binds a project
@@ -1580,8 +1580,8 @@ Read in this order:
    model at runtime. Each is adopted by name.
 6. **Worked examples**:
    - [`examples/cli-slice.md`](./examples/cli-slice.md): two CLI slices in Python, one file each.
-   - [`examples/go-api-slice.md`](./examples/go-api-slice.md): an HTTP slice in Go, where the language
-     forces a capability across packages.
+   - [`examples/go-api-slice.md`](./examples/go-api-slice.md): an HTTP slice in Go, one package per
+     capability, with a shared persistence adapter behind a port the slice declares.
    - [`examples/backend-review.md`](./examples/backend-review.md): the rules applied to a real service,
      including where they would be overkill.
 

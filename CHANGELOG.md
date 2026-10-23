@@ -152,6 +152,63 @@ what those rules require. The sidebar's protocols group and the README's "The do
 the guide, and the "Start a project" snippet tells the agent to load it. `rules.lock` and `rules.md` are
 unchanged.
 
+**`[ROOT-2]` no longer forbids the root importing a crosscut, an adapter, or a slice's entry point in
+order to wire it. Loosened and clarified, minor under `[VER-2]`. The batch is already major, so the
+working version stays `0.7.0`.**
+
+The rule read "the root module imports no persistence or domain-internal module". `[ROOT-1]` requires
+the root to construct crosscuts and `[MODEL-4]` requires it to wire the persistence adapter, and in a
+language with constructor injection the root imports what it constructs, so every Go root failed the
+decidable reading. The rule now reads: the root imports no slice-internal module and makes no
+state-access call. The commentary names what the root imports in order to wire, and states that where
+a slice's entry point and its behavior share one package the check reads what the root references. The
+contract line, the decidable-reading row, the vocabulary table in `CONVENTIONS.md`, and `rules.md`
+carry the same reading. The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
+
+**`[BE-8]` states the scoped-miss `404` as raised through the error model. Clarified, minor under
+`[VER-2]`; the working version stays `0.7.0`.**
+
+The first sentence and the contract line placed the scoped miss beside `401` and `403`, outside the error
+model, while the commentary, `[BE-5]`, `[BE-6]`, and `[ERR-5]` had the slice raise the missing-resource
+category and the root map it to `404`. Both now state that mechanism: `401` and `403` are rendered at the
+boundary that decides them, never through the error model; a scoped query that does not match raises the
+missing-resource category in the slice, `[BE-5]` renders it, and it reaches the client as a `404`
+indistinguishable from a genuine miss. `guides/behavioral-verification.md` item 7 restricts "no
+slice-owned `code`" to `401` and `403` and states that the scoped-miss body equals the genuine-miss body.
+Conformance under the commentary's reading is unchanged. The enforcement class stays `[review]`, and
+`rules.lock` is unchanged.
+
+**The Go example is an executable project, `examples/go-api-slice/`, and its page excerpts the code.
+Patch-level: example code and prose. No rule was added, tightened, loosened, or retired, and no ID or
+enforcement class moved.**
+
+The project builds, passes `go vet`, and runs its tests with `go test ./...`. It has two roots:
+`cmd/api` serves, and `cmd/migrate` applies the migrations the owning package defines under
+`internal/document/migrations/` through a `db` crosscut that owns the pool and the migration ledger
+and holds no capability's query or schema. The API does not migrate at startup; the project's README
+records that as its choice. It carries the template's `CORAL.md` with `targets: "0.7.0"`, the
+generated `CORAL-CONTRACT.md`, and an `AGENTS.md` holding the README's agent-instructions snippet. The
+directory is excluded from the rule scanner and from the site.
+A test under `scripts/`, run by `check:rules`, resolves the project's record, regenerates its contract,
+and fails when the committed file differs, and holds every Go and SQL fence on the page to being a
+verbatim excerpt of a project file.
+
+The code conforms to the generated contract where the page did not. One package per capability,
+`internal/document/`, holds the body and the HTTP edge, and no package is named for a technical role
+(`[MODEL-2]`). The root registers one error handler that renders `{category, code, message}` and maps
+every declared category to a status; handlers return a failure and write only the success status
+(`[BE-5]`, `[ERR-3]`). A request without a verified tenant is rejected by the middleware with `401` and
+a minimal body (`[BE-8]`), and a scoped miss reaches the client as a `404` whose body equals a genuine
+miss. Routes carry the `/v1` prefix, and the strategy is written down (`[BE-7]`). Configuration is
+a crosscut both roots consume, and either root fails at startup on a missing `DATABASE_URL` or an
+unreachable database (`[CONFIG-1]`, `[CONFIG-3]`). Every `code` is minted by the slice (`[ERR-2]`),
+and no unit test duplicates a behavior test (`[TEST-3]`). The behavior tests run at the HTTP boundary
+against an in-memory store and state their criteria in the behavioral verification protocol's format.
+A tenant-isolation test and a migration test against a real Postgres run when `DATABASE_URL` is set
+and skip otherwise. The page cites the code by GitHub URL, quotes `[ERR-3]` as the rule states it, and
+names only import cycles and single-package code generation as Go constraints. `rules.lock` and
+`rules.md` are unchanged by this entry.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

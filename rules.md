@@ -383,7 +383,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[BOUND-4]` | `[guide]` | production baseline | "Continuous" or "real-time" work is not a new boundary kind. |
 | `[BOUND-5]` | `[review]` | production baseline | A scheduled/background trigger is a slice: observable outcome, overlap-safe, tested. |
 | `[ROOT-1]` | `[review]` | production baseline | Keep the root thin: register, construct, inject, bootstrap. No business logic. |
-| `[ROOT-2]` | `[auto]` | production baseline | The root imports no persistence or domain-internal module. |
+| `[ROOT-2]` | `[auto]` | production baseline | The root imports no slice-internal module and makes no state-access call. Importing a crosscut, an adapter, or a slice's entry point to wire it is not a violation. |
 | `[ROOT-3]` | `[guide]` | production baseline | Each appendix names its root form, including the app types that have no root of their own. |
 | `[STRUCT-1]` | `[auto]` | production baseline | Colocate tests, or mirror the package structure where colocation is impossible. |
 | `[STRUCT-2]` | `[review]` | production baseline | Put slices in concrete, domain-oriented feature packages. The package owns its capability's state. |
@@ -505,7 +505,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[BE-4]` | `[review]` | app profile · backend | A synchronous `POST` may offer an idempotency key. Any platform-redelivered handler must be idempotent. |
 | `[BE-5]` | `[auto]` | app profile · backend | Slices raise the declared error model. One root middleware renders it and maps every declared category to an HTTP status. |
 | `[BE-6]` | `[review]` | app profile · backend | Authenticate and coarsely authorize at the boundary. Scope every query by owner/tenant id, and default to deny. |
-| `[BE-8]` | `[review]` | app profile · backend | Render authn/authz failures at the boundary, not through the error model: `401` unauthenticated, `403` no capability, `404` scoped miss. |
+| `[BE-8]` | `[review]` | app profile · backend | Render authn/authz failures at the boundary, not through the error model: `401` unauthenticated, `403` no capability. A scoped miss raises the missing-resource category in the slice, and `[BE-5]` renders it as a `404` indistinguishable from a genuine miss. |
 | `[BE-7]` | `[review]` | app profile · backend | Pick one API versioning strategy and apply it system-wide, with URL prefix as the default. Advance it only for a breaking change. |
 
 ## Appendix: CLI
