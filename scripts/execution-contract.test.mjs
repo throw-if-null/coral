@@ -529,7 +529,8 @@ test('a path is rendered as a subtree, never as a glob', () => {
   for (const s of scopes) assert.ok(!/[*?[\]{}]/.test(s), `a glob character reached \`${s}\``)
 })
 
-// The PO-04 correction PO-05 required. See the exceptions branch of resolveApplicability().
+// The resolver refuses an exception to a non-normative rule: a `[guide]` appears in no contract,
+// so the exception would excuse nothing. See the exceptions branch of resolveApplicability().
 
 test('an exception to a `[guide]` rule is refused, so it can neither appear nor vanish', () => {
   const r = refused(
@@ -615,7 +616,7 @@ test('a CORAL.md with no `adopts` block produces no contract', () => {
   assert.ok(r.problems.some((p) => /`adopts` must be a mapping/.test(p)))
 })
 
-test('an unknown profile propagates the PO-04 failure and yields no partial contract', () => {
+test('an unknown profile is a resolver failure and yields no partial contract', () => {
   const r = refused({ ...kernelOnly, adopts: { 'shape-profile': ['widgett'] } })
   assert.ok(r.problems.some((p) => /`widgett` is not a registered/.test(p)))
 })
@@ -1509,7 +1510,7 @@ test('reordering a declaration without changing its meaning changes no byte', ()
 })
 
 test('two exceptions to one rule at one path are ordered by their decisions, not by the YAML', () => {
-  // The counterexample `(path, rule)` alone does not cover. PO-04 accepts both entries —
+  // The counterexample `(path, rule)` alone does not cover. The resolver accepts both entries —
   // the duplicate check is on extensions, which DEFINE a rule, not on exceptions, which
   // select one — and they compare equal on the first two keys. A stable sort would then
   // preserve whichever order the YAML happened to use, so reversing two entries whose
