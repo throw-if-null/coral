@@ -247,6 +247,17 @@ shared package that implements the ports the slices declare, and imports the sli
 adapter (`[MODEL-4]`). The `[BUCKET-1]` row adds `shared/` and `repository/`, which the rule already
 names. The rule texts, the contract lines, `rules.lock`, and `rules.md` are unchanged.
 
+**`[MODEL-2]`'s commentary classifies a generated persistence package as `[MODEL-4]`'s adapter, not as
+banding. Patch-level: commentary. No rule was added, tightened, loosened, or retired, and no ID or
+enforcement class moved.**
+
+The commentary named Go's import-cycle rules and single-package code generation as the common case that
+forces one capability across packages, while `[MODEL-4]` classifies the generated persistence package as
+an adapter and the Go example keeps the capability in one package. The commentary now states that those
+pressures force no band: they produce a shared adapter behind the ports the slices declare and one-way
+arrows, and the capability stays one package. The pointer to `examples/go-api-slice.md` names that
+shape. The rule sentence, the contract line, `rules.lock`, and `rules.md` are unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

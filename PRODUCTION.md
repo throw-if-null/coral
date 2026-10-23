@@ -96,10 +96,11 @@ owns**, never for its technical role.
 What this forbids is a **global technical layer**: one `services` package holding every capability's
 behavior, or one `repositories` package holding every capability's queries. It does *not* forbid internal
 structure. **Banding within a capability is permitted** where a language or its tooling forces one
-capability to span more than one package. Go's import-cycle rules and single-package code generation are
-the common case. Two conditions apply: every band is still named for the capability or concern it owns,
-and the dependency arrow points one way.
-[`examples/go-api-slice.md`](./examples/go-api-slice.md) works through this case.
+capability to span more than one package. Two conditions apply: every band is still named for the
+capability or concern it owns, and the dependency arrow points one way. The common Go pressures,
+import-cycle rules and single-package code generation, force no band: they produce a shared adapter
+behind the ports the slices declare (`[MODEL-4]`) and one-way arrows, and the capability stays one
+package. [`examples/go-api-slice.md`](./examples/go-api-slice.md) works through that shape.
 
 The test is ownership, not file count: *could you delete this package and lose exactly one capability,
 or exactly one concern?* If yes, it is named right. When you introduce banding, flag it (`[AGENT-2]`) so
