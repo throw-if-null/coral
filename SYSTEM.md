@@ -376,7 +376,7 @@ those statements are rewritten.
 ### Contract testing
 - `[SYS-TEST-1]` Verify each side independently against the shared contract, not by booting both apps.
 - `[SYS-TEST-2]` Give every consumed channel relationship executable compatibility verification. Consumer-driven contracts are one technique.
-- `[SYS-TEST-3]` Gate producer releases on provider verification against consumer contracts.
+- `[SYS-TEST-3]` Gate producer releases on the compatibility verification `[SYS-TEST-2]` requires, run in the producer's own CI.
 - `[SYS-TEST-5]` Keep integrated end-to-end suites tiny. They backstop contract tests, never replace them.
 
 <!-- coral:scope:end -->

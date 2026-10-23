@@ -469,7 +469,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[ORCH-6]` | `[review]` | runtime-agent profile | Treat the orchestrating harness as an app: its own contract, observability, and tests. |
 | `[SYS-TEST-1]` | `[review]` | production baseline | Verify each side independently against the shared contract, not by booting both apps. |
 | `[SYS-TEST-2]` | `[review]` | production baseline | Give every consumed channel relationship executable compatibility verification. Consumer-driven contracts are one technique. |
-| `[SYS-TEST-3]` | `[review]` | production baseline | Gate producer releases on provider verification against consumer contracts. |
+| `[SYS-TEST-3]` | `[review]` | production baseline | Gate producer releases on the compatibility verification `[SYS-TEST-2]` requires, run in the producer's own CI. |
 | `[SYS-TEST-4]` | `[guide]` | production baseline | Contract testing is tool-agnostic in principle, so pick concrete tooling per stack. |
 | `[SYS-TEST-5]` | `[review]` | production baseline | Keep integrated end-to-end suites tiny. They backstop contract tests, never replace them. |
 

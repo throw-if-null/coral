@@ -390,6 +390,16 @@ infrastructure", so an agent holding only the contract could read an in-memory s
 test schema as non-conformant. The line now matches the rule. `rules.md` and the example project's
 contract carry the new line. The enforcement class stays `[review]`, and `rules.lock` is unchanged.
 
+**`[SYS-TEST-3]`'s contract line gates producer releases on the verification `[SYS-TEST-2]` requires,
+not on consumer-driven contracts specifically. Clarified, minor under `[VER-2]`; the working version
+stays `0.7.0`.**
+
+The contract line read "provider verification against consumer contracts", while the rule and
+`[SYS-TEST-2]` accept any executable compatibility artifact and name consumer-driven contracts as one
+technique. The line now names the property and where it runs, the producer's own CI. `rules.md` carries
+the new line; the example project declares `app` scale only, so its contract is unchanged. The
+enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 
