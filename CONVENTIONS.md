@@ -398,16 +398,17 @@ schema too, so it has to be said exactly which version is meant. Coral has two a
 are not interchangeable:
 
 - the **latest released version** is what `VERSION` holds. It moves when a batch is cut, not when a
-  commit lands. The Unreleased section of the changelog covers the interval. **This is the only version
-  a consuming project can target**, because it is the only one that is published and frozen. A worked
-  example or a skill that says *"Written against **Coral x.y.z**"* names this one. The marker tells a
-  reader which Coral the page is good for, and a reader can only pin a release.
+  commit lands. The Unreleased section of the changelog covers the interval. **A consuming project pins
+  this version once a release carries the generator**, because it is the one that is published and
+  frozen. A worked example or a skill that says *"Written against **Coral x.y.z**"* names this one. The
+  marker names a release because a release is frozen; the working version moves until the batch is cut.
 - the **working version** is the rule set the documents in the tree currently describe. Between releases
   that is a successor to `VERSION`, named by the changelog's Unreleased heading, such as
   `## Unreleased — 0.7.0`. Live development docs on `main` therefore describe a version nobody has
   released yet, and a rule that is in them may not be in any release. A `targets:` line in an adherence
-  record is resolved against this one, which is why records kept *inside* this repository may name it and
-  a project outside cannot.
+  record is resolved against this one, so a record kept *inside* this repository names it. Until `0.7.0`
+  is cut, a project that generates its contract from `main` targets it too, and the generator refuses
+  any other target.
 
 When a batch changes no rule, the heading names no version, as a bare `## Unreleased`, and the two are
 the same. **That bare heading is a statement, and it is required.** A changelog with no Unreleased
@@ -624,7 +625,9 @@ untested user.
 
 That is why its `targets` names the version **these documents currently describe**, and not necessarily
 the one in `VERSION`. Between releases those differ, and a record is always resolved against the rule set
-it targets. Your project pins a released version.
+it targets. Your project pins a released version once a release carries the generator. Until `0.7.0` is
+cut, a project that generates its contract from `main` targets the working version, and the generator
+refuses any other target.
 
 What `adopts` and `scales` mean, and how the rule set is composed from them, is in
 [What applies to a project](#what-applies-to-a-project). The short version: the kernel applies without
@@ -641,8 +644,8 @@ slice needs this"* or *"when we split the shared datastore"* is a trigger someon
 
 The worked examples and the audit skill each state the **latest released** Coral they were written
 against, which is the cheapest available test that this convention is usable. A page that already
-implements a rule from the unreleased working version says so in prose rather than declaring a version
-nobody can pin.
+implements a rule from the unreleased working version says so in prose rather than moving its marker to
+a version that is not yet cut.
 
 ---
 

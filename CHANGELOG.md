@@ -29,10 +29,12 @@ A project states the version it targets in its `CORAL.md` (`[VER-3]`), and how m
 adopts (`[VER-6]`). Upgrading is a deliberate act. Read the entries between your target and the new
 version, satisfy the added rules **in the layers you have adopted**, and re-audit.
 
-**The Unreleased section below is not a version anybody can target.** `VERSION` holds the latest
-**released** Coral. The heading beneath names the **working** version: the rule set these documents
-currently describe, which ships when the batch is cut. A rule under Unreleased is not in any release, and
-a project pinning `VERSION` does not owe it yet.
+**The Unreleased section below is not a release.** `VERSION` holds the latest **released** Coral. The
+heading beneath names the **working** version: the rule set these documents currently describe, which
+ships when the batch is cut. A rule under Unreleased is not in any release, and a project pinning
+`VERSION` does not owe it yet. A project pins a released version once a release carries the generator.
+Until `0.7.0` is cut, a project that generates its contract from `main` targets the working version and
+owes the rules under Unreleased in the layers it adopts.
 
 ---
 
@@ -283,6 +285,20 @@ be adopted, so the file omits them. It names those rules from the rule model, an
 instruction. `scripts/execution-contract.test.mjs` asserts the sentence. `CONVENTIONS.md` § "The
 generated execution contract" and `guides/deciding-and-escalating.md` state the same ground. The example
 project's contract is regenerated. `rules.lock` and `rules.md` are unchanged.
+
+**`CONVENTIONS.md` and the changelog header state when a project targets the working version.
+Patch-level: prose. No rule was added, tightened, loosened, or retired, and no ID or enforcement class
+moved.**
+
+`CONVENTIONS.md` § "Two versions: released and working" and the adherence-record section said that a
+consuming project can target the released version only, and the changelog header said that the
+Unreleased section is not a version anybody can target, while `README.md` § "Start a project" tells a
+project that generates from `main` to set `targets` to the working version, which the generator holds
+it to. Both now state the condition: a project pins a released version once a release carries the
+generator; until `0.7.0` is cut, a project that generates its contract from `main` targets the working
+version, and the generator refuses any other target. `[VER-3]`'s text and the resolver are unchanged,
+and the `Written against **Coral x.y.z**` marker keeps naming the released version. `rules.lock` and
+`rules.md` are unchanged.
 
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
