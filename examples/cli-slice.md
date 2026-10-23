@@ -302,7 +302,9 @@ for. A slice in a *different* package would need a published capability instead 
 ## The composition root
 
 The only place that handles exit codes, output streams, and rendering. It registers, injects, and
-renders, and holds no business logic (`[ROOT-1]`):
+renders, and holds no business logic (`[ROOT-1]`). Handing `add.SCHEMA` to `db.migrate` is wiring under
+`[ROOT-2]`: the root passes the owning package's schema to the `db` crosscut that runs migrations, and
+that bootstrap migration is not a slice state-access call:
 
 ```python
 # app.py

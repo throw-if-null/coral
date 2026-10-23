@@ -335,6 +335,18 @@ unreleased-rule note as the other example pages, because its `system`-scale cond
 No rule sentence, contract line, or enforcement-table row changed, so `rules.lock`, `rules.md`, and the
 example project's contract are unchanged.
 
+**`[ROOT-2]` counts handing an owning package's migrations to the `db` crosscut as wiring. Clarified,
+minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The decidable-reading row listed a slice's schema among what the root must not import and named
+constructing, injecting, and registering as wiring, while both example roots hand the owning package's
+schema to `db`: `cmd/migrate` passes `document.Migrations` to `db.Migrate`, and the CLI's `app.py` passes
+`add.SCHEMA` to `db.migrate`. Read literally, the row failed both. The row now counts handing an owning
+package's migrations to the `db` crosscut as wiring, and the commentary states that bootstrap migration
+through `db` is not a slice state-access call. `examples/go-api-slice.md` and `examples/cli-slice.md`
+state the same reading at their roots. The rule sentence and the contract line are unchanged, so
+`rules.md` is unchanged. The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

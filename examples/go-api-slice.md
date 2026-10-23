@@ -439,9 +439,10 @@ func apply(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS, file, name strin
 The trigger is a separate command,
 [`cmd/migrate/main.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/cmd/migrate/main.go),
 a second thin root: it resolves configuration, opens the pool, passes the owning package's set to
-`db.Migrate`, and logs each applied name. The API does not run migrations at startup. Whether an app
-migrates at startup or as a separate step is a per-app human decision; this project's choice, the
-separate step, is recorded in its `README.md`:
+`db.Migrate`, and logs each applied name. Handing the owning package's migrations to `db` is wiring under
+`[ROOT-2]`, and the bootstrap migration `db` runs is not a slice state-access call. The API does not run
+migrations at startup. Whether an app migrates at startup or as a separate step is a per-app human
+decision; this project's choice, the separate step, is recorded in its `README.md`:
 
 ```go
 func run(log *slog.Logger) error {
@@ -476,8 +477,9 @@ wires and runs, and holds no business logic (`[ROOT-1]`). It resolves configurat
 `config` crosscut, so a missing `DATABASE_URL` fails startup, and takes the pool from `db.Open`,
 which parses and pings, so an unreachable database fails startup as well (`[CONFIG-3]`). It registers
 the one error handler, the authentication middleware, and the slice under the `/v1` group. Importing
-the crosscuts, the adapter, and the slice's `Register` is wiring, which `[ROOT-2]` permits. What it
-forbids is reaching into a slice's behavior or making a state-access call:
+the crosscuts, the adapter, and the slice's `Register` is wiring, which `[ROOT-2]` permits, as is
+handing the owning package's migrations to `db` in `cmd/migrate`. What it forbids is referencing a
+slice's behavior, queries, or schema, or making a state-access call:
 
 ```go
 func main() {
