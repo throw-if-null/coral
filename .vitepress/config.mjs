@@ -48,21 +48,21 @@ import {
 //  11. the core boundary holds both ways: no opt-in rule is defined in a core document, and no
 //      kernel rule is defined outside one — the production baseline stays a layer a project
 //      adopts, and the unconditional surface stays where a reader of the core documents meets it
-// Two more run outside this file: link fragments in scripts/check-anchors.mjs
+// Three more run outside this file: link fragments in scripts/check-anchors.mjs
 // (post-build, because heading ids only exist once markdown-it has rendered them),
-// and declared example versions in scripts/check-versions.mjs.
+// declared example versions in scripts/check-versions.mjs, and the example project's
+// adherence record, generated contract and quoted code in scripts/example-project.test.mjs.
 // ─────────────────────────────────────────────────────────────────────────────
 const SRC = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
-// Base path: '/' locally; the deploy workflow sets DOCS_BASE (e.g. '/coral/' for
-// GitHub project Pages). One knob feeds both VitePress and the rule-ID link hrefs.
+// Base path: '/' unless DOCS_BASE names a sub-path; the Cloudflare deployment serves the
+// site at the domain root and does not set it. One knob feeds both VitePress and the
+// rule-ID link hrefs, and scripts/check-anchors.mjs reads the same variable.
 const BASE = process.env.DOCS_BASE || '/'
 // VitePress does NOT apply `base` to `head` entries — prefix public assets by hand.
 const asset = (file) => `${BASE}${file}`
 
-// One composition for the whole build. Gates 1, 7 and 8 all used to be spelled out here as
-// separate parser calls, and scripts/rules-index.mjs spelled the same five out again — so
-// the canonical model does it once and every gate below reads a rule that already knows its
-// own ownership scope.
+// One composition for the whole build: loadRuleModel() runs Gates 1, 7, 8 and 11, and every
+// gate below reads a rule that already knows its own ownership scope.
 const model = loadRuleModel(SRC)
 const { registry, rules, defsByFile, problems, files: DOC_FILES } = model
 
@@ -70,11 +70,10 @@ const { registry, rules, defsByFile, problems, files: DOC_FILES } = model
 // Gate 2 — referential integrity: every rule ID that appears anywhere must be
 // registered.
 //
-// This is the guard for the failure this file has already had twice — eleven
-// [AGENTIC-*] rules in a file the registry never read, and eleven [CLI-*] rules
-// written in a form the definition regex didn't match. Both were silent: an
-// unregistered ID falls through to plain <code>, so nothing errors and the page
-// still builds.
+// This guards a failure that is otherwise silent: an unregistered ID falls through to
+// plain <code>, so nothing errors and the page still builds. It happens when rules sit
+// in a file the registry never reads, or are written in a form the definition regex
+// does not match.
 //
 // Note *what* is compared. Checking definitions against emitted anchors only
 // proves the parser agrees with itself, and cannot see a rule it never
@@ -104,12 +103,11 @@ for (const id of [...orphans.keys()].sort()) {
 // Gate 3 — contract completeness.
 //
 // Each spine claims its Agent Execution Contract is the COMPLETE normative
-// surface: an agent that loads only the contract should miss nothing. That claim
-// used to rest on goodwill, and it was false — around twenty [auto]/[review]
-// rules existed only in the prose. So verify it: every non-[guide] rule defined
-// in a file must be cited inside that file's contract markers.
+// surface: an agent that loads only the contract should miss nothing. So verify it:
+// every non-[guide] rule defined in a file must be cited inside that file's contract
+// markers.
 //
-// Opt-in by marker, so appendices (which have no contract section) are exempt.
+// Opt-in by marker, so a document without a contract section is exempt.
 // [guide] rules are rationale, not instructions, and stay in the prose only.
 // ─────────────────────────────────────────────────────────────────────────────
 for (const [rel, defs] of defsByFile) {
@@ -174,10 +172,8 @@ if (fs.existsSync(lockPath)) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate 6 — the app spine does not cite a system rule.
 //
-// CONVENTIONS.md states this twice ("the dependency points one way: the app spine
-// never cites a system rule, so the core app model stays independent of system
-// concerns"), and nothing verified it — so ARCHITECTURE.md had been citing [ORCH-1]
-// in its [SCOPE-3] commentary since that rule existed.
+// CONVENTIONS.md ("Rule IDs") states that the dependency points one way: neither app-scale
+// spine cites a system rule, so the app model stays loadable without system concerns.
 //
 // It is the kind of claim that decays silently: a citation reads as helpful
 // cross-referencing, and the cost only shows up later, when a reader of the app
@@ -190,9 +186,8 @@ if (fs.existsSync(lockPath)) {
 // rule IDs and do not match — pointing at a family is how the spine is meant to
 // refer outward, per [SCOPE-4].
 //
-// BOTH app-scale spines are held to it. PO-06 moved the app-scale production baseline
-// into PRODUCTION.md, and a gate that still checked only ARCHITECTURE.md would have
-// stopped covering the seventy rules that actually do the citing.
+// BOTH app-scale spines are held to it (APP_SPINES): PRODUCTION.md holds the app-scale
+// production baseline, the seventy rules most likely to cite a system rule.
 //
 // Appendices are deliberately exempt: CONVENTIONS.md permits them to cite system
 // rules where an app type reproduces the system pattern internally, which is why
@@ -280,11 +275,10 @@ for (const spine of APP_SPINES) {
 // of all are the ones a project reads BEFORE it has adopted anything: CONVENTIONS.md and
 // ARCHITECTURE.md, registered as core in CONVENTIONS.md's own `coral:core` block.
 //
-// Before PO-06 that was not a hypothetical. ARCHITECTURE.md held five kernel rules and
-// seventy `{baseline}` ones, and the production baseline consequently read as a consequence
-// of the agents-write / humans-review operating model rather than as an opinion a project
-// adopts. Splitting PRODUCTION.md out fixed the state; this makes it an invariant, so the
-// separation does not depend on the next author remembering it.
+// A `{baseline}` rule defined in ARCHITECTURE.md would make the production baseline read as
+// a consequence of the agents-write / humans-review operating model rather than as an
+// opinion a project adopts. This gate makes the separation an invariant, so it does not
+// depend on the next author remembering it.
 //
 // Checked against the layer's own `surface`, so the tooling holds no opinion about which
 // layer the production baseline is, and no second list of rule IDs.
@@ -320,8 +314,9 @@ if (model.classified) problems.push(...checkContractScopes(SRC, rules))
 //
 // Two kinds, and both matter for the same reason. CONVENTIONS.md prints a whole
 // `CORAL.md` as a worked EXAMPLE, and every consuming project copies it. A REAL one is any
-// `CORAL.md` in the doc tree: PO-04 says a project declares what it adopts, so a Coral
-// tool kept in this repository carries one. Each names ownership keys, profile names and
+// `CORAL.md` the doc scanner lists, such as templates/CORAL.md. examples/go-api-slice/ is
+// outside the scanner; scripts/example-project.test.mjs resolves its record instead. Each
+// names ownership keys, profile names and
 // scales — all registry values that can be renamed here without the record following —
 // and each declares a target version, which between releases is not the version in
 // `VERSION`.
@@ -476,7 +471,7 @@ export default withMermaid(defineConfig({
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'Coral Architecture' }],
     ['meta', { property: 'og:description', content: 'A fractal, capability-first architecture — agents write, humans review.' }],
-    // base-relative now; for social-scraper previews, make this an absolute URL on deploy
+    // Base-relative, but social-scraper previews need an absolute URL here.
     ['meta', { property: 'og:image', content: asset('reef-banner.png') }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:image', content: asset('reef-banner.png') }],
@@ -496,10 +491,10 @@ export default withMermaid(defineConfig({
       { text: 'Rule index', link: '/rules' },
       { text: 'Examples', link: '/examples/go-api-slice' },
     ],
-    // The sidebar is the reading flow, and after PO-06 it has to carry the applicability
-    // model too: what Coral asks of every codebase, then what a project may CHOOSE to adopt.
-    // A flat list of documents made the production baseline read as another name for Coral —
-    // which is exactly what the ownership layers say it is not.
+    // The sidebar is the reading flow, and it carries the applicability model too: what Coral
+    // asks of every codebase, then what a project may CHOOSE to adopt. A flat list of documents
+    // would make the production baseline read as another name for Coral, which the ownership
+    // layers say it is not.
     sidebar: [
       {
         text: 'Coral core — applies to every Coral codebase',
