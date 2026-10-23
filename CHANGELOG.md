@@ -287,9 +287,9 @@ instruction. `scripts/execution-contract.test.mjs` asserts the sentence. `CONVEN
 generated execution contract" and `guides/deciding-and-escalating.md` state the same ground. The example
 project's contract is regenerated. `rules.lock` and `rules.md` are unchanged.
 
-**`CONVENTIONS.md` and the changelog header state when a project targets the working version.
-Patch-level: prose. No rule was added, tightened, loosened, or retired, and no ID or enforcement class
-moved.**
+**`CONVENTIONS.md`, `README.md`, and the changelog header state when a project targets the working
+version. Patch-level: prose. No rule was added, tightened, loosened, or retired, and no ID or enforcement
+class moved.**
 
 `CONVENTIONS.md` § "Two versions: released and working" and the adherence-record section said that a
 consuming project can target the released version only, and the changelog header said that the
@@ -297,9 +297,10 @@ Unreleased section is not a version anybody can target, while `README.md` § "St
 project that generates from `main` to set `targets` to the working version, which the generator holds
 it to. Both now state the condition: a project pins a released version once a release carries the
 generator; until `0.7.0` is cut, a project that generates its contract from `main` targets the working
-version, and the generator refuses any other target. `[VER-3]`'s text and the resolver are unchanged,
-and the `Written against **Coral x.y.z**` marker keeps naming the released version. `rules.lock` and
-`rules.md` are unchanged.
+version, and the generator refuses any other target. `README.md` § "Versioning, and how a project
+records where it differs" and the header comment of `scripts/check-versions.mjs` state the same
+condition. `[VER-3]`'s text and the resolver are unchanged, and the `Written against **Coral x.y.z**`
+marker keeps naming the released version. `rules.lock` and `rules.md` are unchanged.
 
 **`examples/backend-review.md` cites `[IDEM-5]` and `[BE-4]` for the idempotent consumer. Patch-level:
 an example. No rule was added, tightened, loosened, or retired, and no ID or enforcement class moved.**

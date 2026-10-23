@@ -197,10 +197,12 @@ are append-only. They are never renumbered, recycled, or removed. `rules.lock` i
 the build enforces that against.
 
 **Coral carries two versions, and the difference matters now that version identity is part of
-applicability.** The **latest released** version is in `VERSION`, and it is the only version a project can
-target. The **working** version is the rule set these documents currently describe, named by the
-changelog's Unreleased heading. Between releases the working version is a successor to `VERSION`, so
-**`main` describes rules that are not in any release yet**.
+applicability.** The **latest released** version is in `VERSION`, and a project pins it once a release
+carries the generator. The **working** version is the rule set these documents currently describe, named
+by the changelog's Unreleased heading. Between releases the working version is a successor to `VERSION`,
+so **`main` describes rules that are not in any release yet**. Until `0.7.0` is cut, a project that
+generates its contract from `main` targets the working version, and the generator refuses any other
+target.
 [`CONVENTIONS.md`](./CONVENTIONS.md#two-versions-released-and-working) states the split.
 
 A consuming project keeps a **`CORAL.md`** in its root. It is the one file that answers *what rules apply
