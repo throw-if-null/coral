@@ -42,7 +42,9 @@ import {
   PROFILES_START,
   SCALES_END,
   SCALES_START,
+  GOVERNANCE,
   extractStatements,
+  isNormative,
   loadRuleModel,
 } from './rules.mjs'
 import {
@@ -216,7 +218,7 @@ const LEAK_WORDS = {
   large: ['BASE-2', 'crossing'],
   runtimeSmall: ['RT-1', 'tokens'],
   runtimeLarge: ['RT-2', 'dispatch across'],
-  governance: ['META-1', 'stewardship'],
+  governance: ['stewardship'],
   guides: ['K-3', 'BASE-3', 'WID-2', 'tectonics', 'sedimentation', 'knurling'],
 }
 
@@ -412,9 +414,12 @@ test('`[guide]` rules are never emitted, in any layer, however much is adopted',
   absent(md, LEAK_WORDS.guides, 'guides are rationale and instruct nobody')
 })
 
-test('a governance rule never reaches the contract either', () => {
+test('a governance rule never reaches the rule list, and the preamble says why', () => {
   const md = contract({ ...kernelOnly, scales: ['small', 'large'], adopts: { 'base-rules': true } })
+  assert.ok(!listedRules(md).includes('META-1'), '[META-1] was listed as a project rule')
   absent(md, LEAK_WORDS.governance, 'framework governance is not an application surface')
+  // The ID is named once, in the preamble, as omitted on the governance ground.
+  assert.match(md.replace(/\n/g, ' '), /so this file omits `\[META-1\]`\./)
 })
 
 // ── 8-9. path-scoped exceptions ──────────────────────────────────────────────
@@ -1156,6 +1161,14 @@ test('the contract does not claim every omitted Coral rule is inapplicable', () 
   assert.match(prose, /project HAS adopted/)
   assert.match(prose, /rationale rather than instruction/)
   assert.match(prose, /not because they are inapplicable/)
+  // Governance is the third ground: never selected, because its layer cannot be adopted,
+  // so the inapplicability claim is qualified rather than left to cover it. The IDs come
+  // from the model, and the fixture has no rule that sends the agent to the record.
+  const flat = prose.replace(/\n/g, ' ')
+  assert.match(flat, /Framework governance is the exception/)
+  assert.match(flat, /that layer cannot be adopted, so this file omits `\[META-1\]`\./)
+  assert.ok(!md.includes('quarterly stewardship'), 'the governance rule was stated after all')
+  assert.ok(!flat.includes('still instructs the agent'), 'an instruction was emitted for a rule the model lacks')
 
   // The fixture actually exercises the case the prose describes.
   assert.ok(!md.includes('WID-2'), 'the applicable guide was emitted after all')
@@ -1623,6 +1636,31 @@ test('the repository model is clean, so the integration assertions mean somethin
   assert.deepEqual(REAL.problems, [])
 })
 
+/** The `[auto]` and `[review]` rules on the governance surface: never selected, named in the preamble. */
+function normativeGovernance(model) {
+  return [...model.rules]
+    .filter(([, rule]) => rule.scope?.surface === GOVERNANCE && isNormative(rule))
+    .map(([id]) => id)
+    .sort(compareRuleIds)
+}
+
+test("the template's contract names the governance ground and [AGENT-5]", () => {
+  // `[AGENT-5]` is `[review]`, is never selected, and binds the agent mid-task. The
+  // inapplicability sentence must not be the contract's last word on it.
+  const result = loadExecutionContract(REPO, path.join(REPO, 'templates'))
+  assert.equal(result.ok, true, result.problems?.join('\n'))
+  const governance = normativeGovernance(REAL)
+  assert.ok(governance.includes('AGENT-5'), '[AGENT-5] is no longer normative governance')
+
+  const prose = result.markdown.slice(0, result.markdown.indexOf('## Rules')).replace(/\n/g, ' ')
+  assert.match(prose, /Framework governance is the exception/)
+  for (const id of governance) {
+    assert.ok(prose.includes(`\`[${id}]\``), `[${id}] is not named in the preamble`)
+  }
+  assert.match(prose, /`\[AGENT-5\]` still instructs the agent: Read the project's `CORAL\.md` before escalating\./)
+  assert.ok(!listedRules(result.markdown).includes('AGENT-5'), '[AGENT-5] was listed as a project rule')
+})
+
 /** Coral's own worked `CORAL.md`, as a consuming project's file. */
 function workedExample() {
   const text = fs.readFileSync(path.join(REPO, 'CONVENTIONS.md'), 'utf8')
@@ -1666,10 +1704,15 @@ test("CONVENTIONS.md's worked CORAL.md generates a real contract end to end", ()
   assert.ok(md.includes('## Project extensions'))
   assert.ok(md.includes('- `[ACME-1]` — `internal/billing` and descendants'))
 
+  // Governance IDs are named in the preamble as omitted on their own ground, so for them
+  // the no-leak check is on the rule list rather than on the whole file.
+  for (const id of normativeGovernance(REAL)) {
+    assert.ok(!listed.includes(id), `governance rule [${id}] was listed as a project rule`)
+  }
   // And the whole point: no unselected surface, anywhere in the file.
   for (const word of [
     'BE-1', 'BE-2', 'WEB-1', 'LIB-1', 'GHA-1', 'AGENTIC-1', 'ORCH-4',
-    'CHAN-1', 'SYS-TEST-1', 'VER-1', 'VER-2', 'SCOPE-1',
+    'CHAN-1', 'SYS-TEST-1', 'SCOPE-1',
     'backend', 'Backend', 'web app', 'Web App', 'library', 'Library',
     'GitHub Action', 'not selected', 'none registered',
   ]) {

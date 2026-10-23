@@ -1449,13 +1449,18 @@ What the contract contains:
 What it does not contain matters as much. A rule from a scale, a layer or a profile the project has not
 adopted leaves **no trace at all**: no rule, no heading, and no "backend: not selected" line.
 
-`[guide]` rules are absent for a different reason, and the generated prose keeps the two apart rather
-than collapsing them. *Applicable* and *normative* are not one question. A guide can belong to a scope
-the project has adopted and still be omitted, because it is rationale rather than instruction and is
-never reported as a violation. The contract therefore says that an `[auto]` or `[review]` rule missing
-from it does not apply, which is a claim about the classes it lists. It says separately that guides are
-left out on the other ground. "Every Coral rule missing from this file is inapplicable" would be false,
-and false about the distinction the file is built on.
+Framework-governance rules and `[guide]` rules are absent for different reasons, and the generated prose
+keeps the three grounds apart rather than collapsing them. A framework-governance rule is never selected,
+because the layer cannot be adopted: it binds how the project relates to Coral, not its source. The
+contract names its `[auto]` and `[review]` rules as omitted on that ground and states that `[AGENT-5]`
+still instructs the agent to read `CORAL.md` before escalating
+([The layers do not stack into one list](#the-layers-do-not-stack-into-one-list)). *Applicable* and
+*normative* are not one question either. A guide can belong to a scope the project has adopted and still
+be omitted, because it is rationale rather than instruction and is never reported as a violation. The
+contract therefore says that an `[auto]` or `[review]` rule missing from it does not apply, which is a
+claim about the classes it lists and the layers a project can adopt. It says separately that governance
+rules and guides are left out on the other grounds. "Every Coral rule missing from this file is
+inapplicable" would be false, and false about the distinctions the file is built on.
 
 **An exception is a path decision, not a deletion.** The excepted rule stays in the rule list, because it
 still binds everywhere outside its path. The decision is recorded separately with its scope and whatever

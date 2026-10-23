@@ -5,7 +5,9 @@ This document is a protocol. It defines no rule. It cites rules that
 to `[AGENT-5]`, and the exception and extension format of the project's
 [`CORAL.md`](/CONVENTIONS#coral-md-—-the-project-s-adherence-record). Where this document and a rule
 differ, the rule holds. `[AGENT-1]` and `[AGENT-3]` are `[guide]` rules, so the generated contract omits
-them. This document is where an agent meets them.
+them. `[AGENT-5]` is a framework-governance rule: it binds how the project relates to Coral, not its
+source, so the contract omits it from its rule list and states that it still instructs the agent. This
+document is where an agent meets all three.
 
 An agent that implements against Coral makes decisions continuously. Most are its own to make. Some need
 verification before it decides. Some belong to a human. This document gives:

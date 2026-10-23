@@ -19,7 +19,11 @@ default location and leave this one stale.
 This is the complete normative Coral surface of this project: every applicable `[auto]` and
 `[review]` rule, stated once. An `[auto]` or `[review]` rule that is not listed here does not
 apply to this project — it belongs to a scale, a layer or a profile this project has not
-adopted. `[guide]` rules are left out on different grounds: some of them belong to scopes this
+adopted. Framework governance is the exception: its rules bind how this project relates to
+Coral, not its source, and that layer cannot be adopted, so this file omits `[AGENT-5]`,
+`[VER-1]`, `[VER-2]` and `[VER-4]`. `[AGENT-5]` still instructs the agent: Read the project's
+`CORAL.md` before escalating. A documented decision is settled.
+`[guide]` rules are left out on different grounds: some of them belong to scopes this
 project HAS adopted, and they are omitted because they are rationale rather than instruction,
 not because they are inapplicable. Their reasoning lives in the Coral documents.
 

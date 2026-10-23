@@ -2094,7 +2094,7 @@ const CONTRACT_LINE_RE = new RegExp(String.raw`^- \`\[(${ID_CORE})\]\`\s+(.*)$`)
 const flatten = (s) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\s+/g, ' ').trim()
 
 /** Greedy wrap for generated prose, matching the documents' ~107-column convention. */
-function wrap(text, width = 107) {
+export function wrap(text, width = 107) {
   const out = []
   let line = ''
   for (const word of text.split(/\s+/).filter(Boolean)) {

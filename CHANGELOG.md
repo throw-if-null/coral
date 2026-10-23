@@ -270,6 +270,20 @@ already carried that reading and is unchanged, so `rules.md` is unchanged. `exam
 cites the rule for its one-operation package and records no deviation. The enforcement class stays
 `[review]`, and `rules.lock` is unchanged.
 
+**The generated contract states the governance ground for an omitted rule and names `[AGENT-5]`.
+Patch-level: generated prose, `CONVENTIONS.md` prose, and a guide. No rule was added, tightened,
+loosened, or retired, and no ID or enforcement class moved.**
+
+The contract's preamble said that every `[auto]` or `[review]` rule it does not list belongs to a scale,
+a layer or a profile the project has not adopted. `[AGENT-5]` is a `[review]` rule in the
+framework-governance layer, which no project can adopt, and it instructs the agent mid-task, so an agent
+reading only the contract could conclude that it did not bind. The preamble now states the third ground:
+framework-governance rules bind how the project relates to Coral, not its source, and the layer cannot
+be adopted, so the file omits them. It names those rules from the rule model, and it states `[AGENT-5]`'s
+instruction. `scripts/execution-contract.test.mjs` asserts the sentence. `CONVENTIONS.md` § "The
+generated execution contract" and `guides/deciding-and-escalating.md` state the same ground. The example
+project's contract is regenerated. `rules.lock` and `rules.md` are unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 
