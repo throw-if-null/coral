@@ -400,6 +400,13 @@ technique. The line now names the property and where it runs, the producer's own
 the new line; the example project declares `app` scale only, so its contract is unchanged. The
 enforcement class stays `[review]`, and `rules.lock` is unchanged.
 
+**`[AGENTIC-10]` counts four LLM-specific hazards. Clarified, minor under `[VER-2]`; the working
+version stays `0.7.0`.**
+
+The rule sentence said "Three LLM-specific hazards" above four bullets, while its contract line and the
+slot summary already said four. The sentence now says four. The contract line is unchanged, so `rules.md`
+is unchanged. The enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

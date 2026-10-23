@@ -178,7 +178,7 @@ this profile's. With `[ERR-5]`'s default vocabulary the mapping reads: model una
 
 ## Trust (the heaviest slot)  → `[TRUST-1]` `[TRUST-2]`
 
-**`[AGENTIC-10]`** `[review]` `{runtime-agent}` Three LLM-specific hazards sit on top of the usual boundary
+**`[AGENTIC-10]`** `[review]` `{runtime-agent}` Four LLM-specific hazards sit on top of the usual boundary
 validation:
 
 - **Prompt injection.** Untrusted input reaches the prompt. Treat any external text in context as
