@@ -258,6 +258,18 @@ pressures force no band: they produce a shared adapter behind the ports the slic
 arrows, and the capability stays one package. The pointer to `examples/go-api-slice.md` names that
 shape. The rule sentence, the contract line, `rules.lock`, and `rules.md` are unchanged.
 
+**`[BE-1]` states the slice's unit: a directory where the language's package is a directory and the
+capability holds more than one operation, and a file inside the capability's package otherwise.
+Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The rule read "The slice directory is the singular capability + effect verb", which in a language whose
+package is a directory requires a verb-named package for a capability with one operation, while the
+contract line and `[STRUCT-2]` name the slice and leave its unit to the language. The sentence now names
+the slice for the singular capability plus its effect verb and states the unit. The contract line
+already carried that reading and is unchanged, so `rules.md` is unchanged. `examples/go-api-slice.md`
+cites the rule for its one-operation package and records no deviation. The enforcement class stays
+`[review]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

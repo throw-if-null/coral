@@ -19,9 +19,11 @@ practices prevent it:
 ## Boundary & naming  → `[BOUND-1]`
 
 **`[BE-1]`** `[review]` `{app:backend}` One slice per **business operation**, and the route is that
-operation's *trigger*, not its definition. The slice directory is the **singular capability + effect
-verb** (`expense/create`). The route may be **plural** (`POST /expenses`). Map `method + path → slice` by
-capability and effect, not by URL spelling. A tight read/write pair may share a slice (`[BOUND-2]`).
+operation's *trigger*, not its definition. The slice is named for the **singular capability + effect
+verb** (`expense/create`). It is a directory where the language's package is a directory and the
+capability holds more than one operation, and a file inside the capability's package otherwise. The
+route may be **plural** (`POST /expenses`). Map `method + path → slice` by capability and effect, not by
+URL spelling. A tight read/write pair may share a slice (`[BOUND-2]`).
 
 The distinction decides the two cases where route-counting gives the wrong answer. Two routes that are
 the **same operation** are **one slice with two triggers**, not two slices. Examples are a current path

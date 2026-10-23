@@ -57,9 +57,10 @@ The dependency arrows point one way: `store → document → errs, reqctx`. The 
 the adapter imports the slice's port, and the roots import all of them in order to wire them. `db`
 and `config` are consumed by the two roots and by no slice.
 
-`[BE-1]` names a slice directory for the singular capability plus its effect verb, `document/get`. This
-package holds one operation, so the package is the slice and the effect verb is the file name,
-`get.go`. With a second operation, each operation becomes a package of its own under `document/`.
+`[BE-1]` names the slice for the singular capability plus its effect verb, `document/get`, and makes it a
+file inside the capability's package while the capability holds one operation. This package holds one,
+so the slice is `get.go` in package `document`. With a second operation, each operation becomes a
+package of its own under `document/`.
 
 ## The crosscuts
 
