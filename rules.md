@@ -391,7 +391,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[BUCKET-1]` | `[auto]` | production baseline | Do not create or expand `shared`/`common`/`utils`/`helpers`/`services`/`repository`/generic `models`. |
 | `[BUCKET-2]` | `[guide]` | production baseline | Generic catch-all names destroy locality and predictability. |
 | `[XCUT-2]` | `[auto]` | production baseline | Give every crosscut a precise domain or infrastructure name. |
-| `[XCUT-3]` | `[review]` | production baseline | Inject crosscuts. Consume their published surface, never their internals. |
+| `[XCUT-3]` | `[review]` | production baseline | Consume a crosscut through its published surface, never its internals. Inject one that holds configuration, a connection, or per-trigger state. |
 | `[XCUT-4]` | `[guide]` | production baseline | A crosscut is the *first line* of drift control. |
 | `[XCUT-5]` | `[review]` | production baseline | A domain entity may be a crosscut only as type + invariants, never its queries or storage. |
 | `[DUP-1]` | `[guide]` | production baseline | Small duplication across slices is acceptable and often preferred, and you should not extract merely to save lines. |

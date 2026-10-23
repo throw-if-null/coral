@@ -827,7 +827,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 
 ### The sharing decision
 - `[XCUT-2]` Give every crosscut a precise domain or infrastructure name.
-- `[XCUT-3]` Inject crosscuts. Consume their published surface, never their internals.
+- `[XCUT-3]` Consume a crosscut through its published surface, never its internals. Inject one that holds configuration, a connection, or per-trigger state.
 - `[XCUT-5]` A domain entity may be a crosscut only as type + invariants, never its queries or storage.
 - `[DUP-3]` Extract only to enforce an invariant or convention, provide named infrastructure, or clarify a real calculation.
 - `[DUP-4]` Apply the Extraction Test before extracting.

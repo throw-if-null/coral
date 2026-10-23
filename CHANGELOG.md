@@ -365,6 +365,15 @@ the route its trigger. All three now state the unit as one page-action or busine
 or endpoint as its trigger, citing `[BE-1]`. `rules.md` carries the new contract line. The enforcement
 class stays `[review]`, and `rules.lock` is unchanged.
 
+**`[XCUT-3]`'s contract line permits a direct import of a pure, stateless crosscut, as the rule does.
+Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The contract line read "Inject crosscuts", while the rule and its commentary require injection only for a
+crosscut that holds configuration, a connection, or per-trigger state, and allow a pure, stateless one to
+be consumed by direct import. The line now states that distinction. The rule sentence is unchanged;
+`rules.md` and the example project's contract carry the new line. The enforcement class stays
+`[review]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

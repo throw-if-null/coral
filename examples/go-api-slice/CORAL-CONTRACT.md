@@ -103,5 +103,5 @@ not because they are inapplicable. Their reasoning lives in the Coral documents.
 - `[VER-6]` Declare in `CORAL.md` which non-kernel Coral scopes the project adopts, and at which scales.
 - `[XCUT-1]` Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant.
 - `[XCUT-2]` Give every crosscut a precise domain or infrastructure name.
-- `[XCUT-3]` Inject crosscuts. Consume their published surface, never their internals.
+- `[XCUT-3]` Consume a crosscut through its published surface, never its internals. Inject one that holds configuration, a connection, or per-trigger state.
 - `[XCUT-5]` A domain entity may be a crosscut only as type + invariants, never its queries or storage.
