@@ -374,6 +374,14 @@ be consumed by direct import. The line now states that distinction. The rule sen
 `rules.md` and the example project's contract carry the new line. The enforcement class stays
 `[review]`, and `rules.lock` is unchanged.
 
+**`[STATE-1]`'s contract line keeps state-access logic local to the slice that needs it, as the rule
+does. Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The contract line read "the slice that owns it", while the rule reads "the slice that needs it" and
+`[STATE-5]` places ownership at the feature package, not at a slice. The line now matches the rule.
+`rules.md` and the example project's contract carry the new line. The enforcement class stays
+`[review]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

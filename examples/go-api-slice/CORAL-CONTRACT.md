@@ -83,7 +83,7 @@ not because they are inapplicable. Their reasoning lives in the Coral documents.
 - `[ROOT-1]` Keep the root thin: register, construct, inject, bootstrap. No business logic.
 - `[ROOT-2]` The root imports no slice-internal module and makes no state-access call. Importing a crosscut, an adapter, or a slice's entry point to wire it is not a violation.
 - `[SCOPE-3]` When features converge on one dense concept, give it its own app behind a published contract.
-- `[STATE-1]` Keep state-access logic local to the slice that owns it.
+- `[STATE-1]` Keep state-access logic local to the slice that needs it.
 - `[STATE-2]` Do not create a shared repository or data-access layer.
 - `[STATE-4]` The slice that computes derived state owns it. Write it from a set- or event-named handler.
 - `[STATE-5]` One owning feature package per table/file/bucket, schema defined once inside it. Siblings reach it directly, and outsiders go through a published capability.

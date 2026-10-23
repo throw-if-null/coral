@@ -847,7 +847,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 - `[EFFECT-4]` Do not extract a function only to make it pure or testable.
 
 ### State & configuration
-- `[STATE-1]` Keep state-access logic local to the slice that owns it.
+- `[STATE-1]` Keep state-access logic local to the slice that needs it.
 - `[STATE-2]` Do not create a shared repository or data-access layer.
 - `[STATE-4]` The slice that computes derived state owns it. Write it from a set- or event-named handler.
 - `[STATE-5]` One owning feature package per table/file/bucket, schema defined once inside it. Siblings reach it directly, and outsiders go through a published capability.

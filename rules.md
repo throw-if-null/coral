@@ -405,7 +405,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[EFFECT-2]` | `[review]` | production baseline | Keep side effects at the edges. |
 | `[EFFECT-3]` | `[guide]` | production baseline | The preferred slice flow is parse → validate → compute → persist/effect → render, and do not intermingle calculation and side effects unnecessarily. |
 | `[EFFECT-4]` | `[review]` | production baseline | Do not extract a function only to make it pure or testable. |
-| `[STATE-1]` | `[review]` | production baseline | Keep state-access logic local to the slice that owns it. |
+| `[STATE-1]` | `[review]` | production baseline | Keep state-access logic local to the slice that needs it. |
 | `[STATE-2]` | `[auto]` | production baseline | Do not create a shared repository or data-access layer. |
 | `[STATE-3]` | `[guide]` | production baseline | A shared persistence layer accumulates special cases and forces cross-slice reasoning on every change, whereas local ownership keeps each slice independently changeable. |
 | `[STATE-4]` | `[review]` | production baseline | The slice that computes derived state owns it. Write it from a set- or event-named handler. |
