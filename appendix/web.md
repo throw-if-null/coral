@@ -30,14 +30,13 @@ them when a concrete requirement forces runtime independence: independent deploy
 ownership, runtime isolation, different frameworks or runtimes, or independently versioned product
 surfaces. A feature-rich frontend is **not** one of those reasons.
 
-This rule used to read the other way, as "prefer building rich UI as microfrontends". The reasoning that
-produced that wording was sound, and the conclusion still did not follow. Rich UI *is* read fan-in
-(`[COMPOSE-4]`), and a dashboard *should* be many slices rather than one god-component. Both of those are
-about **structure**, and microfrontends are about **deployment**. Coral gets the structural property from
+Rich UI *is* read fan-in (`[COMPOSE-4]`), and a dashboard *should* be many slices rather than one
+god-component, but neither fact calls for microfrontends. Both are about **structure**, and microfrontends
+are about **deployment**. Coral gets the structural property from
 capability slicing alone (`[WEB-1]`, `[WEB-6]`). Paying an independent deployment unit per panel to
 obtain it buys nothing. It costs a bundle boundary, a runtime protocol, and a version skew per panel.
 
-Where the requirement is real, everything the earlier wording described applies:
+Where the requirement is real, the microfrontend shape applies in full:
 
 - each panel is a slice owning its UI, its local state, and its capability call
 - the screen is a small system
@@ -56,10 +55,10 @@ Statically there is then **no import edge between panel directories at all**. In
 (`[WEB-6]`), a **typed import of another slice's published surface is permitted, and is preferred to a
 bus**.
 
-The earlier version of this rule lost that distinction. It banned import edges unconditionally, including
-inside the integrated frontend `[WEB-6]` sanctions. The integrated case was therefore forced to
-communicate through a runtime channel across a boundary that does not exist at runtime: one bundle, one
-process, one deployment. That trade is a bad one in both directions. A typed import gives the compiler a
+The distinction matters. Banning import edges unconditionally would force the integrated frontend
+`[WEB-6]` sanctions to communicate through a runtime channel across a boundary that does not exist at
+runtime: one bundle, one process, one deployment. That trade is a bad one in both directions. A typed
+import gives the compiler a
 chance to catch a break, gives the reader a definition to jump to, and appears in a dependency graph. An
 event bus in a single bundle gives none of those, and it adds an untyped indirection whose consumers
 cannot be enumerated. Locality and discoverability are the properties this architecture optimizes for
@@ -98,8 +97,9 @@ Start where the reversal is cheap, and escalate when a named requirement appears
 **`[WEB-7]`** `[review]` `{app:web}` Treat the **client as hostile**: never trust anything that arrives
 from the browser.
 
-Authentication and authorization run at the server boundary as **middleware before the slice**, so the
-slice receives an already-authenticated principal. Validate every request payload, enforce CSRF and
+Authentication and coarse capability authorization run at the server boundary as **middleware before the
+slice**, so the slice receives an already-authenticated principal. Resource-level authorization lives with
+the state it protects (`[BE-6]`). Validate every request payload, enforce CSRF and
 session protections, and keep secrets server-side (`[CONFIG-4]`). Anything shipped to the browser is
 public by definition.
 
