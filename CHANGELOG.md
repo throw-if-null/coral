@@ -209,6 +209,19 @@ and skip otherwise. The page cites the code by GitHub URL, quotes `[ERR-3]` as t
 names only import cycles and single-package code generation as Go constraints. `rules.lock` and
 `rules.md` are unchanged by this entry.
 
+**`[BE-5]` reports a status written for a raised failure, and states that the success status is written
+at the slice's boundary. Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The rule read "No slice chooses a status or constructs its own error response ... a status-code write
+inside a slice module is a violation", while `[BE-2]` fixes a success status by the slice's effect, and
+that status is written somewhere. Applied as a check, every `create` slice that writes `201` failed. The
+rule now reads: no slice chooses a status for a raised failure, a status-code write for a failure inside
+a slice module is a violation, and the success status `[BE-2]` fixes is written at the slice's boundary
+by the handler that returns the result. The canonical slice in `CONVENTIONS.md` states that the root
+renders what the slice raises and no longer says that the root renders the success result. The first
+sentence and the contract line are unchanged, so `rules.md` is unchanged. The enforcement class stays
+`[auto]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

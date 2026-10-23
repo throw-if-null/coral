@@ -66,8 +66,9 @@ ambient globals (`[XCUT-3]`) or read configuration directly (`[CONFIG-2]`).
 
 **`[BE-5]`** `[auto]` `{app:backend}` Slices raise the app's declared error model (`[ERR-1]`), and a
 single root error-handling middleware renders it and maps **every** declared category to an HTTP status.
-No slice chooses a status or constructs its own error response. That is what makes this statically
-checkable: a status-code write inside a slice module is a violation.
+No slice chooses a status for a raised failure or constructs its own error response. That is what makes
+this statically checkable: a status-code write for a failure inside a slice module is a violation. The
+success status `[BE-2]` fixes is written at the slice's boundary, by the handler that returns the result.
 
 **The mapping is total, and this rule is what requires that.** `[ERR-1]` asks for one declared model and
 for presentation to be owned by a boundary rather than by a slice; requiring a status for *every*

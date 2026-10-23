@@ -137,13 +137,13 @@ expense/add                                    # one slice = one capability
   function run(rawArgs, deps):
     input  = parse(rawArgs)                    # pure
     amount = deps.money.parse(input.amount)    # pure; raises validation/invalid_amount
-    if input.category is empty:
+    if input.category is empty:                # raised; the root renders it
         raise deps.errors.of("validation", "missing_category", "category is required")
 
     record = { amount, category: input.category, date: input.date }   # pure
 
     deps.db.tx(conn => insertExpense(conn, record))   # the one effect, at the edge
-    return Result.ok({ id: record.id, amount, category, date })       # the root renders
+    return Result.ok({ id: record.id, amount, category, date })
 
   test "expense add records and is observable":    # colocated
     out = run(["--amount","12.50","--category","food"], realTempDeps())
