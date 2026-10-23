@@ -173,8 +173,8 @@ the baseline owes none of these.
 makes the two remaining vocabulary terms legible, because both are named for the shape a crosscut is not:
 
 - A **forbidden bucket** is a would-be crosscut with no precise name and no injection discipline:
-  `utils`, `shared`, `common`, `services`, `helpers`, or generic `models`. The *term* is vocabulary. The
-  *prohibition* on creating one is `[BUCKET-1]`, a production-baseline rule.
+  `utils`, `shared`, `common`, `services`, `helpers`, `repository`, or generic `models`. The *term* is
+  vocabulary. The *prohibition* on creating one is `[BUCKET-1]`, a production-baseline rule.
 - **Drift** is what happens when one concern is re-implemented per slice instead of held in one
   definition. The copies diverge, and the divergence is a bug. Naming it is what lets `[XCUT-1]` state
   its second prong, that a crosscut must enforce something that would be a bug if it diverged.
@@ -204,9 +204,9 @@ flowchart TD
 When more than one fits, or none cleanly does, **flag it** (`[AGENT-2]`) rather than guess.
 
 `[MODEL-1]` says there is no sixth category, which is why "shared stuff" has no box of its own. The
-stronger claim is `[BUCKET-1]`, a **production-baseline** rule enforceable by a linter: *do not create or
-expand* `utils`, `services`, `helpers`, `common`, or generic `models`. A project owes it once it has
-adopted that layer.
+stronger claim is `[BUCKET-1]`, a **production-baseline** `[auto]` rule: *do not create or expand*
+`shared`, `common`, `utils`, `helpers`, `services`, `repository`, or generic `models`. A project owes it
+once it has adopted that layer.
 
 The boxes are the categories, not the discipline. Which one a unit of code *is* has a kernel answer. How
 it must then be built is the production baseline's answer, and none of it is needed to place the code:
@@ -214,8 +214,7 @@ the port declared by the slice rather than by the adapter (`[MODEL-4]`), the cro
 precisely named (`[XCUT-3]`, `[XCUT-2]`), and the root kept thin (`[ROOT-1]`).
 
 Under the **production baseline**, slices are grouped into **feature packages**, and the two are not the
-same thing. This diagram used to label the slice box "a feature package", which is where the confusion
-started. The package groups the slices of one capability and owns the state behind them (`[STRUCT-2]`,
+same thing. The package groups the slices of one capability and owns the state behind them (`[STRUCT-2]`,
 `[STATE-5]`). The slice owns one trigger. The package is a container, not a category of code, which is
 why `[MODEL-1]` does not list it. A project that has not adopted the baseline has the slice without
 owing the container.
@@ -256,16 +255,16 @@ alias IDs — no second family that restates an existing rule under a new name �
 rule make findings unsearchable and let the two copies drift.
 
 **IDs are permanent.** They are never renumbered, never recycled, and never removed. See `[VER-1]`. That
-is why `[IDEM-6]` sits out of numeric order: it was appended rather than inserted.
+is why `[BE-8]` is defined before `[BE-7]`: a new rule takes the next free number in its family, wherever
+its definition sits.
 
 **The spines use separate families.** App families live in `ARCHITECTURE.md`, `PRODUCTION.md` and the
 appendices (`CLI-`, `BE-`, …). System families live in `SYSTEM.md` (`CHAN-`, `ORCH-`, `SYS-TEST-`). The
 dependency points **one way**: neither app-scale spine **ever** cites a system rule, so the app model
-stays loadable without system concerns. The build enforces this rather than trusting it.
-`ARCHITECTURE.md` had been citing `[ORCH-1]` in prose until the gate was added. `SYSTEM.md` may cite app
-rules, because it builds on them. An **appendix** may cite system rules where its app type reproduces
-the system pattern internally. A microfrontend web app is a browser-scale system of panels over a
-channel, so `web.md` legitimately references `[CHAN-*]` and `[SYS-TEST-*]`.
+stays loadable without system concerns. The build enforces this rather than trusting it. `SYSTEM.md` may
+cite app rules, because it builds on them. An **appendix** may cite system rules where its app type
+reproduces the system pattern internally. A microfrontend web app is a browser-scale system of panels
+over a channel, so `web.md` legitimately references `[CHAN-*]` and `[SYS-TEST-*]`.
 
 ## Enforcement classes
 
@@ -304,8 +303,9 @@ Completeness is checked at build time, so a new rule cannot be added without wir
 contract. Reviewers walk the same contract and cite the same IDs, and there is no separate review
 checklist to drift against. Every document carries one: the spines, this file for its `[AGENT-*]` and
 `[VER-*]` rules, and each appendix. Contracts **add up** rather than replacing one another, and a
-project loads exactly the ones its `CORAL.md` adopts. Building a CLI on the baseline means
-`ARCHITECTURE.md`'s contract, which is unconditional, plus `PRODUCTION.md`'s and `appendix/cli.md`'s.
+project loads exactly the ones its `CORAL.md` adopts. Building a CLI on the baseline means the two
+unconditional contracts, this file's and `ARCHITECTURE.md`'s, plus `PRODUCTION.md`'s and
+`appendix/cli.md`'s.
 
 [`rules.md`](./rules.md) is the cross-document view: every rule, its class, and its one-line statement
 on one page. It is generated from these contracts, so it cannot drift from them.
@@ -442,10 +442,11 @@ the **minor** instead (`0.1.0` → `0.2.0`), per semver's major-version-zero cla
 state while appendices are still being filled. Rules are still arriving in batches, and spending a major
 per batch would put Coral at version 6 with nothing stable to show for it.
 
-**`1.0.0` is cut when every *core* appendix is complete and the rule set has been used.** Complete means
-every slot either carries an app-type rule or an explicit "spine-sufficient" note. Used means the rule set
-has been used to build and change at least one real application, and the findings from that use have been
-acted on. Completeness is necessary and not sufficient: a complete rule set that nobody has built with has
+**`1.0.0` is cut when every *core* appendix is complete and the rule set has been used.** Complete has the
+meaning the [Appendix Index](./ARCHITECTURE.md#appendix-index) gives it: every slot carries an app-type
+rule or is explicitly deferred. Used means the rule set has been used to build and change at least one
+real application, and the findings from that use have been acted on. Completeness is necessary and not
+sufficient: a complete rule set that nobody has built with has
 been written, not tested, and a stability promise on it would rest on reading alone. Both parts are
 checkable, the first from the documents and the second from the recorded findings, so the promise `1.0.0`
 makes is a real one. From there, an added rule costs a major, and a project can pin with confidence.
@@ -483,8 +484,7 @@ number, and the collision is silent: two documents, the same citation, and a dif
 
 The typography above is deliberate. An **illustrative** ID is written bare (`ACME-1`), while a
 **citation** is bracketed (`[VER-4]`). Only the bracketed form is a reference the build resolves, so a
-hypothetical ID written as a citation fails the build. That is how this paragraph was caught while being
-written.
+hypothetical ID written as a citation fails the build.
 
 **`[VER-5]` `[auto]`** — Every exception and extension in `CORAL.md` is recorded as a **machine-readable
 entry naming the rule ID it concerns and the path it scopes**.
@@ -546,10 +546,9 @@ what the scopes mean.
 | **Amendment** | Coral has a rule and **the rule is wrong or too narrow** | an issue or PR on the Coral repo | Coral's maintainers |
 
 An **amendment is not recorded in the project.** It is an outbound proposal, referenced from the entry
-that motivated it. `[MODEL-2]` was an amendment. It forbade layering outright, the correct Go shape
-violated it, and the rule was wrong rather than the code. Had that been filed as a per-project exception,
-every Go project would have carried the same exception forever, and the defect in the rule would never
-have surfaced.
+that motivated it. When the rule is wrong rather than the code, a per-project exception is the wrong
+record: every project the rule misfits carries the same exception forever, and the defect in the rule
+never surfaces.
 
 **Drift is not an exception.** A deviation nobody chose is a finding to fix. Only a deliberate decision
 qualifies. Otherwise the register accumulates violations, and the architecture becomes advisory.
@@ -817,11 +816,11 @@ more of:
   persists: read them before escalating. `[GROW-1]` ("start small: one file per slice") is a starting
   default, not a constraint.
 
-Concurrency, idempotency, error enforcement and vocabulary, caching, security, channel semantics and
-observability are required Coral rules. They are not kernel rules, and importance is not the reason
-either way. Coral states them at the strength it does because the *system* needs them, not because of who
-typed them. A
-project that adopts the production baseline owes every one of them as hard as it owes `[MODEL-1]`.
+Concurrency, idempotency, error enforcement, caching, security, channel semantics and observability are
+required Coral rules. They are not kernel rules, and importance is not the reason either way. Coral
+states them at the strength it does because the *system* needs them, not because of who typed them. A
+project that adopts the production baseline owes every one of them, at the scales it declares, as hard
+as it owes `[MODEL-1]`.
 
 That list says *why* a rule is not kernel. [Ownership layers](#ownership-layers), below, says something
 narrower and machine-readable: which projects have to load it.
@@ -914,18 +913,18 @@ rule becoming applicable by existing in this repository
 ([What applies to a project](#what-applies-to-a-project), `[VER-6]`).
 
 **`framework governance` is not on that surface at all, and cannot be adopted onto it.** No application
-source code satisfies or violates `[VER-2]` or `[VER-4]`. Those rules bind the *decisions a project makes
-about Coral*: which version it targets, how much of it it adopts, how it records a deviation, and how it
-numbers rules of its own. **The distinction is what they are audited against, not how often they are
-read.** Several are needed mid-task. `[AGENT-3]` governs how an agent reads a rule whose letter and
-intent diverge, and `[AGENT-5]` sends it to `CORAL.md` before it escalates. Coral-aware humans, agents
-and tooling load them when interpreting Coral, consulting the adherence record, or changing how the
-project relates to Coral. They never load them as findings against a slice. That is why the counts in
-[`rules.md`](./rules.md) report them separately rather than folding them into the conformance surface,
-and why a manifest that lists `framework-governance` under `adopts` is rejected rather than obeyed.
+source code satisfies or violates `[VER-2]` or `[VER-4]`. Those rules bind Coral itself and how a project
+relates to it: how Coral is versioned, and how a project numbers rules of its own. **The distinction is
+what they are audited against, not how often they are read.** Several are needed mid-task. `[AGENT-3]`
+governs how an agent reads a rule whose letter and intent diverge, and `[AGENT-5]` sends it to `CORAL.md`
+before it escalates. Coral-aware humans, agents and tooling load them when interpreting Coral, consulting
+the adherence record, or changing how the project relates to Coral. They never load them as findings
+against a slice. That is why the counts in [`rules.md`](./rules.md) report them separately rather than
+folding them into the conformance surface, and why a manifest that lists `framework-governance` under
+`adopts` is rejected rather than obeyed.
 
 The runtime-agent profile is orthogonal to app shape, never an alternative to it, which is why an
-agentic app is not a seventh app type. A repository holding a CLI and a library adopts both profiles.
+agentic app is not a sixth app type. A repository holding a CLI and a library adopts both profiles.
 **Layers compose. They do not replace.**
 
 **Ownership is not enforcement.** A rule has an ownership layer *and* an enforcement class, and the two
@@ -1090,10 +1089,10 @@ would be right and the loading still wrong.
 
 A contract therefore marks its optional groups. `<!-- coral:scope:app:cli -->` opens a scope that governs
 the contract lines below it, until `<!-- coral:scope:end -->` or the close of the contract. Every
-appendix contract opens with the profile it belongs to. `SYSTEM.md` scopes `[ORCH-4]`, `[ORCH-5]` and
-`[ORCH-6]` to `runtime-agent` inside an otherwise unscoped system contract. The build checks both
-directions: an opt-in rule outside a matching scope fails, and a rule from an unscoped layer inside one
-fails too.
+appendix contract opens with the profile it belongs to. `SYSTEM.md` scopes its `[CHAN-*]`, `[ORCH-1]`,
+`[ORCH-2]` and `[SYS-TEST-*]` lines to `baseline`, and `[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]` to
+`runtime-agent`. The build checks both directions: an opt-in rule outside a matching scope fails, and a
+rule from an unscoped layer inside one fails too.
 
 ### Reading the classification
 
@@ -1207,12 +1206,10 @@ their own definition**, so no profile is self-contained today. The dependency ta
 - **an assumed concept.** A rule can rest on a baseline *concept* without citing a rule at all, which is
   worse, because nothing in the text points at what is missing.
 
-**The largest instance of the second form is closed.** `[BE-5]`, `[WEB-9]`, `[GHA-9]` and `[LIB-8]` said
-slices "raise **the taxonomy**" and map `category`, while the taxonomy was `[ERR-1]`, a baseline rule — so
-a project adopting `app-profile: [backend]` and nothing else was told to raise a taxonomy it had selected
-no definition for. `[ERR-1]` is now a kernel rule, so every profile that renders errors rests on a model
-the project already owes, and each of those rules states its own boundary's mapping. The explicit-citation
-form is unchanged, and the general gap below remains open.
+**Error rendering does not take the second form.** `[BE-5]`, `[WEB-9]`, `[GHA-9]` and `[LIB-8]` have
+slices raise the app's declared error model, and each states its own boundary's mapping. That model is
+`[ERR-1]`, a kernel rule, so a project that adopts `app-profile: [backend]` and nothing else already owes
+the model those rules rest on. The explicit-citation form remains, and so does the general gap below.
 
 The resolver is correct and stays as it is. Adopting a profile selects no baseline rule, and the tests
 hold it to that. What is missing is a way for a rule to say *I refine `[CONTRACT-1]`*, so that a project
@@ -1578,8 +1575,9 @@ Read in this order:
 2. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)**: the kernel-facing **app** spine. It holds the shape of one
    app, and the rules Coral would substantially relax without its operating model. It is a
    [core document](#core-documents), so it binds without being adopted.
-3. **[`PRODUCTION.md`](./PRODUCTION.md)**: the **production baseline** at app scale. It is **optional**.
-   Read it to decide whether to adopt it, and adopt it in `CORAL.md` before it binds anything.
+3. **[`PRODUCTION.md`](./PRODUCTION.md)**: the **production baseline** at app scale. It is the
+   recommended default for an application, and it stays **optional**: read it to decide whether to adopt
+   it, and adopt it in `CORAL.md` before it binds anything.
 4. **[`SYSTEM.md`](./SYSTEM.md)**: the **system** spine, covering how apps compose over a channel. It is
    optional too, and carries two independent opt-ins: the system-scale production baseline, and the
    runtime-agent orchestration rules. It builds on the app spine, and no app-scale spine cites it.
@@ -1589,9 +1587,13 @@ Read in this order:
 6. **Worked examples**:
    - [`examples/cli-slice.md`](./examples/cli-slice.md): two CLI slices in Python, one file each.
    - [`examples/go-api-slice.md`](./examples/go-api-slice.md): an HTTP slice in Go, one package per
-     capability, with a shared persistence adapter behind a port the slice declares.
+     capability, with a shared persistence adapter behind a port the slice declares. The page excerpts
+     the executable project in `examples/go-api-slice/`.
    - [`examples/backend-review.md`](./examples/backend-review.md): the rules applied to a real service,
      including where they would be overkill.
+7. **Guides**: [`guides/deciding-and-escalating.md`](./guides/deciding-and-escalating.md) and
+   [`guides/behavioral-verification.md`](./guides/behavioral-verification.md), protocols an agent loads
+   beside its contract. They define no rule.
 
 To look a rule up rather than read through, [`rules.md`](./rules.md) lists all of them on one page,
 grouped by document, with each ID linking to its definition.
@@ -1602,3 +1604,4 @@ Supporting files:
   changelog's Unreleased heading ([above](#two-versions-released-and-working)).
 - [`CHANGELOG.md`](./CHANGELOG.md): what changed, per rule ID.
 - `rules.lock`: every published rule ID and class, checked in so `[VER-1]` can be enforced.
+- `templates/CORAL.md`: the recommended adherence record, to copy into a project root.
