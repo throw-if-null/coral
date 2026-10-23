@@ -302,7 +302,10 @@ publishes `.vitepress/dist`. Cloudflare authenticates the repository through the
 Cloudflare API token or account ID belongs in this repository**.
 
 `.node-version` pins the Node major used by both local and Cloudflare builds. A change to Cloudflare's
-default Node version therefore cannot silently change the build.
+default Node version therefore cannot silently change the build. `npm audit` reports advisories against
+Vite 5 and esbuild, which concern the dev server only and are accepted until VitePress 2 is stable, and
+against KaTeX, which is accepted until a `vitepress-plugin-mermaid` release allows mermaid 12.
+`.github/dependabot.yml` keeps mermaid on 11 for that reason.
 
 ### One-time Cloudflare setup
 

@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    # `vitepress-plugin-mermaid` 2.0.17 declares the peer range `mermaid@"10 || 11"`,
+    # so a mermaid major update fails `npm ci` with ERESOLVE. This rule also applies
+    # to security updates, which `open-pull-requests-limit: 0` does not disable.
+    # README.md, section "Deployment", records the accepted advisories.
+    ignore:
+      - dependency-name: "mermaid"
+        update-types: ["version-update:semver-major"]
