@@ -908,11 +908,11 @@ definitions.
 
 | Rule | Decidable reading |
 |---|---|
-| `[BUCKET-1]` | no `utils/`, `services/`, `helpers/`, `common/`, or generic `models/` directory |
+| `[BUCKET-1]` | no `shared/`, `common/`, `utils/`, `helpers/`, `services/`, `repository/`, or generic `models/` directory |
 | `[STRUCT-1]` | every slice ships its tests (colocated, or a mirror exists) |
 | `[STRUCT-3]` / `[XCUT-2]` | top-level modules match an allowlist of precise names |
 | `[ROOT-2]` | the root module imports no slice-internal module (a slice's behavior, queries, or schema) and makes no state-access call; an import that constructs, injects, or registers is wiring |
-| `[STATE-2]` | no shared repository/data-access package |
+| `[STATE-2]` | the direction of interface ownership decides: no shared package that defines the data-access API and that slices import; a shared package that implements the ports the slices declare, and imports the slices to do so, is an adapter (`[MODEL-4]`) |
 | `[CONC-1]` | no mutable module-level or static state in a slice module |
 | `[CONFIG-2]` | no slice module references the environment or config-file API |
 | `[CONFIG-4]` | no literal secret in source, and no secret on a logged or published field |

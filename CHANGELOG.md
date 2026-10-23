@@ -236,6 +236,17 @@ effect changes. `[IDEM-5]`'s commentary names `[IDEM-3]` beside `[IDEM-4]` as wh
 `rules.md` carries the new contract line. The enforcement class stays `[review]`, and `rules.lock` is
 unchanged.
 
+**`[STATE-2]`'s decidable reading states the direction of interface ownership, and `[BUCKET-1]`'s names
+every bucket the rule names. Patch-level: two rows of the enforcement table in `PRODUCTION.md`. No rule
+was added, tightened, loosened, or retired, and no ID or enforcement class moved.**
+
+The `[STATE-2]` row read "no shared repository/data-access package", which fails the shared adapter
+package that the rule's commentary and `examples/go-api-slice.md` call conformant. The row now applies
+the commentary's test: no shared package that defines the data-access API and that slices import; a
+shared package that implements the ports the slices declare, and imports the slices to do so, is an
+adapter (`[MODEL-4]`). The `[BUCKET-1]` row adds `shared/` and `repository/`, which the rule already
+names. The rule texts, the contract lines, `rules.lock`, and `rules.md` are unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 
