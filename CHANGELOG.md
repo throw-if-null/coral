@@ -347,6 +347,15 @@ through `db` is not a slice state-access call. `examples/go-api-slice.md` and `e
 state the same reading at their roots. The rule sentence and the contract line are unchanged, so
 `rules.md` is unchanged. The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
 
+**The vocabulary gives an app one composition root per executable it ships. Patch-level: vocabulary
+prose. No rule was added, tightened, loosened, or retired, and no ID or enforcement class moved.**
+
+`CONVENTIONS.md`'s vocabulary table, `ARCHITECTURE.md`'s category table, and `index.md` gave an app
+exactly one composition root, while the Go example ships two executables, `cmd/api` and `cmd/migrate`,
+each with its own root. All three now state one composition root per executable the app ships, and
+`examples/go-api-slice.md` describes its two roots in those terms. `rules.lock` and `rules.md` are
+unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 
