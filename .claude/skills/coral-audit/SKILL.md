@@ -22,15 +22,18 @@ description: >
 > Written against **Coral 0.6.0**. Audit a project against the version its
 > `CORAL.md` declares, not against this one (`[VER-3]`).
 >
-> **"Written against" names the latest *released* Coral — the only version a project can
-> target. It is not a claim that everything below exists in 0.6.0.** This skill already
+> **"Written against" names the latest *released* Coral. A project pins a release once one
+> carries the generator; until 0.7.0 is cut, a project that generates its contract from
+> `main` targets the working version, 0.7.0. The marker is not a claim that everything below
+> exists in 0.6.0.** This skill already
 > implements `[VER-6]`, which is **unreleased** and ships in 0.7.0: `CORAL.md` adoption
 > declarations, the undeclared-normative-surface finding, and scale filtering are all
 > 0.7.0 behaviour. The same holds for the error model below: `[ERR-1]` is a kernel rule
 > naming no categories, and `[ERR-5]` is the recommended six-category vocabulary, both
-> 0.7.0. In 0.6.0 and earlier `[ERR-1]` is a production-baseline rule that fixes those six
-> names, so a project targeting one of those versions is audited against *that* — six
-> categories, and only where the baseline was adopted. A project targeting 0.6.0 or earlier
+> 0.7.0. In 0.6.0 and earlier there are no ownership layers and no adoption: `[ERR-1]` is
+> defined in `ARCHITECTURE.md`, fixes those six names, and binds every project, so a project
+> targeting one of those versions is audited against *that*: six categories, unconditionally.
+> A project targeting 0.6.0 or earlier
 > has no adoption declaration either and is not wrong for it — audit it against its own
 > version's applicability semantics, not against the ones below. Delete this note when
 > 0.7.0 is cut.
@@ -135,9 +138,10 @@ finding:
 
 - **`targets: <version>`** — audit against *that* version, never against the newest Coral you happen to
   have (`[VER-3]`). A rule added after the declared target is not yet binding on this project; note it as
-  an upgrade consideration, not a divergence. A rule that is only in an unreleased Coral binds nobody.
+  an upgrade consideration, not a divergence. A rule that is only in an unreleased Coral binds only a
+  project whose `targets` names that working version; a project pinning a release does not owe it.
 - **`scales`** — which architectural scales the repository is written at. A project that declares only
-  `app` does not owe system-scale rules (`[CHAN-*]`, `[SYS-TEST-*]`, `[ORCH-4..6]`), whatever it adopts.
+  `app` does not owe system-scale rules (`[CHAN-*]`, `[SYS-TEST-*]`, `[ORCH-*]`), whatever it adopts.
 - **`adopts`** — the non-kernel ownership scopes the project has taken on (`[VER-6]`). **This is the
   audit's scope.** The kernel applies unconditionally. Everything else — the production baseline
   included — applies only because this block says so, at the declared scales. A rule outside the selected
@@ -296,7 +300,7 @@ not `yes` — see the report contract below.
 
 The order below is the baseline's:
 - fit: is this a command/request-shaped app the model actually covers, or a dense coupled domain it
-  is weak for? does everything converge on one god-slice? — `[SCOPE-*]`
+  is weak for? does everything converge on one god-slice? — `[SCOPE-3]`
 - capability slicing, placement & role-revealing names: packages named for the capability or concern
   they own and never for a technical role, crosscuts rare and precisely named — `[MODEL-*]` /
   `[STRUCT-*]`
@@ -332,11 +336,12 @@ backend profile" — each of those is the inference `[VER-6]` exists to end. The
 input. If it looks like the project should have adopted more than it did, that is a **recommendation** for
 the report, not a licence to audit against the larger set.
 
-Two families are never findings against a slice, for two different reasons, and neither is the whole
-`[VER-*]` family:
+Three families are never findings against a slice, for three different reasons, and none of them is the
+whole `[VER-*]` family:
 
-- **framework governance** — `[VER-1]`, `[VER-2]`, `[VER-4]`, `[AGENT-1]`, `[AGENT-3]`, `[AGENT-5]`. These
-  bind the project's *decisions about Coral*, not its code, and are not adoptable into an application
+- **framework governance** — `[VER-1]`, `[VER-2]`, `[VER-4]`, `[AGENT-1]`, `[AGENT-3]`, `[AGENT-5]`,
+  `[SCOPE-1]`, `[SCOPE-2]`, `[SCOPE-4]`; `rules.md`'s framework-governance group is the list. These bind
+  the project's *decisions about Coral*, not its code, and are not adoptable into an application
   conformance surface at all.
 - **the kernel's record rules** — `[VER-3]`, `[VER-5]`, `[VER-6]`. These are kernel rules and *do* bind
   every Coral project unconditionally, but what they bind is `CORAL.md` itself: does it declare a target,
@@ -352,15 +357,14 @@ shutdown (ordering, timeouts, exit codes, in-flight drain), concurrency / global
 races), resource management (pools, leaks, reconnection), observability correctness, and fail-fast config.
 
 Rule definitions live in the Coral docs (`CONVENTIONS.md`, `ARCHITECTURE.md`, `PRODUCTION.md`,
-`SYSTEM.md`, `appendix/*` in the coral-architecture repo / site) — read them if available; otherwise reason
-from the family names. **`PRODUCTION.md` is where the production baseline's app-scale rules are defined**,
-and for a project that has adopted the baseline that is most of its applicable surface; `ARCHITECTURE.md`
-holds only the kernel's app-scale rules and the governance rules that frame them. That split arrived in
-Coral 0.7.0 — in a release the project's `targets` predates, those same rules are defined in
-`ARCHITECTURE.md` instead. `[ERR-1]` moved the other way in the same release — it is a kernel rule in
-`ARCHITECTURE.md` from 0.7.0, and a production-baseline rule in `PRODUCTION.md` before it, where it also
-named six fixed categories. The rule IDs are unchanged either way, so read whichever layout that version
-has; `rules.md` in any release maps every ID to the document defining it.
+`SYSTEM.md`, `appendix/*` in the Coral repository or at https://coral.appsandtools.work) — read them if
+available; otherwise reason from the family names. **`PRODUCTION.md` is where the production baseline's
+app-scale rules are defined**, and for a project that has adopted the baseline that is most of its
+applicable surface; `ARCHITECTURE.md` holds only the kernel's app-scale rules and the governance rules
+that frame them. A release before 0.7.0 has no `PRODUCTION.md` and no ownership layers: every app-scale
+rule is defined in `ARCHITECTURE.md`, including `[ERR-1]`, which there names six fixed categories. Rule
+IDs are the same in every release, so read the layout the targeted version has; that release's
+`rules.lock` maps every ID to the document defining it.
 
 ### 4. Verify, don't infer
 For every guarantee a finding rests on, read the dependency source to confirm or refute it. Correct or

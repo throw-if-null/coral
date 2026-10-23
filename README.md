@@ -89,8 +89,9 @@ From there, in the order a project decides things:
    Action). It also holds the runtime-agent addendum an app of any shape adds when it calls a model at
    runtime. Each is adopted by name.
 
-[`examples/`](./examples) holds worked code. The Go example is an executable project,
-[`examples/go-api-slice/`](./examples/go-api-slice), and its page excerpts the code. The directory also
+[`examples/`](./examples) holds worked code: two CLI slices in Python,
+[`examples/cli-slice.md`](./examples/cli-slice.md), and an executable Go project,
+[`examples/go-api-slice/`](./examples/go-api-slice), whose page excerpts the code. The directory also
 holds [a real service reviewed against the rules](./examples/backend-review.md); that review states
 where the rules would have been overkill.
 
@@ -134,8 +135,9 @@ On the live site every citation links to its definition. The build fails on any 
 - an opt-in rule is defined in a core document
 - a published rule ID has disappeared or been reclassified
 - the rule index is stale
-- a `CORAL.md` in this repository stops resolving: the worked example in `CONVENTIONS.md`, or the
-  template in `templates/`
+- a `CORAL.md` in this repository stops resolving: the worked example in `CONVENTIONS.md`, the template
+  in `templates/`, or the example project's record in `examples/go-api-slice/`
+- the example project's committed `CORAL-CONTRACT.md` differs from what the generator writes
 - a link fragment does not resolve
 
 The documents' drift control is structural, not goodwill.
@@ -196,8 +198,8 @@ rules turn out to be wrong. [`CHANGELOG.md`](./CHANGELOG.md) records what change
 are append-only. They are never renumbered, recycled, or removed. `rules.lock` is the checked-in record
 the build enforces that against.
 
-**Coral carries two versions, and the difference matters now that version identity is part of
-applicability.** The **latest released** version is in `VERSION`, and a project pins it once a release
+**Coral carries two versions, and the difference matters because `[VER-3]` makes version identity part
+of applicability.** The **latest released** version is in `VERSION`, and a project pins it once a release
 carries the generator. The **working** version is the rule set these documents currently describe, named
 by the changelog's Unreleased heading. Between releases the working version is a successor to `VERSION`,
 so **`main` describes rules that are not in any release yet**. Until `0.7.0` is cut, a project that
@@ -236,7 +238,9 @@ is not reopened by every agent that meets it.
 
 From that declaration a project generates **`CORAL-CONTRACT.md`**. The file holds the project's complete
 normative Coral surface: every applicable `[auto]` and `[review]` rule, plus its own exceptions and
-extensions. An agent loads that file and no Coral document.
+extensions. An agent that loads that file knows every Coral requirement the project is answerable to
+without opening a Coral document. The protocols in `guides/` define no rule, and the agent instructions
+file loads them separately ([Start a project](#start-a-project)).
 
 ```bash
 # from a Coral checkout describing the version the project targets
@@ -304,15 +308,16 @@ full pipeline including the version, rule, and anchor checks. It then runs `npx 
 publishes `.vitepress/dist`. Cloudflare authenticates the repository through the GitHub App, so **no
 Cloudflare API token or account ID belongs in this repository**.
 
-`.node-version` pins the Node major used by both local and Cloudflare builds. A change to Cloudflare's
-default Node version therefore cannot silently change the build. `npm audit` reports advisories against
+`.node-version` pins the Node major used by local builds, by the CI `docs` job, and by Cloudflare builds.
+A change to Cloudflare's default Node version therefore cannot silently change the build. `npm audit`
+reports advisories against
 Vite 5 and esbuild, which concern the dev server only and are accepted until VitePress 2 is stable, and
 against KaTeX, which is accepted until a `vitepress-plugin-mermaid` release allows mermaid 12.
 `.github/dependabot.yml` keeps mermaid on 11 for that reason.
 
 ### One-time Cloudflare setup
 
-Do this once, in the Cloudflare dashboard, after this change is merged.
+Do this once, in the Cloudflare dashboard.
 
 **Workers Builds**, in Workers & Pages → `coral` → Settings → Build:
 

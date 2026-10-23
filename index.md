@@ -61,8 +61,9 @@ row, returning the result. Its test sits beside it.
 There is no `handlers/` directory holding the argument parsing, no `services/` directory holding the
 logic, and no `repositories/` directory holding the SQL.
 
-The same shape holds for a backend: one directory per endpoint or event handler, with its tests, and the
-shared parts constructed at startup. [An HTTP endpoint in Go](/examples/go-api-slice) shows the same
+The same shape holds for a backend: one slice per business operation, inside the package of the
+capability it belongs to, with its tests, and the shared parts constructed at startup.
+[An HTTP endpoint in Go](/examples/go-api-slice) shows the same
 shape in a compiled language: the slice is one package, and Go's import-cycle rule and single-package
 code generation shape the tree around it, as one shared persistence adapter behind a port the slice
 declares, with one-way arrows.
@@ -209,8 +210,9 @@ reports one.
 ## How to read the rest
 
 [A real backend service reviewed against Coral](/examples/backend-review) is the shortest route to seeing
-the rules applied before reading them. It covers what the service already did right. It also covers two
-problems the rules surfaced, and three places where following Coral would have been wasted effort.
+the rules applied before reading them. It covers what the service already did right, the problems the
+rules surfaced, a `[BUCKET-1]` violation whose fix needs a human decision, and where following Coral
+would have been wasted effort.
 
 Otherwise, in order:
 
@@ -228,6 +230,8 @@ Otherwise, in order:
 - [Appendices](/appendix/cli): one document per app profile (CLI, backend, web, library, GitHub Action).
   They also hold the runtime-agent addendum, which an app of any shape adds when it calls a model at
   runtime.
+- [Protocols](/guides/deciding-and-escalating): how an agent sorts and escalates its decisions, and
+  [how a project writes acceptance criteria](/guides/behavioral-verification). They define no rule.
 - [Worked examples](/examples/cli-slice): real code, in Python and Go.
 
 Every rule carries an ID like `[DUP-2]` and exactly one
