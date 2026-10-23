@@ -92,7 +92,7 @@ not because they are inapplicable. Their reasoning lives in the Coral documents.
 - `[STRUCT-1]` Colocate tests, or mirror the package structure where colocation is impossible.
 - `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages. The package owns its capability's state.
 - `[STRUCT-3]` Keep root-level crosscuts rare and precisely named.
-- `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.
+- `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking.
 - `[TEST-2]` Prefer integration and end-to-end tests over isolated unit tests.
 - `[TEST-3]` Unit tests are a scalpel. Never duplicate integration coverage, and never extract only to test.
 - `[TEST-4]` Assert contract, errors, idempotency, transactions, authorization, and diagnostics where relevant.

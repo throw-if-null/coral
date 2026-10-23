@@ -382,6 +382,14 @@ The contract line read "the slice that owns it", while the rule reads "the slice
 `rules.md` and the example project's contract carry the new line. The enforcement class stays
 `[review]`, and `rules.lock` is unchanged.
 
+**`[TEST-1]`'s contract line names real or realistic temporary infrastructure, as the rule does.
+Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The contract line read "real infra", narrower than the rule's "real or realistic temporary
+infrastructure", so an agent holding only the contract could read an in-memory store or a disposable
+test schema as non-conformant. The line now matches the rule. `rules.md` and the example project's
+contract carry the new line. The enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

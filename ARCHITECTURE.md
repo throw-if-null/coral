@@ -372,7 +372,7 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 - `[ERR-1]` One small, stable, structured error model per app or published package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice.
 
 ### Testing
-- `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.
+- `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking.
 
 <!-- coral:contract:end -->
 
