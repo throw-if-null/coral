@@ -26,11 +26,10 @@ there.** Adopting Coral therefore obliges a project to none of it, and a reader 
 kernel without loading it. Where the prose below cites a baseline rule, it is pointing at that rule or
 labelling an illustration, never asking for it.
 
-One exception is named rather than left implicit. `[TEST-1]`'s statement cites `[BOUND-1]` for the phrase
-"observable contract", and `[BOUND-1]` is now a baseline `[guide]` rule. `[TEST-1]` is actionable without
-it, because a guide is rationale and never a gate. The citation is still a loose end from this split.
-Closing it means editing a published rule's normative sentence, which is a versioned change rather than a
-documentation one.
+One exception is named rather than left implicit. `[TEST-1]`'s statement cites `[BOUND-1]`, a baseline
+`[guide]` rule, for the phrase "observable contract". `[TEST-1]` is actionable without it, because a guide
+is rationale and never a gate. Removing the citation means editing a published rule's normative sentence,
+which is a versioned change rather than a documentation one.
 
 App-type specifics live in the appendices under [`appendix/`](#appendix-index). How separate apps compose
 into a system lives in [`SYSTEM.md`](./SYSTEM.md). Worked code lives in
@@ -74,8 +73,9 @@ cross-references.
 > kernel requirement. A kernel-only app may be laid out differently.
 
 One picture before the rules. An expense tracker with four capabilities, written without file extensions
-or a fixed language. The language binding fixes whether a slice is a file or a directory, and whether
-tests colocate or mirror (`[STRUCT-1]`):
+or a fixed language. Whether a slice is a file or a directory depends on the language and on how many
+operations its capability holds (`[BE-1]`, `[GROW-1]`), and whether tests colocate or mirror depends on
+the language (`[STRUCT-1]`):
 
 ```
 expenses/
@@ -113,9 +113,10 @@ Everything in it is one of five things, which section 3 states as a rule (`[MODE
   through the injected `db` crosscut. An adapter appears when a slice declares a port and something else
   implements it, such as a generated persistence package or an external-system client (`[MODEL-4]`).
 
-There is no `handlers`, no `services`, no `repositories`, and no `utils`. That is a
-[`PRODUCTION.md`](./PRODUCTION.md#_6-forbidden-buckets-bucket) rule (`[BUCKET-1]`). It is one of the
-clearest cases of a policy that is good engineering whether or not an agent writes the code.
+There is no `handlers`, no `services`, no `repositories`, and no `utils`. That is
+[`PRODUCTION.md`](./PRODUCTION.md#_6-forbidden-buckets-bucket) policy: `[MODEL-2]` forbids naming a
+package for its technical role, and `[BUCKET-1]` forbids the generic buckets. It is one of the clearest
+cases of a policy that is good engineering whether or not an agent writes the code.
 
 ---
 
@@ -158,8 +159,9 @@ document publishes the split *signal*, and `SYSTEM.md` consumes it. The dependen
 
 Defined once in
 [`CONVENTIONS.md`](./CONVENTIONS.md#the-operating-model-agents-write-humans-review-agent), because it is
-cross-cutting to every document in this set. Three rules state it: `[AGENT-1]`, `[AGENT-2]`
-flag-don't-guess, and `[AGENT-3]` intent-over-letter. In one line: deterministic placement, a bounded
+cross-cutting to every document in this set. The `[AGENT-*]` rules state it, among them `[AGENT-2]`
+flag-don't-guess, `[AGENT-3]` intent-over-letter, and `[AGENT-4]`, which reserves exceptions and
+extensions for a human. In one line: deterministic placement, a bounded
 amount of code affected per change, slice-sized context, and self-verifiable contracts exist because
 **agents write and humans review**.
 
@@ -390,8 +392,9 @@ This repository enforces its **own** consistency at build time, in four groups:
 
 - Each rule is **classified**: exactly one enforcement class, exactly one ownership layer, and one
   architectural scale. Kernel membership is read only from `CONVENTIONS.md`'s kernel block. Every other
-  rule is tagged on its own definition line against a registered profile. Scale is read from the
-  registered document the rule is stated in.
+  rule carries one ownership tag on its own definition line, naming a registered layer and, for an app
+  profile or language binding, a registered profile. Scale is read from the registered document the rule
+  is stated in.
 - Each document is **complete and honestly scoped**. Every `[auto]` and `[review]` rule appears in its
   Agent Execution Contract. A contract marks its opt-in groups, so it cannot present a profile-scoped
   rule as unconditional. No opt-in rule is defined in a
@@ -400,15 +403,17 @@ This repository enforces its **own** consistency at build time, in four groups:
   reaches a real anchor.
 - The **published set is stable**. No rule ID is removed or silently reclassified. The generated
   [rule index](./rules.md) still matches the registry it indexes. The worked `CORAL.md` in
-  `CONVENTIONS.md` still resolves through the applicability resolver. Every worked example declares the
-  latest released Coral version.
+  `CONVENTIONS.md`, the template in `templates/CORAL.md`, and the example project's `CORAL.md` still
+  resolve through the applicability resolver, and the example project's committed contract still matches
+  the generator. Every worked example page states the latest released Coral version it was written
+  against.
 
 Malformed metadata fails the build rather than being skipped. A skipped rule is one that leaves a layer
 without the page changing, so the page still reads correctly while the classification is wrong.
 
 **Where the decidable reading of each `[auto]` rule is.** Every `[auto]` rule Coral publishes at app
-scale belongs to the production baseline or to an app profile, so what each one decides is stated with
-those rules. [`PRODUCTION.md`](./PRODUCTION.md#enforcement-of-the-baseline) carries it for the baseline.
+scale belongs to the production baseline, to an app profile, or to the `[VER-*]` rules in
+`CONVENTIONS.md`, so what each one decides is stated with those rules. [`PRODUCTION.md`](./PRODUCTION.md#enforcement-of-the-baseline) carries it for the baseline.
 An appendix's `[auto]` rules carry theirs in the rule definitions. This document's own rules are all
 `[review]`. Their gate is the human architectural review the operating model already assumes.
 
@@ -435,22 +440,7 @@ crosscut-vs-bucket judgments, and state-ownership disputes. A reviewer may use a
 
 ## Document Set
 
-- **[`CONVENTIONS.md`](./CONVENTIONS.md)**: the shared crosscut. It holds the vocabulary, the rule-ID
-  scheme, the enforcement classes, the operating model, and the canonical slice. The front door.
-- **`ARCHITECTURE.md`** (this doc): the kernel-facing app spine. It holds the shape of one app and the
-  rules Coral would substantially relax without its operating model.
-- **[`PRODUCTION.md`](./PRODUCTION.md)**: the **optional** production baseline at app scale. It is
-  adopted explicitly (`production-baseline: true`), and never implied by reading this document.
-- **[`appendix/*.md`](#appendix-index)**: one **app profile** per app type, each adopted by name.
-- **[`SYSTEM.md`](./SYSTEM.md)**: the system spine, covering how apps compose over a channel
-  (`[CHAN-*]`, `[ORCH-*]`, `[SYS-TEST-*]`). It builds on this doc, and this doc never cites a system
-  rule.
-- **Worked examples**:
-  - [`examples/cli-slice.md`](./examples/cli-slice.md): two CLI slices in Python, one file each.
-  - [`examples/go-api-slice.md`](./examples/go-api-slice.md): an HTTP slice in Go, one package per
-    capability, with a shared persistence adapter behind a port the slice declares.
-  - [`examples/backend-review.md`](./examples/backend-review.md): the rules applied to a real service,
-    including where they would be overkill.
+The document set is listed once, in reading order, in [`CONVENTIONS.md`](./CONVENTIONS.md#document-set).
 
 ## Appendix Index
 
@@ -488,5 +478,5 @@ once someone has built the thing and the rules survived contact with it.
   app shape. An app of any shape adds it when it calls a model at runtime, so an agentic backend loads
   this *and* `appendix/backend.md`. The model is an injected effect, and the agent runs in a harness.
   **ADDENDUM.** Its safety guardrails hold regardless: harness, untrusted model output, never
-  exact-match, and never float the model identifier. Its construction advice is provisional, and one slot
-  is open pending a decision.
+  exact-match, never float the model identifier, and per-action replay protection. Its construction
+  advice is provisional, and one slot is open pending a decision.
