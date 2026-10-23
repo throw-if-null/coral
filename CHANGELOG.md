@@ -407,6 +407,16 @@ The rule sentence said "Three LLM-specific hazards" above four bullets, while it
 slot summary already said four. The sentence now says four. The contract line is unchanged, so `rules.md`
 is unchanged. The enforcement class stays `[review]`, and `rules.lock` is unchanged.
 
+**`[AGENTIC-11]`'s harness-safety layer asserts the risk-gated policy `[AGENTIC-5]` requires, not a
+blanket gate on irreversible actions. Clarified, minor under `[VER-2]`; the working version stays
+`0.7.0`.**
+
+The third test layer read "that irreversible actions gate", which tests the blanket gate `[AGENTIC-5]`
+rejects: that rule gates by risk against an explicit policy, and an action inside the policy's bounds
+proceeds. The layer now asserts that an action outside the policy's bounds, or unclassified by it,
+escalates while one inside them proceeds. The contract line is unchanged, so `rules.md` is unchanged.
+The enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

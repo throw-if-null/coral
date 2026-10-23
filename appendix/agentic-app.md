@@ -262,8 +262,8 @@ are specific to this app type:
    gating, and tool-wiring are plain pure or behavior tests.
 2. **Agent behavior, by conformance and evals.** Assert that the output satisfies the schema
    (`[AGENTIC-4]`). Eval suites and **LLM-as-judge** grade quality. **Never exact-match** on model text.
-3. **Harness safety.** Assert that dangerous tools are denied, that irreversible actions gate, and that
-   every action is observed.
+3. **Harness safety.** Assert that dangerous tools are denied, that an action outside the policy's bounds
+   or unclassified by it escalates while one inside them proceeds, and that every action is observed.
 
 ## Agentic-app slot summary
 
