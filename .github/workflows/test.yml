@@ -1,0 +1,82 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        # Naming bash enables pipefail, so the tee in the test step cannot mask a failing go test.
+        shell: bash
+        working-directory: examples/go-api-slice
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          # The container exists for this job only. The password protects nothing.
+          POSTGRES_PASSWORD: coral
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h localhost -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          # Action inputs resolve from the repository root. working-directory applies to run steps only.
+          go-version-file: examples/go-api-slice/go.mod
+          cache-dependency-path: examples/go-api-slice/go.sum
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt would change these files:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: Check go.mod and go.sum are tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: Test
+        env:
+          DATABASE_URL: postgres://postgres:coral@localhost:5432/postgres?sslmode=disable
+        run: |
+          go test -v ./... 2>&1 | tee "$RUNNER_TEMP/go-test.log"
+          # The Postgres tests skip, and pass, when DATABASE_URL does not reach a server.
+          # A skip here means the service wiring is broken, so it fails the job.
+          if grep -q -- '--- SKIP' "$RUNNER_TEMP/go-test.log"; then
+            echo "::error::a test skipped; every test must run in CI"
+            exit 1
+          fi
