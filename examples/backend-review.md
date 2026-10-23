@@ -1,6 +1,10 @@
 # Worked example: reviewing a real backend microservice
 
 > Written against **Coral 0.6.0**.
+>
+> **"Written against" names the latest *released* Coral.** The `system`-scale conditions below rest on
+> `[VER-6]`'s scale declaration, which is **unreleased** and ships in 0.7.0. Delete this note when 0.7.0
+> is cut.
 
 The fastest way to understand Coral is to read it applied to a *real* service rather than a toy. This is
 a condensed review of a production-shaped Go microservice against the Coral rules. The service is an
@@ -27,7 +31,7 @@ A well-built service on a good framework satisfies much of Coral before anyone s
   once, injected, never reached for. `[XCUT-3]` `[STATE-2]`
 - **A published channel contract.** A `client` package of typed events and subjects that *other*
   services import to emit audit events. That is a published capability. `[CONTRACT-1]`, and `[CHAN-1]`
-  where the repository declares `system` scale
+  where the repository adopts the production baseline at `system` scale
 - **Trust at the edge.** Middleware resolves identity and validates tenant, user, board and a permission
   *before* the handler runs. Every query is tenant-scoped. `[BE-6]` `[TRUST-1]`
 - **Read-only verbs** and **behavior-first tests** against a real database. `[IDEM-2]` `[TEST-1]`
@@ -53,8 +57,8 @@ never redelivered.
 The fix is a durable consumer with explicit ack, acking only *after* the write, which makes ingestion
 at-least-once. That in turn triggers `[IDEM-5]` and `[BE-4]`: a handler the platform redelivers **must
 be idempotent**, so the write becomes a dedupe or upsert keyed on the source event id. `[CHAN-5]` states
-the same requirement for the consumer of a channel, and binds where the repository declares `system`
-scale. A sibling handler in the same service already did the idempotent upsert. The correct pattern
+the same requirement for the consumer of a channel, and binds where the repository adopts the production
+baseline at `system` scale. A sibling handler in the same service already did the idempotent upsert. The correct pattern
 existed and was applied unevenly, which is the drift a named rule prevents.
 
 ### 2. Errors were ad-hoc and sometimes swallowed — `[ERR-1]`–`[ERR-3]`
@@ -75,20 +79,20 @@ Coral is not a mandate to rewrite:
   slice, or a shared package defines the API and it is the layer `[STATE-2]` forbids. This review did not
   record the direction, so it cannot claim either. It is the first thing to check on a re-audit.
 - **Re-slicing by capability** at roughly 2.4k LOC and five capabilities would be marginal. The layered
-  layout is navigable, and `[SCOPE-1]` and `[GROW-1]` explicitly say to start small and not to
-  reorganize a working small service for purity.
+  layout is navigable at this size, and `[GROW-1]` says to start small. The layout still diverges from
+  `[MODEL-2]`, so keeping it is handled like the `[BUCKET-1]` finding below: reported, and recorded as an
+  exception with a `revisit_when` if the team keeps it (`[VER-5]`).
 - Near-identical mapping in two read handlers is the *tolerable* duplication that `[DUP-1]` sanctions.
 
 ## Where the rule is violated and the owner is unclear — `[BUCKET-1]`
 
-`models` and `utils` are a real `[BUCKET-1]` violation. An earlier version of this review got that wrong,
-and the error is kept on the page deliberately. It said renaming "would be cosmetic" and moved on.
-`[BUCKET-1]` is `[auto]`, which is a blocking gate. An official example passing it taught the opposite of
-what the rule set intends: that a deterministic rule is negotiable whenever compliance looks like tidying.
-An agent that reads this page should not learn that.
+`models` and `utils` are a real `[BUCKET-1]` violation. Calling the rename "cosmetic" and moving on is the
+wrong reading. `[BUCKET-1]` is `[auto]`: deterministic analysis decides it, and passing it would teach the
+opposite of what the rule set intends, that a deterministic rule is negotiable whenever compliance looks
+like tidying. An agent that reads this page should not learn that.
 
 The true statement is narrower, and it is two separate claims. The rule **is** violated: the names are on
-the forbidden list and the check fails. Strict compliance also has **uncertain architectural value here**,
+the forbidden list, so the rule's decidable reading fails. Strict compliance also has **uncertain architectural value here**,
 because the correct owner cannot be read off the repository. The types in `models` are used by more than
 one capability, so moving them into any single one invents a boundary that the current code does not
 establish.
@@ -127,7 +131,9 @@ structural findings is the one cited later as proof the architecture was optiona
 
 ## What this also proves
 
-Beyond the findings, the exercise tests the architecture's *vocabulary*. Every part of a real service
-landed in one of the five categories (`[MODEL-1]`) without strain: slices, crosscuts, adapters, a
-composition root, published contracts, and the channel between services. The words fit a system nobody
-here designed, which is evidence the model is doing real work.
+Beyond the findings, the exercise tests the architecture's *vocabulary*. Every part of a real service had
+a name in it: slices, crosscuts, a composition root, published contracts, and the channel between
+services. The parts that fit none of the five categories (`[MODEL-1]`) are the ones this review reports:
+`models` and `utils` are forbidden buckets, and `store` is an adapter or a repository layer depending on
+a direction the review did not record. The words fit a system nobody here designed, which is evidence the
+model is doing real work.

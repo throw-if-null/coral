@@ -8,9 +8,10 @@
 > production-baseline rule that fixes those six names. The project's `CORAL.md` targets `0.7.0`,
 > because the contract generator first ships there. Delete this note when 0.7.0 is cut.
 
-The [CLI example](./cli-slice) shows a slice in a language that imposes nothing, so each slice is one
-file. This one is in Go, where import cycles and single-package code generation shape the tree. It is **a
-complete Coral slice, built and tested**: one read endpoint wired through, with its tests and the
+The [CLI example](./cli-slice) shows a slice in a language that imposes nothing: each slice is one file
+that writes its own SQL, and there is no adapter. This one is in Go. The slice is also one file, and
+import cycles and single-package code generation shape the tree around it. It is **a complete Coral
+slice, built and tested**: one read endpoint wired through, with its tests and the
 crosscuts it uses. The code is an executable project at
 [`examples/go-api-slice/`](https://github.com/throw-if-null/coral/tree/main/examples/go-api-slice),
 and this page excerpts it. Every Go and SQL fence below is a verbatim excerpt of a project file, and
@@ -18,7 +19,10 @@ the build fails when one is not. The [third example](./backend-review) goes the 
 *reviews* a real service for where it drifts.
 
 The example is deliberately tiny: one slice, two roots, and the crosscuts a second slice would share.
-It shows the N-slice shape at N=1, and the shape stays the same as the service grows.
+It shows the N-slice shape at N=1, and the shape stays the same as the service grows. A first slice
+elsewhere keeps such logic inline until a second consumer appears (`PRODUCTION.md` § 21). A backend sets
+these up from its first slice: `[BE-3]` names the pool, the config and the error type among its
+crosscuts, `[CONFIG-1]` makes configuration one, and `[BE-6]` puts authentication in root middleware.
 
 The capability: **fetch one document, scoped to the caller's tenant.** `GET /v1/documents/{id}`. The
 `/v1` prefix is the API versioning strategy, the URL prefix `[BE-7]` defaults to, and the project's
@@ -27,15 +31,16 @@ writes it down.
 
 ## The shape
 
-A capability is one **slice**, in one package, plus the **crosscuts** it uses and the **adapter** that
-implements its persistence port. Two **roots** wire the same packages: one serves, one migrates.
+A capability is one package holding one slice per operation; this one holds one **slice**, `get.go`, plus
+the **crosscuts** it uses and the **adapter** that implements its persistence port. Two **roots** wire the
+same packages: one serves, one migrates.
 
 ```text
 cmd/
   api/main.go          ← the root that serves: config, crosscuts, adapter, slice; then runs
   migrate/main.go      ← the root that migrates: applies the migrations the slice package defines
 internal/
-  document/            ← the slice: body and HTTP edge of one capability, in one package
+  document/            ← the capability's package: its one slice, get, and what its operations share
     document.go        ←   the entity, the Store port, the migrations it owns, Register
     get.go             ←   the get operation: body (Get) and edge (getHandler)
     get_test.go        ←   behavior tests at the HTTP boundary, against an in-memory Store
@@ -54,8 +59,9 @@ internal/
 ```
 
 The dependency arrows point one way: `store → document → errs, reqctx`. The slice imports no `pgx`,
-the adapter imports the slice's port, and the roots import all of them in order to wire them. `db`
-and `config` are consumed by the two roots and by no slice.
+the adapter imports the slice's port, the API root imports all of them in order to wire them, and the
+migrate root imports `config`, `db` and `document`. `db` and `config` are consumed by the two roots and
+by no slice.
 
 `[BE-1]` names the slice for the singular capability plus its effect verb, `document/get`, and makes it a
 file inside the capability's package while the capability holds one operation. This package holds one,
@@ -64,8 +70,8 @@ package of its own under `document/`.
 
 ## The crosscuts
 
-Errors are a **crosscut** (`[XCUT-3]`, `[ERR-1]`): one small model, declared once, raised by slices,
-rendered by the root. `[ERR-3]` states the division: *slices raise, the root renders, nothing else
+Errors are a **crosscut** (`[XCUT-3]`, `[BE-3]`): one small model, declared once (`[ERR-1]`), raised by
+slices, rendered by the root. `[ERR-3]` states the division: *slices raise, the root renders, nothing else
 renders.*
 
 **This model is three categories, not Coral's recommended six.** `[ERR-1]` asks for one small, stable,
@@ -76,7 +82,8 @@ like.
 
 [`internal/errs/errs.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/internal/errs/errs.go)
 declares the categories, the error slices raise, and two constructors. `code` is a parameter of both,
-so every code is minted by the slice that raises it (`[ERR-2]`):
+so every code a slice raises is minted by that slice (`[ERR-2]`). The one code no slice mints is
+`unhandled`, which the handler below assigns to an error that bypassed the model:
 
 ```go
 // Category is one of the app's declared error categories. The set is closed: adding a
@@ -207,8 +214,9 @@ There is no `403` path. Every verified tenant may call `GET /v1/documents/{id}`,
 authorization has nothing to decide. Resource-level authorization is the scoped query, below.
 
 Two more crosscuts serve the roots. `config` resolves and validates every setting the app reads
-(`[CONFIG-1]`, `[CONFIG-3]`); both roots consume it, which is the second consumer `[XCUT-1]` asks
-for. `db` owns the connection pool and runs migrations, and is described with the schema below.
+(`[CONFIG-1]`, `[CONFIG-3]`), and both roots consume it. It is a crosscut because `[CONFIG-1]` makes
+configuration one, not by `[XCUT-1]`'s count, which is of slices. `db` owns the connection pool and runs
+migrations, and is described with the schema below.
 
 ## The slice
 
@@ -355,8 +363,8 @@ CREATE TABLE documents (
 ```
 
 The `db` crosscut runs them. It is the small, precisely named crosscut `PRODUCTION.md` § 11 allows
-for connection management, pooling, and migration execution: it owns the pool and the
-`schema_migrations` ledger, and it holds no query of any capability and defines no schema
+for connection management, pooling, and migration execution: it owns the pool and its own
+`schema_migrations` ledger, and it holds no query of any capability and defines no capability's schema
 (`[STATE-1]`, `[STATE-2]`). `Migrate` takes one `Set` per owning package, applies each file the
 ledger does not record in one transaction with its record, and returns what it applied.
 [`internal/db/db.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/internal/db/db.go):
@@ -701,8 +709,9 @@ on the published surface of the one below it (`[MODEL-4]`, `[COMPOSE-1]`).
 The capability is one package, `document`, holding body and edge. Nothing in Go forces a split between
 them: a body and an HTTP handler compile in one package, and keeping the body free of `fiber` is a
 dependency choice, not a language constraint. `[MODEL-2]` permits banding within a capability only
-where the language or its tooling forces it, so the default is the unflagged one package. A project that
-splits the edge into `internal/document/httpapi/` has introduced banding and flags it (`[AGENT-2]`).
+where the language or its tooling forces it, so the default is the unflagged one package. Splitting the
+edge into `internal/document/httpapi/` is banding Go does not force, which `[MODEL-2]` does not permit. An
+agent flags it (`[AGENT-2]`), and a team that keeps it records an exception (`[VER-5]`).
 
 Two Go facts do shape the tree. They justify the adapter and the one-way arrows, not a layer:
 
@@ -716,7 +725,7 @@ Two Go facts do shape the tree. They justify the adapter and the one-way arrows,
 A shared `store` package is what `[STATE-2]` forbids, unless the **interface ownership points the
 other way**. That inversion is what this tree does:
 
-- `document.Store` is declared **by the slice**, in the slice's package, listing only the arguments and
+- `document.Store` is declared **by the capability**, in its package, listing only the arguments and
   the one method *this* capability needs.
 - `store.PG` **implements** the slice's interface. The dependency arrow runs `store → document`. The
   slice imports nothing from `store`.
@@ -739,7 +748,7 @@ migrations live in `document` (`[STATE-5]`).
 
 | Category | Here |
 |---|---|
-| **slice** | `document`: one capability in one package, holding the body (`Get`), the HTTP edge (`getHandler`), and the migrations of the table it owns |
+| **slice** | `document/get`, the file `get.go` in package `document`: the body (`Get`) and the HTTP edge (`getHandler`). The package also holds what its operations share, including the migrations of the table it owns (`[STATE-5]`) |
 | **adapter** | `store`, which implements the slice-declared `Store` interface, injected at the root (`[MODEL-4]`) |
 | **published contract** | the exported `Get`, the `Document` type, the `Store` interface, and the typed `errs` it raises. That is all another slice may depend on |
 | **crosscuts** | `errs` (the error model and its rendering) and `reqctx` (caller identity), consumed by the slice; `db` (pool and migrations) and `config` (settings), consumed by the roots |
@@ -750,17 +759,18 @@ with the test files, outside the table.
 
 ## Scaling up (what a write adds)
 
-A mutating endpoint keeps this shape and adds three things, all in the edge, leaving the body pure:
+A mutating endpoint keeps this shape and adds three things. The edge owns the unit of work and the
+effects, and the body stays free of transport:
 
 - the **transaction boundary**. The edge does `Begin`, `Commit` and `Rollback`, and passes the `tx`
   into the body, so the unit of work is owned where the request is.
-- **composition**. `document.Create` can call sibling slices such as `folder.AddChild` over their
-  published functions, all on the same `tx`, so a multi-entity operation is one atomic change
+- **composition**. The body, `document.Create`, can call another capability's published functions, such
+  as `folder.AddChild`, all on the same `tx`, so a multi-entity operation is one atomic change
   (`[COMPOSE-1]`).
 - **effects**. Emitting an event or an audit log happens in the edge after commit, not inside the body
   (`[EFFECT-2]`). The body returns the before and after data the edge needs for it.
 
-## What this avoids (the anti-patterns from the review example)
+## What this avoids
 
 - Error rendering scattered across handlers, or placed in a `utils` package. Here slices return errors,
   and the root registers the one handler that renders them (`[ERR-3]`, `[BE-5]`, `[XCUT-3]`).
