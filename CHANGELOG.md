@@ -259,7 +259,9 @@ forces one capability across packages, while `[MODEL-4]` classifies the generate
 an adapter and the Go example keeps the capability in one package. The commentary now states that those
 pressures force no band: they produce a shared adapter behind the ports the slices declare and one-way
 arrows, and the capability stays one package. The pointer to `examples/go-api-slice.md` names that
-shape. The rule sentence, the contract line, `rules.lock`, and `rules.md` are unchanged.
+shape. `[MODEL-4]`'s commentary states the reason the adapter category exists and names the example's
+`store` package as that category, without the history of how the example once described it. The rule
+sentences, the contract lines, `rules.lock`, and `rules.md` are unchanged.
 
 **`[BE-1]` states the slice's unit: a directory where the language's package is a directory and the
 capability holds more than one operation, and a file inside the capability's package otherwise.

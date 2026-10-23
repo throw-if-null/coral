@@ -118,11 +118,10 @@ re-implement locally, has lost the property that made it worth having, and its c
 infrastructure-specific mechanics, depends inward on the interface it satisfies, is wired by the
 composition root, and owns no application behavior.
 
-This category exists because the alternative was a false claim. A generated persistence package, an
+This category exists because the alternative is a false claim. A generated persistence package, an
 external-system client, and a broker binding own no capability and carry no must-not-diverge invariant.
-Calling them buckets would forbid the one shape that makes code-generated persistence work at all.
-[`examples/go-api-slice.md`](./examples/go-api-slice.md) had to describe its `store` package as
-"deliberately not in this table", which was the missing category made visible.
+Calling them buckets would forbid the one shape that makes code-generated persistence work. The `store`
+package in [`examples/go-api-slice.md`](./examples/go-api-slice.md) is this category.
 
 **Direction of interface ownership is the whole test**, and it is the same one `[STATE-2]` states. The
 slice declares the interface, listing only the operations *this* capability uses. The adapter implements
