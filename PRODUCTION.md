@@ -565,8 +565,11 @@ reached through several calls is a `[review]` concern.
 
 **`[IDEM-3]` `[review]` `{baseline}`** — Do not change a non-idempotent operation's effect to an
 idempotent one without renaming it, because names must signal behavior truthfully. A dedupe or
-idempotency key that `[IDEM-5]` requires or `[BE-4]` offers makes the handler a safe no-op on repeat and
-changes neither the operation's effect nor its name.
+idempotency key that `[IDEM-5]` requires makes the handler a safe no-op on repeat and changes neither the
+operation's effect nor its name.
+
+A profile may offer a key where the platform does not redeliver, as `[BE-4]` does for a synchronous
+`POST`, and the same reading applies.
 
 **`[IDEM-4]` `[review]` `{baseline}`** — Non-idempotent mutations must not be retried automatically.
 
@@ -833,7 +836,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 ### Semantics & effects
 - `[IDEM-1]` The name signals the effect, and the implementation matches it.
 - `[IDEM-2]` A read-named slice contains no write or mutation call, including a cache write.
-- `[IDEM-3]` Do not change a non-idempotent operation's effect to an idempotent one without renaming it. A dedupe or idempotency key (`[IDEM-5]`, `[BE-4]`) changes neither its effect nor its name.
+- `[IDEM-3]` Do not change a non-idempotent operation's effect to an idempotent one without renaming it. A dedupe or idempotency key (`[IDEM-5]`) changes neither its effect nor its name.
 - `[IDEM-4]` Never auto-retry a non-idempotent mutation.
 - `[IDEM-5]` On an at-least-once platform, a mutating handler must be idempotent.
 - `[IDEM-6]` Classify an unlisted verb by its effect and name it truthfully. Flag an unclear effect.

@@ -225,18 +225,19 @@ sentence and the contract line are unchanged, so `rules.md` is unchanged. The en
 `[auto]`, and `rules.lock` is unchanged.
 
 **`[IDEM-3]` governs an operation whose effect changes, and excludes the dedupe or idempotency key that
-`[IDEM-5]` requires and `[BE-4]` offers. Clarified, minor under `[VER-2]`; the working version stays
-`0.7.0`.**
+`[IDEM-5]` requires. Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
 
 The rule read "Do not make a non-idempotent operation behave idempotently without renaming it", while
 `[IDEM-5]` requires a platform-redelivered handler to be idempotent through a key and `[BE-4]` permits
 one on a synchronous `POST`. A keyed `create` handler behaves idempotently per key, so satisfying
 `[IDEM-5]` or `[BE-4]` read as a violation of `[IDEM-3]`, and `[IDEM-1]`'s table has no name for it.
-The rule and its contract line now state that the key makes the handler a safe no-op on repeat and
-changes neither the operation's effect nor its name, and that `[IDEM-3]` governs an operation whose
-effect changes. `[IDEM-5]`'s commentary names `[IDEM-3]` beside `[IDEM-4]` as what the key reconciles.
-`rules.md` carries the new contract line. The enforcement class stays `[review]`, and `rules.lock` is
-unchanged.
+The rule and its contract line now state that the key `[IDEM-5]` requires makes the handler a safe no-op
+on repeat and changes neither the operation's effect nor its name, and that `[IDEM-3]` governs an
+operation whose effect changes. The commentary states that a profile may offer a key where the platform
+does not redeliver, as `[BE-4]` does for a synchronous `POST`, and that the same reading applies.
+`[IDEM-5]`'s commentary names `[IDEM-3]` beside `[IDEM-4]` as what the key reconciles, and
+`appendix/cli.md`'s restatement of `[IDEM-3]` carries the new reading. `rules.md` carries the new
+contract line. The enforcement class stays `[review]`, and `rules.lock` is unchanged.
 
 **`[STATE-2]`'s decidable reading states the direction of interface ownership, and `[BUCKET-1]`'s names
 every bucket the rule names. Patch-level: two rows of the enforcement table in `PRODUCTION.md`. No rule

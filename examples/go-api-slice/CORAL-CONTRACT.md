@@ -71,7 +71,7 @@ not because they are inapplicable. Their reasoning lives in the Coral documents.
 - `[GROW-3]` Treat domain densification as a split signal, not a refactor-into-a-shared-core signal.
 - `[IDEM-1]` The name signals the effect, and the implementation matches it.
 - `[IDEM-2]` A read-named slice contains no write or mutation call, including a cache write.
-- `[IDEM-3]` Do not change a non-idempotent operation's effect to an idempotent one without renaming it. A dedupe or idempotency key (`[IDEM-5]`, `[BE-4]`) changes neither its effect nor its name.
+- `[IDEM-3]` Do not change a non-idempotent operation's effect to an idempotent one without renaming it. A dedupe or idempotency key (`[IDEM-5]`) changes neither its effect nor its name.
 - `[IDEM-4]` Never auto-retry a non-idempotent mutation.
 - `[IDEM-5]` On an at-least-once platform, a mutating handler must be idempotent.
 - `[IDEM-6]` Classify an unlisted verb by its effect and name it truthfully. Flag an unclear effect.
