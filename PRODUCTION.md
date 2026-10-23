@@ -562,8 +562,10 @@ Route a derived-state write to a set- or event-named handler (`[STATE-4]`). The 
 A read-named slice module that calls an insert, update, delete, or write API fails. Deeper mutation
 reached through several calls is a `[review]` concern.
 
-**`[IDEM-3]` `[review]` `{baseline}`** — Do not make a non-idempotent operation behave idempotently
-without renaming it, because names must signal behavior truthfully.
+**`[IDEM-3]` `[review]` `{baseline}`** — Do not change a non-idempotent operation's effect to an
+idempotent one without renaming it, because names must signal behavior truthfully. A dedupe or
+idempotency key that `[IDEM-5]` requires or `[BE-4]` offers makes the handler a safe no-op on repeat and
+changes neither the operation's effect nor its name.
 
 **`[IDEM-4]` `[review]` `{baseline}`** — Non-idempotent mutations must not be retried automatically.
 
@@ -572,9 +574,9 @@ platform itself redelivers, as queues, webhooks, GitHub Action reruns and cron r
 with mutating effects **must** be idempotent, via an idempotency key or a natural dedupe key, because you
 do not control the retry.
 
-This is a hard requirement for those app types, not advice. It is also what reconciles `[IDEM-4]` with
-reality. The key makes the *handler* a safe no-op on redelivery even when the underlying operation is
-non-idempotent.
+This is a hard requirement for those app types, not advice. It is also what reconciles `[IDEM-3]` and
+`[IDEM-4]` with reality. The key makes the *handler* a safe no-op on redelivery even when the underlying
+operation is non-idempotent, so the operation keeps its name.
 
 **`[IDEM-6]` `[review]` `{baseline}`** — If a needed verb is not in the `[IDEM-1]` table, classify it by
 its effect (read-only / idempotent-set / non-idempotent), pick a name that signals that effect, and
@@ -830,7 +832,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 ### Semantics & effects
 - `[IDEM-1]` The name signals the effect, and the implementation matches it.
 - `[IDEM-2]` A read-named slice contains no write or mutation call, including a cache write.
-- `[IDEM-3]` Do not make a non-idempotent operation idempotent without renaming it.
+- `[IDEM-3]` Do not change a non-idempotent operation's effect to an idempotent one without renaming it. A dedupe or idempotency key (`[IDEM-5]`, `[BE-4]`) changes neither its effect nor its name.
 - `[IDEM-4]` Never auto-retry a non-idempotent mutation.
 - `[IDEM-5]` On an at-least-once platform, a mutating handler must be idempotent.
 - `[IDEM-6]` Classify an unlisted verb by its effect and name it truthfully. Flag an unclear effect.
