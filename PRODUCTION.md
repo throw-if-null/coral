@@ -401,7 +401,7 @@ cached score, is an idempotent-set effect (`[IDEM-1]`). On a redelivering platfo
 `refresh` or `recompute` slice, or an `on_change` handler. It does **not** belong to a read-named slice.
 A `show` or `GET` reads the cached value and never writes it, which keeps `[IDEM-2]` satisfied.
 
-**`[STATE-5]` `[review]` `{baseline}`** — Every table, file, or bucket is owned by **exactly one feature
+**`[STATE-5]` `[review]` `[auto]` `{baseline}`** — Every table, file, or bucket is owned by **exactly one feature
 package**, and its schema is defined **once** inside that package. Slices in the owning package reach it
 directly. Any slice outside the package goes through the owner's published capability (`[COMPOSE-1]`).
 
