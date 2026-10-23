@@ -34,7 +34,9 @@
 // is still rationale rather than instruction — it appears in no Agent Execution
 // Contract and is never reported as a violation. An execution contract carries
 // instructions, so guides are filtered out, using the rule model's own definition of
-// normative (`isNormative`) rather than a class list spelled out again here.
+// normative (`isNormative`) rather than a class list spelled out again here. The
+// preamble's governance sentence reads the model the same way: which rules sit on the
+// governance surface comes from `scope.surface`, never from an ID list here.
 //
 // Two shapes the output deliberately does NOT have:
 //
@@ -58,7 +60,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { ADHERENCE_FILE, ROOT_PATH, loadApplicability } from './applicability.mjs'
-import { extractStatements, isNormative, loadRuleModel } from './rules.mjs'
+import { GOVERNANCE, extractStatements, isNormative, loadRuleModel, wrap } from './rules.mjs'
 
 /** The file a consuming project generates into its root. */
 export const CONTRACT_FILE = 'CORAL-CONTRACT.md'
@@ -112,6 +114,21 @@ export function isGeneratedContract(text) {
 
 /** The npm script a project runs, quoted in the generated header so the file says how to redo it. */
 export const GENERATE_COMMAND = 'npm run contract:generate'
+
+/**
+ * The one framework-governance rule an agent needs mid-task: it sends the agent to the
+ * adherence record before it escalates (CONVENTIONS.md, "The layers do not stack into one
+ * list"). The preamble restates it, in the rule's own words, because the governance layer is
+ * never selected and the rule would otherwise be absent from the one file an agent loads.
+ */
+const AGENT_READS_RECORD = 'AGENT-5'
+
+/** `[A]`, `[B]` and `[C]` — rule IDs as inline code, in running prose. */
+function listIds(ids) {
+  const code = ids.map((id) => `\`[${id}]\``)
+  if (code.length <= 1) return code.join('')
+  return `${code.slice(0, -1).join(', ')} and ${code[code.length - 1]}`
+}
 
 // The decision fields an exception may carry, in the order they are rendered, with the
 // label each gets. Only these, and only when present: the record's own vocabulary is
@@ -395,6 +412,29 @@ export function executionContract({ model, resolution, statements } = {}) {
   const scales = [...resolution.scales].sort()
   const adopts = adoptionSummary(resolution.adopted)
 
+  // ── the governance ground ─────────────────────────────────────────────────
+  //
+  // Framework governance is never in `selected`: the layer cannot be adopted, so the
+  // resolver never offers it (selectableScopes()). Left unsaid, the sentence that explains
+  // an absent `[auto]` or `[review]` rule would cover these too and read as "does not
+  // apply", for rules that bind the agent mid-task. The IDs come from the model's own
+  // surface classification, as `isNormative` does above, not from a list here.
+  const governance = [...model.rules]
+    .filter(([, rule]) => rule.scope?.surface === GOVERNANCE && isNormative(rule))
+    .map(([id]) => id)
+    .sort(compareRuleIds)
+  const governanceGround = []
+  if (governance.length) {
+    governanceGround.push(
+      'Framework governance is the exception: its rules bind how this project relates to Coral,' +
+        ` not its source, and that layer cannot be adopted, so this file omits ${listIds(governance)}.`
+    )
+    const reads = statements?.get(AGENT_READS_RECORD)?.trim()
+    if (governance.includes(AGENT_READS_RECORD) && reads) {
+      governanceGround.push(`\`[${AGENT_READS_RECORD}]\` still instructs the agent: ${reads}`)
+    }
+  }
+
   // ── the document ──────────────────────────────────────────────────────────
   const out = [
     CONTRACT_HEADING,
@@ -424,15 +464,17 @@ export function executionContract({ model, resolution, statements } = {}) {
     `- Scales: ${scales.map((s) => `\`${s}\``).join(', ')}`,
     `- Adopts: ${adopts.length ? adopts.join(', ') : 'nothing beyond the kernel'}`,
     '',
-    // Two different reasons a Coral rule can be missing from this file, and collapsing them
-    // into one sentence makes the document lie. A rule outside the project's selection is
-    // INAPPLICABLE. A `[guide]` may sit squarely inside an adopted scope and is omitted
-    // because it is NOT NORMATIVE — the distinction the generator is built on, so the
-    // generated prose has to carry it too.
+    // Three reasons a Coral rule can be missing from this file, and collapsing them into one
+    // sentence makes the document lie. A rule outside the project's selection is
+    // INAPPLICABLE. A framework-governance rule is NEVER SELECTED, because its layer cannot
+    // be adopted, and it binds the project's relation to Coral all the same. A `[guide]` may
+    // sit squarely inside an adopted scope and is omitted because it is NOT NORMATIVE — the
+    // distinction the generator is built on, so the generated prose has to carry it too.
     'This is the complete normative Coral surface of this project: every applicable `[auto]` and',
     '`[review]` rule, stated once. An `[auto]` or `[review]` rule that is not listed here does not',
     'apply to this project — it belongs to a scale, a layer or a profile this project has not',
-    'adopted. `[guide]` rules are left out on different grounds: some of them belong to scopes this',
+    ...wrap(['adopted.', ...governanceGround].join(' '), 95),
+    '`[guide]` rules are left out on different grounds: some of them belong to scopes this',
     'project HAS adopted, and they are omitted because they are rationale rather than instruction,',
     'not because they are inapplicable. Their reasoning lives in the Coral documents.',
     '',

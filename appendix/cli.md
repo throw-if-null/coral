@@ -55,7 +55,8 @@ CLI verb → semantics (the spine's mapping, concretely):
 - `ensure` / `upsert` → idempotent if introduced.
 - a verb not listed here → classify it by effect and name it truthfully. → `[IDEM-6]`
 
-A non-idempotent command must not be made to behave idempotently without renaming. → `[IDEM-3]`
+Do not change a non-idempotent command's effect to an idempotent one without renaming it. A dedupe key
+that `[IDEM-5]` requires changes neither its effect nor its name. → `[IDEM-3]`
 
 ## Error rendering  → `[ERR-1]`
 

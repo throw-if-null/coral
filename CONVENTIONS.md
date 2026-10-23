@@ -137,13 +137,13 @@ expense/add                                    # one slice = one capability
   function run(rawArgs, deps):
     input  = parse(rawArgs)                    # pure
     amount = deps.money.parse(input.amount)    # pure; raises validation/invalid_amount
-    if input.category is empty:
+    if input.category is empty:                # raised; the root renders it
         raise deps.errors.of("validation", "missing_category", "category is required")
 
     record = { amount, category: input.category, date: input.date }   # pure
 
     deps.db.tx(conn => insertExpense(conn, record))   # the one effect, at the edge
-    return Result.ok({ id: record.id, amount, category, date })       # the root renders
+    return Result.ok({ id: record.id, amount, category, date })
 
   test "expense add records and is observable":    # colocated
     out = run(["--amount","12.50","--category","food"], realTempDeps())
@@ -398,16 +398,17 @@ schema too, so it has to be said exactly which version is meant. Coral has two a
 are not interchangeable:
 
 - the **latest released version** is what `VERSION` holds. It moves when a batch is cut, not when a
-  commit lands. The Unreleased section of the changelog covers the interval. **This is the only version
-  a consuming project can target**, because it is the only one that is published and frozen. A worked
-  example or a skill that says *"Written against **Coral x.y.z**"* names this one. The marker tells a
-  reader which Coral the page is good for, and a reader can only pin a release.
+  commit lands. The Unreleased section of the changelog covers the interval. **A consuming project pins
+  this version once a release carries the generator**, because it is the one that is published and
+  frozen. A worked example or a skill that says *"Written against **Coral x.y.z**"* names this one. The
+  marker names a release because a release is frozen; the working version moves until the batch is cut.
 - the **working version** is the rule set the documents in the tree currently describe. Between releases
   that is a successor to `VERSION`, named by the changelog's Unreleased heading, such as
   `## Unreleased — 0.7.0`. Live development docs on `main` therefore describe a version nobody has
   released yet, and a rule that is in them may not be in any release. A `targets:` line in an adherence
-  record is resolved against this one, which is why records kept *inside* this repository may name it and
-  a project outside cannot.
+  record is resolved against this one, so a record kept *inside* this repository names it. Until `0.7.0`
+  is cut, a project that generates its contract from `main` targets it too, and the generator refuses
+  any other target.
 
 When a batch changes no rule, the heading names no version, as a bare `## Unreleased`, and the two are
 the same. **That bare heading is a statement, and it is required.** A changelog with no Unreleased
@@ -624,7 +625,9 @@ untested user.
 
 That is why its `targets` names the version **these documents currently describe**, and not necessarily
 the one in `VERSION`. Between releases those differ, and a record is always resolved against the rule set
-it targets. Your project pins a released version.
+it targets. Your project pins a released version once a release carries the generator. Until `0.7.0` is
+cut, a project that generates its contract from `main` targets the working version, and the generator
+refuses any other target.
 
 What `adopts` and `scales` mean, and how the rule set is composed from them, is in
 [What applies to a project](#what-applies-to-a-project). The short version: the kernel applies without
@@ -641,8 +644,8 @@ slice needs this"* or *"when we split the shared datastore"* is a trigger someon
 
 The worked examples and the audit skill each state the **latest released** Coral they were written
 against, which is the cheapest available test that this convention is usable. A page that already
-implements a rule from the unreleased working version says so in prose rather than declaring a version
-nobody can pin.
+implements a rule from the unreleased working version says so in prose rather than moving its marker to
+a version that is not yet cut.
 
 ---
 
@@ -1449,13 +1452,18 @@ What the contract contains:
 What it does not contain matters as much. A rule from a scale, a layer or a profile the project has not
 adopted leaves **no trace at all**: no rule, no heading, and no "backend: not selected" line.
 
-`[guide]` rules are absent for a different reason, and the generated prose keeps the two apart rather
-than collapsing them. *Applicable* and *normative* are not one question. A guide can belong to a scope
-the project has adopted and still be omitted, because it is rationale rather than instruction and is
-never reported as a violation. The contract therefore says that an `[auto]` or `[review]` rule missing
-from it does not apply, which is a claim about the classes it lists. It says separately that guides are
-left out on the other ground. "Every Coral rule missing from this file is inapplicable" would be false,
-and false about the distinction the file is built on.
+Framework-governance rules and `[guide]` rules are absent for different reasons, and the generated prose
+keeps the three grounds apart rather than collapsing them. A framework-governance rule is never selected,
+because the layer cannot be adopted: it binds how the project relates to Coral, not its source. The
+contract names its `[auto]` and `[review]` rules as omitted on that ground and states that `[AGENT-5]`
+still instructs the agent to read `CORAL.md` before escalating
+([The layers do not stack into one list](#the-layers-do-not-stack-into-one-list)). *Applicable* and
+*normative* are not one question either. A guide can belong to a scope the project has adopted and still
+be omitted, because it is rationale rather than instruction and is never reported as a violation. The
+contract therefore says that an `[auto]` or `[review]` rule missing from it does not apply, which is a
+claim about the classes it lists and the layers a project can adopt. It says separately that governance
+rules and guides are left out on the other grounds. "Every Coral rule missing from this file is
+inapplicable" would be false, and false about the distinctions the file is built on.
 
 **An exception is a path decision, not a deletion.** The excepted rule stays in the rule list, because it
 still binds everywhere outside its path. The decision is recorded separately with its scope and whatever

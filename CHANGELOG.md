@@ -29,10 +29,12 @@ A project states the version it targets in its `CORAL.md` (`[VER-3]`), and how m
 adopts (`[VER-6]`). Upgrading is a deliberate act. Read the entries between your target and the new
 version, satisfy the added rules **in the layers you have adopted**, and re-audit.
 
-**The Unreleased section below is not a version anybody can target.** `VERSION` holds the latest
-**released** Coral. The heading beneath names the **working** version: the rule set these documents
-currently describe, which ships when the batch is cut. A rule under Unreleased is not in any release, and
-a project pinning `VERSION` does not owe it yet.
+**The Unreleased section below is not a release.** `VERSION` holds the latest **released** Coral. The
+heading beneath names the **working** version: the rule set these documents currently describe, which
+ships when the batch is cut. A rule under Unreleased is not in any release, and a project pinning
+`VERSION` does not owe it yet. A project pins a released version once a release carries the generator.
+Until `0.7.0` is cut, a project that generates its contract from `main` targets the working version and
+owes the rules under Unreleased in the layers it adopts.
 
 ---
 
@@ -208,6 +210,111 @@ A tenant-isolation test and a migration test against a real Postgres run when `D
 and skip otherwise. The page cites the code by GitHub URL, quotes `[ERR-3]` as the rule states it, and
 names only import cycles and single-package code generation as Go constraints. `rules.lock` and
 `rules.md` are unchanged by this entry.
+
+**`[BE-5]` reports a status written for a raised failure, and states that the success status is written
+at the slice's boundary. Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The rule read "No slice chooses a status or constructs its own error response ... a status-code write
+inside a slice module is a violation", while `[BE-2]` fixes a success status by the slice's effect, and
+that status is written somewhere. Applied as a check, every `create` slice that writes `201` failed. The
+rule now reads: no slice chooses a status for a raised failure, a status-code write for a failure inside
+a slice module is a violation, and the success status `[BE-2]` fixes is written at the slice's boundary
+by the handler that returns the result. The canonical slice in `CONVENTIONS.md` states that the root
+renders what the slice raises and no longer says that the root renders the success result. The first
+sentence and the contract line are unchanged, so `rules.md` is unchanged. The enforcement class stays
+`[auto]`, and `rules.lock` is unchanged.
+
+**`[IDEM-3]` governs an operation whose effect changes, and excludes the dedupe or idempotency key that
+`[IDEM-5]` requires. Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The rule read "Do not make a non-idempotent operation behave idempotently without renaming it", while
+`[IDEM-5]` requires a platform-redelivered handler to be idempotent through a key and `[BE-4]` permits
+one on a synchronous `POST`. A keyed `create` handler behaves idempotently per key, so satisfying
+`[IDEM-5]` or `[BE-4]` read as a violation of `[IDEM-3]`, and `[IDEM-1]`'s table has no name for it.
+The rule and its contract line now state that the key `[IDEM-5]` requires makes the handler a safe no-op
+on repeat and changes neither the operation's effect nor its name, and that `[IDEM-3]` governs an
+operation whose effect changes. The commentary states that a profile may offer a key where the platform
+does not redeliver, as `[BE-4]` does for a synchronous `POST`, and that the same reading applies.
+`[IDEM-5]`'s commentary names `[IDEM-3]` beside `[IDEM-4]` as what the key reconciles, and
+`appendix/cli.md`'s restatement of `[IDEM-3]` carries the new reading. `rules.md` carries the new
+contract line. The enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
+**`[STATE-2]`'s decidable reading states the direction of interface ownership, and `[BUCKET-1]`'s names
+every bucket the rule names. Patch-level: two rows of the enforcement table in `PRODUCTION.md`. No rule
+was added, tightened, loosened, or retired, and no ID or enforcement class moved.**
+
+The `[STATE-2]` row read "no shared repository/data-access package", which fails the shared adapter
+package that the rule's commentary and `examples/go-api-slice.md` call conformant. The row now applies
+the commentary's test: no shared package that defines the data-access API and that slices import; a
+shared package that implements the ports the slices declare, and imports the slices to do so, is an
+adapter (`[MODEL-4]`). The `[BUCKET-1]` row adds `shared/` and `repository/`, which the rule already
+names. The rule texts, the contract lines, `rules.lock`, and `rules.md` are unchanged.
+
+**`[MODEL-2]`'s commentary classifies a generated persistence package as `[MODEL-4]`'s adapter, not as
+banding. Patch-level: commentary. No rule was added, tightened, loosened, or retired, and no ID or
+enforcement class moved.**
+
+The commentary named Go's import-cycle rules and single-package code generation as the common case that
+forces one capability across packages, while `[MODEL-4]` classifies the generated persistence package as
+an adapter and the Go example keeps the capability in one package. The commentary now states that those
+pressures force no band: they produce a shared adapter behind the ports the slices declare and one-way
+arrows, and the capability stays one package. The pointer to `examples/go-api-slice.md` names that
+shape. `[MODEL-4]`'s commentary states the reason the adapter category exists and names the example's
+`store` package as that category, without the history of how the example once described it. The rule
+sentences, the contract lines, `rules.lock`, and `rules.md` are unchanged.
+
+**`[BE-1]` states the slice's unit: a directory where the language's package is a directory and the
+capability holds more than one operation, and a file inside the capability's package otherwise.
+Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The rule read "The slice directory is the singular capability + effect verb", which in a language whose
+package is a directory requires a verb-named package for a capability with one operation, while the
+contract line and `[STRUCT-2]` name the slice and leave its unit to the language. The sentence now names
+the slice for the singular capability plus its effect verb and states the unit. The contract line
+already carried that reading and is unchanged, so `rules.md` is unchanged. `examples/go-api-slice.md`
+cites the rule for its one-operation package and records no deviation. The enforcement class stays
+`[review]`, and `rules.lock` is unchanged.
+
+**The generated contract states the governance ground for an omitted rule and names `[AGENT-5]`.
+Patch-level: generated prose, `CONVENTIONS.md` prose, and a guide. No rule was added, tightened,
+loosened, or retired, and no ID or enforcement class moved.**
+
+The contract's preamble said that every `[auto]` or `[review]` rule it does not list belongs to a scale,
+a layer or a profile the project has not adopted. `[AGENT-5]` is a `[review]` rule in the
+framework-governance layer, which no project can adopt, and it instructs the agent mid-task, so an agent
+reading only the contract could conclude that it did not bind. The preamble now states the third ground:
+framework-governance rules bind how the project relates to Coral, not its source, and the layer cannot
+be adopted, so the file omits them. It names those rules from the rule model, and it states `[AGENT-5]`'s
+instruction. `scripts/execution-contract.test.mjs` asserts the sentence. `CONVENTIONS.md` § "The
+generated execution contract" and `guides/deciding-and-escalating.md` state the same ground. The example
+project's contract is regenerated. `rules.lock` and `rules.md` are unchanged.
+
+**`CONVENTIONS.md`, `README.md`, and the changelog header state when a project targets the working
+version. Patch-level: prose. No rule was added, tightened, loosened, or retired, and no ID or enforcement
+class moved.**
+
+`CONVENTIONS.md` § "Two versions: released and working" and the adherence-record section said that a
+consuming project can target the released version only, and the changelog header said that the
+Unreleased section is not a version anybody can target, while `README.md` § "Start a project" tells a
+project that generates from `main` to set `targets` to the working version, which the generator holds
+it to. Both now state the condition: a project pins a released version once a release carries the
+generator; until `0.7.0` is cut, a project that generates its contract from `main` targets the working
+version, and the generator refuses any other target. `README.md` § "Versioning, and how a project
+records where it differs" and the header comment of `scripts/check-versions.mjs` state the same
+condition. `[VER-3]`'s text and the resolver are unchanged, and the `Written against **Coral x.y.z**`
+marker keeps naming the released version. `rules.lock` and `rules.md` are unchanged.
+
+**`examples/backend-review.md` cites `[IDEM-5]` and `[BE-4]` for the idempotent consumer. Patch-level:
+an example. No rule was added, tightened, loosened, or retired, and no ID or enforcement class moved.**
+
+The review cited `[CHAN-5]` alone for the requirement that an at-least-once consumer is idempotent, and
+`[CHAN-1]` beside `[CONTRACT-1]` for the published `client` package. Both `[CHAN-*]` rules bind at
+system scale, and the canonical configuration declares `scales: [app]`, so an agent holding that
+contract found neither and could read the requirement as one its project had not adopted. The finding
+now cites `[IDEM-5]` and `[BE-4]`, which the canonical contract lists, and keeps `[CHAN-5]` as the rule
+that binds where a repository declares `system`. The method's rule list gains a redelivery item, and
+`[CHAN-1]` is marked as binding at system scale beside `[CONTRACT-1]`. The page's
+`Written against **Coral 0.6.0**` line is unchanged. `rules.lock` and `rules.md` are unchanged.
 
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**

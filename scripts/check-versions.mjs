@@ -16,12 +16,13 @@
 // point.
 //
 // Released, and not the working version the documents currently describe, because of
-// what this marker is FOR. It tells a reader which Coral a page is good for, and the
-// only Coral a reader can pin is one that has been cut: nobody's `CORAL.md` can target
-// an unreleased version. Tying the marker to the working version would instead demand
-// a re-read of every declaring page the moment a batch opens, which is friction
-// charged for a claim no reader can act on yet. The declarations move when the release
-// moves, which is also when the pages become newly wrong if nobody looked.
+// what this marker is FOR. It tells a reader which Coral a page is good for, and only a
+// cut release is frozen: a `CORAL.md` that targets the working version is held to the
+// checkout it generates from, and that version moves until the batch is cut. Tying the
+// marker to the working version would instead demand a re-read of every declaring page
+// the moment a batch opens, which is friction charged for a claim that moves under the
+// reader. The declarations move when the release moves, which is also when the pages
+// become newly wrong if nobody looked.
 //
 // That is a different question from the one `model.version` answers, and the two must
 // not be confused. `model.version` identifies the rule set these documents ARE — the

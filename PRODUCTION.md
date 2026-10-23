@@ -96,10 +96,11 @@ owns**, never for its technical role.
 What this forbids is a **global technical layer**: one `services` package holding every capability's
 behavior, or one `repositories` package holding every capability's queries. It does *not* forbid internal
 structure. **Banding within a capability is permitted** where a language or its tooling forces one
-capability to span more than one package. Go's import-cycle rules and single-package code generation are
-the common case. Two conditions apply: every band is still named for the capability or concern it owns,
-and the dependency arrow points one way.
-[`examples/go-api-slice.md`](./examples/go-api-slice.md) works through this case.
+capability to span more than one package. Two conditions apply: every band is still named for the
+capability or concern it owns, and the dependency arrow points one way. The common Go pressures,
+import-cycle rules and single-package code generation, force no band: they produce a shared adapter
+behind the ports the slices declare (`[MODEL-4]`) and one-way arrows, and the capability stays one
+package. [`examples/go-api-slice.md`](./examples/go-api-slice.md) works through that shape.
 
 The test is ownership, not file count: *could you delete this package and lose exactly one capability,
 or exactly one concern?* If yes, it is named right. When you introduce banding, flag it (`[AGENT-2]`) so
@@ -117,11 +118,10 @@ re-implement locally, has lost the property that made it worth having, and its c
 infrastructure-specific mechanics, depends inward on the interface it satisfies, is wired by the
 composition root, and owns no application behavior.
 
-This category exists because the alternative was a false claim. A generated persistence package, an
+This category exists because the alternative is a false claim. A generated persistence package, an
 external-system client, and a broker binding own no capability and carry no must-not-diverge invariant.
-Calling them buckets would forbid the one shape that makes code-generated persistence work at all.
-[`examples/go-api-slice.md`](./examples/go-api-slice.md) had to describe its `store` package as
-"deliberately not in this table", which was the missing category made visible.
+Calling them buckets would forbid the one shape that makes code-generated persistence work. The `store`
+package in [`examples/go-api-slice.md`](./examples/go-api-slice.md) is this category.
 
 **Direction of interface ownership is the whole test**, and it is the same one `[STATE-2]` states. The
 slice declares the interface, listing only the operations *this* capability uses. The adapter implements
@@ -562,8 +562,13 @@ Route a derived-state write to a set- or event-named handler (`[STATE-4]`). The 
 A read-named slice module that calls an insert, update, delete, or write API fails. Deeper mutation
 reached through several calls is a `[review]` concern.
 
-**`[IDEM-3]` `[review]` `{baseline}`** — Do not make a non-idempotent operation behave idempotently
-without renaming it, because names must signal behavior truthfully.
+**`[IDEM-3]` `[review]` `{baseline}`** — Do not change a non-idempotent operation's effect to an
+idempotent one without renaming it, because names must signal behavior truthfully. A dedupe or
+idempotency key that `[IDEM-5]` requires makes the handler a safe no-op on repeat and changes neither the
+operation's effect nor its name.
+
+A profile may offer a key where the platform does not redeliver, as `[BE-4]` does for a synchronous
+`POST`, and the same reading applies.
 
 **`[IDEM-4]` `[review]` `{baseline}`** — Non-idempotent mutations must not be retried automatically.
 
@@ -572,9 +577,9 @@ platform itself redelivers, as queues, webhooks, GitHub Action reruns and cron r
 with mutating effects **must** be idempotent, via an idempotency key or a natural dedupe key, because you
 do not control the retry.
 
-This is a hard requirement for those app types, not advice. It is also what reconciles `[IDEM-4]` with
-reality. The key makes the *handler* a safe no-op on redelivery even when the underlying operation is
-non-idempotent.
+This is a hard requirement for those app types, not advice. It is also what reconciles `[IDEM-3]` and
+`[IDEM-4]` with reality. The key makes the *handler* a safe no-op on redelivery even when the underlying
+operation is non-idempotent, so the operation keeps its name.
 
 **`[IDEM-6]` `[review]` `{baseline}`** — If a needed verb is not in the `[IDEM-1]` table, classify it by
 its effect (read-only / idempotent-set / non-idempotent), pick a name that signals that effect, and
@@ -830,7 +835,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 ### Semantics & effects
 - `[IDEM-1]` The name signals the effect, and the implementation matches it.
 - `[IDEM-2]` A read-named slice contains no write or mutation call, including a cache write.
-- `[IDEM-3]` Do not make a non-idempotent operation idempotent without renaming it.
+- `[IDEM-3]` Do not change a non-idempotent operation's effect to an idempotent one without renaming it. A dedupe or idempotency key (`[IDEM-5]`) changes neither its effect nor its name.
 - `[IDEM-4]` Never auto-retry a non-idempotent mutation.
 - `[IDEM-5]` On an at-least-once platform, a mutating handler must be idempotent.
 - `[IDEM-6]` Classify an unlisted verb by its effect and name it truthfully. Flag an unclear effect.
@@ -906,11 +911,11 @@ definitions.
 
 | Rule | Decidable reading |
 |---|---|
-| `[BUCKET-1]` | no `utils/`, `services/`, `helpers/`, `common/`, or generic `models/` directory |
+| `[BUCKET-1]` | no `shared/`, `common/`, `utils/`, `helpers/`, `services/`, `repository/`, or generic `models/` directory |
 | `[STRUCT-1]` | every slice ships its tests (colocated, or a mirror exists) |
 | `[STRUCT-3]` / `[XCUT-2]` | top-level modules match an allowlist of precise names |
 | `[ROOT-2]` | the root module imports no slice-internal module (a slice's behavior, queries, or schema) and makes no state-access call; an import that constructs, injects, or registers is wiring |
-| `[STATE-2]` | no shared repository/data-access package |
+| `[STATE-2]` | the direction of interface ownership decides: no shared package that defines the data-access API and that slices import; a shared package that implements the ports the slices declare, and imports the slices to do so, is an adapter (`[MODEL-4]`) |
 | `[CONC-1]` | no mutable module-level or static state in a slice module |
 | `[CONFIG-2]` | no slice module references the environment or config-file API |
 | `[CONFIG-4]` | no literal secret in source, and no secret on a logged or published field |

@@ -26,7 +26,8 @@ A well-built service on a good framework satisfies much of Coral before anyone s
   event bus. The DB module is the `db` crosscut. These are crosscuts in the exact Coral sense: defined
   once, injected, never reached for. `[XCUT-3]` `[STATE-2]`
 - **A published channel contract.** A `client` package of typed events and subjects that *other*
-  services import to emit audit events. That is a published capability. `[CHAN-1]` `[CONTRACT-1]`
+  services import to emit audit events. That is a published capability. `[CONTRACT-1]`, and `[CHAN-1]`
+  where the repository declares `system` scale
 - **Trust at the edge.** Middleware resolves identity and validates tenant, user, board and a permission
   *before* the handler runs. Every query is tenant-scoped. `[BE-6]` `[TRUST-1]`
 - **Read-only verbs** and **behavior-first tests** against a real database. `[IDEM-2]` `[TEST-1]`
@@ -37,7 +38,7 @@ Coral largely *names* what a good framework already enforces.
 
 The rules surfaced two findings. Both are independent of the folder layout.
 
-### 1. The delivery guarantee was the opposite of what it looked like — `[CHAN-5]`
+### 1. The delivery guarantee was the opposite of what it looked like — `[IDEM-5]` `[BE-4]`
 
 The service consumes events through the framework's high-level pub/sub handler, and JetStream is
 enabled on the connection, so the path *looks* durable. Reading the dependency revealed the handler path
@@ -50,10 +51,11 @@ never redelivered.
 > the difference is invisible from the call site.
 
 The fix is a durable consumer with explicit ack, acking only *after* the write, which makes ingestion
-at-least-once. That in turn triggers `[CHAN-5]`: an at-least-once mutating consumer **must be
-idempotent**, so the write becomes a dedupe or upsert keyed on the source event id. A sibling handler in
-the same service already did the idempotent upsert. The correct pattern existed and was applied
-unevenly, which is the drift a named rule prevents.
+at-least-once. That in turn triggers `[IDEM-5]` and `[BE-4]`: a handler the platform redelivers **must
+be idempotent**, so the write becomes a dedupe or upsert keyed on the source event id. `[CHAN-5]` states
+the same requirement for the consumer of a channel, and binds where the repository declares `system`
+scale. A sibling handler in the same service already did the idempotent upsert. The correct pattern
+existed and was applied unevenly, which is the drift a named rule prevents.
 
 ### 2. Errors were ad-hoc and sometimes swallowed — `[ERR-1]`–`[ERR-3]`
 
@@ -112,7 +114,8 @@ here, or is it overkill?"**:
 - effects and state: `[EFFECT-2]`, `[STATE-1]`
 - errors: `[ERR-1]`
 - trust: `[TRUST-1]`
-- delivery and contracts across the channel: `[CHAN-5]`, `[CONTRACT-1]`
+- redelivery: `[IDEM-5]`, `[BE-4]`
+- contracts, and delivery across the channel at system scale: `[CONTRACT-1]`, `[CHAN-5]`
 - testing: `[TEST-1]`
 
 Then separate **substance** from **structure you are choosing to defer**. Substance is delivery, errors

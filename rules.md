@@ -423,7 +423,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[CONFIG-4]` | `[auto]` | production baseline | Read secrets only through the config crosscut. Never inline, log, or publish them. |
 | `[IDEM-1]` | `[review]` | production baseline | The name signals the effect, and the implementation matches it. |
 | `[IDEM-2]` | `[auto]` | production baseline | A read-named slice contains no write or mutation call, including a cache write. |
-| `[IDEM-3]` | `[review]` | production baseline | Do not make a non-idempotent operation idempotent without renaming it. |
+| `[IDEM-3]` | `[review]` | production baseline | Do not change a non-idempotent operation's effect to an idempotent one without renaming it. A dedupe or idempotency key (`[IDEM-5]`) changes neither its effect nor its name. |
 | `[IDEM-4]` | `[review]` | production baseline | Never auto-retry a non-idempotent mutation. |
 | `[IDEM-5]` | `[review]` | production baseline | On an at-least-once platform, a mutating handler must be idempotent. |
 | `[IDEM-6]` | `[review]` | production baseline | Classify an unlisted verb by its effect and name it truthfully. Flag an unclear effect. |

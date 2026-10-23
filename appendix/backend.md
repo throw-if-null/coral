@@ -19,9 +19,11 @@ practices prevent it:
 ## Boundary & naming  → `[BOUND-1]`
 
 **`[BE-1]`** `[review]` `{app:backend}` One slice per **business operation**, and the route is that
-operation's *trigger*, not its definition. The slice directory is the **singular capability + effect
-verb** (`expense/create`). The route may be **plural** (`POST /expenses`). Map `method + path → slice` by
-capability and effect, not by URL spelling. A tight read/write pair may share a slice (`[BOUND-2]`).
+operation's *trigger*, not its definition. The slice is named for the **singular capability + effect
+verb** (`expense/create`). It is a directory where the language's package is a directory and the
+capability holds more than one operation, and a file inside the capability's package otherwise. The
+route may be **plural** (`POST /expenses`). Map `method + path → slice` by capability and effect, not by
+URL spelling. A tight read/write pair may share a slice (`[BOUND-2]`).
 
 The distinction decides the two cases where route-counting gives the wrong answer. Two routes that are
 the **same operation** are **one slice with two triggers**, not two slices. Examples are a current path
@@ -66,8 +68,9 @@ ambient globals (`[XCUT-3]`) or read configuration directly (`[CONFIG-2]`).
 
 **`[BE-5]`** `[auto]` `{app:backend}` Slices raise the app's declared error model (`[ERR-1]`), and a
 single root error-handling middleware renders it and maps **every** declared category to an HTTP status.
-No slice chooses a status or constructs its own error response. That is what makes this statically
-checkable: a status-code write inside a slice module is a violation.
+No slice chooses a status for a raised failure or constructs its own error response. That is what makes
+this statically checkable: a status-code write for a failure inside a slice module is a violation. The
+success status `[BE-2]` fixes is written at the slice's boundary, by the handler that returns the result.
 
 **The mapping is total, and this rule is what requires that.** `[ERR-1]` asks for one declared model and
 for presentation to be owned by a boundary rather than by a slice; requiring a status for *every*
