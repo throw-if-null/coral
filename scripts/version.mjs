@@ -6,9 +6,10 @@
 //   · the RELEASED version is what `VERSION` holds. It moves when a batch is cut,
 //     not when a commit lands — `[VER-2]` says so, and that is the whole reason
 //     the changelog has an Unreleased section.
-//   · the WORKING version is what the documents in the tree would ship as. Between
-//     releases those are not the same rule set, and saying they are is how a rule
-//     that does not exist in 0.6.0 gets presented to a project as a 0.6.0 rule.
+//   · the WORKING version is what the documents in the tree would ship as. When the
+//     Unreleased heading names a version, the two are not the same rule set, and
+//     saying they are is how a rule that does not exist in 0.6.0 gets presented to a
+//     project as a 0.6.0 rule. When the heading is bare, they are the same.
 //
 // `[VER-6]` is an instance. It does not exist in 0.6.0, so the `CORAL.md` of a project
 // targeting 0.6.0 legitimately has no adoption declaration. An applicability resolver

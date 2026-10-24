@@ -47,8 +47,8 @@ adopts.
 `CORAL.md`, and through nothing else.** Two rules are **added**, `[VER-6]` `[auto]` and `[ERR-5]`
 `[guide]`, and `[ERR-1]` becomes a kernel rule that binds unconditionally. Under `[VER-2]` the batch is
 **major**, and the `0.y.z` clause cuts it as a **minor**. Nothing was retired, no enforcement class
-changed, and `rules.lock` goes from 178 to 180 rules. The entries below record each loosened or clarified
-rule.
+changed, and `rules.lock` goes from 178 to 180 rules. The entries below record each tightened, loosened,
+or clarified rule.
 
 The two major entries are the applicability pass, which adds `[VER-6]` and makes the production baseline
 opt-in, and the error-model pass, which moves `[ERR-1]` into the kernel and the six categories into
