@@ -33,7 +33,7 @@ writes it down.
 
 A capability is one package holding one slice per operation; this one holds one **slice**, `get.go`, plus
 the **crosscuts** it uses and the **adapter** that implements its persistence port. Two **roots** wire the
-same packages: one serves, one migrates.
+same packages, one per executable the project ships: `cmd/api` serves, and `cmd/migrate` migrates.
 
 ```text
 cmd/
@@ -439,9 +439,10 @@ func apply(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS, file, name strin
 The trigger is a separate command,
 [`cmd/migrate/main.go`](https://github.com/throw-if-null/coral/blob/main/examples/go-api-slice/cmd/migrate/main.go),
 a second thin root: it resolves configuration, opens the pool, passes the owning package's set to
-`db.Migrate`, and logs each applied name. The API does not run migrations at startup. Whether an app
-migrates at startup or as a separate step is a per-app human decision; this project's choice, the
-separate step, is recorded in its `README.md`:
+`db.Migrate`, and logs each applied name. Handing the owning package's migrations to `db` is wiring under
+`[ROOT-2]`, and the bootstrap migration `db` runs is not a slice state-access call. The API does not run
+migrations at startup. Whether an app migrates at startup or as a separate step is a per-app human
+decision; this project's choice, the separate step, is recorded in its `README.md`:
 
 ```go
 func run(log *slog.Logger) error {
@@ -476,8 +477,9 @@ wires and runs, and holds no business logic (`[ROOT-1]`). It resolves configurat
 `config` crosscut, so a missing `DATABASE_URL` fails startup, and takes the pool from `db.Open`,
 which parses and pings, so an unreachable database fails startup as well (`[CONFIG-3]`). It registers
 the one error handler, the authentication middleware, and the slice under the `/v1` group. Importing
-the crosscuts, the adapter, and the slice's `Register` is wiring, which `[ROOT-2]` permits. What it
-forbids is reaching into a slice's behavior or making a state-access call:
+the crosscuts, the adapter, and the slice's `Register` is wiring, which `[ROOT-2]` permits, as is
+handing the owning package's migrations to `db` in `cmd/migrate`. What it forbids is referencing a
+slice's behavior, queries, or schema, or making a state-access call:
 
 ```go
 func main() {
@@ -752,7 +754,7 @@ migrations live in `document` (`[STATE-5]`).
 | **adapter** | `store`, which implements the slice-declared `Store` interface, injected at the root (`[MODEL-4]`) |
 | **published contract** | the exported `Get`, the `Document` type, the `Store` interface, and the typed `errs` it raises. That is all another slice may depend on |
 | **crosscuts** | `errs` (the error model and its rendering) and `reqctx` (caller identity), consumed by the slice; `db` (pool and migrations) and `config` (settings), consumed by the roots |
-| **composition root** | `cmd/api/main.go` and `cmd/migrate/main.go`: each resolves config, wires and runs, holds no logic (`[ROOT-1]`) |
+| **composition root** | one per executable: `cmd/api/main.go` and `cmd/migrate/main.go`, each resolving config, wiring and running, holding no logic (`[ROOT-1]`) |
 
 `pgtest` is test support, imported by the two Postgres tests and by no application package. It stands
 with the test files, outside the table.

@@ -36,7 +36,7 @@ Eight nouns. Every document uses exactly these, and there are no synonyms.
 | **adapter** | the infrastructure-facing mechanics that connect application behavior to an external system or dependency (`store`, `s3`, `stripe`) | `[MODEL-4]` |
 | **composition root** | the app's wiring and bootstrap boundary, where the parts are brought together and started | `[ROOT-*]` |
 | **published contract** | the surface others are allowed to depend on: a slice's public capability, a machine-readable output, an HTTP shape, a library API | `[CONTRACT-*]` |
-| **app** | one deployable unit: many slices, one composition root, one set of crosscuts | `ARCHITECTURE.md`, `PRODUCTION.md` |
+| **app** | one deployable unit: many slices, one set of crosscuts, and the composition root that wires them, one per executable the app ships | `ARCHITECTURE.md`, `PRODUCTION.md` |
 | **system** | several apps composed together | all of `SYSTEM.md` |
 | **channel** | the pathway between two apps, and the contract governing what crosses it | `[CHAN-*]` |
 

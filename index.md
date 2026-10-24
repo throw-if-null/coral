@@ -110,8 +110,8 @@ core of Coral. The reason is that it is good engineering whoever writes the code
 
 ## The same shape at three sizes
 
-An **app** is one deployable unit: many slices, one composition root, one set of crosscuts. A **system**
-is several apps. A **channel** is the pathway between two apps, and the contract governing what crosses
+An **app** is one deployable unit: many slices, one set of crosscuts, and the composition root that wires
+them, one per executable the app ships. A **system** is several apps. A **channel** is the pathway between two apps, and the contract governing what crosses
 it.
 
 One shape repeats at all three sizes:

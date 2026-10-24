@@ -366,7 +366,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[XCUT-1]` | `[review]` | kernel | Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant. |
 | `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals. Depend on its published capability. |
 | `[ERR-1]` | `[review]` | kernel | One small, stable, structured error model per app or published package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice. |
-| `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking. |
+| `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking. |
 
 ## Coral Production Baseline — the App
 
@@ -391,7 +391,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[BUCKET-1]` | `[auto]` | production baseline | Do not create or expand `shared`/`common`/`utils`/`helpers`/`services`/`repository`/generic `models`. |
 | `[BUCKET-2]` | `[guide]` | production baseline | Generic catch-all names destroy locality and predictability. |
 | `[XCUT-2]` | `[auto]` | production baseline | Give every crosscut a precise domain or infrastructure name. |
-| `[XCUT-3]` | `[review]` | production baseline | Inject crosscuts. Consume their published surface, never their internals. |
+| `[XCUT-3]` | `[review]` | production baseline | Consume a crosscut through its published surface, never its internals. Inject one that holds configuration, a connection, or per-trigger state. |
 | `[XCUT-4]` | `[guide]` | production baseline | A crosscut is the *first line* of drift control. |
 | `[XCUT-5]` | `[review]` | production baseline | A domain entity may be a crosscut only as type + invariants, never its queries or storage. |
 | `[DUP-1]` | `[guide]` | production baseline | Small duplication across slices is acceptable and often preferred, and you should not extract merely to save lines. |
@@ -405,7 +405,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[EFFECT-2]` | `[review]` | production baseline | Keep side effects at the edges. |
 | `[EFFECT-3]` | `[guide]` | production baseline | The preferred slice flow is parse → validate → compute → persist/effect → render, and do not intermingle calculation and side effects unnecessarily. |
 | `[EFFECT-4]` | `[review]` | production baseline | Do not extract a function only to make it pure or testable. |
-| `[STATE-1]` | `[review]` | production baseline | Keep state-access logic local to the slice that owns it. |
+| `[STATE-1]` | `[review]` | production baseline | Keep state-access logic local to the slice that needs it. |
 | `[STATE-2]` | `[auto]` | production baseline | Do not create a shared repository or data-access layer. |
 | `[STATE-3]` | `[guide]` | production baseline | A shared persistence layer accumulates special cases and forces cross-slice reasoning on every change, whereas local ownership keeps each slice independently changeable. |
 | `[STATE-4]` | `[review]` | production baseline | The slice that computes derived state owns it. Write it from a set- or event-named handler. |
@@ -469,7 +469,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[ORCH-6]` | `[review]` | runtime-agent profile | Treat the orchestrating harness as an app: its own contract, observability, and tests. |
 | `[SYS-TEST-1]` | `[review]` | production baseline | Verify each side independently against the shared contract, not by booting both apps. |
 | `[SYS-TEST-2]` | `[review]` | production baseline | Give every consumed channel relationship executable compatibility verification. Consumer-driven contracts are one technique. |
-| `[SYS-TEST-3]` | `[review]` | production baseline | Gate producer releases on provider verification against consumer contracts. |
+| `[SYS-TEST-3]` | `[review]` | production baseline | Gate producer releases on the compatibility verification `[SYS-TEST-2]` requires, run in the producer's own CI. |
 | `[SYS-TEST-4]` | `[guide]` | production baseline | Contract testing is tool-agnostic in principle, so pick concrete tooling per stack. |
 | `[SYS-TEST-5]` | `[review]` | production baseline | Keep integrated end-to-end suites tiny. They backstop contract tests, never replace them. |
 
@@ -571,7 +571,7 @@ production baseline takes the app-scale part of that group and not the rest.
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
-| `[WEB-1]` | `[review]` | app profile · web | A slice is one route/page-action/endpoint, with its UI and its handler in the same slice. |
+| `[WEB-1]` | `[review]` | app profile · web | A slice is one page-action or business operation, triggered by its route or endpoint, with its UI and its handler in the same slice. |
 | `[WEB-2]` | `[guide]` | app profile · web | Microfrontends are an escalation pattern, not the default. |
 | `[WEB-3]` | `[review]` | app profile · web | Keep the composition shell to layout and routing. It mounts slices and holds no business logic. |
 | `[WEB-4]` | `[auto]` | app profile · web | Depend only on another slice's published surface: a typed import when integrated, a channel with no import edge when runtime-isolated. |

@@ -18,10 +18,10 @@ deployment (`[WEB-6]`, `[WEB-2]`).
 
 ## Boundary & the frontend slice  → `[BOUND-1]`
 
-**`[WEB-1]`** `[review]` `{app:web}` A slice is **one route / page-action / endpoint**, and its **UI and
-its handler live in the same slice**. A frontend slice owns its view, its local state, and the one
-capability call it makes. Do not split a feature's UI from its logic into global `components/` and
-`services/` layers. That is the `[BUCKET-1]` failure in frontend form.
+**`[WEB-1]`** `[review]` `{app:web}` A slice is **one page-action or business operation**, triggered by
+its route or endpoint (`[BE-1]`), and its **UI and its handler live in the same slice**. A frontend slice
+owns its view, its local state, and the one capability call it makes. Do not split a feature's UI from its
+logic into global `components/` and `services/` layers. That is the `[BUCKET-1]` failure in frontend form.
 
 ## The shape of a rich UI — a dashboard is read fan-in  → `[COMPOSE-4]` `[ORCH-1]`
 
@@ -219,7 +219,7 @@ not be where your coverage lives.
 
 | Slot                | Web instantiation                                                        |
 | ------------------- | ------------------------------------------------------------------------ |
-| boundary            | a route/page-action/endpoint, UI + handler in one slice                  |
+| boundary            | a page-action or business operation, triggered by its route or endpoint, UI + handler in one slice |
 | default shape       | one integrated frontend, organized by capability slice: dashboard = UI read fan-in |
 | composition root    | the shell, owning layout and routing, with no business logic             |
 | slice ↔ slice       | typed published surface, a channel where runtime-isolated, never internal reach |
@@ -246,7 +246,7 @@ in the prose.
 <!-- coral:contract:start -->
 <!-- coral:scope:app:web -->
 
-- `[WEB-1]` A slice is one route/page-action/endpoint, with its UI and its handler in the same slice.
+- `[WEB-1]` A slice is one page-action or business operation, triggered by its route or endpoint, with its UI and its handler in the same slice.
 - `[WEB-3]` Keep the composition shell to layout and routing. It mounts slices and holds no business logic.
 - `[WEB-4]` Depend only on another slice's published surface: a typed import when integrated, a channel with no import edge when runtime-isolated.
 - `[WEB-5]` Define design tokens, primitives, and interaction patterns once as an injected crosscut.

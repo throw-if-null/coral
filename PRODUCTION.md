@@ -194,11 +194,13 @@ state-access call.
 This is statically decidable, and it is the check that enforces `[ROOT-1]`. Business logic in the root
 almost always appears as an import of the thing it operates on: a slice's behavior, its queries, or its
 schema. The root imports crosscuts and adapters in order to construct and inject them (`[ROOT-1]`,
-`[MODEL-4]`), and it imports a slice's published entry point in order to register it. Those imports are
-wiring, and a language with constructor injection cannot wire without them. Where a slice's entry point
-and its behavior share one package, the check reads what the root references in that package, not the
-import line alone. Pair the check with a size budget appropriate to your stack. If the root is the
-largest file in the app, `[ROOT-1]` is being violated whatever the imports say.
+`[MODEL-4]`), it imports a slice's published entry point in order to register it, and it hands an owning
+package's migrations to the `db` crosscut that runs them (`[STATE-5]`). Those imports are wiring, and a
+language with constructor injection cannot wire without them. Bootstrap migration through `db` is not a
+slice state-access call: the root passes the owning package's schema on and runs no query of its own.
+Where a slice's entry point and its behavior share one package, the check reads what the root references
+in that package, not the import line alone. Pair the check with a size budget appropriate to your stack.
+If the root is the largest file in the app, `[ROOT-1]` is being violated whatever the imports say.
 
 **`[ROOT-3]` `[guide]` `{baseline}`** — **Each appendix names its root form**, including the app types
 that have no root of their own. For a library the *consumer* is the composition root, so the package
@@ -825,7 +827,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 
 ### The sharing decision
 - `[XCUT-2]` Give every crosscut a precise domain or infrastructure name.
-- `[XCUT-3]` Inject crosscuts. Consume their published surface, never their internals.
+- `[XCUT-3]` Consume a crosscut through its published surface, never its internals. Inject one that holds configuration, a connection, or per-trigger state.
 - `[XCUT-5]` A domain entity may be a crosscut only as type + invariants, never its queries or storage.
 - `[DUP-3]` Extract only to enforce an invariant or convention, provide named infrastructure, or clarify a real calculation.
 - `[DUP-4]` Apply the Extraction Test before extracting.
@@ -845,7 +847,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 - `[EFFECT-4]` Do not extract a function only to make it pure or testable.
 
 ### State & configuration
-- `[STATE-1]` Keep state-access logic local to the slice that owns it.
+- `[STATE-1]` Keep state-access logic local to the slice that needs it.
 - `[STATE-2]` Do not create a shared repository or data-access layer.
 - `[STATE-4]` The slice that computes derived state owns it. Write it from a set- or event-named handler.
 - `[STATE-5]` One owning feature package per table/file/bucket, schema defined once inside it. Siblings reach it directly, and outsiders go through a published capability.
@@ -915,7 +917,7 @@ definitions.
 | `[BUCKET-1]` | no `shared/`, `common/`, `utils/`, `helpers/`, `services/`, `repository/`, or generic `models/` directory |
 | `[STRUCT-1]` | every slice ships its tests (colocated, or a mirror exists) |
 | `[STRUCT-3]` / `[XCUT-2]` | top-level modules match an allowlist of precise names |
-| `[ROOT-2]` | the root module imports no slice-internal module (a slice's behavior, queries, or schema) and makes no state-access call; an import that constructs, injects, or registers is wiring |
+| `[ROOT-2]` | the root module imports no slice-internal module (a slice's behavior, queries, or schema) and makes no state-access call; an import that constructs, injects, or registers, including handing an owning package's migrations to the `db` crosscut, is wiring |
 | `[STATE-2]` | the direction of interface ownership decides: no shared package that defines the data-access API and that slices import; a shared package that implements the ports the slices declare, and imports the slices to do so, is an adapter (`[MODEL-4]`) |
 | `[CONC-1]` | no mutable module-level or static state in a slice module |
 | `[CONFIG-2]` | no slice module references the environment or config-file API |

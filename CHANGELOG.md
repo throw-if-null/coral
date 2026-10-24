@@ -335,6 +335,88 @@ unreleased-rule note as the other example pages, because its `system`-scale cond
 No rule sentence, contract line, or enforcement-table row changed, so `rules.lock`, `rules.md`, and the
 example project's contract are unchanged.
 
+**`[ROOT-2]` counts handing an owning package's migrations to the `db` crosscut as wiring. Clarified,
+minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The decidable-reading row listed a slice's schema among what the root must not import and named
+constructing, injecting, and registering as wiring, while both example roots hand the owning package's
+schema to `db`: `cmd/migrate` passes `document.Migrations` to `db.Migrate`, and the CLI's `app.py` passes
+`add.SCHEMA` to `db.migrate`. Read literally, the row failed both. The row now counts handing an owning
+package's migrations to the `db` crosscut as wiring, and the commentary states that bootstrap migration
+through `db` is not a slice state-access call. `examples/go-api-slice.md` and `examples/cli-slice.md`
+state the same reading at their roots. The rule sentence and the contract line are unchanged, so
+`rules.md` is unchanged. The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
+
+**The vocabulary gives an app one composition root per executable it ships. Patch-level: vocabulary
+prose. No rule was added, tightened, loosened, or retired, and no ID or enforcement class moved.**
+
+`CONVENTIONS.md`'s vocabulary table, `ARCHITECTURE.md`'s category table, and `index.md` gave an app
+exactly one composition root, while the Go example ships two executables, `cmd/api` and `cmd/migrate`,
+each with its own root. All three now state one composition root per executable the app ships, and
+`examples/go-api-slice.md` describes its two roots in those terms. `rules.lock` and `rules.md` are
+unchanged.
+
+**`[WEB-1]` names the slice's unit as one page-action or business operation, triggered by its route or
+endpoint. Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The rule, its contract line, and the slot summary read "one route / page-action / endpoint", which for an
+HTTP endpoint made the route the slice's unit, while `[BE-1]` makes the slice one business operation and
+the route its trigger. All three now state the unit as one page-action or business operation and the route
+or endpoint as its trigger, citing `[BE-1]`. `rules.md` carries the new contract line. The enforcement
+class stays `[review]`, and `rules.lock` is unchanged.
+
+**`[XCUT-3]`'s contract line permits a direct import of a pure, stateless crosscut, as the rule does.
+Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The contract line read "Inject crosscuts", while the rule and its commentary require injection only for a
+crosscut that holds configuration, a connection, or per-trigger state, and allow a pure, stateless one to
+be consumed by direct import. The line now states that distinction. The rule sentence is unchanged;
+`rules.md` and the example project's contract carry the new line. The enforcement class stays
+`[review]`, and `rules.lock` is unchanged.
+
+**`[STATE-1]`'s contract line keeps state-access logic local to the slice that needs it, as the rule
+does. Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The contract line read "the slice that owns it", while the rule reads "the slice that needs it" and
+`[STATE-5]` places ownership at the feature package, not at a slice. The line now matches the rule.
+`rules.md` and the example project's contract carry the new line. The enforcement class stays
+`[review]`, and `rules.lock` is unchanged.
+
+**`[TEST-1]`'s contract line names real or realistic temporary infrastructure, as the rule does.
+Clarified, minor under `[VER-2]`; the working version stays `0.7.0`.**
+
+The contract line read "real infra", narrower than the rule's "real or realistic temporary
+infrastructure", so an agent holding only the contract could read an in-memory store or a disposable
+test schema as non-conformant. The line now matches the rule. `rules.md` and the example project's
+contract carry the new line. The enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
+**`[SYS-TEST-3]`'s contract line gates producer releases on the verification `[SYS-TEST-2]` requires,
+not on consumer-driven contracts specifically. Clarified, minor under `[VER-2]`; the working version
+stays `0.7.0`.**
+
+The contract line read "provider verification against consumer contracts", while the rule and
+`[SYS-TEST-2]` accept any executable compatibility artifact and name consumer-driven contracts as one
+technique. The line now names the property and where it runs, the producer's own CI. `rules.md` carries
+the new line; the example project declares `app` scale only, so its contract is unchanged. The
+enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
+**`[AGENTIC-10]` counts four LLM-specific hazards. Clarified, minor under `[VER-2]`; the working
+version stays `0.7.0`.**
+
+The rule sentence said "Three LLM-specific hazards" above four bullets, while its contract line and the
+slot summary already said four. The sentence now says four. The contract line is unchanged, so `rules.md`
+is unchanged. The enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
+**`[AGENTIC-11]`'s harness-safety layer asserts the risk-gated policy `[AGENTIC-5]` requires, not a
+blanket gate on irreversible actions. Clarified, minor under `[VER-2]`; the working version stays
+`0.7.0`.**
+
+The third test layer read "that irreversible actions gate", which tests the blanket gate `[AGENTIC-5]`
+rejects: that rule gates by risk against an explicit policy, and an action inside the policy's bounds
+proceeds. The layer now asserts that an action outside the policy's bounds, or unclassified by it,
+escalates while one inside them proceeds. The contract line is unchanged, so `rules.md` is unchanged.
+The enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

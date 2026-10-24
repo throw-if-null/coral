@@ -83,7 +83,7 @@ not because they are inapplicable. Their reasoning lives in the Coral documents.
 - `[ROOT-1]` Keep the root thin: register, construct, inject, bootstrap. No business logic.
 - `[ROOT-2]` The root imports no slice-internal module and makes no state-access call. Importing a crosscut, an adapter, or a slice's entry point to wire it is not a violation.
 - `[SCOPE-3]` When features converge on one dense concept, give it its own app behind a published contract.
-- `[STATE-1]` Keep state-access logic local to the slice that owns it.
+- `[STATE-1]` Keep state-access logic local to the slice that needs it.
 - `[STATE-2]` Do not create a shared repository or data-access layer.
 - `[STATE-4]` The slice that computes derived state owns it. Write it from a set- or event-named handler.
 - `[STATE-5]` One owning feature package per table/file/bucket, schema defined once inside it. Siblings reach it directly, and outsiders go through a published capability.
@@ -92,7 +92,7 @@ not because they are inapplicable. Their reasoning lives in the Coral documents.
 - `[STRUCT-1]` Colocate tests, or mirror the package structure where colocation is impossible.
 - `[STRUCT-2]` Put slices in concrete, domain-oriented feature packages. The package owns its capability's state.
 - `[STRUCT-3]` Keep root-level crosscuts rare and precisely named.
-- `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.
+- `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking.
 - `[TEST-2]` Prefer integration and end-to-end tests over isolated unit tests.
 - `[TEST-3]` Unit tests are a scalpel. Never duplicate integration coverage, and never extract only to test.
 - `[TEST-4]` Assert contract, errors, idempotency, transactions, authorization, and diagnostics where relevant.
@@ -103,5 +103,5 @@ not because they are inapplicable. Their reasoning lives in the Coral documents.
 - `[VER-6]` Declare in `CORAL.md` which non-kernel Coral scopes the project adopts, and at which scales.
 - `[XCUT-1]` Promote to a crosscut only when it is genuinely cross-cutting AND enforces a must-not-diverge invariant.
 - `[XCUT-2]` Give every crosscut a precise domain or infrastructure name.
-- `[XCUT-3]` Inject crosscuts. Consume their published surface, never their internals.
+- `[XCUT-3]` Consume a crosscut through its published surface, never its internals. Inject one that holds configuration, a connection, or per-trigger state.
 - `[XCUT-5]` A domain entity may be a crosscut only as type + invariants, never its queries or storage.

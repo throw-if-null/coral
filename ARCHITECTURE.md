@@ -184,7 +184,7 @@ baseline. The five are not peers in volume:
 | **slice** | one capability end to end: the trigger it answers, the work that answers it, its output, its tests | most of the code |
 | **crosscut** | one concern that several slices need | few |
 | **adapter** | the infrastructure-facing mechanics that connect behavior to an external system | one per external system that needs one, or none |
-| **composition root** | the app's wiring and bootstrap boundary, where the parts are brought together and started | exactly one |
+| **composition root** | the app's wiring and bootstrap boundary, where the parts are brought together and started | one per executable the app ships |
 | **published contract** | the surface others may depend on | one per slice/app that exposes anything |
 
 The table classifies. It does not prescribe, and it is deliberately thinner than the shape most Coral
@@ -372,7 +372,7 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 - `[ERR-1]` One small, stable, structured error model per app or published package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice.
 
 ### Testing
-- `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real infra, minimal mocking.
+- `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking.
 
 <!-- coral:contract:end -->
 
