@@ -1,11 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Tests for the executable example project under examples/ — `node --test scripts/`,
-// wired into the build.
+// Tests for the executable example project under examples/. `npm run check:rules`
+// (`node --test scripts/*.test.mjs`) runs them as part of `docs:build`.
 //
 // The project directory is excluded from the rule scanner, because its Markdown is the
-// project's and not documentation: its generated CORAL-CONTRACT.md repeats every rule line
-// and would read as a second definition of each rule (Gate 1), and its README is not a site
-// page. The exclusion also hides the project's CORAL.md from Gate 10, which discovers
+// project's and not documentation: its generated CORAL-CONTRACT.md is written in the
+// definition-line shape, so a project extension listed there (`ACME-1`) would register as a
+// classless Coral rule (Gate 1), and its README and contract are not site pages. The
+// exclusion also hides the project's CORAL.md from Gate 10, which discovers
 // adherence records through the scanner's file list. These tests stand in for that gate:
 // the record resolves with the real resolver, and the committed contract is what the real
 // generator writes today, so a rule-text change that leaves the contract stale fails the

@@ -189,9 +189,10 @@ to another class, the example says so.
 
 ### Human-owned
 
-- **Warranted.** A feature needs a column that two slices will write. `[STATE-5]` gives one owner per
-  table. The agent sees two options: one slice owns the table and publishes a capability the other
-  calls, or an exception to `[STATE-5]` on the path. An exception is authored by a human (`[AGENT-4]`).
+- **Warranted.** A feature needs a column that slices in two feature packages will write. `[STATE-5]`
+  gives each table one owning package. The agent sees two options: the owning package publishes a
+  capability the other package's slice calls, or an exception to `[STATE-5]` on the path. An exception is
+  authored by a human (`[AGENT-4]`).
   The record names both options, states that `CORAL.md` holds no exception and the decision log has no
   entry, and recommends the published capability. Warranted.
 - **Avoidable.** A new integration needs an HTTP client. The agent asks whether it may add a client

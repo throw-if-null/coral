@@ -7,9 +7,10 @@
 > `[ERR-5]` becomes the recommended six-category vocabulary. In 0.6.0, `[ERR-1]` is a
 > production-baseline rule that fixes those six names. Delete this note when 0.7.0 is cut.
 
-The [Go example](./go-api-slice) shows one package per capability, with Go's import-cycle rule and
-single-package code generation shaping the tree around it. This one is lighter still: **a CLI in Python,
-where a slice is one file.** Same architecture, different shape. That is what `[MODEL-2]` states.
+The [Go example](./go-api-slice) shows one package per capability, each slice one file in it, with Go's
+import-cycle rule and single-package code generation shaping the tree around it into a shared persistence
+adapter. This one is lighter still: **a CLI in Python, where each slice is one file that writes its own
+SQL, with no adapter.** Same architecture, different shape. That is what `[MODEL-2]` states.
 
 It also walks two commands rather than one, because the second is what makes three rules concrete: the
 mandatory `--json` read contract (`[CLI-3]`), read-never-mutates (`[IDEM-2]`), and the moment a second
@@ -36,8 +37,9 @@ expenses/
 pyproject.toml
 ```
 
-One file per slice, tests beside them. Python has no import-cycle rule, and no code generator dictating
-package layout, so there is nothing to band around. `[GROW-1]` says start there. When `add.py` gets hard
+One file per slice, tests beside them. Python has no import-cycle rule and no code generator dictating
+package layout. In Go those pressures force no band either (`[MODEL-2]`); they produce a shared adapter,
+and this CLI needs none. `[GROW-1]` says start there. When `add.py` gets hard
 to navigate, `[GROW-2]` splits it into `expense/add/` with `cli.py`, `behavior.py`, and `sql.py`, never
 into a global `handlers/` or `services/`.
 
@@ -57,8 +59,9 @@ Four of them, each precisely named, each carrying an invariant that would be a b
 
 The error model first. `[ERR-1]` requires one small, stable, structured taxonomy, declared once for this
 app, with presentation owned by a boundary rather than by a slice; it fixes neither the count nor the
-names. This example takes Coral's recommended six-category default (`[ERR-5]`) because it has adopted the
-production baseline. A project on another small taxonomy would write this file differently and be equally
+names. This example takes Coral's recommended six-category default (`[ERR-5]`), which the production
+baseline it has adopted recommends and does not require. A project on another small taxonomy would write
+this file differently and be equally
 conformant. This is an executable CLI, so the boundary that presents is its root (`[ERR-3]`) — slices
 raise, and exactly one place renders:
 
@@ -91,8 +94,8 @@ def not_found(code: str, message: str) -> CoralError:
     return CoralError("not_found", code, message)
 ```
 
-Money is the clearest invariant-bearing crosscut: one place where a string becomes an amount, so two
-slices cannot disagree about what `"12.5"` means:
+Money is the clearest invariant-bearing crosscut: one place where input text becomes an amount and one
+place where an amount becomes text, so two slices cannot disagree about what `"12.5"` means:
 
 ```python
 # money.py
@@ -102,7 +105,7 @@ from . import errors
 
 
 def parse(text: str) -> Decimal:
-    """The one place a money string becomes a number."""
+    """The one place input text becomes an amount."""
     try:
         amount = Decimal(text)
     except InvalidOperation:
@@ -487,8 +490,9 @@ def test_list_of_an_empty_month_is_zero_not_an_error(run_cli):
     assert json.loads(out) == {"month": "2026-01", "total": "0.00", "expenses": []}
 ```
 
-Nothing here is a unit test, and that is `[TEST-2]` working. These tests survive moving `_parse_month`
-into `period.py`, splitting `add.py` into a directory, and swapping SQLite for Postgres. A unit test on
+Nothing here is a unit test, and that is `[TEST-2]` working. These tests would survive moving month
+parsing between `add.py` and `period.py`, splitting `add.py` into a directory, and swapping SQLite for
+Postgres. A unit test on
 `add.run`'s internals would have broken on all three. `[TEST-3]`'s narrower form is still available.
 `money.parse` has enough branches to earn a direct table-driven test: non-numeric, NaN, negative, and
 three decimals. That test is an addition, not the foundation.
@@ -520,6 +524,6 @@ three decimals. That test is an addition, not the foundation.
 At around 200 lines this is a complete, navigable CLI. A real tool is this same shape repeated per
 command. That is why a human or an agent can open any one file and find the whole capability in it.
 
-> Every snippet on this page is real code from one runnable package, and the seven tests above pass as
-> written (Python 3.14, pytest 8.4, `python_files = ["*_test.py"]`). If you copy it out and it fails,
-> that is a bug in this page. Please report it.
+> Every snippet on this page is an excerpt of one runnable package. `_render`, `__main__.py` and the
+> package metadata are not shown; with them the seven tests above pass as written (Python 3.14, pytest
+> 8.4, `python_files = ["*_test.py"]`). If they fail, that is a bug in this page. Please report it.

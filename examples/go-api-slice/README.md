@@ -16,10 +16,10 @@ Go 1.25 or later.
 go test ./...
 ```
 
-builds the project and runs every test. Without `DATABASE_URL` the Postgres test skips and says so.
+builds the project and runs every test. Without `DATABASE_URL` the two Postgres tests skip and say so.
 
-The tenant-isolation test against a real Postgres runs when `DATABASE_URL` is set. It creates its own
-schema and drops it afterwards. With podman:
+The Postgres tests, tenant isolation in `internal/store` and migration in `internal/db`, run when
+`DATABASE_URL` is set. Each creates its own schema and drops it afterwards. With podman:
 
 ```bash
 podman run --rm -d --name coral-pg -e POSTGRES_PASSWORD=coral -p 5432:5432 docker.io/library/postgres:17

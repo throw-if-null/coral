@@ -192,8 +192,9 @@ These need no backend-specific rule. The spine's answer is the answer.
 
 ## Open questions
 
-- `[SCOPE-4]` governs cross-service composition: published capabilities over an explicit boundary, never
-  a shared datastore. Confirm the transport (sync API or event stream) per system, per `[CHAN-2]`.
+- Cross-service composition is the system architecture (`[SCOPE-4]`): published capabilities over a
+  channel (`[CHAN-1]`), never a shared datastore (`[CHAN-3]`). Choose the channel form (synchronous API,
+  event, or message bus) per relationship, per `[CHAN-2]`.
 
 ---
 

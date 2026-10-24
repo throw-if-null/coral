@@ -135,6 +135,11 @@ against the same state, and assert the second run is a no-op with the same outpu
 `[GHA-5]`). Keep a fixture for each hostile trigger type you support, with an injection-shaped string in the payload
 fields. `[GHA-6]` is then covered by a test rather than by care.
 
+## Slots deferred to the spine
+
+- **State / effects** → `[EFFECT-2]`: an action's state is usually remote (API calls, repository mutations,
+  artifacts), and every effect sits at the edge; `[GHA-5]` makes each mutating run safe under redelivery.
+
 ---
 
 ## Action slot summary

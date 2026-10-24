@@ -9,14 +9,14 @@
 >
 > One slot is open, and it is open **pending a decision, not pending prose**. That slot is *composition
 > root*: whether tool definitions live with the harness, or with the slice each tool fronts. Both answers
-> are defensible, and neither is settled anywhere in the industry. *Observability* was the second open
-> slot. `[AGENTIC-10]`'s data-governance rules now answer the half that was blocking it: capture prompts
-> redacted, and let retention bound the exposure.
+> are defensible, and neither is settled anywhere in the industry. *Observability* is spine-sufficient,
+> because `[AGENTIC-10]`'s data-governance rules answer what would block it: capture prompts redacted, and
+> let retention bound the exposure.
 >
-> **Do not invent an answer to the open slot.** Pick the reversible option for your app, flag it
-> (`[AGENT-2]`), and record it in your project's `CORAL.md` as an **Extension**. That is what extensions
-> are for. A recurring answer across projects is the signal for an amendment that closes the slot for
-> everyone.
+> **Do not invent an answer to the open slot.** Pick the reversible option for your app and flag it
+> (`[AGENT-2]`). A human records it in your project's `CORAL.md` as an **Extension**; an agent never writes
+> that entry (`[AGENT-4]`). That is what extensions are for. A recurring answer across projects is the
+> signal for an amendment that closes the slot for everyone.
 >
 > What this page is good for meanwhile is the `[AGENTIC-*]` rules that are **safety guardrails** rather
 > than construction advice:
@@ -196,11 +196,11 @@ validation:
   - apply a retention policy to stored prompts and traces
   - keep personal data out of logs and traces by default
 
-The earlier form of this rule said "keep secrets and PII out of prompts and logs". The PII half was
-unsatisfiable by construction. A support-triage agent, a recruiting assistant, and a medical-scribe app
-process personal information *as their purpose*. A rule that cannot be followed is not followed
-selectively. It is ignored entirely, taking the satisfiable secrets half with it. Minimization is
-enforceable and auditable where prohibition was neither. It is also the answer to the observability slot
+Personal data is governed rather than banned because a ban is unsatisfiable by construction. A
+support-triage agent, a recruiting assistant, and a medical-scribe app process personal information *as
+their purpose*. A rule that cannot be followed is not followed selectively. It is ignored entirely, and a
+ban bundled with the secrets rule would take the satisfiable secrets half with it. Minimization is
+enforceable and auditable where prohibition is neither. It is also the answer to the observability slot
 below: capture prompts, capture them redacted, and let retention rather than blanket avoidance bound the
 exposure.
 
@@ -214,9 +214,9 @@ the observed tool calls" (`[AGENTIC-4]`). A new model can satisfy the schema per
 behaviour in ways only evals detect (`[AGENTIC-11]`). The type checks still pass, and the answers get
 worse.
 
-**These are release-gating provenance, not a published contract.** The distinction matters, because the
-earlier wording ("part of the contract") implied the wrong obligations. Calling them a contract pulls in
-`[CONTRACT-2]`'s versioning discipline. It also suggests external consumers must be told when the model
+**These are release-gating provenance, not a published contract.** The distinction matters, because
+calling them part of the contract implies the wrong obligations. It pulls in `[CONTRACT-2]`'s versioning
+discipline. It also suggests external consumers must be told when the model
 changes, and usually they must not be. Their contract is the *schema* (`[AGENTIC-4]`), and while the
 schema still holds, a model swap is not a breaking change to them. What the pin buys is internal and
 substantial:
@@ -230,9 +230,9 @@ Where external compatibility genuinely does depend on the exact model, it *is* a
 `[CONTRACT-2]` applies. Examples are a customer pinned to the model by agreement, and a regulated audit
 trail. Decide that deliberately and write it down. Do not arrive at it by default.
 
-**Pin the model identifier explicitly. Never let it float to an alias such as "latest".** A floating model
-means the contract can change with no commit, no review, and no eval run. That is the opposite of what a
-published contract is for.
+**Pin the model identifier explicitly. Never let it float to an alias such as "latest".** A floating alias
+changes the model's behavior with no commit, no review, and no eval run, which bypasses the eval gate the
+pin exists to provide.
 
 Version prompts alongside the code that builds them, and **record the model identifier and prompt version
 with each stored result**. `[AGENTIC-8]` already stores the result for dedupe, so store the provenance
@@ -244,12 +244,14 @@ next agent also cannot ask what the prompt used to say.
 - **Composition root** → wires the model client, tools, and memory/retrieval as injected crosscuts, and
   constructs the harness, with no business logic. *Needs an `AGENTIC-` rule on where tool definitions
   live: with the harness, or with the slice each tool fronts.*
-- **Observability** → token, cost, and latency on top of `[OBS-1..3]`. Capture prompts, responses, and
-  tool calls so the agent's decisions are auditable. **Spine-sufficient as of `[AGENTIC-10]`.** The
-  conflict with `[CONFIG-4]` was "capture every prompt" against "log no personal data", and data
-  governance resolves it. Secrets never enter the prompt at all. Personal data is minimized before it
-  does, captured redacted, and bounded by retention. The token, cost and latency half needs no `AGENTIC-`
-  rule of its own.
+
+## Slots deferred to the spine
+
+- **Observability** → `[OBS-1..3]`, plus token, cost, and latency. Capture prompts, responses, and tool
+  calls so the agent's decisions are auditable. Spine-sufficient: `[AGENTIC-10]`'s data governance makes
+  full capture safe. Secrets never enter the prompt at all (`[CONFIG-4]`). Personal data is minimized
+  before it does, captured redacted, and bounded by retention. The token, cost and latency half needs no
+  `AGENTIC-` rule of its own.
 
 ## Testing  → `[TEST-1]`
 

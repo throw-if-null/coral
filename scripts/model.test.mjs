@@ -3,9 +3,9 @@
 //
 // scripts/layers.test.mjs covers the parsers and the classifier one at a time. This file
 // covers what a CONSUMER holds: a rule object that already knows its own ownership, and the
-// composition that produces it. The distinction is the point of PO-03 — before it, ownership
-// lived in a `Map<id, layer>` beside the rules and every consumer rebuilt it, so "the rule
-// index and the build agree about what [CLI-6] is" was a coincidence maintained by hand.
+// composition that produces it. The distinction matters: with ownership in a `Map<id, layer>`
+// beside the rules that every consumer rebuilt for itself, "the rule index and the build agree
+// about what [CLI-6] is" would be a coincidence maintained by hand.
 //
 // Two tiers again, and the same split. Fixture trees carry a SYNTHETIC taxonomy wherever the
 // test is about mechanics, so renaming a real layer is a documents change and not a test
@@ -426,10 +426,8 @@ test('an unknown tag and an unregistered profile both fail', () => {
 
 // ── core documents: an opt-in rule may not be defined in one ─────────────────
 //
-// The structural half of PO-06. Moving seventy `{baseline}` rules out of ARCHITECTURE.md
-// fixed the state of the documents; this is what stops the next one walking back in, where
-// it would again be published to every reader of the app spine as though it were
-// unconditional.
+// A `{baseline}` rule defined in ARCHITECTURE.md would be published to every reader of the app
+// spine as though it were unconditional. This check stops one from being defined there.
 //
 // Synthetic throughout, and deliberately so: the check is stated in terms of a layer's
 // SURFACE, so it has nothing to say about which layer Coral's production baseline is. A
@@ -964,7 +962,7 @@ test('and every kernel rule is stated in one of them', () => {
 })
 
 test('the error-model split: the invariant is kernel, its refinements are baseline', () => {
-  // PO-07. [ERR-1] is the architectural invariant — one small, stable, structured error model per
+  // [ERR-1] is the architectural invariant — one small, stable, structured error model per
   // app or published package, presented at a boundary rather than inside a slice, which is what makes it
   // satisfiable by a library that presents nothing at all — and it binds a project that adopted
   // nothing.

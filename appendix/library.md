@@ -139,8 +139,8 @@ version number communicates it, and no consumer notices until it is in productio
 take transitively, along with its vulnerabilities, its version constraints, and its own transitive set.
 
 Prefer the standard library. Prefer accepting a narrow interface over depending on an implementation.
-The `[STATE-2]` inversion, in which the consumer declares and you accept, is also a dependency-reduction
-technique.
+The `[STATE-2]` inversion, in which you declare the narrow interface you need and the consumer supplies an
+implementation, is also a dependency-reduction technique.
 
 ## Testing mechanics  → `[TEST-1]`
 

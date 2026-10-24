@@ -5,8 +5,8 @@
 // deliberately does not answer *what applies here*, and the two are not the same
 // question: Coral publishes rules for CLIs, for browsers, for systems of several apps
 // and for applications that call a model at runtime, and no project is the audience
-// for all of them. Before this module the gap was filled by whoever was reading —
-// an auditor against "current main", an agent against whatever it had loaded — which
+// for all of them. Without a resolver the gap is filled by whoever is reading —
+// an auditor against "current main", an agent against whatever it has loaded — which
 // is the failure `[VER-6]` names: a rule becoming applicable because it exists
 // somewhere in the Coral repository.
 //
@@ -14,7 +14,7 @@
 // states, in its `CORAL.md`, the Coral version it targets, the architectural scales it
 // is written at, and the non-kernel ownership scopes it adopts. This module reads that
 // statement, validates every name in it against the rule model for that version, and
-// resolves the set. Two properties make it worth having as code rather than as prose:
+// resolves the set. Three properties make it worth having as code rather than as prose:
 //
 //   · it FAILS CLOSED, structurally. A missing declaration, an unknown ownership key, an
 //     unregistered profile, an unknown scale, an exception to a rule the project never
@@ -516,8 +516,8 @@ export function pathApplies(scope, target) {
  *
  * **The result is discriminated, and that is load-bearing.** A valid resolution is
  * `{ok: true, …}` and carries `selected`; an invalid one is `{ok: false, problems, diagnostic}`
- * and carries **no `selected` at all**. Fail-closed applicability is the property PO-04 exists
- * to establish, and a shape that hands back a plausible-looking rule set beside a list of
+ * and carries **no `selected` at all**. Fail-closed applicability is what `[VER-6]` requires,
+ * and a shape that hands back a plausible-looking rule set beside a list of
  * problems makes ignoring the problems the easy thing to write — one valid adoption plus one
  * typo'd profile name would otherwise produce a populated set that nobody declared. The
  * partial answer is still returned, under `diagnostic`, because a tool should be able to say

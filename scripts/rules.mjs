@@ -1,16 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// The rule parser, and the canonical rule model built on it. One definition, three
-// consumers.
-//
-// .vitepress/config.mjs needs it to build the deep-link registry and to run the
-// integrity checks; scripts/rules-index.mjs needs it to render rules.md;
-// scripts/rules-lock.mjs needs it to write rules.lock. A second copy of this regex
-// would drift, and a drifted parser fails silently — it simply stops recognising
-// some rules as rules, which is the exact failure this file's checks exist to catch.
-// So it lives here and is injected into all three.
+// The rule parser, and the canonical rule model built on it. One definition for every
+// consumer: .vitepress/config.mjs (deep-link registry and integrity checks),
+// scripts/rules-index.mjs (rules.md), scripts/rules-lock.mjs (rules.lock), and
+// scripts/applicability.mjs and scripts/execution-contract.mjs (a project's resolution and
+// contract). A second copy of this regex would drift, and a drifted parser fails silently —
+// it simply stops recognising some rules as rules, which is the exact failure this file's
+// checks exist to catch. So it lives here and every consumer imports it.
 //
 // Two levels, and the split is deliberate. The low-level parsers — parseRules,
-// parseLayers, parseKernel, parseProfiles, classifyRules — each read one thing and
+// parseLayers, parseKernel, parseProfiles, parseScales, parseCoreDocuments,
+// classifyRules — each read one thing and
 // stay independently testable against fixtures. loadRuleModel() composes them into
 // the object consumers actually hold: rules that carry their own resolved ownership
 // scope, with no second lookup table beside them. See its own header for why.
@@ -32,12 +31,9 @@ export const INLINE_ID_RE = new RegExp(`^\\[(${ID_CORE})\\]$`)
 // `[guide]` is rationale, appears in no Agent Execution Contract, and is never a
 // pass/fail gate. CONVENTIONS.md says exactly that in prose.
 //
-// The vocabulary was spelled out in code rather than named once: the definition
-// parser held `auto|review|guide` inline, contract-completeness Gate 3 held
-// `cls !== 'guide'`, and the project execution contract needed that same test in a
-// third place. "Normative" is one fact about the rule model, so the rule model owns
-// it — every consumer asking gets the same answer, and adding a class is one list to
-// extend rather than a string to find in three files.
+// "Normative" is one fact about the rule model, so the rule model owns it: the
+// definition parser, contract-completeness Gate 3 and the project execution contract
+// all ask it here, and adding a class is one list to extend.
 export const AUTO = 'auto'
 export const REVIEW = 'review'
 export const GUIDE = 'guide'
@@ -54,13 +50,12 @@ export const isNormative = (rule) => NORMATIVE_CLASSES.includes(rule?.cls)
 // with a bare `[ID]` code-span, and those are citations, not definitions.
 const DEF_LINE_RE = new RegExp(String.raw`^(?:- \*\*|\*\*|- )\`\[(${ID_CORE})\]\`(.*)$`)
 
-// A fenced code block is an ILLUSTRATION of a rule, never a definition of one. Coral's own
-// documents now show what a definition line looks like — CONVENTIONS.md's ownership section
-// prints `- **`[CLI-6]`** `[auto]` `{app:cli}` …` as an example — and the registry is
-// first-definition-wins with CONVENTIONS.md sorting before appendix/cli.md, so without this
-// the example silently became the definition and [CLI-6] moved documents. Same failure the
-// changelog caused, arriving from the other direction: there the fix was to exclude a file,
-// and a file exclusion cannot help when the example is in the file that also defines rules.
+// A fenced code block is an ILLUSTRATION of a rule, never a definition of one.
+// CONVENTIONS.md's ownership section prints `- **`[CLI-6]`** `[auto]` `{app:cli}` …` as an
+// example, and the registry is first-definition-wins with CONVENTIONS.md sorting before
+// appendix/cli.md, so without this the example would silently become the definition. A file
+// exclusion (DEFINES_NOTHING) cannot help, because the example sits in a file that also
+// defines rules.
 //
 // Opening and closing are NOT the same shape, and treating them as one pattern is how a
 // too-permissive parser lets an example escape. CommonMark, for the parts this relies on:
@@ -119,16 +114,16 @@ export const useRe = () => new RegExp(String.raw`\`\[(${ID_CORE})\]\``, 'g')
 // The spine is pinned first because the registry is first-definition-wins:
 // precedence has to be stable and must not depend on directory order.
 //
-// The two architectural scales are named rather than spelled out at each use. Gate 6 needs
-// them to check the one-way dependency, and rules.md needs them to say which baseline rules
-// are stated for several apps composing rather than for one app — two readers, so one name.
+// The two architectural scales are named rather than spelled out at each use: Gate 6 checks
+// the one-way dependency with them, and the scale registry's error message and the tests
+// name them too.
 export const APP_SPINE = 'ARCHITECTURE.md'
 export const SYSTEM_SPINE = 'SYSTEM.md'
 // The app-scale production baseline. A spine in every sense that matters here — broadly
 // loaded, not a profile's document — so it is registry-pinned and ineligible as a profile
-// home, exactly like the other three. What it is NOT is a CORE document: PO-06 split it out
-// of ARCHITECTURE.md precisely so the app spine could be read without it. Core membership is
-// read from CONVENTIONS.md's own registry (see parseCoreDocuments), never from this list.
+// home, exactly like the other three. What it is NOT is a CORE document: it is separate from
+// ARCHITECTURE.md so the app spine can be read without it. Core membership is read from
+// CONVENTIONS.md's own registry (see parseCoreDocuments), never from this list.
 export const PRODUCTION_SPINE = 'PRODUCTION.md'
 // The app-scale spines, in the order a reader meets them. Gate 6's one-way dependency binds
 // both: neither may cite a rule defined at system scale.
@@ -136,27 +131,25 @@ export const APP_SPINES = [APP_SPINE, PRODUCTION_SPINE]
 const SPINE = ['CONVENTIONS.md', APP_SPINE, PRODUCTION_SPINE, SYSTEM_SPINE]
 const SKIP = new Set(['node_modules', 'public'])
 // Directories that hold a consuming project rather than documentation, as paths from the
-// repository root. A project's Markdown is the project's: its generated contract repeats
-// every rule line and would read as a second definition (Gate 1), and its README is not a
-// page. A test under scripts/ resolves the project's CORAL.md in place of Gate 10.
+// repository root. A project's Markdown is the project's: its generated contract is written
+// in the definition-line shape, so a project extension listed there would register as a
+// classless Coral rule (Gate 1), and its README and contract are not site pages. A test under
+// scripts/ resolves the project's CORAL.md in place of Gate 10.
 const SKIP_PATHS = new Set(['examples/go-api-slice'])
 
 // A changelog RECORDS rules; it does not define them. But it quotes each new rule
 // in the very shape a definition uses — `- **`[WEB-11]`** `[review]` — server
 // state is…` — and the registry is first-definition-wins with CHANGELOG.md sorting
-// before appendix/*. So the quotes were winning: [WEB-10], [WEB-11], [WEB-12],
-// [BE-7] and [AGENTIC-12] resolved to the changelog instead of their own page, and
-// [VER-1] read as *classless* because the prose mention `**`[VER-1]`'s append-only
-// guarantee starts here.**` matched first and carries no `[auto]` marker. All of it
-// was silent — a rule still had *a* definition, just the wrong one.
+// before appendix/*, so a quote would silently become the definition, and a bolded
+// prose mention such as `**`[VER-1]`'s append-only guarantee starts here.**` would
+// register a classless rule.
 //
-// Rewording every future entry would be a discipline that eventually lapses, so the
-// exclusion is structural. DEFINITIONS only: the file stays in docFiles(), so Gate 2
-// still requires every ID the changelog cites to resolve somewhere.
+// Rewording every entry is a discipline that eventually lapses, so the exclusion is
+// structural. DEFINITIONS only: the file stays in docFiles(), so Gate 2 still requires
+// every ID the changelog cites to resolve somewhere.
 // rules.md is generated FROM this registry (scripts/rules-index.mjs), so letting it
 // define anything would be circular as well as wrong. Its rows are table cells, which
-// DEF_LINE_RE cannot match today — but that is an accident of the row syntax, not a
-// guarantee, and the changelog taught us what a silent registry hijack costs. Say it.
+// DEF_LINE_RE cannot match, but that is an accident of the row syntax, not a guarantee.
 const DEFINES_NOTHING = new Set(['CHANGELOG.md', 'rules.md'])
 
 export const CONTRACT_START = '<!-- coral:contract:start -->'
@@ -188,11 +181,10 @@ const KERNEL_ROW_RE = new RegExp(
   String.raw`^\|\s*\`\[(${ID_CORE})\]\`\s*\|([^|]*[^|\s][^|]*)\|([^|]*[^|\s][^|]*)\|$`
 )
 // The header and its delimiter are held to the same three-column shape as the data
-// rows. They used to be checked loosely — the delimiter pattern was /^\|[\s:|-]+\|$/,
-// which accepts `|---|` and `|-|-|-|-|` alike, so the parser could report a valid table
-// while its header described two columns and its rows carried three. Once this function
-// says the table is structurally valid, it has to actually be a three-column Markdown
-// table from the header down.
+// rows. A loose delimiter pattern such as /^\|[\s:|-]+\|$/ accepts `|---|` and
+// `|-|-|-|-|` alike, so the parser would report a valid table whose header describes two
+// columns while its rows carry three. Once this function says the table is structurally
+// valid, it has to actually be a three-column Markdown table from the header down.
 //
 // Header cells are checked structurally, not by their wording: three non-empty cells.
 // Freezing the prose would make rewording a heading a build failure and buy nothing —
@@ -215,16 +207,15 @@ function tableCells(line) {
 // to reason about `[AGENTIC-*]`, and a library should not have to read HTTP status
 // codes, so every rule names the narrowest surface that justifies it.
 //
-// The taxonomy is READ FROM CONVENTIONS.md, not hardcoded here. It used to be a constant,
-// and that made two authorities for one fact: CONVENTIONS.md says it is authoritative for
-// the ownership layers and prints a six-row table, while the parser carried its own copy
-// plus a separate set of which layers are opt-in. Renaming a layer, adding a seventh, or
-// changing one from opt-in to unconditional would have left every build check passing
-// against the old vocabulary — the documentation/tooling drift the rule set exists to stop,
-// committed by the rule set's own tooling.
+// The taxonomy is READ FROM CONVENTIONS.md, not hardcoded here. A constant would be a second
+// authority for one fact: CONVENTIONS.md says it is authoritative for the ownership layers
+// and prints a six-row table, and renaming a layer, adding one, or changing one from opt-in
+// to unconditional would leave every build check passing against the old vocabulary — the
+// documentation/tooling drift the rule set exists to stop, committed by the rule set's own
+// tooling.
 //
 // What is registered is only the ownership-layer taxonomy — six layers today, and the shape
-// is open: a seventh is a row, not a code change. Membership stays where it was:
+// is open: a seventh is a row, not a code change. Membership is recorded elsewhere:
 // kernel membership in `coral:kernel`, each non-kernel rule's layer inline on its own
 // definition, and the concrete app/language profiles in `coral:profiles`.
 //
@@ -263,8 +254,8 @@ const LAYER_KIND_CELL_RE = /^`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`$/
 const NO_TAG = '—'
 // The two literal values the contract-scope column may take. `profile-scoped` means a
 // contract listing one of these rules must say so; `unscoped` means it must not. Note what
-// neither word claims: `unscoped` is not `universal`. Kernel, framework governance and
-// production baseline are all unscoped and have three different audiences.
+// neither word claims: `unscoped` is not `universal`. Kernel and framework governance are
+// both unscoped and have different audiences.
 const SCOPE_WORDS = { unscoped: false, 'profile-scoped': true }
 
 // The three top-level surfaces a layer can belong to. Unlike the layers themselves, THIS
@@ -272,7 +263,7 @@ const SCOPE_WORDS = { unscoped: false, 'profile-scoped': true }
 // different sentence about each surface, so the generator has to know which is which, and a
 // surface it could not write about would be a surface it silently omitted.
 //
-// Closing the set is what removes the drift the layers registry was added for. Renaming
+// Closing the set removes the drift the layers registry exists to prevent. Renaming
 // `{governance}` to `{framework-governance}` changes a TAG; the row still says `governance`
 // in its Surface column, so the nine rules stay in the same group and no generated total
 // silently empties. A typo in the column fails the build instead.
@@ -572,18 +563,17 @@ export function parseLayers(srcDir) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Core documents — the pages a project reads before it has adopted anything.
 //
-// Ownership classification does not finish the loading problem, and .vitepress/config.mjs
-// has said so since Gate 8 was written: a rule defined in a universally-read document is
-// encountered by everyone who reads that document, whatever its tag says. The profile
+// Ownership classification does not finish the loading problem (see Gate 8 in
+// .vitepress/config.mjs): a rule defined in a universally-read document is encountered by
+// everyone who reads that document, whatever its tag says. The profile
 // registry acts on that in one direction — an `{app:cli}` rule must live in appendix/cli.md,
 // and the registry may not name a spine as a home. This is the same argument one document
 // further up.
 //
-// Before PO-06, ARCHITECTURE.md held five kernel rules and seventy `{baseline}` ones, so
-// "read the Coral app spine" meant "read the production baseline", and the baseline read as
-// a consequence of the agents-write / humans-review operating model rather than as an
-// opinion a project adopts. Moving them to PRODUCTION.md fixes today; this registry is what
-// keeps them out tomorrow.
+// A `{baseline}` rule defined in ARCHITECTURE.md would make "read the Coral app spine" mean
+// "read the production baseline", and the baseline would read as a consequence of the
+// operating model rather than as an opinion a project adopts. This registry keeps such rules
+// out.
 //
 // The invariant is stated once, in terms the layer registry already owns: a rule defined in
 // a core document must belong to a layer whose SURFACE is not `opt-in`. Nothing here knows
@@ -723,13 +713,12 @@ export function parseCoreDocuments(srcDir) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Architectural scale — the second applicability axis.
 //
-// Ownership answers *who has to load a rule*. It does not finish the question, and
-// PO-02 found the gap in the layer that spans both answers: the production baseline
-// states `[STATE-5]` for one app in ARCHITECTURE.md and `[CHAN-1]` for several apps
-// composing in SYSTEM.md. One ownership kind, two audiences. The runtime-agent layer
-// has the same shape — `[AGENTIC-*]` is one app's business and `[ORCH-4..6]` is the
-// system's — so a standalone CLI that adopts either layer must not thereby acquire
-// topology rules for a topology it does not have.
+// Ownership answers *who has to load a rule*. It does not finish the question: the
+// production baseline states `[STATE-5]` for one app in PRODUCTION.md and `[CHAN-1]` for
+// several apps composing in SYSTEM.md. One ownership kind, two audiences. The
+// runtime-agent layer has the same shape — `[AGENTIC-*]` is one app's business and
+// `[ORCH-4..6]` is the system's — so a standalone CLI that adopts either layer must not
+// thereby acquire topology rules for a topology it does not have.
 //
 // Scale is deliberately NOT a seventh ownership layer. Ownership says why a rule
 // exists and how narrowly; scale says at what size it bites, and the two vary
@@ -1008,11 +997,9 @@ function tagVocabulary(profiles, taxonomy) {
 //
 // A definition line is  ID -> enforcement class -> ownership tag -> the rule statement, and
 // BOTH pieces of metadata sit in that slot rather than being tokens that may appear anywhere.
-// The parser used to scan the WHOLE line for each, which quietly reserved two pieces of
-// ordinary syntax. A rule saying "use `{id}` as the path placeholder", or naming the route
-// /widgets/{id}, was read as carrying a second ownership tag. A rule saying "compare this
-// with `[review]`" was read as carrying two enforcement classes — and, worse in the other
-// direction, `**`[X-1]` `{base}`** — behaves like `[review]`.` was ACCEPTED, its class taken
+// Scanning the WHOLE line for each would reserve two pieces of ordinary syntax: "use `{id}`
+// as the path placeholder" would carry a second ownership tag, "compare this with
+// `[review]`" two enforcement classes, and a rule with no class in its slot could borrow one
 // from its own prose. Rules are allowed to talk about braces and about enforcement classes.
 //
 // So the slot has an end. It runs from just after the ID through the whitespace and bold
@@ -1096,10 +1083,9 @@ export function parseDefinitionMetadata(rest) {
 /**
  * A definition line's `rest` with its metadata removed and nothing else.
  *
- * The generated index used to strip every class-shaped and brace-shaped code span anywhere
- * on the line, which deleted a rule's own words: a `[guide]` rule saying "compare this with
- * `[review]`" lost the comparison, and one explaining "use `{id}`" lost the placeholder.
- * Removing exactly the spans the slot consumed leaves the statement alone.
+ * Removes exactly the spans the slot consumed. Stripping every class-shaped and brace-shaped
+ * span on the line would delete a rule's own words: "compare this with `[review]`" would lose
+ * the comparison, and "use `{id}`" the placeholder.
  */
 export function stripDefinitionMetadata(rest) {
   const { spans } = parseDefinitionMetadata(rest)
@@ -1383,10 +1369,9 @@ export function classifyRules({ rules, kernel, profiles, taxonomy, core = new Ma
         unresolved.add(id)
         continue
       }
-      // From the row, never reconstructed. Rebuilding `label: 'kernel'` here is what put a
-      // second representation of the layer back into the code the registry had just removed
-      // it from: renaming the row would have moved the tally and left every kernel rule
-      // still labelled with the old name.
+      // From the row, never reconstructed. A literal `label: 'kernel'` would be a second
+      // representation of the layer: renaming the row would move the tally and leave every
+      // kernel rule labelled with the old name.
       scopes.set(id, {
         kind: kernelLayer.kind,
         profile: null,
@@ -1431,9 +1416,8 @@ export function classifyRules({ rules, kernel, profiles, taxonomy, core = new Ma
     }
     // The core-document guard. Surface, not layer identity: `opt-in` is the property that
     // makes a rule something a project decides about, and a core document is read before any
-    // such decision exists. PO-06 moved seventy `{baseline}` rules out of ARCHITECTURE.md for
-    // exactly this reason; without a check, the next one walks straight back in and reads as
-    // a consequence of the operating model rather than as an adopted opinion.
+    // such decision exists. Without the check, a `{baseline}` rule defined in ARCHITECTURE.md
+    // reads as a consequence of the operating model rather than as an adopted opinion.
     if (core.has(rule.page) && resolved.surface === OPT_IN) {
       problems.push(
         `[${id}] is \`${scopeLabel(resolved)}\`, an \`${OPT_IN}\` layer, but is defined in` +
@@ -1474,17 +1458,16 @@ export function classifyRules({ rules, kernel, profiles, taxonomy, core = new Ma
   //
   // Without this the guard is one-way and quietly self-disabling. Delete the ARCHITECTURE.md
   // row from the core registry and nothing fails: the registry still has CONVENTIONS.md so it
-  // is not empty, the opt-in check simply stops looking at ARCHITECTURE.md, and the document
-  // PO-06 exists to protect is unguarded while every test still passes. The claim the registry
+  // is not empty, the opt-in check simply stops looking at ARCHITECTURE.md, and
+  // ARCHITECTURE.md is unguarded while every test still passes. The claim the registry
   // makes — "these are the documents a project reads before adopting anything, and they hold
   // the whole unconditional surface" — is only true if the unconditional rules are all IN
-  // them, and that half was asserted rather than checked.
+  // them, so that half is checked here.
   //
   // Derived from the kernel block, which is already the single source of membership, so
   // adding a kernel rule to a new document requires that document to be declared core and
   // requires no list here. Skipped when the registry produced nothing: parseCoreDocuments()
-  // has already reported why, and restating it once per kernel rule is the same failure told
-  // ten times.
+  // has already reported why, and restating it once per kernel rule would only repeat it.
   if (core.size) {
     for (const id of kernel) {
       const rule = rules.get(id)
@@ -1506,14 +1489,9 @@ export function classifyRules({ rules, kernel, profiles, taxonomy, core = new Ma
 // ─────────────────────────────────────────────────────────────────────────────
 // The canonical rule model — one object per rule, ownership included.
 //
-// Before this existed, "a rule" meant `{page, line, cls, tags}` and its ownership lived in a
-// parallel `Map<id, layer>` that every consumer rebuilt for itself: .vitepress/config.mjs,
-// scripts/rules-index.mjs and serializeIndex() each called parseRules, parseLayers,
-// parseKernel, parseProfiles and classifyRules in the same order, and serializeIndex() did
-// it a second time on rules it had already been handed. Four copies of one composition, and
-// the classification was only ever as single-sourced as the least careful of them.
-//
-// So the composition has one name. A rule that comes out of here carries its own resolved
+// Every consumer needs a rule together with its ownership. Rebuilding that composition per
+// consumer would make the classification only as single-sourced as the least careful copy,
+// so the composition has one name. A rule that comes out of here carries its own resolved
 // `scope`, and nothing downstream needs a second lookup to know what a rule belongs to.
 //
 // What it does NOT do is default. An unresolved scope is a problem in the returned list, and
@@ -1565,8 +1543,8 @@ export function loadRuleModel(srcDir) {
   ownershipProblems.push(...versionProblems)
 
   // Scale rides on the rule beside ownership, resolved once here. Every consumer reads
-  // `rule.scale`; none of them repeats `rule.page === SYSTEM_SPINE`, which is the shape the
-  // second authority took before the registry existed.
+  // `rule.scale`; none of them repeats `rule.page === SYSTEM_SPINE`, which would be a second
+  // authority beside the scale registry.
   const rules = new Map()
   for (const [id, rule] of raw) {
     const scope = scopes.get(id)
@@ -1675,12 +1653,12 @@ export function groupByScope(rules, taxonomy, profiles) {
 // leaving the contract flat would fix the label and not the loading.
 //
 // The distinction this gate needs is structural, and deliberately narrower than any claim
-// about who loads what: a rule in an OPT-IN layer (an app profile, a language binding, the
-// runtime-agent profile) must sit under a scope naming its own tag, and a rule in any other
-// layer must not sit inside one. It says nothing about whether an unscoped rule binds every
-// project — kernel, production baseline and framework governance have different audiences,
-// and reasserting a single "universal" category here is the overclaim the layer definitions
-// exist to avoid.
+// about who loads what: a rule in an OPT-IN layer (the production baseline, an app profile, a
+// language binding, the runtime-agent profile) must sit under a scope naming its own tag, and
+// a rule in any other layer must not sit inside one. It says nothing about whether an
+// unscoped rule binds every project — kernel and framework governance have different
+// audiences, and reasserting a single "universal" category here is the overclaim the layer
+// definitions exist to avoid.
 //
 // The marker is `<!-- coral:scope:<tag> -->`, and it governs the contract lines after it
 // until `<!-- coral:scope:end -->` or the close of the contract. Scopes do not nest and do
@@ -1870,10 +1848,10 @@ export function parseRules(srcDir) {
  * the kernel a second normative source for a rule already defined elsewhere, which is
  * the one failure this classification must not be able to cause.
  *
- * And every line in the block is accounted for. The first version of this parser only
- * *collected* rows that matched, which sounds equivalent and is not: a row whose ID lost
- * its backticks, or gained a fourth column, simply stopped being a kernel rule, silently,
- * while the table still read correctly to a human. A table that is the single source of a
+ * And every line in the block is accounted for. Collecting only the rows that match sounds
+ * equivalent and is not: a row whose ID lost its backticks, or gained a fourth column, would
+ * silently stop being a kernel rule while the table still read correctly to a human. A table
+ * that is the single source of a
  * classification cannot have a shape in which membership can fall out unnoticed — so an
  * unrecognised line is an error, a duplicate ID is an error, and the header and its
  * delimiter must be present, be exactly one line each, and carry the same three columns
@@ -1901,9 +1879,9 @@ export function parseKernel(srcDir, rules) {
     return { ids, problems }
   }
 
-  // Exactly one block. Taking the first start and the first end after it — which is what
-  // this did — means a second, entirely visible kernel table contributes nothing to
-  // generated membership, and a human reading the page cannot tell which one counts.
+  // Exactly one block. Taking the first start and the first end after it would let a second,
+  // entirely visible kernel table contribute nothing to generated membership, and a reader
+  // could not tell which one counts.
   // A page with two canonical tables has no canonical table.
   const text = fs.readFileSync(abs, 'utf8')
   const count = (marker) => text.split(marker).length - 1
@@ -2077,7 +2055,7 @@ export function parseLock(text) {
 // The docs define each rule once and point at it, which is right for reading and
 // useless for looking one up: there is no page that answers "what rules exist?"
 // or "show me every [auto] rule". This builds one. It is GENERATED for the same
-// reason rules.lock is: a hand-written index is a second copy of 174 rules, and
+// reason rules.lock is: a hand-written index is a second copy of every rule, and
 // the second copy is always the one that goes stale.
 //
 // The statement column comes from the Agent Execution Contract wherever there is
@@ -2177,10 +2155,8 @@ export function extractStatements(srcDir, rules) {
 /**
  * Render the registry as the rules.md page. Owns the whole file — prose included.
  *
- * Takes the canonical model, and takes it whole. It used to take `(srcDir, rules, defsByFile)`
- * and then reparse the taxonomy, the kernel block and the profile registry to reclassify rules
- * its caller had already classified — a second composition of the same five parsers, one
- * function call away from the first. Every classification it prints now comes off the rule.
+ * Takes the canonical model, and takes it whole: every classification it prints comes off the
+ * rule, so it never reparses registries its caller already classified.
  *
  * @param {string} srcDir
  * @param {ReturnType<typeof loadRuleModel>} model
@@ -2236,7 +2212,7 @@ export function serializeIndex(srcDir, model) {
   // The second applicability axis, read off the rule rather than recomputed from its page.
   // An adopted layer contributes only its rules at the scales a project declares, so the
   // per-scale totals are part of "how much of Coral applies to me" and not a footnote:
-  // the production baseline is the baseline for ONE APP in ARCHITECTURE.md and the baseline
+  // the production baseline is the baseline for ONE APP in PRODUCTION.md and the baseline
   // for SEVERAL APPS COMPOSING in SYSTEM.md, and most projects want only the first.
   const byScale = scales.map((sc) => ({
     ...sc,
@@ -2310,9 +2286,8 @@ export function serializeIndex(srcDir, model) {
     '| --- | --- | --- | --- | --- | --- |',
     ...tally.map((r) => {
       // The layer's own `Read by`, profile rows included. Synthesising "projects with a `cli`
-      // app" needed the code to know that `app:` means an app and everything else is a
-      // language binding — a taxonomy fact the registry is supposed to own. The Layer column
-      // already carries which profile it is, so nothing is lost by asking the row.
+      // app" would need the code to know that `app:` means an app — a taxonomy fact the
+      // registry owns — and the Layer column already names the profile.
       const where = r.readBy
       return `| ${r.label} | ${r.total} | ${r.auto} | ${r.review} | ${r.guide} | ${where} |`
     }),
@@ -2364,7 +2339,7 @@ export function serializeIndex(srcDir, model) {
   // profile where the layer takes one.
   //
   // What this grouping is NOT is the load set. Ownership is one applicability axis, and the
-  // production baseline carries a second: its ARCHITECTURE.md rules are app-scale and its
+  // production baseline carries a second: its PRODUCTION.md rules are app-scale and its
   // SYSTEM.md rules are system-scale, so a one-app repository loads part of that group and
   // not the rest. CONVENTIONS.md says so, the prose above says so, and this section must not
   // say otherwise — a view that presents itself as the complete answer to "what do I load"
@@ -2372,7 +2347,7 @@ export function serializeIndex(srcDir, model) {
   //
   // Compact on purpose — ID, class and defining document, no statements. The statement is
   // one scroll away in the per-document table and one click away in the document itself, and
-  // repeating 178 of them would make the page a second copy of itself.
+  // repeating every statement would make the page a second copy of itself.
   //
   // Headings carry the machine key rather than the label, because that is the value a
   // consumer of the model switches on and this is the page that has to make it findable.

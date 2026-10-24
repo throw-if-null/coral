@@ -19,9 +19,9 @@ error-category vocabulary (`[ERR-5]`) among it — and a `[guide]` rule is ratio
 **That the error model exists at all, and who owns presenting it, is on neither list.** It is `[ERR-1]`,
 a kernel rule, and this document refines it rather than establishing it.
 
-Coral publishes all of it as one coherent baseline, so a project can take the whole opinion in one
-decision rather than reinventing it per repository. A project that already has its own can decline it in
-one decision too.
+Coral publishes all of it as one coherent baseline, and it is the recommended default for an application:
+a project can take the whole opinion in one decision rather than reinventing it per repository. Adoption
+stays explicit, and a project that already has its own can decline it in one decision too.
 
 **Not weaker for being optional.** Once adopted, a `[auto]` rule here is enforced exactly as an `[auto]`
 kernel rule is, and a `[review]` rule takes the same judgment
@@ -91,7 +91,8 @@ refactor-into-a-shared-core signal. See `[GROW-3]`.
 owns**, never for its technical role.
 
 `expense`, `summary`, `pricing`, `errors`, `db` are legitimate names. `services`, `repositories`,
-`models`, `handlers`, `utils` are not (`[BUCKET-1]`).
+`models`, `handlers`, `utils` are not: each names a technical role, and the generic ones are also
+forbidden buckets (`[BUCKET-1]`).
 
 What this forbids is a **global technical layer**: one `services` package holding every capability's
 behavior, or one `repositories` package holding every capability's queries. It does *not* forbid internal
@@ -211,9 +212,9 @@ will never meet.
 
 ## 5. Directory Structure & Naming  `[STRUCT-*]`
 
-The layout is [the one in `ARCHITECTURE.md`](./ARCHITECTURE.md#the-shape-of-an-app). Three rules fix how
-it is named. A fourth thing that layout shows, that a crosscut is rare and lives at the root, is
-`[XCUT-2]`.
+The layout is [the one in `ARCHITECTURE.md`](./ARCHITECTURE.md#the-shape-of-an-app). Three rules fix
+where its tests, feature packages and root-level crosscuts sit and how they are named. A crosscut's own
+naming discipline is `[XCUT-2]`.
 
 **`[STRUCT-1]` `[auto]` `{baseline}`** — Tests live beside the code they verify where the language allows;
 otherwise they mirror the package/namespace structure exactly.
@@ -276,8 +277,8 @@ should be injected is being reached for. Both examples show the split concretely
 
 **`[XCUT-4]` `[guide]` `{baseline}`** — A crosscut is the *first line* of drift control.
 
-If money formatting is a crosscut, there is structurally one copy and nothing to drift. Static and LLM
-drift checks are the backstop for what passes this line, not a substitute for it. Do not make `[XCUT]`
+If money formatting is a crosscut, there is structurally one copy and nothing to drift. Review and
+behavior tests are the backstop for what passes this line, not a substitute for it. Do not make `[XCUT]`
 the new way around the rules. `[XCUT-1]` is a gate, not a licence.
 
 **`[XCUT-5]` `[review]` `{baseline}`** — A domain entity may be a crosscut, but only its **type and
@@ -407,16 +408,16 @@ directly. Any slice outside the package goes through the owner's published capab
 
 Ownership sits at the package rather than at a single slice, because a capability is normally **several
 operations over one shape**. `expense/add`, `expense/edit`, `expense/delete` and `expense/list` all touch
-the `expenses` table, and that is a well-formed capability rather than a defect. The earlier per-slice
-form of this rule said "exactly one owning slice", and treated two slices writing one table as a split
-signal. Ordinary CRUD therefore failed the rule, and the only strictly compliant alternative was worse: a
-write slice publishing a read capability for its own siblings, which is the owning slice becoming the
-repository these rules exist to prevent.
+the `expenses` table, and that is a well-formed capability rather than a defect. Ownership by a single
+slice would fail ordinary CRUD and make two slices writing one table a split signal, and its only strictly
+compliant alternative is worse: a write slice publishing a read capability for its own siblings, which is
+the owning slice becoming the repository these rules exist to prevent.
 
 **Package ownership is not permission for a shared query module.** `[STATE-1]` and `[STATE-2]` still hold
 *inside* the package. Each slice writes its own queries against the shared shape. An `expense/queries`
 module serving all four operations is the `repository` layer at smaller scale (`[BUCKET-1]`). This rule
-moves the **ownership** boundary, not the **locality** one, and that difference is what it is for.
+sets the **ownership** boundary at the package and leaves the **locality** boundary at the slice, and that
+difference is what it is for.
 [`examples/cli-slice.md`](./examples/cli-slice.md) shows it working: `list` writes its own `SELECT`
 against a table `add` defined, and neither slice reaches into the other.
 
@@ -655,7 +656,7 @@ differ (`[VER-5]`). What "custom taxonomy" never licenses is a category per slic
 asks for one declared model, whatever is in it.
 
 Six is a practical starting point: small enough for an agent to hold, wide enough that most failures land
-without argument, and the vocabulary every mapping table in this document set is written against. This
+without argument, and the vocabulary every profile's recommended mapping is written against. This
 rule is `[guide]`, so it recommends and never gates.
 
 **Why this vocabulary omits authentication and authorization outcomes.** `unauthenticated` and

@@ -74,8 +74,8 @@ jobs:
           DATABASE_URL: postgres://postgres:coral@localhost:5432/postgres?sslmode=disable
         run: |
           go test -v ./... 2>&1 | tee "$RUNNER_TEMP/go-test.log"
-          # The Postgres tests skip, and pass, when DATABASE_URL does not reach a server.
-          # A skip here means the service wiring is broken, so it fails the job.
+          # The Postgres tests skip, and pass, when DATABASE_URL is unset; set but unreachable, they fail.
+          # A skip here means the variable did not reach go test, so it fails the job.
           if grep -q -- '--- SKIP' "$RUNNER_TEMP/go-test.log"; then
             echo "::error::a test skipped; every test must run in CI"
             exit 1

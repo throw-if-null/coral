@@ -34,10 +34,10 @@ and `[SYS-TEST-*]`. The dependency points one way. This document cites app rules
 > how `[ORCH-4..6]` are written, not a hidden adoption. The resolver selects nothing extra, and Coral
 > will not repair it by making one layer bring in the other.
 >
-> **It is also not unique to these three.** 19 of Coral's 72 profile rules depend on a baseline rule in
-> their own statement, across every app profile. See
-> [the composition algebra](./CONVENTIONS.md#the-composition-algebra), which records the general gap and
-> the three possible repairs. Making any of them self-contained means changing published rule statements.
+> **It is also not unique to these three.** Rules in every app profile depend on a baseline rule as well.
+> See [the composition algebra](./CONVENTIONS.md#the-composition-algebra), which records the general gap
+> and the three possible repairs. Making any of them self-contained means changing published rule
+> statements.
 > That is a versioned change, and it is tracked as follow-up model work rather than made silently here.
 > **In practice, adopt the production baseline alongside the runtime-agent profile at system scale until
 > that lands.**
@@ -162,11 +162,11 @@ two *different* events racing on the same state.
 **`[CHAN-10]` `[review]` `{baseline}`** — **Never assume a single transactional view across independently
 transacting apps**, and a computation that needs a coherent moment must state how it handles the skew.
 
-The earlier form of this rule said cross-app reads *are* eventually consistent. That is not true as a
-blanket claim. A synchronous read from the app that owns the data may be strongly consistent according to
-that app's own model. Calling it eventual taught agents to add reconciliation to reads that never needed
-it. What the channel never provides is **atomicity across owners**: two apps, two transactions, and no
-snapshot spanning both, whatever each one guarantees internally.
+Cross-app reads are not eventually consistent as a blanket claim. A synchronous read from the app that
+owns the data may be strongly consistent according to that app's own model, and treating it as eventual
+adds reconciliation to reads that never need it. What the channel never provides is **atomicity across
+owners**: two apps, two transactions, and no snapshot spanning both, whatever each one guarantees
+internally.
 
 The failure mode is therefore composition, not staleness. Data fetched from two apps in two calls is not
 a transactional snapshot, even when each call is individually authoritative. Take one of three options,
@@ -215,7 +215,7 @@ agent's.
 **`[ORCH-4]` `[review]` `{runtime-agent}`** — An agent may orchestrate the system **only from inside a
 harness**: a deterministic, observable app that runs the agent under enforced limits.
 
-The rule is stated here in full, so it needs nothing outside the core spine to be actionable. The harness
+The rule is stated here in full, so it does not depend on the addendum to be actionable. The harness
 does all five of these:
 
 - gives the agent **typed tools and nothing else**
@@ -265,9 +265,9 @@ an agent to reason about.
 compatibility verification**: an artifact, run in CI, that fails when the producer breaks the consumer.
 **Consumer-driven contracts are one technique for this, not the requirement itself.**
 
-The requirement used to name the technique, which put it at odds with `[SYS-TEST-4]` on the same page.
-That rule already called a schema registry "the event-shaped form of the same idea". The spine therefore
-mandated CDC and endorsed something else at the same time. What matters is the property: a verification
+The requirement names the property rather than a technique, because `[SYS-TEST-4]` calls a schema
+registry "the event-shaped form of the same idea", and a requirement that named consumer-driven contracts
+would contradict it. What matters is the property: a verification
 that **executes**, produces a pass or fail, and is wired into the gate. A documented schema nobody runs is
 not verification. Neither is a hand-written integration test that exercises only the success case.
 

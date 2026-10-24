@@ -3,11 +3,10 @@
 // against, and this asserts that declaration still matches the version the documents
 // in this tree actually describe.
 //
-// Why it exists: all three examples and the audit skill said "Written against
-// Coral 0.4.0" while VERSION said 0.5.0, and nothing noticed. That is the exact
-// failure [VER-3] describes — an audit performed against a version nobody is on —
-// committed by the reference material itself, which is worse than committing it in
-// a consuming project because this is what people copy.
+// Why it exists: a declaration that lags VERSION is the failure [VER-3] describes — an
+// audit performed against a version nobody is on — committed by the reference material
+// itself, which is worse than committing it in a consuming project because this is what
+// people copy. Nothing else notices it.
 //
 // The check is deliberately blunt: the declared version must EQUAL the RELEASED
 // version, not merely parse. A lagging declaration is the signal, so tolerating a lag

@@ -316,6 +316,25 @@ that binds where a repository declares `system`. The method's rule list gains a 
 `[CHAN-1]` is marked as binding at system scale beside `[CONTRACT-1]`. The page's
 `Written against **Coral 0.6.0**` line is unchanged. `rules.lock` and `rules.md` are unchanged.
 
+**The documents, guides, audit skill, and example pages are revised to describe the current system.
+Patch-level: prose. No rule was added, tightened, loosened, or retired, and no ID or enforcement class
+moved.**
+
+A maintenance pass removed change narration and corrected statements that had drifted from the repository
+in `CONVENTIONS.md`, `ARCHITECTURE.md`, `PRODUCTION.md`, `SYSTEM.md`, `appendix/backend.md`,
+`appendix/web.md`, `appendix/library.md`, `appendix/agentic-app.md`, `appendix/gh-action.md`, `README.md`,
+`index.md`, `guides/deciding-and-escalating.md`, `.claude/skills/coral-audit/SKILL.md`,
+`examples/cli-slice.md`, `examples/go-api-slice.md`, `examples/backend-review.md`, and the example
+project's `README.md`. The document set is listed once, in `CONVENTIONS.md` § Document set, which now
+names the guides, the executable project, and `templates/CORAL.md`; `ARCHITECTURE.md` § Document Set
+points at it, and `index.md`'s reading order lists the guides. `CONVENTIONS.md` and `PRODUCTION.md` state
+that the production baseline is the recommended default for an application and stays optional.
+`appendix/gh-action.md` defers its state/effects slot to the spine, and `appendix/agentic-app.md` lists
+its observability slot as deferred rather than open. `examples/backend-review.md` carries the same
+unreleased-rule note as the other example pages, because its `system`-scale conditions rest on `[VER-6]`.
+No rule sentence, contract line, or enforcement-table row changed, so `rules.lock`, `rules.md`, and the
+example project's contract are unchanged.
+
 **`[ERR-1]` becomes the kernel error-model invariant, and the six categories stop being universal. Major
 under `[VER-2]`: a rule that was opt-in now binds unconditionally.**
 

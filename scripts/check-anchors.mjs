@@ -7,11 +7,11 @@
 // tell you not to do. Reading the ids out of the rendered HTML is the same fact,
 // measured instead of predicted.
 //
-// This guards a failure the docs shipped with silently: `#7-forbidden-buckets-bucket-`
-// was linked from two places, and the real id is `#_7-forbidden-buckets-bucket`
-// (leading digit gets an underscore, trailing punctuation is dropped, `--`
-// collapses). VitePress's dead-link check validates the page, never the fragment,
-// so the links resolved to the right page and silently ignored the anchor.
+// VitePress's dead-link check validates the page, never the fragment, so a wrong
+// fragment still lands on the right page and silently ignores the anchor. Slugs are
+// easy to guess wrong: `#7-forbidden-buckets-bucket-` looks right, but the real id is
+// `#_7-forbidden-buckets-bucket` (leading digit gets an underscore, trailing
+// punctuation is dropped, `--` collapses).
 // ─────────────────────────────────────────────────────────────────────────────
 import fs from 'node:fs'
 import path from 'node:path'
