@@ -30,25 +30,32 @@ adopts (`[VER-6]`). Upgrading is a deliberate act. Read the entries between your
 version, satisfy the added rules **in the layers you have adopted**, and re-audit.
 
 **The Unreleased section below is not a release.** `VERSION` holds the latest **released** Coral. The
-heading beneath names the **working** version: the rule set these documents currently describe, which
-ships when the batch is cut. A rule under Unreleased is not in any release, and a project pinning
-`VERSION` does not owe it yet. A project pins a released version once a release carries the generator.
-Until `0.7.0` is cut, a project that generates its contract from `main` targets the working version and
-owes the rules under Unreleased in the layers it adopts.
+**working** version is the rule set these documents currently describe. When it is a successor to
+`VERSION`, the heading beneath names it, and it ships when the batch is cut. A bare `## Unreleased`
+states that the working version is `VERSION`. A rule under Unreleased is not in any release, and a project
+pinning `VERSION` does not owe it yet. A project pins a released version. A project that generates its
+contract from `main` targets the working version and owes the rules under Unreleased in the layers it
+adopts.
 
 ---
 
-## Unreleased — 0.7.0
+## Unreleased
 
-A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **The batch takes the highest level of the entries in it, currently major**, because the
-applicability pass below adds `[VER-6]` and the error-model pass moves `[ERR-1]` into the kernel. Adding a
-rule is a breaking change under `[VER-2]`, and so is making an opt-in rule unconditional. The code that
-can fail is a project's `CORAL.md`, which conformed yesterday, and a kernel-only project that had no
-declared error model. Coral is still in `0.y.z`, so that major is cut as a **minor** bump
-(`0.6.0` → `0.7.0`) per semver's major-version-zero clause. The level of the change is major either way,
-and a consuming project reads it as one. **The working version is already `0.7.0` and does not move
-again** — one batch takes one bump, however many breaking entries it holds.
+## 0.7.0 — 2026-10-24
+
+**Rules apply by declaration: a rule binds a project through the kernel or through the project's own
+`CORAL.md`, and through nothing else.** Two rules are **added**, `[VER-6]` `[auto]` and `[ERR-5]`
+`[guide]`, and `[ERR-1]` becomes a kernel rule that binds unconditionally. Under `[VER-2]` the batch is
+**major**, and the `0.y.z` clause cuts it as a **minor**. Nothing was retired, no enforcement class
+changed, and `rules.lock` goes from 178 to 180 rules. The entries below record each loosened or clarified
+rule.
+
+The two major entries are the applicability pass, which adds `[VER-6]` and makes the production baseline
+opt-in, and the error-model pass, which moves `[ERR-1]` into the kernel and the six categories into
+`[ERR-5]`. A project declares what it adopts, and at which scales, in its `CORAL.md`, and a generator
+writes its execution contract, `CORAL-CONTRACT.md`. The baseline has its own document, `PRODUCTION.md`.
+The `coral-lint` tool and the enforcement-tier model are removed. Two agent protocols are published under
+`guides/`. The Go example is an executable project, and CI runs the build on every pull request.
 
 **`tools/coral-lint` is removed. Patch-level: the tool was outside the versioned rule set, no rule was
 added, tightened, loosened, or retired, and no ID or enforcement class moved.**

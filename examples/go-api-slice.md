@@ -1,12 +1,6 @@
 # Worked example: a Go API capability slice (one endpoint, end to end)
 
-> Written against **Coral 0.6.0**.
->
-> **"Written against" names the latest *released* Coral.** The error-model citations below are
-> **unreleased** and ship in 0.7.0: `[ERR-1]` becomes a kernel rule that names no categories, and
-> `[ERR-5]` becomes the recommended six-category vocabulary. In 0.6.0, `[ERR-1]` is a
-> production-baseline rule that fixes those six names. The project's `CORAL.md` targets `0.7.0`,
-> because the contract generator first ships there. Delete this note when 0.7.0 is cut.
+> Written against **Coral 0.7.0**.
 
 The [CLI example](./cli-slice) shows a slice in a language that imposes nothing: each slice is one file
 that writes its own SQL, and there is no adapter. This one is in Go. The slice is also one file, and

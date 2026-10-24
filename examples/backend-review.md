@@ -1,10 +1,6 @@
 # Worked example: reviewing a real backend microservice
 
-> Written against **Coral 0.6.0**.
->
-> **"Written against" names the latest *released* Coral.** The `system`-scale conditions below rest on
-> `[VER-6]`'s scale declaration, which is **unreleased** and ships in 0.7.0. Delete this note when 0.7.0
-> is cut.
+> Written against **Coral 0.7.0**.
 
 The fastest way to understand Coral is to read it applied to a *real* service rather than a toy. This is
 a condensed review of a production-shaped Go microservice against the Coral rules. The service is an
