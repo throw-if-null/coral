@@ -357,3 +357,7 @@ confirmed good:
 6. verify a nonexistent URL returns the VitePress 404 page with a `404` status
 7. only then delete the Azure Static Web App
 8. remove the GitHub repository secret `AZURE_STATIC_WEB_APPS_API_TOKEN_GRAY_HILL_09BB08B03`
+
+## License
+
+Coral is released under the MIT License; see [`LICENSE`](./LICENSE).
