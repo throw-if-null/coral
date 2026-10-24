@@ -1,8 +1,8 @@
 {
   "name": "coral-architecture",
   "version": "0.6.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "Coral is a set of rules for organising code in a repository, followed by coding agents and by people.",
   "scripts": {
     "test": "npm run docs:build",
     "docs:dev": "vitepress dev",
@@ -18,15 +18,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ClimateView/coral.git"
+    "url": "git+https://github.com/throw-if-null/coral.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Mirza Merdovic",
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ClimateView/coral/issues"
+    "url": "https://github.com/throw-if-null/coral/issues"
   },
-  "homepage": "https://github.com/ClimateView/coral#readme",
+  "homepage": "https://coral.appsandtools.work",
   "devDependencies": {
     "mermaid": "^11.17.2",
     "vitepress": "^1.6.4",

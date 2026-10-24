@@ -341,3 +341,7 @@ Preview builds use Cloudflare's own preview deployment mechanism. `wrangler.json
 
 `wrangler.jsonc` already declares the custom domain, so `npx wrangler deploy` claims it on the first
 deploy. Add it in the dashboard only if that step is skipped.
+
+## License
+
+Coral is released under the MIT License; see [`LICENSE`](./LICENSE).
