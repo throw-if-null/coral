@@ -150,8 +150,9 @@ configuration for a backend app: `scales: [app]`, `production-baseline: true`, `
 no exceptions, no extensions.
 
 1. Copy the template to the project root as `CORAL.md`. Set the project name in the heading. Set
-   `targets` to the version of the Coral checkout the project generates from: `VERSION` on a release
-   tag, or the version named by the `## Unreleased` heading in `CHANGELOG.md` on `main`. The
+   `targets` to the version of the Coral checkout the project generates from. A project pins a
+   released version: `VERSION` on its release tag. On `main`, the version is the one the
+   `## Unreleased` heading in `CHANGELOG.md` names, or `VERSION` when the heading names none. The
    generator refuses a mismatch and names the version it expects.
 2. From that checkout, generate the execution contract:
 
@@ -199,12 +200,12 @@ are append-only. They are never renumbered, recycled, or removed. `rules.lock` i
 the build enforces that against.
 
 **Coral carries two versions, and the difference matters because `[VER-3]` makes version identity part
-of applicability.** The **latest released** version is in `VERSION`, and a project pins it once a release
-carries the generator. The **working** version is the rule set these documents currently describe, named
-by the changelog's Unreleased heading. Between releases the working version is a successor to `VERSION`,
-so **`main` describes rules that are not in any release yet**. Until `0.7.0` is cut, a project that
-generates its contract from `main` targets the working version, and the generator refuses any other
-target.
+of applicability.** The **latest released** version is in `VERSION`, and a project pins a released
+version. The **working** version is the rule set these documents currently describe: the version the
+changelog's `## Unreleased` heading names, or `VERSION` when the heading names none. When the heading
+names a version, it is a successor to `VERSION`, and **`main` describes rules that are not in any release
+yet**. A project that generates its contract from `main` targets the working version, and the generator
+refuses any other target.
 [`CONVENTIONS.md`](./CONVENTIONS.md#two-versions-released-and-working) states the split.
 
 A consuming project keeps a **`CORAL.md`** in its root. It is the one file that answers *what rules apply

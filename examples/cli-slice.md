@@ -1,11 +1,6 @@
 # Worked example: a CLI capability slice (two commands, end to end)
 
-> Written against **Coral 0.6.0**.
->
-> **"Written against" names the latest *released* Coral.** The error-model citations below are
-> **unreleased** and ship in 0.7.0: `[ERR-1]` becomes a kernel rule that names no categories, and
-> `[ERR-5]` becomes the recommended six-category vocabulary. In 0.6.0, `[ERR-1]` is a
-> production-baseline rule that fixes those six names. Delete this note when 0.7.0 is cut.
+> Written against **Coral 0.7.0**.
 
 The [Go example](./go-api-slice) shows one package per capability, each slice one file in it, with Go's
 import-cycle rule and single-package code generation shaping the tree around it into a shared persistence

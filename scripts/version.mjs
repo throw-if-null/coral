@@ -6,22 +6,23 @@
 //   · the RELEASED version is what `VERSION` holds. It moves when a batch is cut,
 //     not when a commit lands — `[VER-2]` says so, and that is the whole reason
 //     the changelog has an Unreleased section.
-//   · the WORKING version is what the documents in the tree would ship as. Between
-//     releases those are not the same rule set, and saying they are is how a rule
-//     that does not exist in 0.6.0 gets presented to a project as a 0.6.0 rule.
+//   · the WORKING version is what the documents in the tree would ship as. When the
+//     Unreleased heading names a version, the two are not the same rule set, and
+//     saying they are is how a rule that does not exist in 0.6.0 gets presented to a
+//     project as a 0.6.0 rule. When the heading is bare, they are the same.
 //
-// That is not hypothetical. `[VER-6]` is unreleased: a project targeting 0.6.0 is
-// targeting a Coral in which it does not exist, and its `CORAL.md` legitimately has
-// no adoption declaration. An applicability resolver that identified this tree as
-// "0.6.0" would report that record as violating a rule its target predates —
-// `[VER-6]` applied retroactively, which is exactly what `[VER-3]` forbids.
+// `[VER-6]` is an instance. It does not exist in 0.6.0, so the `CORAL.md` of a project
+// targeting 0.6.0 legitimately has no adoption declaration. An applicability resolver
+// that identified a tree holding `[VER-6]` as "0.6.0" would report that record as
+// violating a rule its target predates — `[VER-6]` applied retroactively, which is
+// exactly what `[VER-3]` forbids.
 //
 // So the model carries an identity, and the identity is the working version.
 //
 // Where the working version comes from: the Unreleased heading names it, next to
 // the compatibility statement that already decides the bump level. One place, and
-// the place where the decision is already made. `## Unreleased — 0.7.0` says the
-// documents in this tree are the 0.7.0 rule set. A bare `## Unreleased` says the
+// the place where the decision is already made. `## Unreleased — 0.8.0` says the
+// documents in this tree are the 0.8.0 rule set. A bare `## Unreleased` says the
 // batch changes no rule and the tree still describes the released version — the
 // same claim as a `[VER-2]` patch, written where patch-level is decided.
 //

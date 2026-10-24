@@ -1,6 +1,6 @@
 {
   "name": "coral-architecture",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Coral is a set of rules for organising code in a repository, followed by coding agents and by people.",
   "scripts": {

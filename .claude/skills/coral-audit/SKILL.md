@@ -19,24 +19,20 @@ description: >
 
 # Coral repo audit
 
-> Written against **Coral 0.6.0**. Audit a project against the version its
+> Written against **Coral 0.7.0**. Audit a project against the version its
 > `CORAL.md` declares, not against this one (`[VER-3]`).
 >
-> **"Written against" names the latest *released* Coral. A project pins a release once one
-> carries the generator; until 0.7.0 is cut, a project that generates its contract from
-> `main` targets the working version, 0.7.0. The marker is not a claim that everything below
-> exists in 0.6.0.** This skill already
-> implements `[VER-6]`, which is **unreleased** and ships in 0.7.0: `CORAL.md` adoption
-> declarations, the undeclared-normative-surface finding, and scale filtering are all
-> 0.7.0 behaviour. The same holds for the error model below: `[ERR-1]` is a kernel rule
-> naming no categories, and `[ERR-5]` is the recommended six-category vocabulary, both
-> 0.7.0. In 0.6.0 and earlier there are no ownership layers and no adoption: `[ERR-1]` is
-> defined in `ARCHITECTURE.md`, fixes those six names, and binds every project, so a project
-> targeting one of those versions is audited against *that*: six categories, unconditionally.
-> A project targeting 0.6.0 or earlier
-> has no adoption declaration either and is not wrong for it — audit it against its own
-> version's applicability semantics, not against the ones below. Delete this note when
-> 0.7.0 is cut.
+> **"Written against" names the latest *released* Coral.** A project pins a released version.
+> A project that generates its contract from `main` targets the working version: the version
+> the changelog's `## Unreleased` heading names, or `VERSION` when the heading names none.
+> `[VER-6]` and the error model below first ship in 0.7.0: `CORAL.md` adoption declarations,
+> the undeclared-normative-surface finding, scale filtering, `[ERR-1]` as a kernel rule naming
+> no categories, and `[ERR-5]` as the recommended six-category vocabulary. In 0.6.0 and earlier
+> there are no ownership layers and no adoption: `[ERR-1]` is defined in `ARCHITECTURE.md`,
+> fixes those six names, and binds every project, so a project targeting one of those versions
+> is audited against *that*: six categories, unconditionally. A project targeting 0.6.0 or
+> earlier has no adoption declaration either and is not wrong for it — audit it against its own
+> version's applicability semantics, not against the ones below.
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not
