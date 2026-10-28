@@ -41,12 +41,19 @@ adopts.
 
 ---
 
-## Unreleased — 0.8.0
+## Unreleased
 
-A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **The batch is currently major**, because `[COMMENT-1]` is added. Coral is still in
-`0.y.z`, so that major is cut as a **minor** bump (`0.7.0` → `0.8.0`) per semver's major-version-zero
-clause.
+## 0.8.0 — 2026-10-28
+
+**A code comment holds only what the code does not show, and setup pins the skill an agent follows for
+comments and documentation.** One rule is **added**, `[COMMENT-1]` `[review]`, in the production
+baseline. Under `[VER-2]` the batch is **major**, and the `0.y.z` clause cuts it as a **minor**. Nothing
+was retired, no enforcement class changed, and `rules.lock` goes from 180 to 181 rules.
+
+Setup in `README.md` § "Start a project" gains a dependency and a step, and neither is a rule. Every
+agent loads haddock's `doc-maintenance` skill by URL at `v0.5.0`, the haddock tag this release pins. A
+conflict check compares the project's agent instructions with the contract, the two protocols, and the
+skill, at setup and again when the project changes `targets`.
 
 **`[COMMENT-1]` `[review]` is added: a comment holds only information the code does not show. Major under
 `[VER-2]`: a rule is added.**
@@ -75,7 +82,7 @@ worked example in `CONVENTIONS.md`, `templates/CORAL.md`, and `examples/go-api-s
 example project's generated `CORAL-CONTRACT.md` lists `[COMMENT-1]`. The example project's Go comments
 that added nothing beyond the code are rewritten or deleted, and the quotes on
 `examples/go-api-slice.md` match them. The audit skill lists comment content among the
-production-baseline concerns, and states that `[COMMENT-1]` is in no release yet.
+production-baseline concerns.
 
 **haddock's `doc-maintenance` skill is a setup dependency, and setup includes a conflict check.
 Patch-level: setup instructions, a snippet line, and a build check. No rule was added, tightened,
@@ -85,8 +92,10 @@ loosened, or retired, and no ID or enforcement class moved.**
 Each Coral release pins one haddock tag. The agent-instructions snippet gains a line that loads the
 skill's `SKILL.md` by URL at that tag, so every agent loads the same version, and
 `examples/go-api-slice/AGENTS.md` gains the same line. For Claude Code, the section also documents a
-plugin install pinned to the tag. The skill is not a rule, because a rule is reviewed against source
-code, and the use of a skill is not visible there.
+plugin install pinned to the tag. It states that `claude plugin marketplace add` fails when a settings
+file already declares the marketplace without the tag, and that setting `ref` in that declaration fixes
+it. The skill is not a rule, because a rule is reviewed against source code, and the use of a skill is
+not visible there.
 
 The conflict check is a setup step. The agent reads every instruction source it loads in the project,
 compares each source with `CORAL-CONTRACT.md`, the two protocols, and `doc-maintenance`, and reports each

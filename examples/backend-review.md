@@ -1,6 +1,6 @@
 # Worked example: reviewing a real backend microservice
 
-> Written against **Coral 0.7.0**.
+> Written against **Coral 0.8.0**.
 
 The fastest way to understand Coral is to read it applied to a *real* service rather than a toy. This is
 a condensed review of a production-shaped Go microservice against the Coral rules. The service is an

@@ -21,8 +21,8 @@
 //
 // Where the working version comes from: the Unreleased heading names it, next to
 // the compatibility statement that already decides the bump level. One place, and
-// the place where the decision is already made. `## Unreleased — 0.8.0` says the
-// documents in this tree are the 0.8.0 rule set. A bare `## Unreleased` says the
+// the place where the decision is already made. `## Unreleased — 0.9.0` says the
+// documents in this tree are the 0.9.0 rule set. A bare `## Unreleased` says the
 // batch changes no rule and the tree still describes the released version — the
 // same claim as a `[VER-2]` patch, written where patch-level is decided.
 //
