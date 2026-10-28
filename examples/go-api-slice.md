@@ -103,7 +103,7 @@ func (e *Error) Error() string { return e.Message }
 // Unwrap exposes the cause to the log line, never to the response body.
 func (e *Error) Unwrap() error { return e.cause }
 
-// New constructs a raised failure.
+// New constructs a raised failure. Its message reaches the client unchanged.
 func New(category Category, code, message string) *Error {
 	return &Error{Category: category, Code: code, Message: message}
 }
@@ -180,7 +180,8 @@ const Header = "X-Tenant-ID"
 
 type ctxKey struct{}
 
-// WithTenant records the verified tenant on the context.
+// WithTenant records tenantID as the verified tenant. Call it only with a tenant that the
+// trust boundary verified.
 func WithTenant(ctx context.Context, tenantID uuid.UUID) context.Context {
 	return context.WithValue(ctx, ctxKey{}, tenantID)
 }
@@ -289,8 +290,7 @@ type getResponse struct {
 	Body  string    `json:"body"`
 }
 
-// getHandler is the HTTP edge of get. It reads the tenant, parses the id, calls the body,
-// and writes the success status. A failure is returned for the root to render.
+// getHandler is the HTTP edge of get. A failure is returned for the root to render.
 func getHandler(s Store) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tenantID, ok := reqctx.TenantID(c.UserContext())

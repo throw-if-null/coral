@@ -78,10 +78,11 @@ From there, in the order a project decides things:
    Coral codebase without being adopted. It is short.
 2. [`PRODUCTION.md`](./PRODUCTION.md): the **production baseline** for one app, and the decision whether
    to take it. It covers package naming, buckets, state ownership, concurrency, idempotency, errors,
-   config, observability, contracts, trust, testing, and growth. It is **the recommended default for an
-   application**, and it stays optional. Coral publishes it as an opinionated production-engineering
-   policy, and it applies only where a project's `CORAL.md` says `production-baseline: true`. Its
-   justification is that the software needs it, not that an agent wrote it.
+   config, observability, contracts, trust, testing, growth, and code comments. It is **the recommended
+   default for an application**, and it stays optional. Coral publishes it as an opinionated
+   production-engineering policy, and it applies only where a project's `CORAL.md` says
+   `production-baseline: true`. Its justification is that the software needs it, not that an agent
+   wrote it.
 3. [`SYSTEM.md`](./SYSTEM.md): how separately-built apps compose over a channel. It is optional as well.
    It carries two independent opt-ins: the system-scale production baseline, and the runtime-agent
    orchestration rules. Neither implies the other.
@@ -149,6 +150,11 @@ is the exception, not the default. [`templates/CORAL.md`](./templates/CORAL.md) 
 configuration for a backend app: `scales: [app]`, `production-baseline: true`, `app-profile: [backend]`,
 no exceptions, no extensions.
 
+Coral has one setup dependency outside this repository: the `doc-maintenance` skill from
+[haddock](https://github.com/throw-if-null/haddock/tree/v0.5.0), at tag `v0.5.0`. The skill is the
+procedure an agent follows for code comments and documentation. It defines no Coral rule. Each Coral
+release pins one haddock tag. The dependency first ships in `0.8.0`.
+
 1. Copy the template to the project root as `CORAL.md`. Set the project name in the heading. Set
    `targets` to the version of the Coral checkout the project generates from. A project pins a
    released version: `VERSION` on its release tag. On `main`, the version is the one the
@@ -164,8 +170,9 @@ no exceptions, no extensions.
    run. [Versioning](#versioning-and-how-a-project-records-where-it-differs) describes the generator and
    its output, `CORAL-CONTRACT.md`.
 3. Add an agent instructions file, `CLAUDE.md` or `AGENTS.md`, to the project root. It tells the agent
-   to load the generated contract, the decision protocol, and the
-   [behavioral verification protocol](./guides/behavioral-verification.md):
+   to load the generated contract, the decision protocol, the
+   [behavioral verification protocol](./guides/behavioral-verification.md), and `doc-maintenance` at
+   the pinned tag:
 
    ```markdown
    ## Coral
@@ -182,7 +189,39 @@ no exceptions, no extensions.
    <https://coral.appsandtools.work/guides/behavioral-verification>, before you write or change a
    test. It states how an acceptance criterion is written and how expected behavior changes. It
    defines no rule.
+
+   Load the haddock `doc-maintenance` skill,
+   <https://raw.githubusercontent.com/throw-if-null/haddock/v0.5.0/skills/doc-maintenance/SKILL.md>,
+   before you change code or documentation. It is the procedure for code comments and
+   documentation. It defines no rule.
    ```
+
+   Claude Code can also install the skill as a plugin, pinned to the same tag:
+
+   ```bash
+   claude plugin marketplace add throw-if-null/haddock#v0.5.0
+   claude plugin install haddock@throw-if-null
+   ```
+
+   `#v0.5.0` pins the marketplace to the tag. Without it, the marketplace follows haddock's default
+   branch, and a plugin update can install a different version of the skill. The plugin also installs a
+   `SessionStart` hook that adds haddock's primer to each session. The instructions file keeps the
+   snippet line, so an agent without the plugin loads the same version.
+4. Run the conflict check before the agent changes code, and again each time the project changes
+   `targets`. Ask the agent to do these steps:
+
+   1. Read every instruction source that the agent loads in this project:
+      - user-global instruction files
+      - repository instruction files: `CLAUDE.md`, `AGENTS.md`, `CLAUDE.local.md`, and the equivalent
+        files of other agents
+      - hooks that inject instructions
+   2. Compare each source with `CORAL-CONTRACT.md`, the two protocols, and `doc-maintenance`.
+   3. Report each conflict: the source, its conflicting passage, and the passage of the contract, a
+      protocol, or `doc-maintenance` that it conflicts with. Resolve none of them (`[AGENT-2]`).
+
+   A human resolves each conflict. The human edits the conflicting source, or records an exception in
+   `CORAL.md` (`[VER-5]`, `[AGENT-4]`) when the project deviates on purpose. An exception names a Coral
+   rule, so it resolves only a conflict with a rule in `CORAL-CONTRACT.md`.
 
 Three things are outside the canonical configuration:
 

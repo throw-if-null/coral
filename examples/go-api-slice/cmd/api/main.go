@@ -1,5 +1,4 @@
-// Command api is the composition root of the service. It resolves configuration, constructs
-// the crosscuts and the adapter, registers the slice, and runs.
+// Command api is the composition root of the service.
 package main
 
 import (

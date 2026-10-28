@@ -63,6 +63,7 @@ CLI-6	auto	appendix/cli.md
 CLI-7	guide	appendix/cli.md
 CLI-8	auto	appendix/cli.md
 CLI-9	review	appendix/cli.md
+COMMENT-1	review	PRODUCTION.md
 COMPOSE-1	review	ARCHITECTURE.md
 COMPOSE-2	review	PRODUCTION.md
 COMPOSE-3	review	PRODUCTION.md

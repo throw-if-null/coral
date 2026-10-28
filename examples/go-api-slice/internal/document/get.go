@@ -30,8 +30,7 @@ type getResponse struct {
 	Body  string    `json:"body"`
 }
 
-// getHandler is the HTTP edge of get. It reads the tenant, parses the id, calls the body,
-// and writes the success status. A failure is returned for the root to render.
+// getHandler is the HTTP edge of get. A failure is returned for the root to render.
 func getHandler(s Store) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tenantID, ok := reqctx.TenantID(c.UserContext())

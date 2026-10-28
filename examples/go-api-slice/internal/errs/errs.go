@@ -33,7 +33,7 @@ func (e *Error) Error() string { return e.Message }
 // Unwrap exposes the cause to the log line, never to the response body.
 func (e *Error) Unwrap() error { return e.cause }
 
-// New constructs a raised failure.
+// New constructs a raised failure. Its message reaches the client unchanged.
 func New(category Category, code, message string) *Error {
 	return &Error{Category: category, Code: code, Message: message}
 }

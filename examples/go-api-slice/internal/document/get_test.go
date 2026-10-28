@@ -72,7 +72,6 @@ func (m memStore) GetByID(_ context.Context, tenantID, id uuid.UUID) (document.D
 	return d, nil
 }
 
-// failingStore is a document.Store whose backend is down.
 type failingStore struct{ err error }
 
 func (f failingStore) GetByID(context.Context, uuid.UUID, uuid.UUID) (document.Document, error) {
@@ -90,7 +89,6 @@ func newApp(s document.Store) *fiber.App {
 	return app
 }
 
-// get performs GET /v1/documents/{id}. An empty tenant sends no tenant header.
 func get(t *testing.T, app *fiber.App, tenant, id string) (int, map[string]any, []byte) {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, "/v1/documents/"+id, nil)
@@ -113,8 +111,6 @@ func get(t *testing.T, app *fiber.App, tenant, id string) (int, map[string]any, 
 	return resp.StatusCode, body, raw
 }
 
-// assertError asserts the rendered form of a raised failure: the status the root maps the
-// category to, the category and code the slice raised, and a non-empty message.
 func assertError(t *testing.T, status int, body map[string]any, wantStatus int, category, code string) {
 	t.Helper()
 	if status != wantStatus {
