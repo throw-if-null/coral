@@ -150,7 +150,7 @@ is the exception, not the default. [`templates/CORAL.md`](./templates/CORAL.md) 
 configuration for a backend app: `scales: [app]`, `production-baseline: true`, `app-profile: [backend]`,
 no exceptions, no extensions.
 
-Coral has one setup dependency outside this repository: the `doc-maintenance` skill from
+Setup also depends on one skill outside this repository: the `doc-maintenance` skill from
 [haddock](https://github.com/throw-if-null/haddock/tree/v0.5.0), at tag `v0.5.0`. The skill is the
 procedure an agent follows for code comments and documentation. It defines no Coral rule. Each Coral
 release pins one haddock tag. The dependency first ships in `0.8.0`.
@@ -205,8 +205,8 @@ release pins one haddock tag. The dependency first ships in `0.8.0`.
 
    `#v0.5.0` pins the marketplace to the tag. Without it, the marketplace follows haddock's default
    branch, and a plugin update can install a different version of the skill. The plugin also installs a
-   `SessionStart` hook that adds haddock's primer to each session. The instructions file keeps the
-   snippet line, so an agent without the plugin loads the same version.
+   `SessionStart` hook that adds haddock's primer to each session. Keep the snippet line in the
+   instructions file, so that an agent without the plugin loads the same version.
 4. Run the conflict check before the agent changes code, and again each time the project changes
    `targets`. Ask the agent to do these steps:
 
