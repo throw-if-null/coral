@@ -3,7 +3,7 @@
 ```yaml coral
 # The Coral version this project is audited against ([VER-3]). The generator resolves this
 # record against the rule set of the checkout it runs from, and it refuses a mismatch.
-targets: "0.7.0"
+targets: "0.8.0"
 
 # One deployable app. There is no channel here for a system-scale rule to bind.
 scales:

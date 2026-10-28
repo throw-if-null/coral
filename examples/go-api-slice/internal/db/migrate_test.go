@@ -10,8 +10,6 @@ import (
 	"github.com/throw-if-null/coral/examples/go-api-slice/internal/pgtest"
 )
 
-// TestMigrate_appliesEachFileOnce runs the document package's migrations twice against a
-// real Postgres: the first run creates the table, the second applies nothing.
 func TestMigrate_appliesEachFileOnce(t *testing.T) {
 	pool := pgtest.Schema(t)
 	ctx := context.Background()

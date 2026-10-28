@@ -15,7 +15,8 @@ const Header = "X-Tenant-ID"
 
 type ctxKey struct{}
 
-// WithTenant records the verified tenant on the context.
+// WithTenant records tenantID as the verified tenant. Call it only with a tenant that the
+// trust boundary verified.
 func WithTenant(ctx context.Context, tenantID uuid.UUID) context.Context {
 	return context.WithValue(ctx, ctxKey{}, tenantID)
 }

@@ -14,3 +14,8 @@ Load the behavioral verification protocol,
 <https://coral.appsandtools.work/guides/behavioral-verification>, before you write or change a
 test. It states how an acceptance criterion is written and how expected behavior changes. It
 defines no rule.
+
+Load the haddock `doc-maintenance` skill,
+<https://raw.githubusercontent.com/throw-if-null/haddock/v0.5.0/skills/doc-maintenance/SKILL.md>,
+before you change code or documentation. It is the procedure for code comments and
+documentation. It defines no rule.

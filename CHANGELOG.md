@@ -27,7 +27,9 @@ between it and the documents. Regenerate with `npm run rules:lock` and record th
 
 A project states the version it targets in its `CORAL.md` (`[VER-3]`), and how much of that version it
 adopts (`[VER-6]`). Upgrading is a deliberate act. Read the entries between your target and the new
-version, satisfy the added rules **in the layers you have adopted**, and re-audit.
+version, satisfy the added rules **in the layers you have adopted**, run the
+[conflict check](https://github.com/throw-if-null/coral/blob/main/README.md#start-a-project) again, and
+re-audit.
 
 **The Unreleased section below is not a release.** `VERSION` holds the latest **released** Coral. The
 **working** version is the rule set these documents currently describe. When it is a successor to
@@ -39,7 +41,64 @@ adopts.
 
 ---
 
-## Unreleased
+## Unreleased — 0.8.0
+
+A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
+the batch is cut. **The batch is currently major**, because `[COMMENT-1]` is added. Coral is still in
+`0.y.z`, so that major is cut as a **minor** bump (`0.7.0` → `0.8.0`) per semver's major-version-zero
+clause.
+
+**`[COMMENT-1]` `[review]` is added: a comment holds only information the code does not show. Major under
+`[VER-2]`: a rule is added.**
+
+`[COMMENT-1]` is a production-baseline rule, defined in `PRODUCTION.md` § 22 and listed in its Agent
+Execution Contract. A comment states a constraint, the reason for the current design, or behavior a
+competent reader would get wrong: the behavior of a library, the language, the runtime, the platform, an
+external service, or a consumer. Best-practice advice is not in that scope. A comment is short unless it
+warns about such behavior. It may state the reason that a simpler approach is incorrect. It records no
+change history and does not describe how a decision was reached. When a comment would say what a
+function does, the remedy is a new name for the function or its parameters. A doc comment that a
+language's convention expects on an exported identifier, such as Go's, is allowed, and it states what a
+caller can rely on beyond the name and the signature. The documentation of a published contract is not
+held to the minimum, consistent with `[CONTRACT-1]` and `[LIB-7]`. A `REVIEW:` note that `[AGENT-2]`
+requires is outside the rule, and it is deleted when the human decides.
+
+**What you must now satisfy:** in a project that adopts the production baseline, a comment that records
+change history, describes how a decision was reached, or says what a function does is a finding. An
+expected doc comment on an exported identifier is a finding only when it adds nothing beyond the name
+and the signature.
+
+No rule was retired, and no enforcement class changed. `rules.lock` goes from 180 to 181 rules.
+`CONVENTIONS.md` § "Everything else" gains a ground for a non-kernel rule, a maintainability convention,
+and lists `[COMMENT-1]` under it. The adherence records this repository resolves target `0.8.0`: the
+worked example in `CONVENTIONS.md`, `templates/CORAL.md`, and `examples/go-api-slice/CORAL.md`. The
+example project's generated `CORAL-CONTRACT.md` lists `[COMMENT-1]`. The example project's Go comments
+that added nothing beyond the code are rewritten or deleted, and the quotes on
+`examples/go-api-slice.md` match them. The audit skill lists comment content among the
+production-baseline concerns, and states that `[COMMENT-1]` is in no release yet.
+
+**haddock's `doc-maintenance` skill is a setup dependency, and setup includes a conflict check.
+Patch-level: setup instructions, a snippet line, and a build check. No rule was added, tightened,
+loosened, or retired, and no ID or enforcement class moved.**
+
+`README.md` § "Start a project" names the dependency: `doc-maintenance` from haddock, at tag `v0.5.0`.
+Each Coral release pins one haddock tag. The agent-instructions snippet gains a line that loads the
+skill's `SKILL.md` by URL at that tag, so every agent loads the same version, and
+`examples/go-api-slice/AGENTS.md` gains the same line. For Claude Code, the section also documents a
+plugin install pinned to the tag. The skill is not a rule, because a rule is reviewed against source
+code, and the use of a skill is not visible there.
+
+The conflict check is a setup step. The agent reads every instruction source it loads in the project,
+compares each source with `CORAL-CONTRACT.md`, the two protocols, and `doc-maintenance`, and reports each
+conflict. It resolves none (`[AGENT-2]`). A human edits the conflicting source, or records an exception
+in `CORAL.md` when the project deviates on purpose. The check runs at setup, and again when the project
+changes `targets`. `README.md` § "Start a project" describes it. The header of this file and `[VER-3]`'s
+commentary in `CONVENTIONS.md` link to it where they describe an upgrade.
+
+`scripts/agent-instructions.test.mjs` fails the build when `examples/go-api-slice/AGENTS.md` differs
+from the README snippet, or when two references to haddock name different tags.
+
+---
 
 ## 0.7.0 — 2026-10-24
 

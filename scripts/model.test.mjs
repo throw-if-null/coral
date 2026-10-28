@@ -823,7 +823,7 @@ const REAL = loadRuleModel(REPO)
 test('the repository model is clean and every rule in it has one scope', () => {
   assert.deepEqual(REAL.problems, [])
   assert.ok(REAL.classified)
-  assert.equal(REAL.rules.size, 180)
+  assert.equal(REAL.rules.size, 181)
   for (const [id, rule] of REAL.rules) {
     assert.ok(rule.scope, `[${id}] has no resolved scope`)
     assert.ok(rule.scope.kind, `[${id}] has no scope kind`)

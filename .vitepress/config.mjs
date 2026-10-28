@@ -187,7 +187,7 @@ if (fs.existsSync(lockPath)) {
 // refer outward, per [SCOPE-4].
 //
 // BOTH app-scale spines are held to it (APP_SPINES): PRODUCTION.md holds the app-scale
-// production baseline, the seventy rules most likely to cite a system rule.
+// production baseline, the rules most likely to cite a system rule.
 //
 // Appendices are deliberately exempt: CONVENTIONS.md permits them to cite system
 // rules where an app type reproduces the system pattern internally, which is why

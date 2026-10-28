@@ -37,7 +37,7 @@ adoptions.
 
 ## How to read this document
 
-Sections 1–21 **define** the rules and explain *why* each exists. The
+Sections 1–22 **define** the rules and explain *why* each exists. The
 [Agent Execution Contract](#agent-execution-contract-production-baseline-app-scale) is the **complete**
 condensed checklist: every `[auto]` and `[review]` rule below appears in it, so an agent that loads only
 the contract has the whole normative surface of this document. The build fails if a rule is missing
@@ -793,10 +793,55 @@ If the fan-in starts owning its own cross-domain rules, that is `[GROW-3]`.
 
 ---
 
+## 22. Code comments  `[COMMENT-*]`
+
+**`[COMMENT-1]` `[review]` `{baseline}`** — Write a comment only for information the code does not show:
+a constraint, the reason for the current design, or behavior a competent reader would get wrong. Keep a
+comment short unless it warns about such behavior. Do not record change history or describe how a
+decision was reached. When a comment would say what a function does, rename the function or its
+parameters. A doc comment that a language's convention expects on an exported identifier is allowed. It
+states what a caller can rely on beyond the name and the signature. This rule does not limit
+documentation of a published contract. That documentation states everything an external consumer needs
+to use the contract correctly.
+
+**Behavior a competent reader would get wrong** is the behavior of a library, the language, the runtime,
+the platform, an external service, or a consumer. Best-practice advice is not in that scope. A warning
+about such behavior is as long as the warning requires, for example on a call to a payment provider:
+`// The provider answers a declined card with 200 and an error body, so a 200 is not a successful charge.`
+
+**A comment may state a reason. It must not narrate history.** The reason for the current design is
+allowed, including the reason that a simpler approach is incorrect. What changed, when it changed, and
+which options were weighed are not allowed. The commit message and the changelog hold them. On the same
+provider call, `// Changed from a retry loop to one call after the duplicate charges in March` is
+forbidden. `// One call: the provider charges the card again on every retry` states why the retry loop
+is incorrect, and it stays correct for as long as the code is unchanged.
+
+**Rename before you comment.** A comment such as `// fetch loads the invoice for an order` says what the
+function does. Rename the function `loadInvoice` and delete the comment. When a comment explains what a
+parameter holds, rename the parameter.
+
+**A doc comment that a language's convention expects is allowed.** Go, for example, expects one on
+every exported identifier. The comment states what a caller can rely on beyond the name and the
+signature: `// New constructs a raised failure. Its message reaches the client unchanged.` A doc
+comment that only repeats the name, such as `// New constructs a raised failure.`, gives the caller
+nothing. Rewrite it or delete it. An unexported helper has no such convention behind it, and the rest
+of this rule applies to its comments unchanged.
+
+**The documentation of a published contract (`[MODEL-1]`) is not held to the minimum.** An external
+consumer does not read the implementation, so the documentation states everything that consumer needs.
+This is consistent with `[CONTRACT-1]`, which requires the surface to be explicit, and with `[LIB-7]`,
+which requires a library's doc comment to state the idempotency and the retry stance of anything that
+performs I/O.
+
+**A `REVIEW:` note that `[AGENT-2]` requires is outside this rule.** It records an open decision for a
+human, and it is deleted when the human decides.
+
+---
+
 ## Agent Execution Contract (production baseline, app scale)
 
 The **complete** normative checklist for this document: every `[auto]` and `[review]` rule above, in one
-place. Load this as your working contract. Sections 1–21 are the *why*, and `[guide]` rules live only
+place. Load this as your working contract. Sections 1–22 are the *why*, and `[guide]` rules live only
 there. Reviewers walk this same list and cite the same IDs.
 
 **Every line here is opt-in.** The whole contract sits inside one `coral:scope:baseline` marker, because
@@ -883,6 +928,9 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 - `[SCOPE-3]` When features converge on one dense concept, give it its own app behind a published contract.
 - `[GROW-2]` Answer file growth by splitting inside the slice, never with a global abstraction.
 - `[GROW-3]` Treat domain densification as a split signal, not a refactor-into-a-shared-core signal.
+
+### Comments
+- `[COMMENT-1]` Comment only what the code does not show: a constraint, the reason for the current design, or behavior a competent reader would get wrong. Keep it short unless it warns. Do not record change history or how a decision was reached. Rename rather than comment what a function does. A doc comment that the language expects on an exported identifier is allowed, and states what a caller can rely on beyond the name and the signature. Document a published contract in full.
 
 <!-- coral:scope:end -->
 

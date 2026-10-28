@@ -474,7 +474,10 @@ against that version.
 
 Without a declared target, every Coral change silently invalidates every project's audit, and "we are
 Coral-conformant" becomes an unverifiable claim. With one, upgrading is a deliberate act with a readable
-diff: *4.0 added `[CONC-1..5]`, and here is what that means for us.*
+diff: *4.0 added `[CONC-1..5]`, and here is what that means for us.* A project that changes `targets`
+runs the [conflict check](https://github.com/throw-if-null/coral/blob/main/README.md#start-a-project)
+again, because the contract, the protocols, and the pinned `doc-maintenance` skill can differ between
+versions.
 
 **`[VER-4]` `[auto]` `{governance}`** — A project's own rule IDs are namespaced by a project prefix and
 never reuse a Coral family name.
@@ -573,7 +576,7 @@ answer. An agent that read only half would have a wrong picture of what is permi
 
 ```yaml coral
 # Which Coral this project is audited against ([VER-3]).
-targets: "0.7.0"
+targets: "0.8.0"
 
 # Which architectural scales this repository is written at. One deployable app, so
 # `app` alone — there is no channel here for a system-scale rule to bind.
@@ -807,6 +810,8 @@ more of:
   authorization rules in the appendices.
 - **distributed-systems correctness.** Channel semantics (`[CHAN-5]`, `[CHAN-9]`, `[CHAN-10]`),
   idempotency (`[IDEM-*]`), and observability across apps (`[OBS-*]`).
+- **a maintainability convention.** Comment content (`[COMMENT-1]`): a comment holds only what the code
+  does not show.
 - **an app-type-specific convention.** The appendix families (`[CLI-*]`, `[BE-*]`, `[WEB-*]`,
   `[LIB-*]`, `[GHA-*]`).
 - **a runtime-AI convention.** `[AGENTIC-*]`, and `[ORCH-4]`, `[ORCH-5]` and `[ORCH-6]`, which apply

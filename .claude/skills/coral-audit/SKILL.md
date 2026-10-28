@@ -7,8 +7,9 @@ description: >
   app / runtime / language profiles that file explicitly adopts, at the scales it declares ([VER-6]).
   Capability slicing, the five categories, published-capability composition, behavior-first testing and
   one declared error model are kernel and always count; bucket packages, role-revealing package names,
-  named and injected crosscuts, thin composition, the recommended error-category vocabulary and the rest
-  of the production discipline are production-baseline policy and count only where that layer is adopted.
+  named and injected crosscuts, thin composition, the recommended error-category vocabulary, comment
+  content and the rest of the production discipline are production-baseline policy and count only where
+  that layer is adopted.
   Structural / naming / cross-cutting-placement divergences inside the selected surface ARE the findings;
   security / correctness / reliability bugs are
   recorded as awareness notes for the team, never the headline and never the answer. Use when asked to
@@ -33,6 +34,9 @@ description: >
 > is audited against *that*: six categories, unconditionally. A project targeting 0.6.0 or
 > earlier has no adoption declaration either and is not wrong for it — audit it against its own
 > version's applicability semantics, not against the ones below.
+>
+> `[COMMENT-1]`, the comment-content rule below, is in the working version 0.8.0 and in no release
+> yet. It binds only a project whose `targets` names 0.8.0.
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not
@@ -80,8 +84,9 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
      declared. This is where **no bucket packages** (`[BUCKET-*]`), **role-revealing package names**
      (`[MODEL-2]`), **precisely named and injected crosscuts** (`[XCUT-2]`, `[XCUT-3]`), **thin
      composition** (`[ROOT-1]`), the **error-model refinements and recommended vocabulary**
-     (`[ERR-2]`–`[ERR-5]`), state ownership, concurrency, idempotency, configuration and trust-boundary
-     policy all live. Most of what an auditor reaches for first is in this tier.
+     (`[ERR-2]`–`[ERR-5]`), **comment content** (`[COMMENT-1]`), state ownership, concurrency,
+     idempotency, configuration and trust-boundary policy all live. Most of what an auditor reaches for
+     first is in this tier.
    - **app / runtime-agent / language profiles** — count only for the profiles named in `adopts`.
    - **bugs** — security / correctness / reliability defects, *however severe*, go in **Notes for human
      awareness**. Unchanged: they are recorded so the team knows, and never become the headline or the
@@ -313,6 +318,12 @@ The order below is the baseline's:
 - trust boundary, secrets, authz — `[TRUST-*]`
 - delivery guarantees & contracts (events/channel, versioning) — `[CHAN-*]` / `[CONTRACT-*]`
 - testing: is it injectable, or a boot-the-world coupling magnet? — `[TEST-*]` / `[SYS-TEST-*]`
+- comments: a comment holds only what the code does not show, records no change history, and does not
+  describe how a decision was reached; the remedy for a comment that says what a function does is a
+  rename. A doc comment that a language's convention expects on an exported identifier is allowed when
+  it states what a caller can rely on beyond the name and the signature. A published contract's
+  documentation is not held to the minimum, and an `[AGENT-2]` `REVIEW:` note is outside the rule —
+  `[COMMENT-1]`
 - slice-to-slice dependency: published capability only, never another slice's internals; a shared
   multi-step workflow becomes its own slice — `[COMPOSE-*]`
 - composition-root thinness & global state — `[ROOT-*]`

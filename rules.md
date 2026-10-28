@@ -1,6 +1,6 @@
 # Rule index
 
-Every rule Coral publishes, in one place: **180 rules** across 10 documents — 29 `[auto]`, 121 `[review]`,
+Every rule Coral publishes, in one place: **181 rules** across 10 documents — 29 `[auto]`, 122 `[review]`,
 30 `[guide]`. Each ID links to its definition, where the reasoning lives; the statement here is only the
 one-line form.
 
@@ -22,7 +22,7 @@ They answer to three audiences rather than stacking into one number. **11 form t
 kernel — the rules that apply without a project deciding anything, 9 of them `[review]`. **9 govern Coral
 itself** and sit outside that surface entirely: no application source code satisfies or violates them.
 Coral-aware humans, agents and tooling read them when interpreting a rule, consulting the adherence record,
-or changing how a project relates to Coral. The other **160 are opt-in** — 110 `[review]` — and reach a
+or changing how a project relates to Coral. The other **161 are opt-in** — 111 `[review]` — and reach a
 project only where its `CORAL.md` adopts the layer they belong to, so a CLI that has not adopted the
 runtime-agent profile never reads an `[AGENTIC-*]` rule and a library never reads an HTTP status code.
 
@@ -36,7 +36,7 @@ a project declares what it adopts, and how the set is composed from that, is in
 | --- | --- | --- | --- | --- | --- |
 | kernel | 11 | 2 | 9 | 0 | every Coral codebase |
 | framework governance | 9 | 2 | 2 | 5 | Coral-aware humans, agents and tooling — never audited against application source |
-| production baseline | 88 | 12 | 60 | 16 | projects that adopt it, at the scales they adopt |
+| production baseline | 89 | 12 | 61 | 16 | projects that adopt it, at the scales they adopt |
 | app profile · backend | 8 | 1 | 7 | 0 | projects with an app of that shape |
 | app profile · cli | 11 | 5 | 4 | 2 | projects with an app of that shape |
 | app profile · gh-action | 12 | 2 | 9 | 1 | projects with an app of that shape |
@@ -67,7 +67,7 @@ are not narrowed by scale: they bind without a decision, so a scale declaration 
 
 | Scale | Rules | Stated in | Read by |
 | --- | --- | --- | --- |
-| app | 159 | every other document | every project — one deployable unit, its slices, its crosscuts, its root |
+| app | 160 | every other document | every project — one deployable unit, its slices, its crosscuts, its root |
 | system | 21 | [`SYSTEM.md`](./SYSTEM.md) | projects where separately-built apps compose over a channel |
 
 ## Rules by scope
@@ -119,7 +119,7 @@ production baseline takes the app-scale part of that group and not the rest.
 
 ### production-baseline
 
-88 rules — production baseline.
+89 rules — production baseline.
 
 | Rule | Class | Scale | Defined in |
 | --- | --- | --- | --- |
@@ -139,6 +139,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[CHAN-7]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[CHAN-8]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
 | `[CHAN-9]` | `[review]` | system | [`SYSTEM.md`](./SYSTEM.md) |
+| `[COMMENT-1]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[COMPOSE-2]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[COMPOSE-3]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
 | `[COMPOSE-4]` | `[review]` | app | [`PRODUCTION.md`](./PRODUCTION.md) |
@@ -370,7 +371,7 @@ production baseline takes the app-scale part of that group and not the rest.
 
 ## Coral Production Baseline — the App
 
-70 rules — [`PRODUCTION.md`](./PRODUCTION.md)
+71 rules — [`PRODUCTION.md`](./PRODUCTION.md)
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
@@ -444,6 +445,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[GROW-1]` | `[guide]` | production baseline | Start small: prefer one file per slice initially. |
 | `[GROW-2]` | `[review]` | production baseline | Answer file growth by splitting inside the slice, never with a global abstraction. |
 | `[GROW-3]` | `[review]` | production baseline | Treat domain densification as a split signal, not a refactor-into-a-shared-core signal. |
+| `[COMMENT-1]` | `[review]` | production baseline | Comment only what the code does not show: a constraint, the reason for the current design, or behavior a competent reader would get wrong. Keep it short unless it warns. Do not record change history or how a decision was reached. Rename rather than comment what a function does. A doc comment that the language expects on an exported identifier is allowed, and states what a caller can rely on beyond the name and the signature. Document a published contract in full. |
 
 ## Coral Architecture — the System
 
