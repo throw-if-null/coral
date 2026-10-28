@@ -403,7 +403,7 @@ are not interchangeable:
   says *"Written against **Coral x.y.z**"* names the latest released version. The marker names a release
   because a release is frozen; the working version moves until the batch is cut.
 - the **working version** is the rule set the documents in the tree currently describe. When the
-  changelog's Unreleased heading names a version, such as `## Unreleased — 0.8.0`, the working version is
+  changelog's Unreleased heading names a version, such as `## Unreleased — 0.9.0`, the working version is
   that version, a successor to `VERSION`. Live development docs on `main` then describe a version nobody
   has released yet, and a rule that is in them may not be in any release. A `targets:` line in an
   adherence record is resolved against this one, so a record kept *inside* this repository names it. A

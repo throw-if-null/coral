@@ -1,6 +1,6 @@
 # Worked example: a CLI capability slice (two commands, end to end)
 
-> Written against **Coral 0.7.0**.
+> Written against **Coral 0.8.0**.
 
 The [Go example](./go-api-slice) shows one package per capability, each slice one file in it, with Go's
 import-cycle rule and single-package code generation shaping the tree around it into a shared persistence

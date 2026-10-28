@@ -1,6 +1,6 @@
 # Worked example: a Go API capability slice (one endpoint, end to end)
 
-> Written against **Coral 0.7.0**.
+> Written against **Coral 0.8.0**.
 
 The [CLI example](./cli-slice) shows a slice in a language that imposes nothing: each slice is one file
 that writes its own SQL, and there is no adapter. This one is in Go. The slice is also one file, and

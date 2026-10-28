@@ -204,9 +204,13 @@ release pins one haddock tag. The dependency first ships in `0.8.0`.
    ```
 
    `#v0.5.0` pins the marketplace to the tag. Without it, the marketplace follows haddock's default
-   branch, and a plugin update can install a different version of the skill. The plugin also installs a
-   `SessionStart` hook that adds haddock's primer to each session. Keep the snippet line in the
-   instructions file, so that an agent without the plugin loads the same version.
+   branch, and a plugin update can install a different version of the skill. When a settings file
+   already declares the `throw-if-null` marketplace under `extraKnownMarketplaces` without the tag, the
+   first command fails with `Cannot add marketplace "throw-if-null": its source doesn't match its
+   extraKnownMarketplaces entry in user or managed settings; add it from the source that entry lists, or
+   change the entry.` Set `ref` to `v0.5.0` in the `source` of that entry, and run the command again.
+   The plugin also installs a `SessionStart` hook that adds haddock's primer to each session. Keep the
+   snippet line in the instructions file, so that an agent without the plugin loads the same version.
 4. Run the conflict check before the agent changes code, and again each time the project changes
    `targets`. Ask the agent to do these steps:
 
