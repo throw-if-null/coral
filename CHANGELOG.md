@@ -43,6 +43,13 @@ adopts.
 
 ## Unreleased
 
+**`templates/CORAL.md` ends at the YAML block. Patch-level: a template. No rule was added, tightened,
+loosened, or retired, and no ID or enforcement class moved.**
+
+The template's closing paragraph said what prose below the block holds. A project copies the template,
+so the paragraph was copied into the project, where it described prose that the project does not have.
+`CONVENTIONS.md` § "`CORAL.md` — the project's adherence record" states what that prose holds.
+
 ## 0.8.0 — 2026-10-28
 
 **A code comment holds only what the code does not show, and setup pins the skill an agent follows for
