@@ -26,6 +26,3 @@ exceptions: []
 # Local rules Coral does not have, namespaced per [VER-4] and scoped to a path per [VER-5].
 extensions: []
 ```
-
-Prose below the block carries what the fields cannot: the trade-off behind an exception, the
-history of a decision, a diagram. The block is the record; the prose is the why.
