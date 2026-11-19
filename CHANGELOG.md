@@ -41,17 +41,25 @@ adopts.
 
 ---
 
-## Unreleased — 0.9.0
+## Unreleased
 
-A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **The batch is currently major**, because thirteen rules are tightened. Coral is still
-in `0.y.z`, so that major is cut as a **minor** bump (`0.8.0` → `0.9.0`) per semver's major-version-zero
-clause.
+## 0.9.0 — 2026-11-19
 
-The entries come from Coral's first use on a command-line project. Each states a reading that a rule left
-open. No rule is added or retired, no enforcement class changes, and `rules.lock` is unchanged. Only
-`[ERR-3]`'s first sentence changes. The adherence records this repository resolves target `0.9.0`: the
-worked example in `CONVENTIONS.md`, `templates/CORAL.md`, and `examples/go-api-slice/CORAL.md`.
+**Rules that Coral's first command-line project found silent or ambiguous now state their reading.**
+Thirteen rules are **tightened**, `[ERR-3]` is **loosened**, and four rules are **clarified**. Under
+`[VER-2]` the batch is **major**, and the `0.y.z` clause cuts it as a **minor**. No rule was added or
+retired, no enforcement class changed, and `rules.lock` stays at 181 rules.
+
+Most of the texts are in the CLI profile and the production baseline. They define a read command, an
+interactive prompt, and a command that hands the terminal to another program. They fix the exit code of
+a signal and of a partial outcome, require the debug flag, and give each `[auto]` CLI rule a decidable
+reading. They treat an external tool and a file-backed store as state, and bind runtime context the way
+configuration binds. A full-screen view is the presentation boundary while it runs, so `[ERR-3]`'s first
+sentence names such a surface beside the root. Two kernel rules are tightened: an instruction-file
+convention that no Coral rule states is an extension (`[VER-5]`), and a fake terminal or multiplexer is
+a mock (`[TEST-1]`). `templates/CORAL.md` ends at its YAML block. The adherence records this repository
+resolves target `0.9.0`: the worked example in `CONVENTIONS.md`, `templates/CORAL.md`, and
+`examples/go-api-slice/CORAL.md`.
 
 **`[VER-5]`: a convention in an instruction file is an extension when no Coral rule states it.
 Tightened, major under `[VER-2]`.**

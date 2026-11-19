@@ -1,6 +1,6 @@
 # Worked example: a CLI capability slice (two commands, end to end)
 
-> Written against **Coral 0.8.0**.
+> Written against **Coral 0.9.0**.
 
 The [Go example](./go-api-slice) shows one package per capability, each slice one file in it, with Go's
 import-cycle rule and single-package code generation shaping the tree around it into a shared persistence
@@ -371,9 +371,8 @@ Three things to notice:
 
 `--json` is declared on each command's parser, through one parent parser that the root passes to
 `register`, so `expenses list --json` works. The decidable reading of `[CLI-3]` requires it: every read
-command's parser accepts `--json`. That reading is in the working version 0.9.0 and in no release yet.
-`--debug` stays global, and with argparse a global flag precedes the subcommand:
-`expenses --debug list …`, not `expenses list --debug`.
+command's parser accepts `--json`. `--debug` stays global, and with argparse a global flag precedes the
+subcommand: `expenses --debug list …`, not `expenses list --debug`.
 
 ## The test
 
