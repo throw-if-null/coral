@@ -41,7 +41,240 @@ adopts.
 
 ---
 
-## Unreleased
+## Unreleased — 0.9.0
+
+A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
+the batch is cut. **The batch is currently major**, because thirteen rules are tightened. Coral is still
+in `0.y.z`, so that major is cut as a **minor** bump (`0.8.0` → `0.9.0`) per semver's major-version-zero
+clause.
+
+The entries come from Coral's first use on a command-line project. Each states a reading that a rule left
+open. No rule is added or retired, no enforcement class changes, and `rules.lock` is unchanged. Only
+`[ERR-3]`'s first sentence changes. The adherence records this repository resolves target `0.9.0`: the
+worked example in `CONVENTIONS.md`, `templates/CORAL.md`, and `examples/go-api-slice/CORAL.md`.
+
+**`[VER-5]`: a convention in an instruction file is an extension when no Coral rule states it.
+Tightened, major under `[VER-2]`.**
+
+`CONVENTIONS.md` § "Three kinds of divergence" states that a local rule is an extension wherever it is
+written. A convention in an instruction file, such as `AGENTS.md` or `CLAUDE.md`, that binds placement,
+naming, a must-not-diverge invariant, or a boundary, and that no Coral rule states, is recorded in
+`CORAL.md` as an extension with its path. The instruction file cites the entry. A convention that applies
+a Coral rule is not an extension, and the instruction file names the rule it applies. The enforcement
+class stays `[auto]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** each such convention in an instruction file has an extension entry in
+`CORAL.md`, and the instruction file cites the entry.
+
+**`[TEST-1]`: for a command that drives a terminal or a multiplexer, realistic temporary infrastructure
+is the real program in an isolated instance. Tightened, major under `[VER-2]`.**
+
+`ARCHITECTURE.md` under `[TEST-1]` names the isolated instance: a multiplexer server on a private socket
+(`tmux -L <name>`), a pseudo-terminal the test writes keys to and reads the screen from, and a temporary
+home and data directory. A fake that answers the calls the code makes is the mock the rule excludes.
+`appendix/cli.md` § "Testing mechanics" links to it. The enforcement class stays `[review]`, and
+`rules.lock` is unchanged.
+
+**What you must now satisfy:** a test of terminal or multiplexer code runs the real program in an
+isolated instance. A fake terminal or a fake multiplexer is a finding.
+
+**`[MODEL-4]`: an external tool that a command drives through a subprocess is state, with one crosscut
+for its invocation contract, and a port in Python is a `typing.Protocol`. Tightened, major under
+`[VER-2]`.**
+
+`PRODUCTION.md` under `[MODEL-4]` states that a tool such as git or tmux is state. Its invocation
+contract is the `db` analogue: one crosscut named for the tool, which runs it with the environment, the
+locale, the timeouts, and the output formats the app relies on, and which holds no knowledge of the app's
+domain. A query of the tool's state belongs to that crosscut when its parsing carries an invariant the
+slices must not diverge on, and to the slice otherwise (`[STATE-1]`). The crosscut is not an adapter,
+because no slice declares a port for it. A port that a slice declares in Python is a `typing.Protocol`
+that lists the operations the slice uses. `appendix/cli.md` § "State / effects" links to the text. The
+enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** in a project that adopts the production baseline, a tool query whose
+parsing carries a must-not-diverge invariant is in the tool's crosscut, and a port in Python is a
+`typing.Protocol`, not an abstract base class.
+
+**`[STATE-5]`: a file-backed store follows the split of a table, and files another program owns are not
+the app's state. Tightened, major under `[VER-2]`.**
+
+`PRODUCTION.md` § 11 adds two paragraphs to `[STATE-5]`. In a file-backed store the record format is the
+schema, and its parse and serialize functions are defined once in the owning package. Write mechanics
+that must not diverge, such as an exclusive create, or a write through a temporary file and an atomic
+rename, are one precisely named crosscut with no knowledge of any record, the `db` crosscut's analogue.
+Listing the files, reading them, and interpreting the records are queries in the slice that needs them
+(`[STATE-1]`). A file or database that another program owns, and that the app only reads, has no owning
+package, and its format is not the app's contract. The reads are queries, or one crosscut when their
+parsing carries a must-not-diverge invariant (`[XCUT-1]`). The app validates what it reads there at the
+boundary (`[TRUST-1]`), and the trust statement names the program (`[TRUST-2]`). The enforcement class
+stays `[review]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** a record format's parse and serialize functions are defined once, shared
+write mechanics are one crosscut, and the trust statement names each program whose files the app reads.
+
+**`[COMPOSE-1]`: a published capability is a surface its owner names as published. Tightened, major
+under `[VER-2]`.**
+
+`PRODUCTION.md` § 9 states the reading for Python. A published capability is a module the owning package
+keeps for the purpose, or the names its `__init__.py` exports. A public name inside a slice's module is
+not published by its spelling alone. A consumer in another package imports the published module and
+nothing else from that package. `[COMPOSE-1]` is a kernel rule and this reading is in the production
+baseline, so a project that does not adopt the baseline does not load it. The enforcement class stays
+`[review]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** in a Python project that adopts the production baseline, a consumer in
+another package imports only the owner's published module or the names its `__init__.py` exports.
+
+**`[CONFIG-2]`: runtime context binds as configuration does. Tightened, major under `[VER-2]`.**
+
+`PRODUCTION.md` under `[CONFIG-2]` defines runtime context: what the process reads about where it runs,
+such as the terminal, the multiplexer, the editor the user chose, and the home and data directories. It
+is not configuration, and it binds the same way. A crosscut that owns the concern reads it at
+construction, the root constructs that crosscut once and injects it, and a test constructs it with its own
+values. A slice that reads it directly breaks the rule. A crosscut other than config reads the environment
+only for the value it owns. `appendix/cli.md` § Configuration names runtime context beside
+configuration. The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** a slice gets runtime context, such as whether a terminal is attached, only
+from an injected crosscut. A crosscut other than config reads only the environment value it owns, and
+reads it at construction.
+
+**`[ERR-2]`: a declared model has at least two categories, and an exception that stays inside the
+package is control flow. Tightened, major under `[VER-2]`.**
+
+`PRODUCTION.md` under `[ERR-2]` states that a declared model has at least two categories, because the
+boundary that presents it must tell a wrong invocation from every other failure. An exception type that
+carries only a message is not a declared model. The rule binds a failure that leaves the slice. An
+exception that a slice raises and catches inside its own package, to end a branch early, is control flow
+and may be any type. A test that sees it at the boundary has found a defect. The decidable-reading row
+states the same scope. The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** a project whose error model is one exception type that carries only a
+message declares a model with at least two categories. A control-flow exception is not a finding.
+
+**`[BOUND-3]`: a full-screen view in a CLI is one command, and it is the presentation boundary while it
+runs. Tightened, major under `[VER-2]`.**
+
+`appendix/cli.md` § Boundary states the form. The command's boundary is the invocation, its contract is
+the exit code and `stderr` when it ends, and `--json` does not apply (`[CLI-3]`). A key binding inside the
+view is not a trigger of a new slice. A binding that mutates calls the published capability of the slice
+that owns the mutation. While the view runs, it renders the error model's category and code in its own
+surface, and the root renders what leaves the view (`[ERR-3]`). A refresh timer inside the view is not a
+scheduled trigger (`[BOUND-5]`). The enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** in a project that adopts the CLI profile, a key binding that mutates calls
+the owning slice's published capability, and the view renders an error's category and code.
+
+**`[CLI-2]`: a partial outcome is a failure and exits `1`. Tightened, major under `[VER-2]`.**
+
+`appendix/cli.md` under `[CLI-2]` states that a command in partial mode (`[ERR-4]`) that reports one
+failed item exits `1`. The per-item report says which items failed. A caller that continues on a partial
+failure reads the report, not the exit code. The enforcement class stays `[review]`, and `rules.lock` is
+unchanged.
+
+**What you must now satisfy:** a command in partial mode that reports a failed item exits `1`. Exit `0`
+with a per-item report is a finding.
+
+**`[CLI-3]`: a read command is defined, three kinds of command are outside `--json`, and the rule has a
+decidable reading. Tightened, major under `[VER-2]`.**
+
+`appendix/cli.md` under `[CLI-3]` defines a read command as one whose output a caller reads: `show`,
+`list`, `status`, `get`, and a verb like them. `--json` does not cover a command that opens a full-screen
+view, a command that hands the terminal to another program, or a command whose output is a script, a
+path, or another text a caller consumes as it is. For these the human form is the machine form, and the
+command's help says so. A read that also fetches is a read for this rule and names the fetch
+(`[IDEM-1]`). Decidable reading: every read command's parser accepts `--json`, and with it `stdout` holds
+one JSON document and nothing else. `examples/cli-slice.md` declares `--json` on each command's parser.
+The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** a read that also fetches supports `--json` and names the fetch. The help
+of an excluded command says that its human form is its machine form. The parser of each read command
+accepts `--json`, and the output is one JSON document.
+
+**`[CLI-6]`: an interactive prompt is defined, and a terminal check does not decide whether a command
+prompts. Tightened, major under `[VER-2]`.**
+
+`appendix/cli.md` under `[CLI-6]` defines an interactive prompt as a read from the terminal that the
+command waits on before it continues: a confirmation, a choice, a question. *By default* means in an
+invocation that no flag asked to prompt. A command may prompt when a flag of that invocation asks for it.
+A command whose purpose is to hand the terminal to another program, such as an editor, a pager, a
+multiplexer, or a full-screen view, does not prompt, and its name or its flag says that it hands over. A
+terminal check may change presentation, such as color or paging, never what the command does or the
+input it needs. A command that needs a terminal and has none fails with an error (`[CLI-2]`). Decidable
+reading: no slice reads from the terminal unless a flag of the invocation asks for it. The enforcement
+class stays `[auto]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** a command prompts only when a flag asks for it, not because a terminal is
+attached. A command that hands over the terminal says so in its name or its flag. A command that needs a
+terminal and has none exits with an error.
+
+**`[CLI-8]`: a command that ends on a signal exits 128 plus the signal number, and a command that hands
+over the terminal exits with the child's status. Tightened, major under `[VER-2]`.**
+
+`appendix/cli.md` under `[CLI-8]` names two cases outside the three codes. A command that ends on a
+signal exits as the shell convention fixes: `130` for SIGINT. A command whose purpose is to hand the
+terminal to another program, such as an attach or an exec, exits with that program's exit status, and its
+name or its help says that it hands over. Neither is a wider exit-code matrix (`[CLI-9]`). Decidable
+reading: the root maps category to exit code in one place, and no slice exits the process. The
+enforcement class stays `[auto]`, and `rules.lock` is unchanged.
+
+**What you must now satisfy:** a command that ends on a signal exits 128 plus the signal number, not `1`.
+A command that exits with a child's status says in its name or its help that it hands over.
+
+**`[CLI-10]`: every CLI has the debug flag, and it is the only switch for trace output. Tightened, major
+under `[VER-2]`.**
+
+The rule could be read as a requirement for a debug flag or as a constraint on a flag that exists.
+`appendix/cli.md` under `[CLI-10]` states the requirement: every CLI has one global debug flag at the
+root, and that flag is the only switch for trace output. Decidable reading: one flag at the root; no
+slice module configures a logger or tracer. The enforcement class stays `[auto]`, and `rules.lock` is
+unchanged.
+
+**What you must now satisfy:** a CLI that has no global debug flag adds one at the root. No other flag or
+environment variable turns on trace output.
+
+**`[ERR-3]`: a surface that an app profile names as a presentation boundary renders, as the root does.
+Loosened, minor under `[VER-2]`; the working version stays `0.9.0`.**
+
+The rule read "Slices raise. The root renders. Nothing else renders." The full-screen view in
+`appendix/cli.md` § Boundary renders errors while it runs, so a project that adopted the baseline and the
+CLI profile could not satisfy both. The first sentence and the contract line now read: "Slices raise. The
+root renders, and so does a surface an app profile names as a presentation boundary. Nothing else
+renders." The CLI profile names one such surface: the full-screen view while it runs. `rules.md` and the
+generated contracts carry the new statement. Every project that conformed to the old wording conforms to
+the new one. The enforcement class stays `[review]`, and `rules.lock` is unchanged.
+
+**`[CLI-11]` has a decidable reading. Clarified, minor under `[VER-2]`; the working version stays
+`0.9.0`.**
+
+`appendix/cli.md` under `[CLI-11]`: trace output is written to `stderr` only, and only when the flag is
+set. "Default mode stays quiet" already required it. The enforcement class stays `[auto]`, and
+`rules.lock` is unchanged.
+
+**`[XCUT-2]`, `[STRUCT-3]`: a crosscut may be scoped to one feature package. Clarified, minor under
+`[VER-2]`; the working version stays `0.9.0`.**
+
+`PRODUCTION.md` § 7 permits a crosscut that only one package's slices consume to live in that package.
+`[XCUT-1]` to `[XCUT-3]` bind it as they bind a root-level crosscut. `[STRUCT-3]` binds root-level
+crosscuts only. A package-scoped crosscut is not a query module: `[STATE-1]` and `[STATE-2]` hold inside
+the package. Both enforcement classes stay `[auto]`, and `rules.lock` is unchanged.
+
+**`[MODEL-2]` permits a role-named module inside a feature package. Clarified, minor under `[VER-2]`; the
+working version stays `0.9.0`.**
+
+`PRODUCTION.md` under `[MODEL-2]` states that the rule names packages. A module inside a feature package
+may carry the name of its role, such as `model`, `store`, or `render`, when the package names the
+capability. `[GROW-2]` gives the same permission to a split slice. A root-level module is a crosscut, and
+`[XCUT-2]` names it for its concern. The enforcement class stays `[review]`, and `rules.lock` is
+unchanged.
+
+**`[STATE-2]`'s decidable reading permits a query in the crosscut for an external tool or for files
+another program owns. Clarified, minor under `[VER-2]`; the working version stays `0.9.0`.**
+
+The row in `PRODUCTION.md` § "Enforcement of the baseline" flagged such a crosscut as a shared
+data-access package. It now states that the crosscut may hold a query whose parsing carries a
+must-not-diverge invariant, as `[MODEL-4]` and `[STATE-5]` state. The rule text and the contract line are
+unchanged. The enforcement class stays `[auto]`, and `rules.lock` is unchanged.
 
 **`templates/CORAL.md` ends at the YAML block. Patch-level: a template. No rule was added, tightened,
 loosened, or retired, and no ID or enforcement class moved.**

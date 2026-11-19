@@ -34,6 +34,11 @@ description: >
 > is audited against *that*: six categories, unconditionally. A project targeting 0.6.0 or
 > earlier has no adoption declaration either and is not wrong for it — audit it against its own
 > version's applicability semantics, not against the ones below.
+>
+> Four readings below are in the working version 0.9.0 and in no release yet: `[MODEL-2]` for a
+> role-named module inside a feature package, `[MODEL-4]` for an external tool's crosscut,
+> `[STATE-5]` for a file the app owns, and `[VER-5]` for a convention in an instruction file. They
+> bind only a project whose `targets` names 0.9.0.
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not
@@ -72,7 +77,8 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
      through its published capability (`[COMPOSE-1]`), one small declared error model per app or
      published package with presentation owned by a boundary rather than by slices (`[ERR-1]`),
      behavior-first tests at the entry point (`[TEST-1]`). Against
-     **`CORAL.md`**: `[VER-3]`, `[VER-5]`, `[VER-6]`. Against **provenance** — commit authorship, review,
+     **`CORAL.md`**: `[VER-3]`, `[VER-5]`, `[VER-6]`. Against the **instruction files** (`AGENTS.md`,
+     `CLAUDE.md`): `[VER-5]`. Against **provenance** — commit authorship, review,
      session history, not the final state of the code: `[AGENT-2]` (ambiguity flagged, not guessed) and
      `[AGENT-4]` (a human authors every exception and extension); where that evidence is unavailable these
      two are *not verifiable* rather than passed or failed. Take the membership from `CONVENTIONS.md`'s
@@ -90,8 +96,8 @@ reliability — are recorded as **awareness notes** for the team, not as the hea
      answer. Do not let a scary bug hijack the conformance question.
 
    **Within the selected surface, judge hard.** A misplaced crosscut (error rendering living in `utils`)
-   or a meaningless name (`pkg`, `utils`, `middleware.go` — a name that tells you nothing but "it's a
-   middleware") is a **real conformance finding** for a project that has adopted the baseline — never file
+   or a meaningless name (`pkg`, `utils`, a root-level `middleware.go` — a name that tells you nothing
+   but "it's a middleware") is a **real conformance finding** for a project that has adopted the baseline — never file
    it as a throwaway LOW and move on. Only a genuinely cohesive unit's exact name is cosmetic; say which is
    which, but don't use "don't flag every folder" as an excuse to wave off a real bucket or a misplaced
    concern.
@@ -218,7 +224,8 @@ Produce a **structural thesis** by answering:
 - Do the five categories map cleanly (slice / crosscut / adapter / composition root / published
   contract — `[MODEL-1]`, kernel, so this one binds every Coral project)? An adapter is only an adapter if
   the slice declares the interface and the adapter implements it (`[MODEL-4]`, production baseline); the
-  other arrow direction is a `repository` layer. Where nothing maps, is that a smell in the code or a gap
+  other arrow direction is a `repository` layer. An external tool's crosscut is neither; no slice
+  declares a port for it (`[MODEL-4]`). Where nothing maps, is that a smell in the code or a gap
   in the architecture?
 
 Map the surface to support this: manifest/`go.mod`, file sizes, the public API, and the critical
@@ -251,7 +258,9 @@ audited against, in full:**
   fixed list of category names, and **not** a required field layout or stable error id), `[TEST-1]`
   (behavior-first at the entry point). Six rules; that is the whole structural surface.
 - against **`CORAL.md`** — `[VER-3]` (a target is declared), `[VER-5]` (deviations are explicit and
-  path-scoped), `[VER-6]` (what it adopts is declared).
+  path-scoped), `[VER-6]` (what it adopts is declared). `[VER-5]` also reads the instruction files: a
+  convention there that binds placement, naming, a must-not-diverge invariant, or a boundary, and that
+  no Coral rule states, has an extension entry in `CORAL.md`.
 - against the **way architectural decisions were made** — `[AGENT-2]` (an ambiguous architectural decision
   is flagged for a human rather than guessed) and `[AGENT-4]` (only a human authors an exception or an
   extension). These bind **process**, not source, and they are the two kernel rules a repository audit
@@ -305,8 +314,8 @@ The order below is the baseline's:
 - boundary & verbs — `[BOUND-*]` / `[IDEM-*]`
 - crosscuts vs forbidden buckets, including the entity loophole (invariants may be a crosscut;
   queries and storage may not) — `[XCUT-*]` / `[BUCKET-*]`
-- effects, state & schema ownership (one owning feature package per table; interface ownership points
-  adapter → slice) — `[EFFECT-*]` / `[STATE-*]`
+- effects, state & schema ownership (one owning feature package per table or file the app owns;
+  interface ownership points adapter → slice) — `[EFFECT-*]` / `[STATE-*]`
 - configuration: resolved and validated at the root, injected, never read ambiently from a slice —
   `[CONFIG-*]`
 - errors: the declared model and who presents it (`[ERR-1]`, kernel — judge the shape, never the category
@@ -350,7 +359,9 @@ whole `[VER-*]` family:
 - **the kernel's record rules** — `[VER-3]`, `[VER-5]`, `[VER-6]`. These are kernel rules and *do* bind
   every Coral project unconditionally, but what they bind is `CORAL.md` itself: does it declare a target,
   are its exceptions and extensions machine-readable and path-scoped, does it declare what it adopts.
-  Check them against that file, never against a slice — and they *are* decidable from it.
+  Check them against that file, never against a slice. `[VER-3]` and `[VER-6]` *are* decidable from it.
+  `[VER-5]` also needs the instruction files, because a convention written there that no Coral rule
+  states must have an extension entry.
 - **the kernel's process rules** — `[AGENT-2]` and `[AGENT-4]`. Equally binding, and decidable only from
   **provenance**: commit authorship, PR review, session history, an unresolved `REVIEW:` marker. Audit
   them where that evidence exists and report them as not verifiable where it does not (above). Never
