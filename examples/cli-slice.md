@@ -216,9 +216,9 @@ CREATE INDEX IF NOT EXISTS expenses_by_month ON expenses (spent_on);
 """
 
 
-def register(sub, db) -> None:
+def register(sub, db, parents) -> None:
     """Definition lives with behavior, not in a central command registry."""
-    p = sub.add_parser("add", help="record an expense")
+    p = sub.add_parser("add", parents=parents, help="record an expense")
     p.add_argument("--amount", required=True)
     p.add_argument("--category", required=True)
     p.add_argument("--date", required=True, metavar="YYYY-MM")
@@ -262,8 +262,8 @@ from typing import Any
 from .. import money, period
 
 
-def register(sub, db) -> None:
-    p = sub.add_parser("list", help="list a month's expenses")
+def register(sub, db, parents) -> None:
+    p = sub.add_parser("list", parents=parents, help="list a month's expenses")
     p.add_argument("--month", required=True, metavar="YYYY-MM")
     p.set_defaults(run=lambda args: run(args, db))
 
@@ -317,12 +317,14 @@ def build(db_path: str) -> argparse.ArgumentParser:
     db = db_module.Db(db_path)
     db.migrate(add.SCHEMA)  # each feature package ships its own schema  [STATE-5]
 
+    output = argparse.ArgumentParser(add_help=False)
+    output.add_argument("--json", action="store_true", help="machine-readable output on stdout")
+
     parser = argparse.ArgumentParser(prog="expenses")
-    parser.add_argument("--json", action="store_true", help="machine-readable output on stdout")
     parser.add_argument("--debug", action="store_true", help="diagnostics on stderr")
     sub = parser.add_subparsers(dest="command", required=True)
-    add.register(sub, db)
-    list_cmd.register(sub, db)
+    add.register(sub, db, parents=[output])  # every command's parser accepts --json  [CLI-3]
+    list_cmd.register(sub, db, parents=[output])
     return parser
 
 
@@ -367,10 +369,11 @@ Three things to notice:
   That one choice makes the whole CLI testable in-process, and it keeps the environment read at the root
   (`[CONFIG-1]`, `[CONFIG-2]`).
 
-One limitation is worth stating. With argparse, a global flag must precede the subcommand
-(`expenses --json add …`, not `expenses add --json`). If that ordering matters to your users, declare the
-flag on each subparser via a shared parent parser instead. That is a `[CLI-5]` script-friendliness
-decision to make deliberately rather than discover.
+`--json` is declared on each command's parser, through one parent parser that the root passes to
+`register`, so `expenses list --json` works. The decidable reading of `[CLI-3]` requires it: every read
+command's parser accepts `--json`. That reading is in the working version 0.9.0 and in no release yet.
+`--debug` stays global, and with argparse a global flag precedes the subcommand:
+`expenses --debug list …`, not `expenses list --debug`.
 
 ## The test
 
@@ -412,7 +415,7 @@ import json
 
 def test_add_records_and_is_observable(run_cli):
     code, out, err = run_cli(
-        ["--json", "add", "--amount", "12.50", "--category", "food", "--date", "2026-06"]
+        ["add", "--json", "--amount", "12.50", "--category", "food", "--date", "2026-06"]
     )
 
     assert code == 0
@@ -438,7 +441,7 @@ def test_add_rejects_a_bad_amount_without_polluting_stdout(run_cli):
 def test_add_normalizes_the_stored_amount(run_cli):
     # The money crosscut is the reason "12.5" and "12.50" cannot diverge.  [XCUT-1]
     _, out, _ = run_cli(
-        ["--json", "add", "--amount", "12.5", "--category", "food", "--date", "2026-06"]
+        ["add", "--json", "--amount", "12.5", "--category", "food", "--date", "2026-06"]
     )
     assert json.loads(out)["amount"] == "12.50"
 
@@ -464,7 +467,7 @@ def test_list_reads_back_what_add_wrote(run_cli):
     run_cli(["add", "--amount", "3.00", "--category", "coffee", "--date", "2026-06"])
     run_cli(["add", "--amount", "99.00", "--category", "rent", "--date", "2026-05"])
 
-    code, out, err = run_cli(["--json", "list", "--month", "2026-06"])
+    code, out, err = run_cli(["list", "--json", "--month", "2026-06"])
 
     assert code == 0
     assert err == ""
@@ -482,7 +485,7 @@ def test_list_rejects_a_malformed_month(run_cli):
 def test_list_of_an_empty_month_is_zero_not_an_error(run_cli):
     # An empty result is a successful read, not `not_found`. Stating that in a test
     # is what makes it part of the contract rather than an accident.  [CONTRACT-1]
-    code, out, _ = run_cli(["--json", "list", "--month", "2026-01"])
+    code, out, _ = run_cli(["list", "--json", "--month", "2026-01"])
     assert code == 0
     assert json.loads(out) == {"month": "2026-01", "total": "0.00", "expenses": []}
 ```

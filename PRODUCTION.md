@@ -107,6 +107,11 @@ The test is ownership, not file count: *could you delete this package and lose e
 or exactly one concern?* If yes, it is named right. When you introduce banding, flag it (`[AGENT-2]`) so
 the choice is visible rather than assumed.
 
+`[MODEL-2]` names packages. A module inside a feature package may carry the name of its role, such as
+`model`, `store`, or `render`, when the package it sits in names the capability; `[GROW-2]` gives the
+same permission to a split slice. A root-level module is a crosscut, and `[XCUT-2]` names it for its
+concern.
+
 **`[MODEL-3]` `[guide]` `{baseline}`** — A crosscut's decisive property is **defined once, injected many**.
 
 A crosscut is not "a helper each slice copies". That is the forbidden-bucket failure. A crosscut is one
@@ -135,6 +140,14 @@ has migrated *out* of a slice, and the fix is to move it back rather than to gro
 adapter may also serve several slices, as one generated package with many ports, without becoming shared
 state, because each slice still owns its own port. Name it for the infrastructure it connects to
 (`store`, `s3`, `stripe`), never for a role (`[MODEL-2]`).
+
+An external tool that a command drives through a subprocess, such as git or tmux, is state. Its
+invocation contract is the `db` analogue: one crosscut named for the tool, which runs it with the
+environment, the locale, the timeouts, and the output formats the app relies on, and which holds no
+knowledge of the app's domain. A query that reads the tool's state belongs to that crosscut when its
+parsing carries an invariant the slices must not diverge on, such as an output format, and to the slice
+otherwise (`[STATE-1]`). Such a crosscut is not an adapter: no slice declares a port for it. Where a
+slice does declare a port, in Python it is a `typing.Protocol` that lists the operations the slice uses.
 
 ---
 
@@ -259,6 +272,11 @@ is not to ban all sharing. It is to make the shared thing a real crosscut
 `[XCUT-1]` is the gate on promoting anything to a crosscut. These four state what a crosscut must then
 look like, how it is consumed, and where the category stops.
 
+A crosscut may be scoped to one feature package when only that package's slices consume it. It lives in
+that package, and `[XCUT-1]` to `[XCUT-3]` bind it as they bind a root-level crosscut. `[STRUCT-3]` binds
+root-level crosscuts only. A package-scoped crosscut is not a query module: `[STATE-1]` and `[STATE-2]`
+hold inside the package.
+
 **`[XCUT-2]` `[auto]` `{baseline}`** — A crosscut has a precise, domain- or infrastructure-oriented name
 (`money`, `period`, `errors`, `db`), never a generic bucket name (`[BUCKET-1]`).
 
@@ -330,6 +348,11 @@ format," "connection and bootstrap must be consistent."
 
 `[COMPOSE-1]` fixes that a slice depends on another's published capability and never on its internals.
 These state how that dependency is wired and what shapes of composition are legitimate.
+
+A published capability is a surface its owner names as published. In Python that is a module the owning
+package keeps for the purpose, or the names its `__init__.py` exports; a public name inside a slice's
+module is not published by its spelling alone. A consumer in another package imports the published module
+and nothing else from that package.
 
 **`[COMPOSE-2]` `[review]` `{baseline}`** — Prefer inverting composition through the composition root
 (inject the needed capability) over slice-to-slice imports, so the dependency is visible at the edge.
@@ -431,6 +454,19 @@ A slice **outside** the package that needs the data reads it through a published
 storage (`[XCUT-5]`). **Two feature packages** writing one table is the `[GROW-3]` split signal, not a
 reason for a shared data-access layer.
 
+A file-backed store follows the same split as a table. The record format is the schema: its parse and
+serialize functions are defined once in the owning package. The write mechanics that must not diverge,
+such as an exclusive create and a write through a temporary file and an atomic rename, are the `db`
+crosscut's analogue: one precisely named crosscut that holds no knowledge of any record. Listing the
+files, reading them, and interpreting the records are queries, and `[STATE-1]` keeps them in the slice
+that needs them.
+
+A file or database that another program owns and the app only reads is not the app's state under
+`[STATE-5]`: no package owns it, and its format is not the app's contract. The reads are queries
+(`[STATE-1]`), or one crosscut when their parsing carries an invariant the slices must not diverge on
+(`[XCUT-1]`). The app validates what it reads there at the boundary (`[TRUST-1]`), and the trust
+statement (`[TRUST-2]`) names the program.
+
 **`[STATE-6]` `[review]` `{baseline}`** — A cache is an optimization, never a source of truth: every read
 path must be correct with the cache empty, and nothing may exist *only* in the cache.
 
@@ -526,6 +562,12 @@ settings object directly.
 This is statically decidable and worth gating. A single `os.Getenv` inside a slice defeats `[AGENT-1]`,
 because the slice's world is no longer in one place. It also makes the slice untestable without ambient
 setup.
+
+Runtime context is what the process reads about where it runs: the terminal, the multiplexer, the editor
+the user chose, the home and data directories. It is not configuration, and it binds the same way: a
+crosscut that owns the concern reads it at construction, the root constructs that crosscut once and
+injects it, and a test constructs it with values of its own. A slice that reads it directly breaks
+`[CONFIG-2]`. A crosscut other than config reads the environment only for the value it owns.
 
 **`[CONFIG-3]` `[review]` `{baseline}`** — Validate every required setting when the config crosscut is
 constructed, not at first use.
@@ -626,10 +668,18 @@ raises through its own unit's declared constructors or reaches for something els
 names those constructors per unit. It does not verify the fields, the argument values, or that a `code`
 is stable. Those are `[review]` judgments carried by this rule's commentary and by `[TEST-4]`.
 
-**`[ERR-3]` `[review]` `{baseline}`** — **Slices raise. The root renders. Nothing else renders.**
+A declared model has at least two categories, because the boundary that presents it must tell a wrong
+invocation from every other failure. An exception type that carries only a message is not a declared
+model. `[ERR-2]` binds a failure that leaves the slice. An exception a slice raises and catches inside its
+own package, to end a branch early, is control flow and may be any type; it never reaches the root, and a
+test that sees it at the boundary has found a defect.
+
+**`[ERR-3]` `[review]` `{baseline}`** — **Slices raise. The root renders, and so does a surface an app
+profile names as a presentation boundary. Nothing else renders.**
 
 This is the baseline's realization of `[ERR-1]`'s presentation half, naming *which* boundary owns it in
-an executable application: the composition root. Validate at the boundary, fail fast, do not swallow
+an executable application: the composition root, and a surface an app profile names, such as the CLI
+profile's full-screen view while it runs. Validate at the boundary, fail fast, do not swallow
 errors, do not partially succeed silently. Unexpected errors are caught once at the root. For a library the
 consumer is the root, so the library raises and never renders (`[ROOT-3]`, `[LIB-8]`).
 
@@ -910,7 +960,7 @@ being adopted. Rules for several apps composing are in [`SYSTEM.md`](./SYSTEM.md
 
 ### Errors, observability, contracts, trust
 - `[ERR-2]` Raise through the declared taxonomy constructors of the slice's own app or published package, never an ad-hoc error type or a sibling unit's. Slices own their `code` strings.
-- `[ERR-3]` Slices raise. The root renders. Nothing else renders.
+- `[ERR-3]` Slices raise. The root renders, and so does a surface an app profile names as a presentation boundary. Nothing else renders.
 - `[ERR-4]` Batch operations are all-or-nothing unless partial outcomes are reported explicitly.
 - `[OBS-2]` Configure observability at the root, and emit through the injected crosscut.
 - `[OBS-3]` Keep diagnostics off the machine-readable contract channel.
@@ -966,12 +1016,12 @@ definitions.
 | `[STRUCT-1]` | every slice ships its tests (colocated, or a mirror exists) |
 | `[STRUCT-3]` / `[XCUT-2]` | top-level modules match an allowlist of precise names |
 | `[ROOT-2]` | the root module imports no slice-internal module (a slice's behavior, queries, or schema) and makes no state-access call; an import that constructs, injects, or registers, including handing an owning package's migrations to the `db` crosscut, is wiring |
-| `[STATE-2]` | the direction of interface ownership decides: no shared package that defines the data-access API and that slices import; a shared package that implements the ports the slices declare, and imports the slices to do so, is an adapter (`[MODEL-4]`) |
+| `[STATE-2]` | the direction of interface ownership decides: no shared package that defines the data-access API and that slices import; a shared package that implements the ports the slices declare, and imports the slices to do so, is an adapter (`[MODEL-4]`); the crosscut for an external tool, or for files another program owns, may hold a query whose parsing carries a must-not-diverge invariant (`[MODEL-4]`, `[STATE-5]`) |
 | `[CONC-1]` | no mutable module-level or static state in a slice module |
 | `[CONFIG-2]` | no slice module references the environment or config-file API |
 | `[CONFIG-4]` | no literal secret in source, and no secret on a logged or published field |
 | `[IDEM-2]` | a read-named slice makes no one-hop write/mutation call |
-| `[ERR-2]` | raised errors use the owning app or published package's declared taxonomy constructors, not ad-hoc types |
+| `[ERR-2]` | a raised error that leaves the slice uses the owning app or published package's declared taxonomy constructors, not an ad-hoc type; an exception raised and caught inside the slice's own package is control flow and is outside the check |
 
 **What review decides.** `[review]` rules that no deterministic analysis decides, for example:
 

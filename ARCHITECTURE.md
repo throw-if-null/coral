@@ -344,6 +344,11 @@ observable contract (`[BOUND-1]`), use real or realistic temporary infrastructur
 implementation of the *real* interface. It does not mean a mock that asserts on calls. The distinction
 that matters is whether the test would still pass if the behavior broke.
 
+For a command that drives a terminal or a multiplexer, realistic temporary infrastructure is the real
+program in an isolated instance: a multiplexer server on a private socket (`tmux -L <name>`), a
+pseudo-terminal the test writes keys to and reads the screen from, and a temporary home and data
+directory. A fake that answers the calls the code makes is the mock `[TEST-1]` excludes.
+
 ---
 
 ## Agent Execution Contract

@@ -553,6 +553,12 @@ that motivated it. When the rule is wrong rather than the code, a per-project ex
 record: every project the rule misfits carries the same exception forever, and the defect in the rule
 never surfaces.
 
+A local rule is an extension wherever it is written. A convention in an instruction file that binds
+placement, naming, a must-not-diverge invariant, or a boundary, and that no Coral rule states, is recorded
+in `CORAL.md` as an extension with its path, and the instruction file cites the entry. A convention that
+applies a Coral rule to the project's code is not an extension; the instruction file names the rule it
+applies.
+
 **Drift is not an exception.** A deviation nobody chose is a finding to fix. Only a deliberate decision
 qualifies. Otherwise the register accumulates violations, and the architecture becomes advisory.
 
@@ -576,7 +582,7 @@ answer. An agent that read only half would have a wrong picture of what is permi
 
 ```yaml coral
 # Which Coral this project is audited against ([VER-3]).
-targets: "0.8.0"
+targets: "0.9.0"
 
 # Which architectural scales this repository is written at. One deployable app, so
 # `app` alone — there is no channel here for a system-scale rule to bind.
