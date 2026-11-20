@@ -1,6 +1,6 @@
 # Worked example: reviewing a real backend microservice
 
-> Written against **Coral 0.9.0**.
+> Written against **Coral 0.10.0**.
 
 The fastest way to understand Coral is to read it applied to a *real* service rather than a toy. This is
 a condensed review of a production-shaped Go microservice against the Coral rules. The service is an
@@ -24,7 +24,9 @@ A well-built service on a good framework satisfies much of Coral before anyone s
 - **Thin composition root.** `main` only wires dependencies and runs. `[ROOT-1]`
 - **Injected crosscuts.** The framework hands the app its router, logger, tracer, DB pool, config, and
   event bus. The DB module is the `db` crosscut. These are crosscuts in the exact Coral sense: defined
-  once, injected, never reached for. `[XCUT-3]` `[STATE-2]`
+  once, injected, never reached for. `[XCUT-3]` `[STATE-2]`. This review does not establish how each
+  handler receives them. One framework context that carries all of them into every handler is an
+  application-wide container under `[DEPS-1]`. A handler that receives only what it uses is not.
 - **A published channel contract.** A `client` package of typed events and subjects that *other*
   services import to emit audit events. That is a published capability. `[CONTRACT-1]`, and `[CHAN-1]`
   where the repository adopts the production baseline at `system` scale

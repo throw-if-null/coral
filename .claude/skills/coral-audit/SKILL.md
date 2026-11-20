@@ -20,7 +20,7 @@ description: >
 
 # Coral repo audit
 
-> Written against **Coral 0.9.0**. Audit a project against the version its
+> Written against **Coral 0.10.0**. Audit a project against the version its
 > `CORAL.md` declares, not against this one (`[VER-3]`).
 >
 > **"Written against" names the latest *released* Coral.** A project pins a released version.
@@ -34,9 +34,6 @@ description: >
 > is audited against *that*: six categories, unconditionally. A project targeting 0.6.0 or
 > earlier has no adoption declaration either and is not wrong for it — audit it against its own
 > version's applicability semantics, not against the ones below.
->
-> `[DEPS-1]` is in the working version 0.10.0 and in no release yet. Audit it only for a project
-> whose `CORAL.md` targets 0.10.0 or later.
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not

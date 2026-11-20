@@ -41,12 +41,14 @@ adopts.
 
 ---
 
-## Unreleased — 0.10.0
+## Unreleased
 
-A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **The batch is currently major**, because `[DEPS-1]` is added to the kernel. Coral is
-still in `0.y.z`, so that major is cut as a **minor** bump (`0.9.0` → `0.10.0`) per semver's
-major-version-zero clause.
+## 0.10.0 — 2026-11-21
+
+**A unit of code receives only the dependencies and configuration values it consumes.** One kernel rule
+is **added**, `[DEPS-1]`. Under `[VER-2]` the batch is **major**, and the `0.y.z` clause cuts it as a
+**minor**. No rule was retired, no enforcement class changed, `rules.lock` goes from 181 to 182 rules, and
+the kernel goes from 11 to 12 rules.
 
 **`[DEPS-1]` `[review]` is added to the kernel: a unit of code receives only the dependencies and
 configuration values it consumes. Major under `[VER-2]`: a rule is added.**
@@ -75,12 +77,10 @@ dependency object or configuration object and uses only part of it is a finding.
 resolves a dependency from a container, registry, application context, or resolution API, or that
 receives one of those to resolve from.
 
-No rule was retired, and no enforcement class changed. `rules.lock` goes from 181 to 182 rules, and the
-kernel from 11 to 12. The adherence records this repository resolves target `0.10.0`: the worked example
-in `CONVENTIONS.md`, `templates/CORAL.md`, and `examples/go-api-slice/CORAL.md`. The example project's
-generated `CORAL-CONTRACT.md` lists `[DEPS-1]`; its code already conforms. The audit skill lists
-`[DEPS-1]` among the kernel rules a repository is audited against, and states that it is in no release
-yet.
+The adherence records this repository resolves target `0.10.0`: the worked example in `CONVENTIONS.md`,
+`templates/CORAL.md`, and `examples/go-api-slice/CORAL.md`. The example project's generated
+`CORAL-CONTRACT.md` lists `[DEPS-1]`; its code already conforms. The audit skill lists `[DEPS-1]` among
+the kernel rules a repository is audited against.
 
 ## 0.9.0 — 2026-11-19
 
