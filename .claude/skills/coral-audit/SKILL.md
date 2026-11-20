@@ -5,11 +5,11 @@ description: >
   where does it diverge? The verdict is architectural CONFORMANCE to the rule surface the project's own
   CORAL.md resolves to — the Coral kernel unconditionally, plus the production baseline and the
   app / runtime / language profiles that file explicitly adopts, at the scales it declares ([VER-6]).
-  Capability slicing, the five categories, published-capability composition, behavior-first testing and
-  one declared error model are kernel and always count; bucket packages, role-revealing package names,
-  named and injected crosscuts, thin composition, the recommended error-category vocabulary, comment
-  content and the rest of the production discipline are production-baseline policy and count only where
-  that layer is adopted.
+  Capability slicing, the five categories, published-capability composition, behavior-first testing,
+  one declared error model and minimal dependency exposure without service location are kernel and
+  always count; bucket packages, role-revealing package names, named and injected crosscuts, thin
+  composition, the recommended error-category vocabulary, comment content and the rest of the
+  production discipline are production-baseline policy and count only where that layer is adopted.
   Structural / naming / cross-cutting-placement divergences inside the selected surface ARE the findings;
   security / correctness / reliability bugs are
   recorded as awareness notes for the team, never the headline and never the answer. Use when asked to
@@ -34,6 +34,9 @@ description: >
 > is audited against *that*: six categories, unconditionally. A project targeting 0.6.0 or
 > earlier has no adoption declaration either and is not wrong for it — audit it against its own
 > version's applicability semantics, not against the ones below.
+>
+> `[DEPS-1]` is in the working version 0.10.0 and in no release yet. Audit it only for a project
+> whose `CORAL.md` targets 0.10.0 or later.
 
 Scrutinize a repository against Coral Architecture and produce a thorough **diagnostic report** that a
 human reads and then feeds into a **separate planning session** (plan mode) — the planning session, not
@@ -212,8 +215,10 @@ Produce a **structural thesis** by answering:
   base layer?
 - What is its *shape*? A thin composition root that composes concerns, or god-files mixing orchestration
   with subsystem implementation?
-- **What does it force on its consumers?** Dependency injection vs service-locator/globals? Can a
-  consumer test against it without booting the whole thing? Does a change here ripple into many repos?
+- **What does it force on its consumers?** Dependency injection vs service-locator/globals? Does each
+  unit receive only what it consumes, or one application-wide dependency or configuration object
+  (`[DEPS-1]`, kernel from 0.10.0)? Can a consumer test against it without booting the whole
+  thing? Does a change here ripple into many repos?
 - If it's a framework: is standardization achieved by *composition* or by *containment*?
 - Dependency surface: does every consumer link things it does not use?
 - Do the five categories map cleanly (slice / crosscut / adapter / composition root / published
@@ -251,7 +256,10 @@ audited against, in full:**
   capability, never internals), `[ERR-1]` (one small, stable, structured error model declared once
   for the app or published package, presented at a boundary rather than inside slices — **not** a
   fixed list of category names, and **not** a required field layout or stable error id), `[TEST-1]`
-  (behavior-first at the entry point). Six rules; that is the whole structural surface.
+  (behavior-first at the entry point), `[DEPS-1]` (each unit receives only the dependencies and
+  configuration values it consumes, supplied by composition, with no service location — **not** a
+  required interface per consumer, a container, or a DI framework). Seven rules; that is the whole
+  structural surface.
 - against **`CORAL.md`** — `[VER-3]` (a target is declared), `[VER-5]` (deviations are explicit and
   path-scoped), `[VER-6]` (what it adopts is declared). `[VER-5]` also reads the instruction files: a
   convention there that binds placement, naming, a must-not-diverge invariant, or a boundary, and that

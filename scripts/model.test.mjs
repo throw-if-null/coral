@@ -823,7 +823,7 @@ const REAL = loadRuleModel(REPO)
 test('the repository model is clean and every rule in it has one scope', () => {
   assert.deepEqual(REAL.problems, [])
   assert.ok(REAL.classified)
-  assert.equal(REAL.rules.size, 181)
+  assert.equal(REAL.rules.size, 182)
   for (const [id, rule] of REAL.rules) {
     assert.ok(rule.scope, `[${id}] has no resolved scope`)
     assert.ok(rule.scope.kind, `[${id}] has no scope kind`)
@@ -947,7 +947,7 @@ test('and every kernel rule is stated in one of them', () => {
   //
   // Derived from the kernel block rather than from a document list held here, so a kernel rule
   // stated in a new document fails until that document is declared core.
-  assert.equal(REAL.kernel.size, 11)
+  assert.equal(REAL.kernel.size, 12)
   for (const id of REAL.kernel) {
     const page = REAL.rules.get(id).page
     assert.ok(REAL.core.has(page), `[${id}] is kernel but its defining document ${page} is not core`)

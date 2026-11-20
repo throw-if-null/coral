@@ -130,10 +130,10 @@ Calling them buckets would forbid the one shape that makes code-generated persis
 package in [`examples/go-api-slice.md`](./examples/go-api-slice.md) is this category.
 
 **Direction of interface ownership is the whole test**, and it is the same one `[STATE-2]` states. The
-slice declares the interface, listing only the operations *this* capability uses. The adapter implements
-it. The dependency arrow runs adapter → slice. Reverse the arrow and it is a `repository` layer
-(`[BUCKET-1]`): the shared package defines the API, every caller consumes whatever it offers, and no
-slice can be read alone.
+slice declares the interface, listing only the operations *this* capability uses. That is `[DEPS-1]`,
+kernel, applied to a port. The adapter implements it. The dependency arrow runs adapter → slice.
+Reverse the arrow and it is a `repository` layer (`[BUCKET-1]`): the shared package defines the API,
+every caller consumes whatever it offers, and no slice can be read alone.
 
 Two consequences follow. An adapter is **never** a place to put logic. Behavior that migrates into one
 has migrated *out* of a slice, and the fix is to move it back rather than to grow the adapter. One
@@ -288,6 +288,9 @@ formatter, a validator, or a parse invariant, may be consumed by direct import. 
 published surface, and wrapping it in a container buys nothing. A crosscut that holds **configuration, a
 connection, or per-trigger state** must be injected. Otherwise the slice cannot be exercised without
 ambient setup, and `[CONFIG-2]` is violated.
+
+What is injected is what the slice consumes, and the slice never obtains a crosscut from a container
+or registry (`[DEPS-1]`, kernel). Injection is not a licence to pass every crosscut to every slice.
 
 The test is a question about the slice's tests: *could you run this slice against temporary
 infrastructure without setting an environment variable or patching a module?* If not, something that
@@ -555,6 +558,10 @@ decision, rather than having a slice reach for a flag client mid-behavior. A sli
 service inline is untestable without that service, and it has a hidden dependency the reviewer cannot see
 in its signature. Where a flag must be evaluated per request, such as a per-user rollout, inject the
 *evaluator* as a crosscut and treat its result as request-bound state (`[CONC-2]`).
+
+Inject the settings a slice reads, not the whole configuration object (`[DEPS-1]`, kernel). The config
+crosscut may hold every setting the app reads. The root passes each slice only its own values, or a
+configuration value that holds only those settings.
 
 **`[CONFIG-2]` `[auto]` `{baseline}`** — No slice reads the process environment, a config file, or a global
 settings object directly.
