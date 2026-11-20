@@ -1,6 +1,6 @@
 # Rule index
 
-Every rule Coral publishes, in one place: **181 rules** across 10 documents — 29 `[auto]`, 122 `[review]`,
+Every rule Coral publishes, in one place: **182 rules** across 10 documents — 29 `[auto]`, 123 `[review]`,
 30 `[guide]`. Each ID links to its definition, where the reasoning lives; the statement here is only the
 one-line form.
 
@@ -18,8 +18,8 @@ Every rule belongs to exactly one **ownership layer**: the narrowest surface tha
 separate axis from the enforcement class — a rule is *both* `app profile · cli` *and* `[auto]`. Ownership
 answers *who has to load this rule*; the class answers *how it is checked*.
 
-They answer to three audiences rather than stacking into one number. **11 form the conformance surface** —
-kernel — the rules that apply without a project deciding anything, 9 of them `[review]`. **9 govern Coral
+They answer to three audiences rather than stacking into one number. **12 form the conformance surface** —
+kernel — the rules that apply without a project deciding anything, 10 of them `[review]`. **9 govern Coral
 itself** and sit outside that surface entirely: no application source code satisfies or violates them.
 Coral-aware humans, agents and tooling read them when interpreting a rule, consulting the adherence record,
 or changing how a project relates to Coral. The other **161 are opt-in** — 111 `[review]` — and reach a
@@ -34,7 +34,7 @@ a project declares what it adopts, and how the set is composed from that, is in
 
 | Layer | Rules | `[auto]` | `[review]` | `[guide]` | Loaded by |
 | --- | --- | --- | --- | --- | --- |
-| kernel | 11 | 2 | 9 | 0 | every Coral codebase |
+| kernel | 12 | 2 | 10 | 0 | every Coral codebase |
 | framework governance | 9 | 2 | 2 | 5 | Coral-aware humans, agents and tooling — never audited against application source |
 | production baseline | 89 | 12 | 61 | 16 | projects that adopt it, at the scales they adopt |
 | app profile · backend | 8 | 1 | 7 | 0 | projects with an app of that shape |
@@ -67,7 +67,7 @@ are not narrowed by scale: they bind without a decision, so a scale declaration 
 
 | Scale | Rules | Stated in | Read by |
 | --- | --- | --- | --- |
-| app | 160 | every other document | every project — one deployable unit, its slices, its crosscuts, its root |
+| app | 161 | every other document | every project — one deployable unit, its slices, its crosscuts, its root |
 | system | 21 | [`SYSTEM.md`](./SYSTEM.md) | projects where separately-built apps compose over a channel |
 
 ## Rules by scope
@@ -85,7 +85,7 @@ production baseline takes the app-scale part of that group and not the rest.
 
 ### kernel
 
-11 rules — kernel.
+12 rules — kernel.
 
 | Rule | Class | Scale | Defined in |
 | --- | --- | --- | --- |
@@ -93,6 +93,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[AGENT-4]` | `[review]` | app | [`CONVENTIONS.md`](./CONVENTIONS.md) |
 | `[BOUND-2]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 | `[COMPOSE-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| `[DEPS-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 | `[ERR-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 | `[MODEL-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
 | `[TEST-1]` | `[review]` | app | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
@@ -355,7 +356,7 @@ production baseline takes the app-scale part of that group and not the rest.
 
 ## Coral Architecture — the App
 
-9 rules — [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+10 rules — [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 
 | Rule | Class | Layer | Statement |
 | --- | --- | --- | --- |
@@ -368,6 +369,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals. Depend on its published capability. |
 | `[ERR-1]` | `[review]` | kernel | One small, stable, structured error model per app or published package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice. |
 | `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking. |
+| `[DEPS-1]` | `[review]` | kernel | Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location. |
 
 ## Coral Production Baseline — the App
 

@@ -50,11 +50,12 @@ discipline therefore sits with the rules, not with the words:
 |---|---|
 | a **crosscut** is one concern several slices need | give it a precise, domain- or infrastructure-oriented name (`[XCUT-2]`). Consume it through its published surface, and **inject** anything holding config, a connection or per-trigger state (`[XCUT-3]`). Promote to one only against a must-not-diverge invariant (`[XCUT-1]`, kernel) |
 | an **adapter** connects behavior to an external system | the **slice** declares the port and the adapter implements it, so the dependency runs adapter → slice, and the adapter owns no application behavior (`[MODEL-4]`) |
-| a **composition root** is the wiring and bootstrap boundary | keep it **thin**: register, construct, inject, bootstrap, with no business logic and no state access (`[ROOT-1]`). Import no slice-internal module (`[ROOT-2]`) |
+| a **composition root** is the wiring and bootstrap boundary | construct each consumer's dependencies and supply only what it consumes, with no service location (`[DEPS-1]`, kernel). Keep it **thin**: register, construct, inject, bootstrap, with no business logic and no state access (`[ROOT-1]`). Import no slice-internal module (`[ROOT-2]`) |
 | a **channel** is the pathway between apps and its contract | it is the **only** coupling, and apps never share a datastore (`[CHAN-1]`, `[CHAN-3]`). It is versioned (`[CHAN-4]`) and takes one of three forms (`[CHAN-2]`) |
 
-Every rule in the right-hand column is **production baseline** except `[XCUT-1]`. Each binds a project
-that has adopted that layer at the relevant scale ([What applies to a project](#what-applies-to-a-project)).
+Every rule in the right-hand column is **production baseline** except `[XCUT-1]` and `[DEPS-1]`. Each
+binds a project that has adopted that layer at the relevant scale
+([What applies to a project](#what-applies-to-a-project)).
 The **Governed by** column above says where each noun's rules live. It does not say that all of them
 apply to you. A kernel-only project may use any of these categories, correctly and conformantly, without
 taking on the optional discipline attached to them. `[MODEL-1]` asks that every unit of code *fit* one of
@@ -111,8 +112,9 @@ consumed by other code only through what it publishes (`[MODEL-1]`, `[BOUND-2]`,
 `[TEST-1]`). That is the shape of the *unit*, and it is deliberately short. It is **not** the whole
 kernel: an app or published package also owes one declared, structured error model of its own,
 presented at a boundary rather than inside a slice (`[ERR-1]`), the gate on promoting anything to a
-crosscut (`[XCUT-1]`), and the `[AGENT-*]` and `[VER-*]` rules that govern how it relates to Coral.
-The [kernel block](#the-coral-kernel) is the complete list.
+crosscut (`[XCUT-1]`), minimal dependency exposure without service location (`[DEPS-1]`), and the
+`[AGENT-*]` and `[VER-*]` rules that govern how it relates to Coral. The
+[kernel block](#the-coral-kernel) is the complete list.
 
 > **The listing below is a slice as a project that has adopted the [production
 > baseline](./PRODUCTION.md) writes one.** It is the kernel shape *plus* a set of opinions the baseline
@@ -129,7 +131,8 @@ language-neutral. This exact capability is written out in real Python in
 ```
 expense/add                                    # one slice = one capability
 
-  # injected crosscuts, constructed at the root and passed in
+  # this slice's own dependencies: exactly these three crosscuts,
+  # constructed at the root and passed in. Not an app-wide bag.  [DEPS-1]
   #   money  · parse/format invariant
   #   db     · connection + transaction
   #   errors · taxonomy {category, code, message}
@@ -152,10 +155,11 @@ expense/add                                    # one slice = one capability
     assert queryExpenses().contains(food, 12.50)   # real storage
 ```
 
-**Three of its properties are the kernel's**, and hold for any Coral codebase: `expense/add` owns one
+**Four of its properties are the kernel's**, and hold for any Coral codebase: `expense/add` owns one
 capability from its trigger to its output (`[BOUND-2]`), its behavior is asserted at that entry point
-against what a caller can observe (`[TEST-1]`), and it constructs its failures through this app's one
-declared error model rather than inventing a local one, and presents none of them itself (`[ERR-1]`).
+against what a caller can observe (`[TEST-1]`), it constructs its failures through this app's one
+declared error model rather than inventing a local one, and presents none of them itself (`[ERR-1]`),
+and it receives only the three crosscuts it uses (`[DEPS-1]`).
 
 **Five are the production baseline's**, and they are what makes the listing look the way it does:
 
@@ -582,7 +586,7 @@ answer. An agent that read only half would have a wrong picture of what is permi
 
 ```yaml coral
 # Which Coral this project is audited against ([VER-3]).
-targets: "0.9.0"
+targets: "0.10.0"
 
 # Which architectural scales this repository is written at. One deployable app, so
 # `app` alone — there is no channel here for a system-scale rule to bind.
@@ -723,6 +727,7 @@ rule can be tested against, plus drift, which is the failure the vocabulary alre
 | `[VER-3]` | Fixes the normative Coral version an agent follows, so its architectural context cannot change implicitly. | drift prevention |
 | `[VER-5]` | Persists human architectural decisions as explicit, scoped data rather than tribal knowledge. | bounded context, reviewability, drift prevention |
 | `[VER-6]` | Fixes how much of Coral an agent is answerable to, so applicability cannot be inferred from what the Coral repository happens to contain. | bounded context, drift prevention |
+| `[DEPS-1]` | Makes everything a unit of code can reach visible at its own boundary, so an agent loads only what the unit uses and a new dependency appears in the diff as a boundary change. | bounded context, reviewability |
 
 <!-- coral:kernel:end -->
 
@@ -775,6 +780,25 @@ for an executable application, `[ERR-4]` is
 transaction policy for batches, and `[ERR-5]` is the recommended category vocabulary. A project reaches
 all four by adopting the production baseline, and none of them by adopting nothing.
 
+`[DEPS-1]` is the other kernel rule close to a general design principle, interface segregation and
+explicit dependencies, so its membership is also stated against all four tests. **Agent-justified:** a
+human team can treat a shared dependency object as a convenience and accept the coupling. With an agent
+as author, that object puts the whole application in reach of every unit. The agent must load it to know
+what the unit can do, it uses what the object offers, and the reviewer sees a new dependency only as an
+attribute read inside a body. Drop the operating model and Coral would recommend narrow dependencies and
+stop there. **Defended properties:** bounded context (a unit's dependencies are the finite set named at
+its boundary) and reviewability (a new dependency changes the boundary, and the boundary is in the diff
+a human reads). **Not merely general correctness:** the rule constrains who declares a dependency and who
+supplies it, which is an ownership constraint. It fixes no injection technique, no framework, and no
+interface style. **Not downstream:** `[COMPOSE-1]` governs what one slice may use of another, and
+`[XCUT-1]` governs when sharing is permitted. Neither says what a unit may receive or how it obtains it.
+`[MODEL-4]`, `[XCUT-3]`, `[CONFIG-1]` and `[COMPOSE-2]` are downstream of `[DEPS-1]`, which is why they
+stay in the production baseline.
+
+The kernel publishes the constraint and leaves the technique open. How dependencies are wired, whether a
+project uses a framework, and whether shared wiring sits in a module of its own are decisions for the
+project. A language binding may state a concrete realization for one ecosystem.
+
 ### Everything else
 
 **Non-kernel does not mean weak.** Kernel membership classifies *why Coral imposes a rule, and at what
@@ -804,12 +828,15 @@ more of:
 - **a refinement of a kernel constraint.** `[STRUCT-1]` and `[STRUCT-2]` refine locality, meaning where
   the slice and its tests physically sit. `[GROW-2]` does the same: answer file growth inside the slice,
   never with a global abstraction. `[DUP-2]`, `[DUP-3]` and `[DUP-4]` refine the extraction discipline
-  `[XCUT-1]` states. `[TEST-2]`, `[TEST-3]` and `[TEST-4]` refine `[TEST-1]`. `[GROW-3]` refines the
-  split discipline that keeps a bounded context bounded: domain densification is a `[SCOPE-3]` signal,
-  not a licence to build a shared core.
+  `[XCUT-1]` states. `[TEST-2]`, `[TEST-3]` and `[TEST-4]` refine `[TEST-1]`. `[MODEL-4]`, `[XCUT-3]`,
+  `[CONFIG-1]` and `[COMPOSE-2]` refine `[DEPS-1]` for adapter ports, crosscuts, configuration and
+  slice-to-slice composition. `[GROW-3]` refines the split discipline that keeps a bounded context
+  bounded: domain densification is a `[SCOPE-3]` signal, not a licence to build a shared core.
 - **static or mechanical enforcement of a kernel constraint.** `[BUCKET-1]` mechanically reinforces
   deterministic placement and controlled sharing. It is the check that catches the failure `[MODEL-1]`
-  and `[XCUT-1]` describe.
+  and `[XCUT-1]` describe. `[CONFIG-2]` is the decidable check for one part of `[DEPS-1]`, that no slice
+  reads a global settings object, and it extends that check to the process environment and runtime
+  context.
 - **general application correctness.** Purity and effect placement (`[EFFECT-*]`), the error-model
   refinements and category vocabulary (`[ERR-2]`–`[ERR-5]`), caching, and concurrency (`[CONC-*]`).
 - **security or trust-boundary correctness.** `[TRUST-1]`, `[TRUST-2]`, and the status-code and

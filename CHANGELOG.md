@@ -41,7 +41,46 @@ adopts.
 
 ---
 
-## Unreleased
+## Unreleased — 0.10.0
+
+A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
+the batch is cut. **The batch is currently major**, because `[DEPS-1]` is added to the kernel. Coral is
+still in `0.y.z`, so that major is cut as a **minor** bump (`0.9.0` → `0.10.0`) per semver's
+major-version-zero clause.
+
+**`[DEPS-1]` `[review]` is added to the kernel: a unit of code receives only the dependencies and
+configuration values it consumes. Major under `[VER-2]`: a rule is added.**
+
+`[DEPS-1]` is defined in `ARCHITECTURE.md` § 9 and listed in its Agent Execution Contract. The consumer
+declares its dependencies at its own boundary, and composition constructs and supplies them. No
+application-wide container or configuration object is passed to a consumer that uses only part of it.
+No consumer obtains a dependency through service location: by key, by type, or by attribute, from a
+container, a registry, an application context, a settings object, or a resolution API. The rule applies
+recursively to what a dependency exposes. The unit of exposure is a concern, not an operation, so a
+dependency that owns one concern may be passed whole. The rule requires no interface, protocol, factory,
+wrapper, container, dependency-injection framework, or `di` module. Shared wiring in a module of its own
+is part of the composition root under `[MODEL-1]`, not a crosscut. Importing a pure module is not
+receiving a dependency. Injection of stateful crosscuts stays `[XCUT-3]`, and reading the process
+environment stays `[CONFIG-2]`; both remain production baseline.
+
+`CONVENTIONS.md` adds `[DEPS-1]` to the kernel block, mapped to bounded context and reviewability, and
+states its membership against the four tests. `[MODEL-4]`, `[XCUT-3]`, `[CONFIG-1]` and `[COMPOSE-2]` are
+listed as its baseline refinements, and `[CONFIG-2]` as the decidable check for one part of it. Their
+texts are unchanged. Their commentary in `PRODUCTION.md` cites `[DEPS-1]`, and `[CONFIG-1]`'s commentary
+states that the root passes each slice its own settings rather than the whole configuration object. The
+canonical slice in `CONVENTIONS.md` states that its `deps` holds exactly the three crosscuts it uses.
+
+**What you must now satisfy:** in every Coral project, a unit of code that receives an application-wide
+dependency object or configuration object and uses only part of it is a finding. So is a unit that
+resolves a dependency from a container, registry, application context, or resolution API, or that
+receives one of those to resolve from.
+
+No rule was retired, and no enforcement class changed. `rules.lock` goes from 181 to 182 rules, and the
+kernel from 11 to 12. The adherence records this repository resolves target `0.10.0`: the worked example
+in `CONVENTIONS.md`, `templates/CORAL.md`, and `examples/go-api-slice/CORAL.md`. The example project's
+generated `CORAL-CONTRACT.md` lists `[DEPS-1]`; its code already conforms. The audit skill lists
+`[DEPS-1]` among the kernel rules a repository is audited against, and states that it is in no release
+yet.
 
 ## 0.9.0 — 2026-11-19
 
