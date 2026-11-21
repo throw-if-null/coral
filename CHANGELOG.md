@@ -41,12 +41,13 @@ adopts.
 
 ---
 
-## Unreleased — 0.11.0
+## Unreleased
 
-A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **The batch is currently major**, because `[DEPS-1]` is tightened. Coral is still in
-`0.y.z`, so that major is cut as a **minor** bump (`0.10.0` → `0.11.0`) per semver's major-version-zero
-clause.
+## 0.11.0 — 2026-11-21
+
+**Dependency wiring is deterministic, unambiguous, and verified.** One kernel rule is **tightened**,
+`[DEPS-1]`. Under `[VER-2]` the batch is **major**, and the `0.y.z` clause cuts it as a **minor**. No rule
+was added or retired, no enforcement class changed, and `rules.lock` stays at 182 rules.
 
 **`[DEPS-1]`: dependency wiring is deterministic, unambiguous, and verified. Tightened, major under
 `[VER-2]`.**
