@@ -3,8 +3,8 @@
 //
 // A release is a cut batch (`[VER-2]`): `VERSION` moves, the changelog's Unreleased
 // entries become the released version's section, and every file that names the released
-// version names the new one. scripts/release-prepare.mjs writes that change, and
-// scripts/release-check.mjs verifies it on the commit a tag names.
+// version names the new one. scripts/release-prepare.mjs writes that change for the release
+// PR, and scripts/release-check.mjs and scripts/release-gh.mjs verify it on the merged commit.
 //
 // Preparation is computed, not applied step by step. planRelease() reads the tree and
 // returns the full content of every file that must change, or problems and no writes. A
@@ -15,8 +15,8 @@
 // Every edit replaces a version string or a heading in place. Other content in the same
 // files, including uncommitted edits, is kept.
 //
-// No dependency outside Node: the release workflow runs the check and builds the notes
-// before `npm ci`.
+// No dependency outside Node: the release workflows verify the tree and build the notes
+// without `npm ci`.
 // ─────────────────────────────────────────────────────────────────────────────
 import fs from 'node:fs'
 import path from 'node:path'
@@ -250,17 +250,15 @@ export function unwrap(markdown) {
 
 /**
  * The GitHub Release body for `version`: its changelog section, how a project adopts the
- * release, and the source commit.
+ * release, and, when `commit` is given, the source commit.
  *
  * @param {string} root
  * @param {string} version
- * @param {{repository: string, commit: string}} source `owner/name` and the tagged commit
+ * @param {{repository: string, commit?: string}} source `owner/name` and the tagged commit
  * @returns {string}
  */
 export function releaseNotes(root, version, { repository, commit }) {
-  const changelog = fs.readFileSync(path.join(root, CHANGELOG_FILE), 'utf8')
-  const section = changelogSection(changelog, version)
-  if (!section) throw new Error(`${CHANGELOG_FILE} has no section for ${version}.`)
+  const section = requireSection(root, version)
   const tag = `${TAG_PREFIX}${version}`
   const base = `https://github.com/${repository}`
   const anchor = githubAnchor(`${version} — ${section.date}`)
@@ -273,10 +271,22 @@ export function releaseNotes(root, version, { repository, commit }) {
       ` generator from tag \`${tag}\`, commit it, and load the agent protocols from the same tag.` +
       ` [README § Start a project](${base}/blob/${tag}/README.md#start-a-project) lists the steps.`,
     '',
-    `- Source: tag \`${tag}\`, commit [\`${commit}\`](${base}/commit/${commit}).`,
+    ...(commit ? [`- Source: tag \`${tag}\`, commit [\`${commit}\`](${base}/commit/${commit}).`] : []),
     `- Full entry: [CHANGELOG.md § ${version}](${base}/blob/${tag}/CHANGELOG.md#${anchor}).`,
     '',
   ].join('\n')
+}
+
+/** The annotated tag's message: the version, then the section's first paragraph. */
+export function tagMessage(root, version) {
+  const [summary] = unwrap(requireSection(root, version).body).split(/\n\s*\n/)
+  return `Coral ${version}\n\n${summary}\n`
+}
+
+function requireSection(root, version) {
+  const section = changelogSection(fs.readFileSync(path.join(root, CHANGELOG_FILE), 'utf8'), version)
+  if (!section) throw new Error(`${CHANGELOG_FILE} has no section for ${version}.`)
+  return section
 }
 
 /** `owner/name` from package.json's repository URL. */

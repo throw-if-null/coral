@@ -1,0 +1,95 @@
+name: prepare release
+
+# Opens the release PR for a version. Merging that PR publishes the release (release.yml).
+# README.md § "Releasing Coral" describes the process and the GitHub App this needs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version to release, such as 0.12.0. The changelog's Unreleased heading must name it.
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Check for an existing release or release PR
+        id: preflight
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: node scripts/release-gh.mjs preflight "$VERSION"
+
+      - name: Prepare the release
+        if: steps.preflight.outputs.action == 'create'
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          npm ci
+          npm run release:prepare -- "$VERSION"
+          node scripts/release-check.mjs "$VERSION" --notes "$RUNNER_TEMP/notes.md" \
+            --repository "$GITHUB_REPOSITORY"
+
+      # Minted after npm ci, so no install script can read it. A PR that GITHUB_TOKEN opens
+      # starts no pull_request workflow, so the release PR would get no CI. An App token's PR does.
+      - uses: actions/create-github-app-token@v3
+        if: steps.preflight.outputs.action == 'create'
+        id: app
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open the release PR
+        if: steps.preflight.outputs.action == 'create'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          branch="release/$VERSION"
+          bot="${APP_SLUG}[bot]"
+          git config user.name "$bot"
+          git config user.email "$(gh api "users/$bot" --jq .id)+$bot@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -A
+          git commit -m "Cut $VERSION"
+          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "HEAD:refs/heads/$branch"
+          {
+            echo "Merging this PR publishes Coral $VERSION: the release workflow tags its merge commit \`v$VERSION\` and publishes the GitHub Release below."
+            echo
+            echo "Before you merge, check that the changelog section's first paragraph states the batch and its compatibility, and re-read each page whose \"Written against\" marker moved."
+            echo
+            echo "---"
+            echo
+            cat "$RUNNER_TEMP/notes.md"
+          } >"$RUNNER_TEMP/body.md"
+          url="$(gh pr create --base main --head "$branch" --title "Cut $VERSION" --body-file "$RUNNER_TEMP/body.md")"
+          echo "Release PR: $url" | tee -a "$GITHUB_STEP_SUMMARY"

@@ -9,7 +9,7 @@ import path from 'node:path'
 import test from 'node:test'
 
 import { coralVersion } from './version.mjs'
-import { githubAnchor, planRelease, releaseNotes, releaseProblems, unwrap } from './release.mjs'
+import { githubAnchor, planRelease, releaseNotes, releaseProblems, tagMessage, unwrap } from './release.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
 
@@ -162,6 +162,13 @@ test('release notes hold the section, unwrapped, and name the source commit', ()
     assert.ok(notes.includes(`commit [\`${sha}\`](https://github.com/o/coral/commit/${sha})`))
     assert.ok(notes.includes('(https://github.com/o/coral/blob/v1.3.0/CHANGELOG.md#130--2026-02-02)'))
     assert.ok(!notes.includes('The earlier batch.'))
+  }))
+
+test('release notes for a release PR name no commit, and the tag message is the summary', () =>
+  inTree(fixture({ entries: 'The batch\nsummary.\n\nMore detail.' }), (dir) => {
+    apply(dir, planRelease(dir, '1.3.0', '2026-02-02'))
+    assert.ok(!releaseNotes(dir, '1.3.0', { repository: 'o/coral' }).includes('Source:'))
+    assert.equal(tagMessage(dir, '1.3.0'), 'Coral 1.3.0\n\nThe batch summary.\n')
   }))
 
 test('unwrap keeps fences, tables, and headings', () => {

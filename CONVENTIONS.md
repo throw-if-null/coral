@@ -401,11 +401,14 @@ What changed lives in [`CHANGELOG.md`](./CHANGELOG.md), recorded per rule ID.
 schema too, so it has to be said exactly which version is meant. Coral has two at any moment, and they
 are not interchangeable:
 
-- the **latest released version** is what `VERSION` holds. It moves when a batch is cut, not when a
-  commit lands. The Unreleased section of the changelog covers the interval. **A consuming project pins
-  a released version**, because a release is published and frozen. A worked example or a skill that
-  says *"Written against **Coral x.y.z**"* names the latest released version. The marker names a release
-  because a release is frozen; the working version moves until the batch is cut.
+- the **latest released version** is what `VERSION` holds: the latest cut version. It moves when a
+  batch is cut, in the release pull request, not when a commit lands. The Unreleased section of the
+  changelog covers the interval. A cut version is published when its tag and its GitHub Release exist,
+  and the release workflow creates both when the release pull request merges. `VERSION` alone does not
+  show publication. **A consuming project pins a published version**, because a published release is
+  frozen. A worked example or a skill that says *"Written against **Coral x.y.z**"* names the latest
+  released version. The marker names a release because a release is frozen; the working version moves
+  until the batch is cut.
 - the **working version** is the rule set the documents in the tree currently describe. When the
   changelog's Unreleased heading names a version, such as `## Unreleased — 0.12.0`, the working version
   is that version, a successor to `VERSION`. Live development docs on `main` then describe a version nobody
@@ -1646,7 +1649,7 @@ grouped by document, with each ID linking to its definition.
 
 Supporting files:
 
-- `VERSION`: the latest released version. The working version these documents describe is the version
+- `VERSION`: the latest released (cut) version. Its GitHub Release publishes it. The working version these documents describe is the version
   the changelog's Unreleased heading names, or `VERSION` when the heading names none
   ([above](#two-versions-released-and-working)).
 - [`CHANGELOG.md`](./CHANGELOG.md): what changed, per rule ID.

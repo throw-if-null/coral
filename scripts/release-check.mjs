@@ -3,10 +3,10 @@
 // `npm run release:check -- <version>` — verifies that this checkout is the source of
 // release <version>, and optionally writes its GitHub Release notes.
 //
-// The release workflow runs it on the commit the tag names, before `npm ci`, so it uses
-// nothing outside Node. The full checks are `npm test`, which the workflow runs separately.
+// The prepare-release workflow writes the notes into the release PR, and the release
+// workflow verifies the merged commit. Both run it without `npm ci`, so it uses nothing
+// outside Node. The full checks are `npm test`, which the workflows run separately.
 // ─────────────────────────────────────────────────────────────────────────────
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -22,7 +22,7 @@ Verify that this checkout is the source of a Coral release.
 
   <version>              the release, such as 0.11.0.
   --notes <file>         also write the GitHub Release notes to <file>.
-  --commit <sha>         the commit the notes name. Default: HEAD.
+  --commit <sha>         the commit the notes name as the source. Default: none.
   --repository <o/n>     the repository the notes link to. Default: package.json's.
   --help                 this text.
 `
@@ -72,8 +72,8 @@ if (problems.length) {
 console.log(`[release] OK — every version-bearing file names ${opts.version}.`)
 
 if (opts.notes) {
-  const commit = opts.commit ?? execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim()
-  if (!/^[0-9a-f]{40}$/.test(commit)) {
+  const { commit } = opts
+  if (commit && !/^[0-9a-f]{40}$/.test(commit)) {
     console.error(`\n[release] \`${commit}\` is not a full commit SHA.\n`)
     process.exit(1)
   }

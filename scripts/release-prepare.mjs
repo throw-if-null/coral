@@ -3,9 +3,9 @@
 // `npm run release:prepare -- <version>` — cuts the Unreleased batch as <version>.
 //
 // Writes the file changes scripts/release.mjs plans, regenerates the example project's
-// contract, and runs `npm test`. It does not commit, tag, or publish: the result is a
-// working-tree change that a maintainer reviews and merges, and the tag and the GitHub
-// Release follow from the merged commit. README.md § "Releasing Coral" lists the steps.
+// contract, and runs `npm test`. It does not commit, tag, or publish. The prepare-release
+// workflow runs it and opens the release PR; merging that PR publishes the release. Run it
+// locally to reproduce or troubleshoot a preparation.
 // ─────────────────────────────────────────────────────────────────────────────
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -100,7 +100,7 @@ if (!ok) {
 }
 
 console.log(`
-[release] ${opts.version} is prepared. Before you commit:
+[release] ${opts.version} is prepared. Before the release PR merges:
   - Read the CHANGELOG.md section for ${opts.version}. It is the GitHub Release body, so its
     first paragraph states the batch and its compatibility, and it says what a project must
     now satisfy.

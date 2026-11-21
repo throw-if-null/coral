@@ -286,8 +286,8 @@ are append-only. They are never renumbered, recycled, or removed. `rules.lock` i
 the build enforces that against.
 
 **Coral carries two versions, and the difference matters because `[VER-3]` makes version identity part
-of applicability.** The **latest released** version is in `VERSION`, and a project pins a released
-version. The **working** version is the rule set these documents currently describe: the version the
+of applicability.** The **latest released** version is in `VERSION`: the latest cut version. A project
+pins a version that has a published GitHub Release ([Releasing Coral](#releasing-coral)). The **working** version is the rule set these documents currently describe: the version the
 changelog's `## Unreleased` heading names, or `VERSION` when the heading names none. When the heading
 names a version, it is a successor to `VERSION`, and **`main` describes rules that are not in any release
 yet**. A project that generates its contract from `main` targets the working version, and the generator
@@ -353,100 +353,109 @@ documents it.
 
 ## Releasing Coral
 
-A release is a cut batch (`[VER-2]`), an annotated tag on the merged cut commit, and a GitHub Release
-for that tag. Each step is a separate maintainer action. Nothing is published on merge.
+A release takes two maintainer decisions: which version to release and when, and whether to merge the
+release PR. Merging the release PR approves publication. Ordinary merges never create a version, a tag,
+or a release.
+
+1. Merge changes into `main` through pull requests. Each one records its rule changes under
+   `## Unreleased` in `CHANGELOG.md`, and a batch that changes a rule names the next version in that
+   heading (`[VER-2]`). Keep the section's first paragraph a summary of the batch and its compatibility.
+   It becomes the first paragraph of the release notes and the tag message.
+2. Run the **prepare release** workflow with the version, from the Actions tab or with
+   `gh workflow run prepare-release.yml -f version=0.12.0`. It opens the PR `Cut 0.12.0` from the branch
+   `release/0.12.0`. The PR body holds the release notes.
+3. Review the release PR, and merge it. To correct it first, push to its branch.
+4. The **release** workflow tags the merge commit v0.12.0 and publishes the GitHub Release. The run
+   summary shows the release URL.
 
 ```mermaid
-flowchart LR
-    A["main<br/>## Unreleased — X"] -->|"npm run release:prepare -- X"| B["release/X branch<br/>cut commit"]
-    B -->|"pull request, review, merge"| C["main<br/>merge commit"]
-    C -->|"git tag -a vX"| D["annotated tag vX"]
-    D -->|"gh workflow run release.yml -f tag=vX"| E["GitHub Release<br/>Coral X"]
-    E -->|"targets: X, checkout vX"| F["consuming project<br/>CORAL-CONTRACT.md"]
+sequenceDiagram
+    actor M as Maintainer
+    participant P as prepare release
+    participant R as release/X PR
+    participant W as release
+    participant G as tag vX, GitHub Release
+    M->>P: run with version X
+    P->>P: release:prepare X, npm test
+    P->>R: open the PR (GitHub App token)
+    R->>R: CI runs
+    M->>R: review and merge
+    R->>W: pull_request closed, merged
+    W->>W: verify and test the merge commit
+    W->>G: create the tag, publish the release
 ```
-
-1. On a branch from `main`, prepare the release. The version is the one that the changelog's
-   `## Unreleased` heading names, or the next patch when the heading names none:
-
-   ```bash
-   npm run release:prepare -- 0.11.0
-   ```
-
-   The command sets `VERSION`, `package.json`, and `package-lock.json` to the version. It renames the
-   Unreleased section to `## <version> — <date>`, adds an empty `## Unreleased` above it, and moves the
-   "Written against" markers and the agent snippet's Coral tag to the version. Then it regenerates the
-   example project's contract and runs `npm test`. It refuses a version that the changelog does not
-   name, an empty Unreleased section, and a version that already has a section. A rerun on a prepared
-   tree changes nothing. Other content in the edited files is kept.
-2. Edit the released section's first paragraph to state the batch and its compatibility. The section is
-   the release notes. Re-read each page whose marker moved. Commit as `Cut <version>`, open a pull
-   request, and merge it.
-3. Tag the merge commit with an annotated tag, and push the tag:
-
-   ```bash
-   git fetch origin
-   git tag -a v0.11.0 -m "Coral 0.11.0 — <summary>" origin/main
-   git push origin refs/tags/v0.11.0
-   ```
-
-4. Run the release workflow, [`.github/workflows/release.yml`](./.github/workflows/release.yml), from
-   the Actions tab or with the GitHub CLI:
-
-   ```bash
-   gh workflow run release.yml -f tag=v0.11.0
-   ```
-
-   With `-f draft=true`, the workflow stops at a draft release, so the notes can be read on GitHub first.
-   A second run without it publishes that draft.
 
 ```mermaid
 flowchart TD
-    start(["workflow_dispatch<br/>tag, draft"]) --> resolve
+    merged(["release/X PR merged"]) --> r1
     subgraph resolve["resolve · contents: read"]
-        r1{"tag is vX.Y.Z,<br/>exists, annotated?"} -->|yes| r2{"main contains<br/>the tagged commit?"}
-        r2 -->|yes| r3{"release:check X<br/>on the commit?"}
+        r1{"same repository, into main,<br/>VERSION at the merge commit is X?"} -->|yes| r2{"vX absent, or<br/>already on this commit?"}
+        r2 -->|yes| r3{"release:check X"}
     end
-    r1 -->|no| fail(["refuse: nothing published"])
-    r2 -->|no| fail
-    r3 -->|no| fail
-    r3 -->|"yes: version, commit"| test
+    r3 -->|pass| t1
     subgraph test["test · contents: read"]
-        t1["test.yml on the commit:<br/>npm test, Go example"]
+        t1["test.yml on the merge commit"]
     end
-    t1 -->|fail| fail
     t1 -->|pass| p1
-    subgraph publish["publish · contents: write"]
-        p1{"tag still names<br/>the tested commit?"} -->|yes| p2{"release for the tag?"}
-        p2 -->|none| p3["create draft<br/>notes = changelog section"]
+    subgraph publish["publish · contents: write, one run at a time"]
+        p1["create annotated vX if absent"] --> p2{"release for vX?"}
+        p2 -->|none| p3["create a draft"]
         p2 -->|draft| p4["reuse the draft"]
-        p3 --> p5{"draft input?"}
+        p3 --> p5["publish"]
         p4 --> p5
-        p5 -->|no| p6{"tag still names<br/>the tested commit?"}
-        p6 -->|yes| p7["publish the draft<br/>latest when highest version"]
     end
-    p1 -->|no| fail
-    p2 -->|published| fail
-    p6 -->|no| fail
-    p5 -->|yes| draft(["stop at the draft"])
-    p7 --> done(["published release"])
+    p2 -->|published| done(["no change"])
+    p5 --> done2(["published release"])
+    r1 -->|no| stop(["refuse: no tag, no release"])
+    r2 -->|no| stop
+    r3 -->|fail| stop
+    t1 -->|fail| stop
 ```
 
-The workflow refuses a tag that is not `v<major>.<minor>.<patch>`, does not exist, is lightweight, or
-names a commit that `main` does not contain. On the tagged commit, it runs `npm run release:check`, which
-refuses the commit when a version-bearing file does not name the version or when the changelog's
-Unreleased heading names a successor. It then runs the `test` workflow on that commit. The release body
-is the changelog section, followed by adoption steps and the source commit. GitHub's source archives are
-the release's only files.
+The version terms:
 
-The workflow never creates or moves a tag. It refuses to publish when the tag moved during the run, and
-when a published release for the tag exists. When a run fails before publication, run it again: it
-reuses the draft it created. To rebuild a draft's notes, delete the draft first. The publishing job alone
-has `contents: write`.
+- `main` is development. `## Unreleased` holds the changes that are in no release, and its heading names
+  the working version.
+- `VERSION` names the latest cut version in the tree. The release PR changes it. It does not show that
+  the version is published.
+- The tag `v<version>` is the release source. The release workflow creates it on the release PR's merge
+  commit, and nothing moves it.
+- The GitHub Release publishes the version. A project pins only a version that has one.
 
-GitHub enforces tag immutability only through repository settings, which a maintainer sets once:
+### Recovery
 
-- Enable **immutable releases**, so a published release and its tag cannot change.
-- Add a tag ruleset for `v*` that restricts updates and deletions.
+- **Prepare release fails:** nothing is pushed. Fix the cause on `main` through a pull request, and run
+  the workflow again. When the branch was pushed but no PR was opened, delete the branch, and run again.
+  For an open release PR, a second run reports the PR and changes nothing.
+- **The release PR's CI fails:** push a fix to its branch. Or close the PR, delete the branch, fix
+  `main`, and run prepare release again.
+- **The release workflow fails after the merge:** nothing is tagged until the checks pass. For a
+  transient failure, re-run the failed jobs. Publication resumes from the tag or the draft that an
+  earlier attempt created, and a published release is left unchanged. When the merge commit fails its
+  checks, merge a fix into `main` through a pull request, then run the release workflow for that PR:
+  `gh workflow run release.yml -f pr=<number>`. It publishes the version that `VERSION` names at that
+  PR's merge commit, provided no tag for the version exists. Use the same command when a failed run is
+  too old to re-run.
+
+### One-time repository setup
+
+The prepare release workflow opens the PR with a GitHub App installation token. A PR that the default
+`GITHUB_TOKEN` opens starts no `pull_request` workflow, so the release PR would get no CI. The release
+workflow uses `GITHUB_TOKEN` only.
+
+1. Create a GitHub App without a webhook. Give it the repository permissions **Contents: read and
+   write** and **Pull requests: read and write**. Install it on this repository only.
+2. Store its client ID as the repository variable `RELEASE_APP_CLIENT_ID`, and a private key as the
+   repository secret `RELEASE_APP_PRIVATE_KEY`.
+
+These repository settings make the release guarantees enforceable:
+
+- **Immutable releases:** a published release and its tag cannot change.
+  `gh api -X PUT repos/throw-if-null/coral/immutable-releases`
+- **A tag ruleset for `refs/tags/v*`** with the rules `update` and `deletion`, and no bypass actors. Do
+  not restrict creation: the release workflow creates the tags.
+- **Required status checks** `docs` and `go` in the `main` ruleset, so a release PR whose CI fails cannot
+  merge.
 
 ## The audit skill
 
