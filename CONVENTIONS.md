@@ -790,15 +790,15 @@ and nothing reports a mismatch until the consumer runs. Drop the operating model
 recommend narrow dependencies and stop there. **Defended properties:** bounded context (a unit's
 dependencies are the finite set named at its boundary), reviewability (a new dependency changes the
 boundary, and the boundary is in the diff a human reads), drift prevention (an explicit wiring identifier
-cannot silently diverge from its registration), and self-verification (verification reports a missing,
-ambiguous, or incompatible binding before the consumer runs). **Not merely general correctness:** the
-rule constrains who declares a dependency and who supplies it, which is an ownership constraint. Its
-binding part makes composition, the owner of wiring, answerable for each binding it supplies. It fixes no
-injection technique, no framework, no interface style, and no validation mechanism. **Not downstream:**
-`[COMPOSE-1]` governs what one slice may use of another, and `[XCUT-1]` governs when sharing is
-permitted. Neither says what a unit may receive or how it obtains it. `[MODEL-4]`, `[XCUT-3]`,
-`[CONFIG-1]` and `[COMPOSE-2]` are downstream of `[DEPS-1]`, which is why they stay in the production
-baseline.
+cannot silently diverge from its registration), and self-verification (verification reports a missing or
+ambiguous binding before the consumer runs, and an incompatible one where reliable checks exist). **Not
+merely general correctness:** the rule constrains who declares a dependency and who supplies it, which is
+an ownership constraint. Its binding part makes composition, the owner of wiring, answerable for each
+binding it supplies. It fixes no injection technique, no framework, no interface style, and no validation
+mechanism. **Not downstream:** `[COMPOSE-1]` governs what one slice may use of another, and `[XCUT-1]`
+governs when sharing is permitted. Neither says what a unit may receive or how it obtains it.
+`[MODEL-4]`, `[XCUT-3]`, `[CONFIG-1]` and `[COMPOSE-2]` are downstream of `[DEPS-1]`, which is why they
+stay in the production baseline.
 
 The kernel publishes the constraint and leaves the technique open. How dependencies are wired, whether a
 project uses a framework, and whether shared wiring sits in a module of its own are decisions for the

@@ -383,9 +383,9 @@ Five parts, and all five are the rule:
   satisfies the consumer's declared contract, and the same composition and configuration always resolve
   it to the same provider. An explicit identifier that selects a provider, such as a registration key,
   token, or qualifier, has one authoritative definition or a binding mechanism that keeps its uses from
-  diverging silently. A missing, ambiguous, or incompatible binding fails before the affected consumer
-  executes, in each supported composition configuration. Compatibility is verified with the language's or
-  tooling's checks where they are reliable.
+  diverging silently. A missing or ambiguous binding fails before the affected consumer executes, in each
+  supported composition configuration. An incompatible binding also fails before execution where reliable
+  compatibility verification is available.
 
 **Scope.** The rule binds every boundary that composition wires, and every boundary between two units of
 code: a slice, a crosscut, an adapter, and a class or function that composition constructs or calls with
@@ -471,8 +471,8 @@ store = SqlTodoStore(connect(timeout=config.db_timeout))
 todos = list_todos(store=store)
 ```
 
-Name-based wiring conforms when the names are verified. The consumer's keyword parameters are the
-identifiers, and composition maps each name to one provider:
+Name-based wiring conforms only if the verification in step 4 exists and runs. The consumer's keyword
+parameters are the identifiers, and composition maps each name to one provider:
 
 ```python
 # 1. The consumer declares its requirements.
@@ -536,7 +536,7 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 - `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking.
 
 ### Dependencies
-- `[DEPS-1]` Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location. Bind each declared dependency deterministically to exactly one provider that satisfies your declared contract, keep explicit wiring identifiers from drifting, and fail a missing, ambiguous, or incompatible binding before the consumer executes, in each supported configuration.
+- `[DEPS-1]` Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location. Bind each declared dependency deterministically to exactly one provider that satisfies your declared contract, keep explicit wiring identifiers from drifting, fail a missing or ambiguous binding before the consumer executes, in each supported configuration, and fail an incompatible binding before execution where reliable compatibility verification is available.
 
 <!-- coral:contract:end -->
 

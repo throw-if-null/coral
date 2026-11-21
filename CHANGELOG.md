@@ -67,10 +67,10 @@ its composition-root row names verified binding. The adherence records this repo
 - an explicit wiring identifier, such as a key or a token, that can diverge from its registration without
   a check reporting it;
 - a provider chosen by registration order, scan order, or which providers are present;
-- a missing, ambiguous, or incompatible binding that a supported composition configuration reports only
-  when the consumer executes;
-- an unused compatibility check where the language or tooling can verify the provider against the
-  consumer's declared contract reliably.
+- a missing or ambiguous binding that a supported composition configuration reports only when the
+  consumer executes;
+- an incompatible binding that is not reported before execution where reliable compatibility
+  verification is available.
 
 ## 0.10.0 — 2026-11-21
 
