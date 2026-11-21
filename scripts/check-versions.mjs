@@ -12,7 +12,8 @@
 // version, not merely parse. A lagging declaration is the signal, so tolerating a lag
 // would remove the only information the marker carries. Bumping it is therefore a
 // claim — "I re-read this page against the current rules" — and that claim is the
-// point.
+// point. `npm run release:prepare` moves the markers; the maintainer who commits the cut
+// makes the claim.
 //
 // Released, and not the working version the documents currently describe, because of
 // what this marker is FOR. It tells a reader which Coral a page is good for, and only a
@@ -34,7 +35,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { coralVersion } from './version.mjs'
+import { DECLARATION, coralVersion, declarationFiles } from './version.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 const { released: VERSION, working, unreleased, problems: versionProblems } = coralVersion(ROOT)
@@ -44,28 +45,8 @@ if (versionProblems.length) {
   console.error('')
   process.exit(1)
 }
-const DECLARATION = /Written against \*\*Coral (\d+\.\d+\.\d+)\*\*/g
-
-// Files that MUST carry a declaration. Discovered, not listed, so a new example is
-// covered by existing rather than by somebody remembering to add it here.
-function targets() {
-  const out = []
-  const examples = path.join(ROOT, 'examples')
-  if (fs.existsSync(examples)) {
-    for (const f of fs.readdirSync(examples)) if (f.endsWith('.md')) out.push(path.join('examples', f))
-  }
-  const skills = path.join(ROOT, '.claude', 'skills')
-  if (fs.existsSync(skills)) {
-    for (const d of fs.readdirSync(skills)) {
-      const rel = path.join('.claude', 'skills', d, 'SKILL.md')
-      if (fs.existsSync(path.join(ROOT, rel))) out.push(rel)
-    }
-  }
-  return out.sort()
-}
-
 const problems = []
-const files = targets()
+const files = declarationFiles(ROOT)
 
 for (const rel of files) {
   const text = fs.readFileSync(path.join(ROOT, rel), 'utf8')

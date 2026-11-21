@@ -1,0 +1,185 @@
+name: release
+
+# Publishes a GitHub Release for an existing version tag. A maintainer runs it by hand.
+# README.md § "Releasing Coral" describes the process.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The existing version tag to publish, such as v0.11.0.
+        required: true
+        type: string
+      draft:
+        description: Stop at a draft release. Run again without this to publish the draft.
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  resolve:
+    name: Resolve and verify the tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+      commit: ${{ steps.tag.outputs.commit }}
+    steps:
+      - name: Resolve the tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::'$TAG' is not a release tag. A release tag has the form vX.Y.Z."
+            exit 1
+          fi
+          repo="repos/$GITHUB_REPOSITORY"
+          if ! ref="$(gh api "$repo/git/ref/tags/$TAG" --jq '.object.type + " " + .object.sha')"; then
+            echo "::error::$TAG does not exist. Push an annotated tag on the prepared commit first."
+            exit 1
+          fi
+          read -r type object <<<"$ref"
+          if [ "$type" != tag ]; then
+            echo "::error::$TAG is a lightweight tag. A release tag is annotated (git tag -a)."
+            exit 1
+          fi
+          read -r type commit <<<"$(gh api "$repo/git/tags/$object" --jq '.object.type + " " + .object.sha')"
+          if [ "$type" != commit ]; then
+            echo "::error::$TAG names a $type, not a commit."
+            exit 1
+          fi
+          # identical or ahead: main contains the commit. behind or diverged: it does not.
+          status="$(gh api "$repo/compare/$commit...main" --jq .status)"
+          if [ "$status" != identical ] && [ "$status" != ahead ]; then
+            echo "::error::$TAG names $commit, which main does not contain. Release only merged commits."
+            exit 1
+          fi
+          echo "$TAG names commit $commit."
+          echo "version=${TAG#v}" >>"$GITHUB_OUTPUT"
+          echo "commit=$commit" >>"$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.tag.outputs.commit }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Verify the version metadata and build the notes
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          COMMIT: ${{ steps.tag.outputs.commit }}
+        run: |
+          node scripts/release-check.mjs "$VERSION" --notes "$RUNNER_TEMP/notes.md" \
+            --commit "$COMMIT" --repository "$GITHUB_REPOSITORY"
+          cat "$RUNNER_TEMP/notes.md" >>"$GITHUB_STEP_SUMMARY"
+
+  test:
+    name: Test the tagged commit
+    needs: resolve
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
+    with:
+      ref: ${{ needs.resolve.outputs.commit }}
+
+  publish:
+    name: Publish the release
+    needs: [resolve, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.commit }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - name: Build the notes
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+        run: |
+          node scripts/release-check.mjs "$VERSION" --notes "$RUNNER_TEMP/notes.md" \
+            --commit "$COMMIT" --repository "$GITHUB_REPOSITORY"
+
+      - name: Create or publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          DRAFT: ${{ inputs.draft }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+        run: |
+          repo="repos/$GITHUB_REPOSITORY"
+
+          # The tag must still name the commit that the earlier jobs verified and tested.
+          check_tag() {
+            local object commit
+            object="$(gh api "$repo/git/ref/tags/$TAG" --jq .object.sha)"
+            commit="$(gh api "$repo/git/tags/$object" --jq .object.sha)"
+            if [ "$commit" != "$COMMIT" ]; then
+              echo "::error::$TAG moved from $COMMIT to $commit during this run. Nothing was published."
+              exit 1
+            fi
+          }
+          check_tag
+
+          releases="$(gh api "$repo/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"$TAG\") | \"\(.id) \(.draft) \(.html_url)\"")"
+          if [ "$(grep -c . <<<"$releases")" -gt 1 ]; then
+            echo "::error::$TAG has more than one release. Delete the extra drafts, then run again."
+            exit 1
+          fi
+          if [ -n "$releases" ]; then
+            read -r id draft url <<<"$releases"
+            if [ "$draft" = false ]; then
+              echo "::error::$TAG is already published at $url. A published release is not replaced."
+              exit 1
+            fi
+            echo "Using the existing draft $url. Delete the draft to rebuild its notes."
+          else
+            id="$(gh api -X POST "$repo/releases" \
+              -f tag_name="$TAG" -f target_commitish="$COMMIT" -f name="Coral $VERSION" \
+              -F body=@"$RUNNER_TEMP/notes.md" -F draft=true --jq .id)"
+            echo "Created a draft release for $TAG."
+          fi
+
+          if [ "$DRAFT" = true ]; then
+            url="$(gh api "$repo/releases/$id" --jq .html_url)"
+            echo "Draft: $url" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # A release becomes "Latest" only when no published release has a higher version.
+          newest="$(gh api "$repo/releases" --paginate \
+            --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' |
+            { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } | sed 's/^v//' | sort -V | tail -n 1)"
+          latest=true
+          if [ -n "$newest" ] && [ "$(printf '%s\n%s\n' "$newest" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
+            latest=false
+          fi
+
+          check_tag
+          url="$(gh api -X PATCH "$repo/releases/$id" -F draft=false -f make_latest="$latest" --jq .html_url)"
+          echo "Published: $url" | tee -a "$GITHUB_STEP_SUMMARY"

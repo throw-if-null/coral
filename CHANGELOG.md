@@ -73,6 +73,18 @@ its composition-root row names verified binding. The adherence records this repo
 - an incompatible binding that is not reported before execution where reliable compatibility
   verification is available.
 
+**Releases are published from tags, and a project pins one.** No rule changes. `README.md` § "Start a
+project" states the consumer lifecycle: select a release, set `targets`, check out the release tag,
+generate and commit `CORAL-CONTRACT.md`, and verify it in CI against the pinned release. The
+agent-instructions snippet loads the decision protocol and the behavioral verification protocol from the
+release tag, not from the site, which follows `main`. A project that copied the snippet changes those two
+URLs to the tag of its target. `examples/go-api-slice/AGENTS.md` follows the snippet.
+
+`README.md` § "Releasing Coral" states the release process. `npm run release:prepare` cuts a batch,
+`npm run release:check` verifies the commit a tag names, and `.github/workflows/release.yml` publishes a
+GitHub Release for an existing tag when a maintainer runs it. The release notes are the changelog
+section. `yaml` moves to `dependencies`, so `npm ci --omit=dev` installs everything the generator needs.
+
 ## 0.10.0 — 2026-11-21
 
 **A unit of code receives only the dependencies and configuration values it consumes.** One kernel rule

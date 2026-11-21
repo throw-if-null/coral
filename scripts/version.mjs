@@ -41,6 +41,32 @@ export const VERSION_FILE = 'VERSION'
 export const CHANGELOG_FILE = 'CHANGELOG.md'
 
 const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)$/
+
+/** The "written against" marker of a worked example or a skill. scripts/check-versions.mjs states its contract. */
+export const DECLARATION = /Written against \*\*Coral (\d+\.\d+\.\d+)\*\*/g
+
+/**
+ * Files that MUST carry a declaration, relative to `srcDir`. Discovered, not listed, so a new
+ * example is covered by existing rather than by somebody remembering to add it.
+ *
+ * @param {string} srcDir
+ * @returns {string[]}
+ */
+export function declarationFiles(srcDir) {
+  const out = []
+  const examples = path.join(srcDir, 'examples')
+  if (fs.existsSync(examples)) {
+    for (const f of fs.readdirSync(examples)) if (f.endsWith('.md')) out.push(path.join('examples', f))
+  }
+  const skills = path.join(srcDir, '.claude', 'skills')
+  if (fs.existsSync(skills)) {
+    for (const d of fs.readdirSync(skills)) {
+      const rel = path.join('.claude', 'skills', d, 'SKILL.md')
+      if (fs.existsSync(path.join(srcDir, rel))) out.push(rel)
+    }
+  }
+  return out.sort()
+}
 // `## Unreleased`, optionally naming the version the tree would ship as. The em dash
 // matches the released headings' own form (`## 0.6.0 — 2026-08-18`), so the section
 // headings stay one shape.

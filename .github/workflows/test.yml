@@ -4,12 +4,19 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit to test. The release workflow passes the commit a release tag names.
+        type: string
+        required: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # In a called workflow, github.workflow and github.ref are the caller's, so the input keeps two releases apart.
+  group: ${{ github.workflow }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -18,6 +25,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Empty outside workflow_call, which checks out the event's commit.
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
@@ -48,6 +58,9 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Empty outside workflow_call, which checks out the event's commit.
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-go@v7
         with:
           # Action inputs resolve from the repository root. working-directory applies to run steps only.

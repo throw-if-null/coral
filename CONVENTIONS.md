@@ -1397,8 +1397,8 @@ fields that version requires. Reversing the two means enforcing today's schema a
 `[VER-3]` exists to prevent, committed by the tool that enforces it.
 
 The answer for such a record is *"load the applicability semantics of the version it targets"*, never
-*"this record is invalid"*. Whether an older Coral can be fetched is a separate problem. Refusing to
-answer is still the correct answer, and it is a different refusal from the one below.
+*"this record is invalid"*. The resolver does not fetch that version. Refusing to answer is still the
+correct answer, and it is a different refusal from the one below.
 
 ### Fail closed
 
@@ -1581,10 +1581,13 @@ temporary artifact is created exclusively under an unpredictable name, so a file
 path is never truncated and never deleted. That is the ownership rule the destination follows, applied to
 its sibling.
 
-One thing it deliberately does not solve is **acquiring the version a project targets**. A `CORAL.md`
-whose `targets` names a release other than the one the Coral checkout describes is refused with the
-version-first semantics [above](#the-target-version-comes-first): load that release and generate against
-it. Fetching it is separate work.
+The generator does not **acquire the version a project targets**. A `CORAL.md` whose `targets` names a
+release other than the one the Coral checkout describes is refused with the version-first semantics
+[above](#the-target-version-comes-first): load that release and generate against it. Each release is a
+tag, `v<version>`.
+[README § Start a project](https://github.com/throw-if-null/coral/blob/main/README.md#start-a-project)
+shows how a project checks out a release, generates its contract, and verifies the committed contract in
+CI.
 
 ---
 

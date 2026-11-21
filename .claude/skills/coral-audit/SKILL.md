@@ -248,7 +248,7 @@ slicing, placement/naming, and thin composition — so do not treat them as warm
 not, they are observations (boundary rule 5) and the walk is short. **What a kernel-only project is
 audited against, in full:**
 
-- - against the **source** — `[MODEL-1]` (the five categories), `[BOUND-2]` (one trigger, owned end to
+- against the **source** — `[MODEL-1]` (the five categories), `[BOUND-2]` (one trigger, owned end to
   end), `[XCUT-1]` (promotion to a crosscut needs a must-not-diverge invariant), `[COMPOSE-1]`
   (published capability, never internals), `[ERR-1]` (one small, stable, structured error model
   declared once for the app or published package, presented at a boundary rather than inside slices —
