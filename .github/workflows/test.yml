@@ -56,7 +56,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
+      # Job defaults replace the workflow defaults, so the shell is set again.
       run:
+        shell: bash
         working-directory: examples/go-api-slice
     services:
       postgres:
