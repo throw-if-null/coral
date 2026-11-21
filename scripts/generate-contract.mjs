@@ -30,8 +30,8 @@
 //
 // CONVENTIONS.md already says what to do instead, and says it about semantics rather than
 // files: load the applicability semantics of the version the record targets. Concretely —
-// check out that Coral, and run ITS `npm run contract:generate`. Fetching it is separate
-// work and is not solved here.
+// check out that Coral's release tag, and run ITS `npm run contract:generate`. README.md
+// § "Start a project" shows the checkout.
 //
 // The parameter survives one level down, in writeExecutionContract(), because the
 // synthetic tests build fixture trees with a vocabulary that is not Coral's. What is not

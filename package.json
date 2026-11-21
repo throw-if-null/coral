@@ -1,6 +1,6 @@
 {
   "name": "coral-architecture",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "description": "Coral is a set of rules for organising code in a repository, followed by coding agents and by people.",
   "scripts": {
@@ -14,7 +14,9 @@
     "build": "npm run docs:build",
     "rules:lock": "node scripts/rules-lock.mjs",
     "rules:index": "node scripts/rules-index.mjs",
-    "contract:generate": "node scripts/generate-contract.mjs"
+    "contract:generate": "node scripts/generate-contract.mjs",
+    "release:prepare": "node scripts/release-prepare.mjs",
+    "release:check": "node scripts/release-check.mjs"
   },
   "repository": {
     "type": "git",
@@ -31,7 +33,9 @@
     "mermaid": "^11.17.2",
     "vitepress": "^1.6.4",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "wrangler": "4.152.0",
+    "wrangler": "4.152.0"
+  },
+  "dependencies": {
     "yaml": "^2.9.0"
   }
 }

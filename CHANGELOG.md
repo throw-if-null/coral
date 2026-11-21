@@ -41,12 +41,13 @@ adopts.
 
 ---
 
-## Unreleased — 0.11.0
+## Unreleased
 
-A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
-the batch is cut. **The batch is currently major**, because `[DEPS-1]` is tightened. Coral is still in
-`0.y.z`, so that major is cut as a **minor** bump (`0.10.0` → `0.11.0`) per semver's major-version-zero
-clause.
+## 0.11.0 — 2026-11-21
+
+**Dependency wiring is deterministic, unambiguous, and verified.** One kernel rule is **tightened**,
+`[DEPS-1]`. Under `[VER-2]` the batch is **major**, and the `0.y.z` clause cuts it as a **minor**. No rule
+was added or retired, no enforcement class changed, and `rules.lock` stays at 182 rules.
 
 **`[DEPS-1]`: dependency wiring is deterministic, unambiguous, and verified. Tightened, major under
 `[VER-2]`.**
@@ -71,6 +72,18 @@ its composition-root row names verified binding. The adherence records this repo
   consumer executes;
 - an incompatible binding that is not reported before execution where reliable compatibility
   verification is available.
+
+**Releases are published from tags, and a project pins one.** No rule changes. `README.md` § "Start a
+project" states the consumer lifecycle: select a release, set `targets`, check out the release tag,
+generate and commit `CORAL-CONTRACT.md`, and verify it in CI against the pinned release. The
+agent-instructions snippet loads the decision protocol and the behavioral verification protocol from the
+release tag, not from the site, which follows `main`. A project that copied the snippet changes those two
+URLs to the tag of its target. `examples/go-api-slice/AGENTS.md` follows the snippet.
+
+`README.md` § "Releasing Coral" states the release process. `npm run release:prepare` cuts a batch,
+`npm run release:check` verifies the commit a tag names, and `.github/workflows/release.yml` publishes a
+GitHub Release for an existing tag when a maintainer runs it. The release notes are the changelog
+section. `yaml` moves to `dependencies`, so `npm ci --omit=dev` installs everything the generator needs.
 
 ## 0.10.0 — 2026-11-21
 

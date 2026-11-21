@@ -155,24 +155,66 @@ Setup also depends on one skill outside this repository: the `doc-maintenance` s
 procedure an agent follows for code comments and documentation. It defines no Coral rule. Each Coral
 release pins one haddock tag. The dependency first ships in `0.8.0`.
 
-1. Copy the template to the project root as `CORAL.md`. Set the project name in the heading. Set
-   `targets` to the version of the Coral checkout the project generates from. A project pins a
-   released version: `VERSION` on its release tag. On `main`, the version is the one the
-   `## Unreleased` heading in `CHANGELOG.md` names, or `VERSION` when the heading names none. The
-   generator refuses a mismatch and names the version it expects.
-2. From that checkout, generate the execution contract:
+A project pins a Coral **release**. Each release is an annotated tag, `v<version>`, on a commit of
+`main`, published as a [GitHub Release](https://github.com/throw-if-null/coral/releases) whose notes
+state the rules it adds, tightens, loosens, or retires and what a project must now satisfy. The rule
+documents, the generator, and the agent protocols of one release all come from that tag. `main` moves,
+so nothing a project depends on is read from it.
+
+1. Select a release from the Releases page. Copy the template to the project root as `CORAL.md`. Set the
+   project name in the heading. Set `targets` to the release's version, such as `"0.11.0"`.
+2. Obtain the source of that release, and install the generator's one dependency:
+
+   ```bash
+   git clone --depth 1 --branch v0.11.0 https://github.com/throw-if-null/coral.git coral-0.11.0
+   cd coral-0.11.0
+   npm ci --omit=dev
+   ```
+
+   The release's source archive, listed on its GitHub Release, holds the same files. The Coral checkout
+   is a tool for generation and verification. It is not a runtime dependency of the project. Do not add
+   it as a submodule, vendor it, or install it as a package.
+3. From that checkout, generate the execution contract, and commit `CORAL-CONTRACT.md` in the project:
 
    ```bash
    npm run contract:generate -- --project /path/to/project
    ```
 
-   The generator first ships in `0.7.0`. A project that targets an earlier version has no generator to
-   run. [Versioning](#versioning-and-how-a-project-records-where-it-differs) describes the generator and
-   its output, `CORAL-CONTRACT.md`.
-3. Add an agent instructions file, `CLAUDE.md` or `AGENTS.md`, to the project root. It tells the agent
-   to load the generated contract, the decision protocol, the
-   [behavioral verification protocol](./guides/behavioral-verification.md), and `doc-maintenance` at
-   the pinned tag:
+   The contract is a committed architectural artifact: it records which rules govern the project, at
+   which version. The generator refuses a `CORAL.md` whose `targets` differs from the checkout's version,
+   and names the version it expects. The generator first ships in `0.7.0`. A project that targets an
+   earlier version has no generator to run.
+   [Versioning](#versioning-and-how-a-project-records-where-it-differs) describes the generator and its
+   output.
+4. Verify the committed contract in CI. The job reads `targets` from `CORAL.md`, checks out that release,
+   and fails when the generator output differs from the committed file:
+
+   ```yaml
+   coral-contract:
+     runs-on: ubuntu-latest
+     steps:
+       - uses: actions/checkout@v7
+       - name: Read the pinned Coral version
+         id: coral
+         run: echo "version=$(sed -n 's/^targets: *"\{0,1\}\([0-9.]*\)"\{0,1\} *$/\1/p' CORAL.md)" >>"$GITHUB_OUTPUT"
+       - uses: actions/checkout@v7
+         with:
+           repository: throw-if-null/coral
+           ref: v${{ steps.coral.outputs.version }}
+           path: .coral
+       - uses: actions/setup-node@v7
+         with:
+           node-version-file: .coral/.node-version
+       - run: npm ci --omit=dev --prefix .coral
+       - name: Check CORAL-CONTRACT.md against the pinned release
+         run: node .coral/scripts/generate-contract.mjs --project . --stdout | diff -u CORAL-CONTRACT.md -
+   ```
+
+5. Add an agent instructions file, `CLAUDE.md` or `AGENTS.md`, to the project root. It tells the agent
+   to load the generated contract, the decision protocol, and the
+   [behavioral verification protocol](./guides/behavioral-verification.md) from the tag of the pinned
+   Coral release, and `doc-maintenance` at the pinned haddock tag. When the project moves `targets`,
+   change the Coral tag in these URLs to the same release:
 
    ```markdown
    ## Coral
@@ -181,14 +223,15 @@ release pins one haddock tag. The dependency first ships in `0.8.0`.
    rule that applies to this project, plus the project's accepted exceptions and extensions. It is
    generated. Do not edit it.
 
-   Load https://coral.appsandtools.work/guides/deciding-and-escalating before you change code. It is
-   the protocol for which decisions are yours, which you verify first, and which a human makes. It
-   defines no rule.
+   Load the decision protocol,
+   <https://raw.githubusercontent.com/throw-if-null/coral/v0.11.0/guides/deciding-and-escalating.md>,
+   before you change code. It is the protocol for which decisions are yours, which you verify first,
+   and which a human makes. It defines no rule.
 
    Load the behavioral verification protocol,
-   <https://coral.appsandtools.work/guides/behavioral-verification>, before you write or change a
-   test. It states how an acceptance criterion is written and how expected behavior changes. It
-   defines no rule.
+   <https://raw.githubusercontent.com/throw-if-null/coral/v0.11.0/guides/behavioral-verification.md>,
+   before you write or change a test. It states how an acceptance criterion is written and how
+   expected behavior changes. It defines no rule.
 
    Load the haddock `doc-maintenance` skill,
    <https://raw.githubusercontent.com/throw-if-null/haddock/v0.5.0/skills/doc-maintenance/SKILL.md>,
@@ -211,7 +254,7 @@ release pins one haddock tag. The dependency first ships in `0.8.0`.
    change the entry.` Set `ref` to `v0.5.0` in the `source` of that entry, and run the command again.
    The plugin also installs a `SessionStart` hook that adds haddock's primer to each session. Keep the
    snippet line in the instructions file, so that an agent without the plugin loads the same version.
-4. Run the conflict check before the agent changes code, and again each time the project changes
+6. Run the conflict check before the agent changes code, and again each time the project changes
    `targets`. Ask the agent to do these steps:
 
    1. Read every instruction source that the agent loads in this project:
@@ -307,6 +350,62 @@ failed regeneration removes the file the previous run wrote rather than leaving 
 The generator only ever removes or replaces files it wrote. It refuses anything else at the destination
 rather than overwriting it. [`CONVENTIONS.md`](./CONVENTIONS.md#the-generated-execution-contract)
 documents it.
+
+## Releasing Coral
+
+A release is a cut batch (`[VER-2]`), an annotated tag on the merged cut commit, and a GitHub Release
+for that tag. Each step is a separate maintainer action. Nothing is published on merge.
+
+1. On a branch from `main`, prepare the release. The version is the one that the changelog's
+   `## Unreleased` heading names, or the next patch when the heading names none:
+
+   ```bash
+   npm run release:prepare -- 0.11.0
+   ```
+
+   The command sets `VERSION`, `package.json`, and `package-lock.json` to the version. It renames the
+   Unreleased section to `## <version> — <date>`, adds an empty `## Unreleased` above it, and moves the
+   "Written against" markers and the agent snippet's Coral tag to the version. Then it regenerates the
+   example project's contract and runs `npm test`. It refuses a version that the changelog does not
+   name, an empty Unreleased section, and a version that already has a section. A rerun on a prepared
+   tree changes nothing. Other content in the edited files is kept.
+2. Edit the released section's first paragraph to state the batch and its compatibility. The section is
+   the release notes. Re-read each page whose marker moved. Commit as `Cut <version>`, open a pull
+   request, and merge it.
+3. Tag the merge commit with an annotated tag, and push the tag:
+
+   ```bash
+   git fetch origin
+   git tag -a v0.11.0 -m "Coral 0.11.0 — <summary>" origin/main
+   git push origin refs/tags/v0.11.0
+   ```
+
+4. Run the release workflow, [`.github/workflows/release.yml`](./.github/workflows/release.yml), from
+   the Actions tab or with the GitHub CLI:
+
+   ```bash
+   gh workflow run release.yml -f tag=v0.11.0
+   ```
+
+   With `-f draft=true`, the workflow stops at a draft release, so the notes can be read on GitHub first.
+   A second run without it publishes that draft.
+
+The workflow refuses a tag that is not `v<major>.<minor>.<patch>`, does not exist, is lightweight, or
+names a commit that `main` does not contain. On the tagged commit, it runs `npm run release:check`, which
+refuses the commit when a version-bearing file does not name the version or when the changelog's
+Unreleased heading names a successor. It then runs the `test` workflow on that commit. The release body
+is the changelog section, followed by adoption steps and the source commit. GitHub's source archives are
+the release's only files.
+
+The workflow never creates or moves a tag. It refuses to publish when the tag moved during the run, and
+when a published release for the tag exists. When a run fails before publication, run it again: it
+reuses the draft it created. To rebuild a draft's notes, delete the draft first. The publishing job alone
+has `contents: write`.
+
+GitHub enforces tag immutability only through repository settings, which a maintainer sets once:
+
+- Enable **immutable releases**, so a published release and its tag cannot change.
+- Add a tag ruleset for `v*` that restricts updates and deletions.
 
 ## The audit skill
 
