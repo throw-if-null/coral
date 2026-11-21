@@ -58,7 +58,7 @@ not because they are inapplicable. Their reasoning lives in the Coral documents.
 - `[CONFIG-4]` Read secrets only through the config crosscut. Never inline, log, or publish them.
 - `[CONTRACT-1]` Keep the public contract stable, explicit, fully typed, and undecorated.
 - `[CONTRACT-2]` Version public-contract changes per the app type's discipline.
-- `[DEPS-1]` Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location. Wire each dependency to exactly one provider, give each wiring identifier one authoritative definition, validate the identifier-to-provider mapping before the first trigger, and check type compatibility where the language and tooling can verify it reliably.
+- `[DEPS-1]` Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location. Bind each declared dependency deterministically to exactly one provider that satisfies your declared contract, keep explicit wiring identifiers from drifting, and fail a missing, ambiguous, or incompatible binding before the consumer executes, in each supported configuration.
 - `[DUP-2]` Do not extract on similarity alone. Similarity is not a shared concept.
 - `[DUP-3]` Extract only to enforce an invariant or convention, provide named infrastructure, or clarify a real calculation.
 - `[DUP-4]` Apply the Extraction Test before extracting.

@@ -48,28 +48,29 @@ the batch is cut. **The batch is currently major**, because `[DEPS-1]` is tighte
 `0.y.z`, so that major is cut as a **minor** bump (`0.10.0` → `0.11.0`) per semver's major-version-zero
 clause.
 
-**`[DEPS-1]`: dependency wiring is deterministic and unambiguous. Tightened, major under `[VER-2]`.**
+**`[DEPS-1]`: dependency wiring is deterministic, unambiguous, and verified. Tightened, major under
+`[VER-2]`.**
 
-`ARCHITECTURE.md` § 9 adds a fifth part to `[DEPS-1]`. Each dependency a consumer declares resolves to
-exactly one provider, and the same composition and configuration resolve it to the same provider on every
-run. Where dependencies are resolved through identifiers, such as keys, names, tokens, or qualifiers, each
-identifier has a single authoritative definition, and composition validates the mapping from identifiers
-to providers in the build, at startup, or in a test that constructs the whole composition. Where the
-language and tooling can verify type compatibility reliably, the check confirms that each provider
-satisfies the type its consumer declares. Selection by configuration is deterministic. Selection by
-registration order, scan order, or the presence of a provider is not. A consumer that declares an
-identifier at its boundary declares a dependency and does not locate one. Direct wiring satisfies the
-part without an identifier. The contract line states the part, and the enforcement class stays
-`[review]`. `rules.lock` is unchanged.
+`ARCHITECTURE.md` § 9 adds a fifth part to `[DEPS-1]`, deterministic, verified binding, and states it in
+the contract line. The enforcement class stays `[review]`, and `rules.lock` is unchanged. Identity and
+compatibility are separate checks. Parameter names and other language-native declarations identify a
+dependency, and composition may map those names to providers when the mapping is verified. Direct wiring
+needs no identifier, registry, or token. The rest of § 9 is consolidated without a change in meaning, and
+its examples now show direct wiring, verified name-based wiring, and drifting keys.
 
-`CONVENTIONS.md` states the part's kernel membership: drift prevention and self-verification are added to
-the properties `[DEPS-1]` defends, and the composition-root row names the validated wiring. The adherence
-records this repository resolves target `0.11.0`.
+`CONVENTIONS.md` adds drift prevention and self-verification to the properties `[DEPS-1]` defends, and
+its composition-root row names verified binding. The adherence records this repository resolves target
+`0.11.0`.
 
-**What you must now satisfy:** a wiring identifier defined more than once, such as a string literal
-repeated at a consumer and at a registration, is a finding. So is an identifier-to-provider mapping that
-is not validated before the first trigger, a provider chosen by registration or scan order, and an
-unused type check where the language and tooling can verify the provider's type reliably.
+**What you must now satisfy:** each of these is a finding:
+
+- an explicit wiring identifier, such as a key or a token, that can diverge from its registration without
+  a check reporting it;
+- a provider chosen by registration order, scan order, or which providers are present;
+- a missing, ambiguous, or incompatible binding that a supported composition configuration reports only
+  when the consumer executes;
+- an unused compatibility check where the language or tooling can verify the provider against the
+  consumer's declared contract reliably.
 
 ## 0.10.0 — 2026-11-21
 
