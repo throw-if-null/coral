@@ -3,8 +3,7 @@
 // The release workflows' GitHub calls: a thin CLI over scripts/release-github.mjs.
 //
 //   preflight <version>               prepare-release: create a release PR, or report it
-//   resolve --pr <n> [--release-branch]
-//                                     release: the version and commit a merged PR cut
+//   resolve --pr <n>                  release: the version and commit a merged release PR cut
 //   publish --version <v> --commit <sha>
 //                                     release: tag and publish, from a checkout of <sha>
 //
@@ -63,8 +62,7 @@ function flags(argv) {
   const out = { _: [] }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg === '--release-branch') out.releaseBranch = true
-    else if (arg.startsWith('--')) {
+    if (arg.startsWith('--')) {
       const v = argv[++i]
       if (v === undefined || v.startsWith('--')) fail([`${arg} needs a value.`])
       out[arg.slice(2)] = v
@@ -91,7 +89,7 @@ switch (command) {
   case 'resolve': {
     const pr = Number(args.pr)
     if (!Number.isInteger(pr) || pr <= 0) fail([`\`${args.pr}\` is not a pull request number.`])
-    const r = await resolveRelease(api, { repo, pr, requireReleaseBranch: Boolean(args.releaseBranch) })
+    const r = await resolveRelease(api, { repo, pr })
     if (r.problems.length) fail(r.problems)
     output({ version: r.version, commit: r.commit })
     break

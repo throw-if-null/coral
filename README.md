@@ -357,14 +357,19 @@ A release takes two maintainer decisions: which version to release and when, and
 release PR. Merging the release PR approves publication. Ordinary merges never create a version, a tag,
 or a release.
 
-1. Merge changes into `main` through pull requests. Each one records its rule changes under
-   `## Unreleased` in `CHANGELOG.md`, and a batch that changes a rule names the next version in that
-   heading (`[VER-2]`). Keep the section's first paragraph a summary of the batch and its compatibility.
+1. Merge changes into `main` through pull requests. Each one records its changes under `## Unreleased`
+   in `CHANGELOG.md`. Keep the section's first paragraph a summary of the batch and its compatibility.
    It becomes the first paragraph of the release notes and the tag message.
 2. Run the **prepare release** workflow with the version, from the Actions tab or with
-   `gh workflow run prepare-release.yml -f version=0.12.0`. It opens the PR `Cut 0.12.0` from the branch
-   `release/0.12.0`. The PR body holds the release notes.
-3. Review the release PR, and merge it. To correct it first, push to its branch.
+   `gh workflow run prepare-release.yml -f version=0.12.0`. The version is the next patch, minor, or
+   major version, or the version that the Unreleased heading names. A patch states that no rule changed,
+   so it is refused when `rules.lock` or `rules.md` changed since the last release. The workflow opens
+   the PR `Cut 0.12.0` from the branch `release/0.12.0`. The PR body states the version decision and
+   the rule surface changes, followed by the release notes.
+3. Review the release PR, and merge it. To correct it first, push to its branch. When `main` changes,
+   the PR must be updated and pass CI again before it can merge. An update that brings changes the
+   release section does not record fails CI: close the PR, delete its branch, and prepare the release
+   again.
 4. The **release** workflow tags the merge commit v0.12.0 and publishes the GitHub Release. The run
    summary shows the release URL.
 
@@ -378,8 +383,8 @@ sequenceDiagram
     M->>P: run with version X
     P->>P: release:prepare X, npm test
     P->>R: open the PR (GitHub App token)
-    R->>R: CI runs
-    M->>R: review and merge
+    R->>R: CI: docs, go, release check
+    M->>R: review and merge (branch up to date)
     R->>W: pull_request closed, merged
     W->>W: verify and test the merge commit
     W->>G: create the tag, publish the release
@@ -389,10 +394,11 @@ sequenceDiagram
 flowchart TD
     merged(["release/X PR merged"]) --> r1
     subgraph resolve["resolve · contents: read"]
-        r1{"same repository, into main,<br/>VERSION at the merge commit is X?"} -->|yes| r2{"vX absent, or<br/>already on this commit?"}
-        r2 -->|yes| r3{"release:check X"}
+        r1{"release/X branch of this repository,<br/>merged into main, VERSION is X?"} -->|yes| r2{"merge commit tree<br/>= reviewed head tree?"}
+        r2 -->|yes| r3{"vX absent, or<br/>already on this commit?"}
+        r3 -->|yes| r4{"release:check X"}
     end
-    r3 -->|pass| t1
+    r4 -->|pass| t1
     subgraph test["test · contents: read"]
         t1["test.yml on the merge commit"]
     end
@@ -408,14 +414,15 @@ flowchart TD
     p5 --> done2(["published release"])
     r1 -->|no| stop(["refuse: no tag, no release"])
     r2 -->|no| stop
-    r3 -->|fail| stop
+    r3 -->|no| stop
+    r4 -->|fail| stop
     t1 -->|fail| stop
 ```
 
 The version terms:
 
-- `main` is development. `## Unreleased` holds the changes that are in no release, and its heading names
-  the working version.
+- `main` is development. `## Unreleased` holds the changes that are in no release. When its heading
+  names a version, that is the working version.
 - `VERSION` names the latest cut version in the tree. The release PR changes it. It does not show that
   the version is published.
 - The tag `v<version>` is the release source. The release workflow creates it on the release PR's merge
@@ -427,35 +434,44 @@ The version terms:
 - **Prepare release fails:** nothing is pushed. Fix the cause on `main` through a pull request, and run
   the workflow again. When the branch was pushed but no PR was opened, delete the branch, and run again.
   For an open release PR, a second run reports the PR and changes nothing.
-- **The release PR's CI fails:** push a fix to its branch. Or close the PR, delete the branch, fix
-  `main`, and run prepare release again.
-- **The release workflow fails after the merge:** nothing is tagged until the checks pass. For a
-  transient failure, re-run the failed jobs. Publication resumes from the tag or the draft that an
-  earlier attempt created, and a published release is left unchanged. When the merge commit fails its
-  checks, merge a fix into `main` through a pull request, then run the release workflow for that PR:
-  `gh workflow run release.yml -f pr=<number>`. It publishes the version that `VERSION` names at that
-  PR's merge commit, provided no tag for the version exists. Use the same command when a failed run is
-  too old to re-run.
+- **The release workflow fails after the merge:** nothing is tagged until the checks pass. Re-run the
+  failed jobs. Publication resumes from the tag or the draft that an earlier attempt created, and a
+  published release is left unchanged. When the run is too old to re-run, run the workflow for the same
+  release PR: `gh workflow run release.yml -f pr=<number>`. It accepts only a merged release PR.
+- **The merged release commit fails its checks or is refused:** it is not published, and no other
+  commit can take its version. Fix `main`, and release the next version.
 
 ### One-time repository setup
 
-The prepare release workflow opens the PR with a GitHub App installation token. A PR that the default
-`GITHUB_TOKEN` opens starts no `pull_request` workflow, so the release PR would get no CI. The release
-workflow uses `GITHUB_TOKEN` only.
+Code cannot enforce these. A maintainer applies them once.
 
-1. Create a GitHub App without a webhook. Give it the repository permissions **Contents: read and
-   write** and **Pull requests: read and write**. Install it on this repository only.
-2. Store its client ID as the repository variable `RELEASE_APP_CLIENT_ID`, and a private key as the
-   repository secret `RELEASE_APP_PRIVATE_KEY`.
+1. **GitHub App.** The prepare release workflow opens the PR with an installation token, because a PR
+   that the default `GITHUB_TOKEN` opens starts no `pull_request` workflow, and the release PR would get
+   no CI. Create an App without a webhook, with the repository permissions **Contents: read and write**
+   and **Pull requests: read and write**, and install it on this repository only. Store its client ID as
+   the repository variable `RELEASE_APP_CLIENT_ID`, and a private key as the repository secret
+   `RELEASE_APP_PRIVATE_KEY`. The App needs no bypass of any ruleset.
+2. **Required checks on `main`.** Add a `required_status_checks` rule to the `main` ruleset: the checks
+   `docs` and `go` from GitHub Actions, and "require branches to be up to date". A PR then merges only
+   when both checks passed on its latest revision, and only when it contains the latest `main`. The
+   up-to-date requirement applies to every PR into `main`. Without it, a release PR that lags `main`
+   can merge, and the release workflow refuses to publish it.
 
-These repository settings make the release guarantees enforceable:
+   The command keeps the ruleset's existing rules and adds this one:
 
-- **Immutable releases:** a published release and its tag cannot change.
-  `gh api -X PUT repos/throw-if-null/coral/immutable-releases`
-- **A tag ruleset for `refs/tags/v*`** with the rules `update` and `deletion`, and no bypass actors. Do
-  not restrict creation: the release workflow creates the tags.
-- **Required status checks** `docs` and `go` in the `main` ruleset, so a release PR whose CI fails cannot
-  merge.
+   ```bash
+   gh api repos/throw-if-null/coral/rulesets/22379989 |
+     jq '{rules: (.rules + [{type: "required_status_checks", parameters: {
+           strict_required_status_checks_policy: true, do_not_enforce_on_create: false,
+           required_status_checks: [{context: "docs", integration_id: 15368},
+                                    {context: "go", integration_id: 15368}]}}])}' |
+     gh api -X PUT repos/throw-if-null/coral/rulesets/22379989 --input -
+   ```
+
+3. **Immutable releases:** a published release and its tag cannot change.
+   `gh api -X PUT repos/throw-if-null/coral/immutable-releases`
+4. **A tag ruleset for `refs/tags/v*`** with the rules `update` and `deletion`, and no bypass actors. Do
+   not restrict creation: the release workflow creates the tags.
 
 ## The audit skill
 

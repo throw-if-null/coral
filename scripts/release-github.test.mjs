@@ -11,6 +11,7 @@ import { preflight, publishRelease, releaseBranchVersion, resolveRelease } from 
 const REPO = 'o/coral'
 const MERGE = 'm'.repeat(40)
 const OTHER = 'f'.repeat(40)
+const HEAD = 'h'.repeat(40)
 
 class HttpError extends Error {
   constructor(status) {
@@ -20,7 +21,7 @@ class HttpError extends Error {
 }
 
 /** A repository as the REST API sees it, with `failOn` to make one call fail once. */
-function github(overrides = {}) {
+function github(overrides = {}, repo = REPO) {
   const state = {
     pulls: {
       7: {
@@ -29,9 +30,10 @@ function github(overrides = {}) {
         state: 'closed',
         html_url: 'https://github.com/o/coral/pull/7',
         base: { ref: 'main', repo: { default_branch: 'main' } },
-        head: { ref: 'release/1.3.0', repo: { full_name: REPO } },
+        head: { ref: 'release/1.3.0', sha: HEAD, repo: { full_name: REPO } },
       },
     },
+    trees: { [MERGE]: 'tree-a', [HEAD]: 'tree-a' },
     versions: { [MERGE]: '1.3.0' },
     onMain: new Set([MERGE]),
     tags: {},
@@ -48,7 +50,7 @@ function github(overrides = {}) {
       state.failOn = null
       throw new HttpError(500)
     }
-    const route = path.replace(`repos/${REPO}/`, '').replace(/[?&]per_page=100&page=1$/, '')
+    const route = path.replace(`repos/${repo}/`, '').replace(/[?&]per_page=100&page=1$/, '')
     let m
     if (method === 'GET' && (m = /^pulls\/(\d+)$/.exec(route))) {
       if (!state.pulls[m[1]]) throw new HttpError(404)
@@ -56,6 +58,9 @@ function github(overrides = {}) {
     }
     if (method === 'GET' && (m = /^pulls\?state=all&head=o:release%2F(.+)$/.exec(route))) {
       return Object.values(state.pulls).filter((p) => p.head.ref === `release/${m[1]}`)
+    }
+    if (method === 'GET' && (m = /^git\/commits\/(.+)$/.exec(route))) {
+      return { tree: { sha: state.trees[m[1]] } }
     }
     if (method === 'GET' && (m = /^contents\/VERSION\?ref=(.+)$/.exec(route))) {
       const v = state.versions[m[1]]
@@ -114,7 +119,7 @@ test('releaseBranchVersion reads release/<version> only', () => {
 
 test('a merged release PR resolves to its merge commit', async () => {
   const { api } = github()
-  assert.deepEqual(await resolveRelease(api, { repo: REPO, pr: 7, requireReleaseBranch: true }), {
+  assert.deepEqual(await resolveRelease(api, { repo: REPO, pr: 7 }), {
     version: '1.3.0',
     commit: MERGE,
     problems: [],
@@ -127,6 +132,7 @@ for (const [name, change, expected] of [
   ['a PR into another branch', (s) => (s.pulls[7].base.ref = 'next'), /merged into next, not main/],
   ['a PR from a fork', (s) => (s.pulls[7].head.repo = { full_name: 'x/coral' }), /another repository/],
   ['a branch that names another version', (s) => (s.versions[MERGE] = '1.4.0'), /VERSION at its merge commit is 1\.4\.0/],
+  ['a stale release PR whose merge holds later base changes', (s) => (s.trees[MERGE] = 'tree-b'), /holds changes that were not\s+in the reviewed release PR/],
   ['a merge commit main does not contain', (s) => s.onMain.clear(), /main does not contain/],
   ['a version whose tag names another commit', (s) => (s.tags['v1.3.0'] = { commit: OTHER, annotated: true }), /never moved/],
   ['a lightweight tag', (s) => (s.tags['v1.3.0'] = { commit: MERGE, annotated: false }), /lightweight/],
@@ -134,17 +140,53 @@ for (const [name, change, expected] of [
   test(`resolution refuses ${name}`, async () => {
     const { api, state } = github()
     change(state)
-    const r = await resolveRelease(api, { repo: REPO, pr: 7, requireReleaseBranch: true })
+    const r = await resolveRelease(api, { repo: REPO, pr: 7 })
     assert.equal(r.version, null)
     assert.match(r.problems.join('\n'), expected)
   })
 }
 
-test('recovery resolves a merged PR from any branch by its VERSION', async () => {
+test('recovery resolves only a release PR, not an ordinary merge with a matching VERSION', async () => {
   const { api, state } = github()
-  state.pulls[7].head.ref = 'feat/release-workflow'
-  const r = await resolveRelease(api, { repo: REPO, pr: 7, requireReleaseBranch: false })
-  assert.deepEqual([r.version, r.commit], ['1.3.0', MERGE])
+  state.pulls[7].head.ref = 'feat/thing'
+  const r = await resolveRelease(api, { repo: REPO, pr: 7 })
+  assert.equal(r.version, null)
+  assert.match(r.problems.join('\n'), /not from a release\/<version> branch/)
+})
+
+const BOOT_REPO = 'throw-if-null/coral'
+function bootstrapGithub(version = '0.11.0', pr = 45) {
+  const g = github({ versions: { [MERGE]: version } }, BOOT_REPO)
+  g.state.pulls[pr] = {
+    ...g.state.pulls[7],
+    head: { ref: 'feat/release-workflow', sha: HEAD, repo: { full_name: BOOT_REPO } },
+  }
+  return g
+}
+
+test('the bootstrap resolves #45 as 0.11.0 without a release branch', async () => {
+  const { api } = bootstrapGithub()
+  const r = await resolveRelease(api, { repo: BOOT_REPO, pr: 45 })
+  assert.deepEqual(r, { version: '0.11.0', commit: MERGE, problems: [] })
+})
+
+test('the bootstrap does not publish any other version from #45', async () => {
+  const { api } = bootstrapGithub('0.11.1')
+  const r = await resolveRelease(api, { repo: BOOT_REPO, pr: 45 })
+  assert.match(r.problems.join('\n'), /releases 0\.11\.0, but VERSION at its merge commit is 0\.11\.1/)
+})
+
+test('the bootstrap covers no other pull request', async () => {
+  const { api } = bootstrapGithub('0.11.0', 46)
+  const r = await resolveRelease(api, { repo: BOOT_REPO, pr: 46 })
+  assert.match(r.problems.join('\n'), /not from a release\/<version> branch/)
+})
+
+test('after v0.11.0 exists, the bootstrap resolves only to the commit it names', async () => {
+  const { api, state } = bootstrapGithub()
+  state.tags['v0.11.0'] = { commit: OTHER, annotated: true }
+  const r = await resolveRelease(api, { repo: BOOT_REPO, pr: 45 })
+  assert.match(r.problems.join('\n'), /never moved/)
 })
 
 test('publication creates the annotated tag at the merge commit, then the release', async () => {

@@ -6,12 +6,15 @@
 // throws an error with `status` on a non-2xx response. scripts/release-gh.mjs passes one
 // over fetch, and the tests pass an in-memory repository.
 //
-// A release is a merged pull request into the default branch, from a branch of this
-// repository, whose merge commit is a consistent release of the version its `VERSION`
-// names (scripts/release.mjs). The automatic path also requires the head branch to be
-// `release/<version>` for that version, so an ordinary merge is never published. Merging
-// the pull request is the approval: the tag names its merge commit, never the branch tip
-// at the time the workflow runs.
+// A release is a merged pull request into the default branch, from the branch
+// `release/<version>` of this repository, whose merge commit is a consistent release of that
+// version (scripts/release.mjs). An ordinary merge is never published, whatever its
+// `VERSION` says. Merging the pull request is the approval: the tag names its merge commit,
+// never the branch tip at the time the workflow runs.
+//
+// The merge commit must have the tree of the pull request's head, which is the revision the
+// maintainer reviewed and CI tested. A pull request merged while its branch lagged the base
+// has a merge commit that also holds the base's later changes, and is refused.
 //
 // Publication only adds. A tag that exists is never moved, a published release is never
 // edited, and each step first reads what a previous attempt left, so a rerun after a
@@ -22,6 +25,11 @@ import { compareVersions } from './version.mjs'
 
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 export const RELEASE_BRANCH_PREFIX = 'release/'
+
+// 0.11.0 was cut by #44 before the release workflow existed, and #45 added the workflow.
+// #45 is the one pull request that publishes a version without a release branch. Once
+// v0.11.0 exists, this entry can only resolve #45 to the commit that tag already names.
+export const BOOTSTRAP = { repo: 'throw-if-null/coral', pr: 45, version: '0.11.0' }
 
 /** The version a `release/<version>` branch names, or null. */
 export function releaseBranchVersion(ref) {
@@ -108,10 +116,10 @@ export async function preflight(api, { repo, version }) {
  * The caller still verifies the tree at `commit` with releaseProblems() and runs the tests.
  *
  * @param {Function} api
- * @param {{repo: string, pr: number, requireReleaseBranch: boolean}} opts
+ * @param {{repo: string, pr: number}} opts
  * @returns {Promise<{version: string|null, commit: string|null, problems: string[]}>}
  */
-export async function resolveRelease(api, { repo, pr, requireReleaseBranch }) {
+export async function resolveRelease(api, { repo, pr }) {
   const problems = []
   const none = () => ({ version: null, commit: null, problems })
   const p = await api('GET', `repos/${repo}/pulls/${pr}`)
@@ -119,8 +127,9 @@ export async function resolveRelease(api, { repo, pr, requireReleaseBranch }) {
   if (!p.merged_at) problems.push(`#${pr} is not merged. Merging the release PR approves the release.`)
   if (p.base.ref !== defaultBranch) problems.push(`#${pr} merged into ${p.base.ref}, not ${defaultBranch}.`)
   if (p.head.repo?.full_name !== repo) problems.push(`#${pr} comes from another repository.`)
-  const branchVersion = releaseBranchVersion(p.head.ref)
-  if (requireReleaseBranch && !branchVersion) {
+  const bootstrap = repo === BOOTSTRAP.repo && pr === BOOTSTRAP.pr
+  const branchVersion = bootstrap ? BOOTSTRAP.version : releaseBranchVersion(p.head.ref)
+  if (!branchVersion) {
     problems.push(`#${pr} comes from ${p.head.ref}, not from a ${RELEASE_BRANCH_PREFIX}<version> branch.`)
   }
   if (problems.length) return none()
@@ -132,8 +141,19 @@ export async function resolveRelease(api, { repo, pr, requireReleaseBranch }) {
     problems.push(`VERSION at ${commit} is ${version ? `\`${version}\`` : 'missing'}, not a three-part version.`)
     return none()
   }
-  if (branchVersion && branchVersion !== version) {
-    problems.push(`#${pr} comes from ${p.head.ref}, but VERSION at its merge commit is ${version}.`)
+  if (branchVersion !== version) {
+    problems.push(`#${pr} releases ${branchVersion}, but VERSION at its merge commit is ${version}.`)
+    return none()
+  }
+
+  const [merged, head] = await Promise.all(
+    [commit, p.head.sha].map((sha) => api('GET', `repos/${repo}/git/commits/${sha}`))
+  )
+  if (merged.tree.sha !== head.tree.sha) {
+    problems.push(
+      `The merge commit ${commit} differs from #${pr}'s head ${p.head.sha}, so it holds changes that were not` +
+        ' in the reviewed release PR. Its branch was behind the base when it merged. Prepare the release again.'
+    )
     return none()
   }
 

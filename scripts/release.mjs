@@ -39,6 +39,17 @@ const UNRELEASED_LINE = /^## Unreleased(?:[ \t]+—[ \t]+\d+\.\d+\.\d+)?[ \t]*$/
 const PACKAGE_FILE = 'package.json'
 const LOCK_FILE = 'package-lock.json'
 
+// The adherence records this repository resolves. Each targets the working version, so a
+// cut that changes the working version moves them.
+export const RECORD_FILES = ['CONVENTIONS.md', 'templates/CORAL.md', 'examples/go-api-slice/CORAL.md']
+
+// The generated rule surface. `rules.lock` changes when a rule is added, retired, or
+// reclassified, and `rules.md` when a rule's contract line changes. A batch that changes
+// either changes a rule, so it is not a patch under `[VER-2]`. A batch that changes neither
+// may still change a rule's full text, which no file decides: the version the maintainer
+// selects states that decision, and the release PR shows it for review.
+export const RULE_SURFACE_FILES = ['rules.lock', 'rules.md']
+
 // The agent-instructions snippet and the example project's copy of it load Coral's
 // protocols from a release tag. scripts/agent-instructions.test.mjs holds the two copies
 // equal; this keeps the tag on the released version.
@@ -72,6 +83,74 @@ export function changelogSection(changelog, version) {
   return { date: matches[0][1], body: sectionAfter(changelog, matches[0]).trim(), count: matches.length }
 }
 
+/** `patch`, `minor`, or `major` when `to` is that direct successor of `from`, else null. */
+export function bumpKind(from, to) {
+  const [a, b, c] = from.split('.').map(Number)
+  const [x, y, z] = to.split('.').map(Number)
+  if (x === a && y === b && z === c + 1) return 'patch'
+  if (x === a && y === b + 1 && z === 0) return 'minor'
+  if (x === a + 1 && y === 0 && z === 0) return 'major'
+  return null
+}
+
+const lockEntries = (text) =>
+  new Map(
+    text
+      .split('\n')
+      .filter((line) => line && !line.startsWith('#'))
+      .map((line) => {
+        const [id, cls] = line.split('\t')
+        return [id, cls]
+      })
+  )
+
+/**
+ * How the rule surface of `root` differs from `previous`, the same files at the last release.
+ * `previous` is null when they cannot be read, and the result is then not `comparable`.
+ *
+ * @param {string} root
+ * @param {Record<string, string>|null} previous file name to content
+ * @returns {{comparable: boolean, changed: string[], added: string[], removed: string[]}}
+ */
+export function ruleSurfaceChanges(root, previous) {
+  if (!previous) return { comparable: false, changed: [], added: [], removed: [] }
+  const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8')
+  const changed = RULE_SURFACE_FILES.filter((rel) => previous[rel] !== read(rel))
+  const before = lockEntries(previous['rules.lock'] ?? '')
+  const after = lockEntries(read('rules.lock'))
+  const added = [...after.keys()].filter((id) => !before.has(id))
+  const removed = [...before.keys()].filter((id) => after.get(id) !== before.get(id))
+  return { comparable: true, changed, added, removed }
+}
+
+const BUMP_MEANING = {
+  patch: 'It states that no rule changed: the batch changes prose only.',
+  minor: 'It states that rules are loosened or clarified, or that an appendix or a `[guide]` rule is added. No rule is added, tightened, or retired.',
+  major: 'It states that rules are added, tightened, or retired, so code that conformed can stop conforming.',
+  zeroMinor: 'While Coral is 0.y.z, a minor version carries every rule change: added, tightened, retired, loosened, or clarified.',
+}
+
+/**
+ * The version decision of a cut, as Markdown for the release PR: the bump, what it states
+ * under `[VER-2]`, and how the rule surface changed since the previous release.
+ */
+export function compatibilitySummary(from, to, bump, surface) {
+  const zero = from.startsWith('0.')
+  const meaning = zero && bump === 'minor' ? BUMP_MEANING.zeroMinor : BUMP_MEANING[bump]
+  const tag = `${TAG_PREFIX}${from}`
+  let rules
+  if (!surface?.comparable) rules = `The rule surface at ${tag} could not be read, so it was not compared.`
+  else if (!surface.changed.length) rules = `\`rules.lock\` and \`rules.md\` are unchanged since ${tag}.`
+  else {
+    const ids = [
+      surface.added.length && `added: ${surface.added.join(', ')}`,
+      surface.removed.length && `retired or reclassified: ${surface.removed.join(', ')}`,
+    ].filter(Boolean)
+    rules = `Changed since ${tag}: ${surface.changed.map((f) => `\`${f}\``).join(', ')}${ids.length ? ` (${ids.join('; ')})` : ''}.`
+  }
+  return [`**Version:** ${from} → ${to}, a **${bump}** release under \`[VER-2]\`. ${meaning}`, '', `**Rule surface:** ${rules}`].join('\n')
+}
+
 /** Rewrites JSON only when the file already has `JSON.stringify(_, null, 2)` formatting, as npm writes it. */
 function setJsonVersions(rel, text, version, problems) {
   const data = JSON.parse(text)
@@ -91,15 +170,24 @@ function setJsonVersions(rel, text, version, problems) {
  * `VERSION` already names `version`. Either way, `writes` holds the new content of each file
  * that differs from it, and is empty when there are problems.
  *
+ * A cut accepts the version the Unreleased heading names, or, under a bare heading, the
+ * direct successor of the released version that the maintainer selects. `bump` and
+ * `surface` describe that decision for the release PR.
+ *
  * @param {string} root
  * @param {string} version
  * @param {string} date the release date, YYYY-MM-DD; used only when cutting
- * @returns {{state: 'cut'|'prepared'|null, writes: Map<string, string>, problems: string[]}}
+ * @param {{previous?: Record<string, string>|null}} [options] the rule surface files at the
+ *   released version's tag; see ruleSurfaceChanges()
+ * @returns {{state: 'cut'|'prepared'|null, writes: Map<string, string>, problems: string[],
+ *            bump?: string, surface?: object}}
  */
-export function planRelease(root, version, date) {
+export function planRelease(root, version, date, { previous = null } = {}) {
   const problems = []
   const writes = new Map()
   const none = (state = null) => ({ state, writes: new Map(), problems })
+  let bump
+  let surface
 
   if (!SEMVER_RE.test(version)) {
     problems.push(`\`${version}\` is not a three-part version such as 0.11.0. Name it without the \`${TAG_PREFIX}\` prefix.`)
@@ -151,17 +239,34 @@ export function planRelease(root, version, date) {
       )
       return none()
     }
-    if (!v.unreleased) {
-      const [major, minor, patch] = v.released.split('.').map(Number)
-      const nextPatch = `${major}.${minor}.${patch + 1}`
-      if (version !== nextPatch) {
-        problems.push(
-          `${CHANGELOG_FILE}'s Unreleased heading names no version, which states that the batch changes no` +
-            ` rule. That is a patch, ${nextPatch}, under \`[VER-2]\`. To release ${version}, name it in the` +
-            ` heading as \`## Unreleased — ${version}\` with the batch's compatibility statement.`
-        )
-        return none()
-      }
+    bump = bumpKind(v.released, version)
+    if (!bump) {
+      problems.push(`${version} is not the next patch, minor, or major version after the released ${v.released}.`)
+      return none()
+    }
+    surface = ruleSurfaceChanges(root, previous)
+    const tag = `${TAG_PREFIX}${v.released}`
+    if (bump === 'patch' && !surface.comparable) {
+      problems.push(
+        `${version} is a patch, which states that no rule changed, but the rule surface at ${tag} cannot be` +
+          ' read to check it. Fetch the tags, or select a minor version.'
+      )
+      return none()
+    }
+    if (bump === 'patch' && surface.changed.length) {
+      problems.push(
+        `${version} is a patch, which states that no rule changed, but ${surface.changed.join(' and ')}` +
+          ` changed since ${tag}. A rule change is at least a minor version under \`[VER-2]\`.`
+      )
+      return none()
+    }
+    const ids = [...surface.added, ...surface.removed]
+    if (Number(v.released.split('.')[0]) >= 1 && ids.length && bump !== 'major') {
+      problems.push(
+        `${version} is a ${bump}, but rules.lock adds, retires, or reclassifies ${ids.join(', ')} since ${tag}.` +
+          ' That is a major version under `[VER-2]`.'
+      )
+      return none()
     }
     const heading = UNRELEASED_LINE.exec(changelog)
     const entries = sectionAfter(changelog, heading).trim()
@@ -190,10 +295,18 @@ export function planRelease(root, version, date) {
       desired.set(rel, read(rel).replace(PROTOCOL_URL, (m, old) => m.replace(`v${old}/`, `v${version}/`)))
     }
   }
+  if (v.working !== version) {
+    const target = `targets: "${v.working}"`
+    for (const rel of RECORD_FILES) {
+      if (fs.existsSync(path.join(root, rel))) {
+        desired.set(rel, (desired.get(rel) ?? read(rel)).replaceAll(target, `targets: "${version}"`))
+      }
+    }
+  }
   if (problems.length) return none(state)
 
   for (const [rel, text] of desired) if (read(rel) !== text) writes.set(rel, text)
-  return { state, writes, problems }
+  return { state, writes, problems, bump, surface }
 }
 
 /**
@@ -217,6 +330,17 @@ export function releaseProblems(root, version) {
     problems.push(
       `${CHANGELOG_FILE}'s Unreleased heading names ${v.working}, so these documents describe ${v.working},` +
         ` not ${version}. Release ${version} from the commit that cut it.`
+    )
+  }
+  // A release commit records every change in its own section. An entry under Unreleased is a
+  // change that reached the release PR after it was prepared, typically by updating its
+  // branch from main, and no release section describes it.
+  const changelog = fs.readFileSync(path.join(root, CHANGELOG_FILE), 'utf8')
+  const heading = UNRELEASED_LINE.exec(changelog)
+  if (heading && sectionAfter(changelog, heading).trim()) {
+    problems.push(
+      `${CHANGELOG_FILE}'s Unreleased section is not empty, so this tree holds changes that the ${version}` +
+        ' section does not record. Close the release PR, and prepare the release again from main.'
     )
   }
   return problems

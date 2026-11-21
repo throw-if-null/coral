@@ -9,11 +9,21 @@ import path from 'node:path'
 import test from 'node:test'
 
 import { coralVersion } from './version.mjs'
-import { githubAnchor, planRelease, releaseNotes, releaseProblems, tagMessage, unwrap } from './release.mjs'
+import {
+  compatibilitySummary,
+  githubAnchor,
+  planRelease,
+  releaseNotes,
+  releaseProblems,
+  tagMessage,
+  unwrap,
+} from './release.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
 
 const json = (data) => `${JSON.stringify(data, null, 2)}\n`
+const LOCK = '# lock\n\nRULE-1\treview\tA.md\n'
+const UNCHANGED = { 'rules.lock': LOCK, 'rules.md': 'RULE-1 does a thing.\n' }
 
 /** A tree that holds release 1.2.0 and a 1.3.0 batch under Unreleased. */
 function fixture({ heading = '## Unreleased — 1.3.0', entries = '`[X-1]` is tightened.', extra = {} } = {}) {
@@ -35,6 +45,9 @@ function fixture({ heading = '## Unreleased — 1.3.0', entries = '`[X-1]` is ti
     'package-lock.json': json({ name: 'coral', version: '1.2.0', packages: { '': { name: 'coral', version: '1.2.0' } } }),
     'examples/page.md': '# Page\n\n> Written against **Coral 1.2.0**.\n',
     'README.md': 'Load https://raw.githubusercontent.com/throw-if-null/coral/v1.2.0/guides/a.md first.\n',
+    'templates/CORAL.md': `targets: "${heading.includes('—') ? heading.split('— ')[1] : '1.2.0'}"\n`,
+    'rules.lock': LOCK,
+    'rules.md': 'RULE-1 does a thing.\n',
     ...extra,
   }
 }
@@ -101,13 +114,68 @@ test('preparing a partly prepared tree completes it and keeps other edits', () =
     assert.equal(read(dir, 'examples/page.md'), '# Page, edited\n\n> Written against **Coral 1.3.0**.\n')
   }))
 
-test('a bare Unreleased heading releases the next patch only', () => {
+test('a bare Unreleased heading takes the version the maintainer selects', () =>
   inTree(fixture({ heading: '## Unreleased' }), (dir) => {
-    assert.deepEqual(planRelease(dir, '1.2.1', '2026-02-02').problems, [])
-    const [problem] = planRelease(dir, '1.3.0', '2026-02-02').problems
-    assert.match(problem, /names no version.*That is a patch, 1\.2\.1/)
+    const plan = planRelease(dir, '1.3.0', '2026-02-02', { previous: UNCHANGED })
+    assert.deepEqual(plan.problems, [])
+    assert.equal(plan.bump, 'minor')
+    apply(dir, plan)
+    assert.equal(read(dir, 'templates/CORAL.md'), 'targets: "1.3.0"\n')
+    assert.match(read(dir, 'CHANGELOG.md'), /^## Unreleased\n\n## 1\.3\.0 — 2026-02-02\n/m)
+    assert.deepEqual(releaseProblems(dir, '1.3.0'), [])
+  }))
+
+test('a patch is accepted when the rule surface is unchanged', () =>
+  inTree(fixture({ heading: '## Unreleased' }), (dir) => {
+    const plan = planRelease(dir, '1.2.1', '2026-02-02', { previous: UNCHANGED })
+    assert.deepEqual([plan.problems, plan.bump], [[], 'patch'])
+  }))
+
+for (const [name, overrides, version, previous, expected] of [
+  ['a patch whose rule index changed', {}, '1.2.1', { ...UNCHANGED, 'rules.md': 'old\n' }, /rules\.md changed since v1\.2\.0/],
+  ['a patch without the previous rule surface', {}, '1.2.1', null, /cannot be read/],
+  ['a skipped version', {}, '1.4.0', UNCHANGED, /not the next patch, minor, or major/],
+  [
+    'a minor that adds a rule after 1.0',
+    { extra: { 'rules.lock': `${LOCK}RULE-2\tauto\tA.md\n` } },
+    '1.3.0',
+    UNCHANGED,
+    /adds, retires, or reclassifies RULE-2.*major/,
+  ],
+]) {
+  test(`a bare heading refuses ${name}`, () =>
+    inTree(fixture({ heading: '## Unreleased', ...overrides }), (dir) => {
+      const plan = planRelease(dir, version, '2026-02-02', { previous })
+      assert.equal(plan.writes.size, 0)
+      assert.match(plan.problems.join('\n'), expected)
+    }))
+}
+
+test('the compatibility summary states the bump and the rule surface change', () => {
+  const text = compatibilitySummary('0.11.0', '0.12.0', 'minor', {
+    comparable: true,
+    changed: ['rules.lock', 'rules.md'],
+    added: ['NEW-1'],
+    removed: [],
   })
+  assert.match(text, /0\.11\.0 → 0\.12\.0, a \*\*minor\*\* release/)
+  assert.match(text, /While Coral is 0\.y\.z, a minor version carries every rule change/)
+  assert.match(text, /Changed since v0\.11\.0: `rules\.lock`, `rules\.md` \(added: NEW-1\)/)
 })
+
+test('a major that adds a rule after 1.0 is accepted', () =>
+  inTree(fixture({ heading: '## Unreleased', extra: { 'rules.lock': `${LOCK}RULE-2\tauto\tA.md\n` } }), (dir) => {
+    const plan = planRelease(dir, '2.0.0', '2026-02-02', { previous: UNCHANGED })
+    assert.deepEqual([plan.problems, plan.bump, plan.surface.added], [[], 'major', ['RULE-2']])
+  }))
+
+test('verification refuses a release commit with entries under Unreleased', () =>
+  inTree(fixture(), (dir) => {
+    apply(dir, planRelease(dir, '1.3.0', '2026-02-02'))
+    const changelog = read(dir, 'CHANGELOG.md').replace('## Unreleased\n', '## Unreleased\n\nA later change.\n')
+    fs.writeFileSync(path.join(dir, 'CHANGELOG.md'), changelog)
+    assert.match(releaseProblems(dir, '1.3.0').join('\n'), /Unreleased section is not empty/)
+  }))
 
 for (const [name, overrides, version, expected] of [
   ['a version other than the one the heading names', {}, '1.4.0', /heading names 1\.3\.0, not 1\.4\.0/],

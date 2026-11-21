@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: A merged PR whose merge commit holds an untagged cut version. For recovery and bootstrap only.
+        description: The merged release PR whose publication failed. For recovery only.
         required: true
         type: number
 
@@ -30,7 +30,7 @@ jobs:
       (github.event.pull_request.merged &&
        startsWith(github.event.pull_request.head.ref, 'release/') &&
        github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -39,12 +39,14 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       commit: ${{ steps.release.outputs.commit }}
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
           persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
 
@@ -53,15 +55,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number || inputs.pr }}
-          EVENT: ${{ github.event_name }}
-        run: |
-          if [ "$EVENT" = pull_request ]; then
-            node scripts/release-gh.mjs resolve --pr "$PR" --release-branch
-          else
-            node scripts/release-gh.mjs resolve --pr "$PR"
-          fi
+        run: node scripts/release-gh.mjs resolve --pr "$PR"
 
-      - uses: actions/checkout@v7
+      - name: Check out the release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.release.outputs.commit }}
           persist-credentials: false
@@ -83,7 +80,7 @@ jobs:
   publish:
     name: Tag and publish
     needs: [resolve, test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -92,12 +89,14 @@ jobs:
       group: release-publish
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out the release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve.outputs.commit }}
           persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
 
