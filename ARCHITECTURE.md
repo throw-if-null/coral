@@ -356,14 +356,17 @@ directory. A fake that answers the calls the code makes is the mock `[TEST-1]` e
 A unit of code that receives the whole application's dependencies can reach every capability the
 application has. Its boundary then does not show what it uses. An agent must load the whole dependency
 set to know what the unit can do, and a new dependency appears as an attribute read inside a body, not
-as a change to the boundary that a reviewer reads.
+as a change to the boundary that a reviewer reads. Wiring that resolves a dependency through an
+identifier has a second failure: the boundary names a dependency that composition may supply with the
+wrong provider, or with none, and nothing reports it until a trigger reaches the consumer.
 
 **`[DEPS-1]` `[review]`** — A unit of code receives only the dependencies and configuration values it
 consumes: the consumer declares them at its own boundary, composition constructs and supplies them, no
 application-wide container or configuration object is passed to a consumer that uses only part of it,
-and no consumer obtains a dependency through service location.
+no consumer obtains a dependency through service location, and the wiring is deterministic and
+unambiguous.
 
-Four parts, and all four are the rule:
+Five parts, and all five are the rule:
 
 - **Minimal exposure.** What a unit receives is what it uses. This applies to configuration as it
   applies to services. A unit that needs a timeout receives the timeout, or a configuration value that
@@ -380,6 +383,12 @@ Four parts, and all four are the rule:
   resolution API, whether by key, by type, or by attribute. Passing the container, the resolver, or a
   provider that returns any dependency on request is the same pattern: the consumer's boundary then
   names the container, not what it uses.
+- **Deterministic, validated wiring.** Each dependency a consumer declares resolves to exactly one
+  provider, and the same composition and the same configuration resolve it to the same provider on every
+  run. Where dependencies are resolved through identifiers, each identifier has a single authoritative
+  definition, and composition validates the mapping from identifiers to providers. Where the language and
+  tooling can verify type compatibility reliably, the check confirms that each provider satisfies the
+  type its consumer declares.
 
 **Scope.** The rule binds every boundary that composition wires, and every boundary between two units of
 code: a slice, a crosscut, an adapter, and a class or function that composition constructs or calls with
@@ -417,6 +426,32 @@ part of the composition root under `[MODEL-1]`. It is not a crosscut, because no
 (`[XCUT-1]`), and a slice that imports it to obtain a dependency is service location. Nothing in this
 rule requires such a module, a framework, or a container. Direct wiring in the composition root is the
 simplest conforming form.
+
+**Identifiers have one definition, and their mapping is validated before the first trigger.** An
+identifier is a key, a name, a token, or a qualifier that composition uses to select a provider. The
+authoritative definition is one declaration, such as a constant or a token object, that every consumer
+and every registration refers to. A string literal repeated at the consumer and at the registration is
+two definitions, and a spelling difference between them is a missing provider. The validation confirms
+that every identifier a consumer declares has exactly one provider, and fails when one is missing or
+ambiguous. It runs in the build, in composition at startup, or in a test that constructs the whole
+composition. A missing or ambiguous provider that is first reported when a trigger reaches the consumer
+does not conform. A consumer that declares an identifier at its boundary, such as an annotated
+constructor parameter, declares a dependency. It does not locate one, because composition supplies the
+value.
+
+**Determinism excludes selection by accident, not selection by configuration.** Composition may select a
+provider from a configuration value, such as an in-memory store in tests and a database in production,
+because the same configuration gives the same provider. Selection that depends on registration order,
+such as "the last registration wins", on the order of a classpath or module scan, or on which providers
+happen to be present does not conform. A consumer that declares a collection of providers receives all
+of them in an order composition states.
+
+**Type checks are required where they are reliable, and not elsewhere.** A statically typed language, or
+a dynamic language with a type checker the project runs, can verify that a provider satisfies the
+consumer's declared type when the identifier carries that type, such as a generic token. The project
+then uses that check. Where the language or the tooling cannot verify the type reliably, the rule does
+not require a substitute. Direct wiring satisfies this part without an identifier: the parameter names
+the dependency, the call supplies it, and the language checks the call as it checks any other call.
 
 **What this rule does not reach.** It governs what a unit receives and how it obtains dependencies at
 runtime. Importing a pure, stateless module, such as a formatter or a parse invariant, is not receiving
@@ -466,6 +501,28 @@ def connect(timeout: float) -> Connection:
     return Connection(timeout=timeout)
 ```
 
+An identifier with two definitions and no validation does not conform. The spellings differ, and nothing
+reports it before the first request:
+
+```python
+registry.register("todo-store", SqlTodoStore(db))
+
+class ListTodos:
+    def __init__(self, store: Annotated[TodoReader, Inject("todo_store")]): ...
+```
+
+One definition, a typed identifier, and validation at startup conform:
+
+```python
+TODO_READER = Key[TodoReader]("todo_reader")
+
+registry.register(TODO_READER, SqlTodoStore(db))
+registry.validate()
+
+class ListTodos:
+    def __init__(self, store: Annotated[TodoReader, Inject(TODO_READER)]): ...
+```
+
 The rule is kernel because of who writes the code. A human team can accept a shared dependency object
 as a convenience. An agent that receives one uses what it offers, and the reviewer does not see the new
 coupling at the boundary. The membership argument is stated in full with the
@@ -502,7 +559,7 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 - `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking.
 
 ### Dependencies
-- `[DEPS-1]` Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location.
+- `[DEPS-1]` Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location. Wire each dependency to exactly one provider, give each wiring identifier one authoritative definition, validate the identifier-to-provider mapping before the first trigger, and check type compatibility where the language and tooling can verify it reliably.
 
 <!-- coral:contract:end -->
 

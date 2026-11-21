@@ -50,7 +50,7 @@ discipline therefore sits with the rules, not with the words:
 |---|---|
 | a **crosscut** is one concern several slices need | give it a precise, domain- or infrastructure-oriented name (`[XCUT-2]`). Consume it through its published surface, and **inject** anything holding config, a connection or per-trigger state (`[XCUT-3]`). Promote to one only against a must-not-diverge invariant (`[XCUT-1]`, kernel) |
 | an **adapter** connects behavior to an external system | the **slice** declares the port and the adapter implements it, so the dependency runs adapter → slice, and the adapter owns no application behavior (`[MODEL-4]`) |
-| a **composition root** is the wiring and bootstrap boundary | construct each consumer's dependencies and supply only what it consumes, with no service location (`[DEPS-1]`, kernel). Keep it **thin**: register, construct, inject, bootstrap, with no business logic and no state access (`[ROOT-1]`). Import no slice-internal module (`[ROOT-2]`) |
+| a **composition root** is the wiring and bootstrap boundary | construct each consumer's dependencies and supply only what it consumes, with no service location, and wire each to exactly one validated provider (`[DEPS-1]`, kernel). Keep it **thin**: register, construct, inject, bootstrap, with no business logic and no state access (`[ROOT-1]`). Import no slice-internal module (`[ROOT-2]`) |
 | a **channel** is the pathway between apps and its contract | it is the **only** coupling, and apps never share a datastore (`[CHAN-1]`, `[CHAN-3]`). It is versioned (`[CHAN-4]`) and takes one of three forms (`[CHAN-2]`) |
 
 Every rule in the right-hand column is **production baseline** except `[XCUT-1]` and `[DEPS-1]`. Each
@@ -586,7 +586,7 @@ answer. An agent that read only half would have a wrong picture of what is permi
 
 ```yaml coral
 # Which Coral this project is audited against ([VER-3]).
-targets: "0.10.0"
+targets: "0.11.0"
 
 # Which architectural scales this repository is written at. One deployable app, so
 # `app` alone — there is no channel here for a system-scale rule to bind.
@@ -727,7 +727,7 @@ rule can be tested against, plus drift, which is the failure the vocabulary alre
 | `[VER-3]` | Fixes the normative Coral version an agent follows, so its architectural context cannot change implicitly. | drift prevention |
 | `[VER-5]` | Persists human architectural decisions as explicit, scoped data rather than tribal knowledge. | bounded context, reviewability, drift prevention |
 | `[VER-6]` | Fixes how much of Coral an agent is answerable to, so applicability cannot be inferred from what the Coral repository happens to contain. | bounded context, drift prevention |
-| `[DEPS-1]` | Makes everything a unit of code can reach visible at its own boundary, so an agent loads only what the unit uses and a new dependency appears in the diff as a boundary change. | bounded context, reviewability |
+| `[DEPS-1]` | Makes everything a unit of code can reach visible at its own boundary, so an agent loads only what the unit uses and a new dependency appears in the diff as a boundary change. Gives each wiring identifier one definition and validates its mapping, so the boundary determines what composition supplies and a wiring defect fails before the first trigger. | bounded context, reviewability, drift prevention, self-verification |
 
 <!-- coral:kernel:end -->
 
@@ -785,12 +785,17 @@ explicit dependencies, so its membership is also stated against all four tests. 
 human team can treat a shared dependency object as a convenience and accept the coupling. With an agent
 as author, that object puts the whole application in reach of every unit. The agent must load it to know
 what the unit can do, it uses what the object offers, and the reviewer sees a new dependency only as an
-attribute read inside a body. Drop the operating model and Coral would recommend narrow dependencies and
-stop there. **Defended properties:** bounded context (a unit's dependencies are the finite set named at
-its boundary) and reviewability (a new dependency changes the boundary, and the boundary is in the diff
-a human reads). **Not merely general correctness:** the rule constrains who declares a dependency and who
-supplies it, which is an ownership constraint. It fixes no injection technique, no framework, and no
-interface style. **Not downstream:** `[COMPOSE-1]` governs what one slice may use of another, and
+attribute read inside a body. An agent that writes a wiring identifier as a literal at each use writes a
+second definition, and a mismatch is reported only when a trigger reaches the consumer. Drop the
+operating model and Coral would recommend narrow dependencies and stop there. **Defended properties:**
+bounded context (a unit's dependencies are the finite set named at its boundary), reviewability (a new
+dependency changes the boundary, and the boundary is in the diff a human reads), drift prevention (a
+wiring identifier has one definition, so its copies cannot diverge), and self-verification (validation
+reports a missing or ambiguous provider before the first trigger). **Not merely general correctness:**
+the rule constrains who declares a dependency and who supplies it, which is an ownership constraint. Its
+wiring part constrains where an identifier is defined and makes composition, the owner of wiring,
+answerable for its mapping. It fixes no injection technique, no framework, no interface style, and no
+validation mechanism. **Not downstream:** `[COMPOSE-1]` governs what one slice may use of another, and
 `[XCUT-1]` governs when sharing is permitted. Neither says what a unit may receive or how it obtains it.
 `[MODEL-4]`, `[XCUT-3]`, `[CONFIG-1]` and `[COMPOSE-2]` are downstream of `[DEPS-1]`, which is why they
 stay in the production baseline.

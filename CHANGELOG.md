@@ -41,7 +41,35 @@ adopts.
 
 ---
 
-## Unreleased
+## Unreleased — 0.11.0
+
+A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
+the batch is cut. **The batch is currently major**, because `[DEPS-1]` is tightened. Coral is still in
+`0.y.z`, so that major is cut as a **minor** bump (`0.10.0` → `0.11.0`) per semver's major-version-zero
+clause.
+
+**`[DEPS-1]`: dependency wiring is deterministic and unambiguous. Tightened, major under `[VER-2]`.**
+
+`ARCHITECTURE.md` § 9 adds a fifth part to `[DEPS-1]`. Each dependency a consumer declares resolves to
+exactly one provider, and the same composition and configuration resolve it to the same provider on every
+run. Where dependencies are resolved through identifiers, such as keys, names, tokens, or qualifiers, each
+identifier has a single authoritative definition, and composition validates the mapping from identifiers
+to providers in the build, at startup, or in a test that constructs the whole composition. Where the
+language and tooling can verify type compatibility reliably, the check confirms that each provider
+satisfies the type its consumer declares. Selection by configuration is deterministic. Selection by
+registration order, scan order, or the presence of a provider is not. A consumer that declares an
+identifier at its boundary declares a dependency and does not locate one. Direct wiring satisfies the
+part without an identifier. The contract line states the part, and the enforcement class stays
+`[review]`. `rules.lock` is unchanged.
+
+`CONVENTIONS.md` states the part's kernel membership: drift prevention and self-verification are added to
+the properties `[DEPS-1]` defends, and the composition-root row names the validated wiring. The adherence
+records this repository resolves target `0.11.0`.
+
+**What you must now satisfy:** a wiring identifier defined more than once, such as a string literal
+repeated at a consumer and at a registration, is a finding. So is an identifier-to-provider mapping that
+is not validated before the first trigger, a provider chosen by registration or scan order, and an
+unused type check where the language and tooling can verify the provider's type reliably.
 
 ## 0.10.0 — 2026-11-21
 
