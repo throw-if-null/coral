@@ -1,0 +1,108 @@
+name: release
+
+# Publishes the release that a merged release PR cut: verifies and tests its merge commit,
+# then creates the annotated tag and the GitHub Release. README.md § "Releasing Coral"
+# describes the process. scripts/release-github.mjs states what counts as a release.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: The merged release PR whose publication failed. For recovery only.
+        required: true
+        type: number
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  resolve:
+    name: Resolve and verify the release
+    # Every other merged or closed PR skips the whole workflow here.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged &&
+       startsWith(github.event.pull_request.head.ref, 'release/') &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Resolve the release
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number || inputs.pr }}
+        run: node scripts/release-gh.mjs resolve --pr "$PR"
+
+      - name: Check out the release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.release.outputs.commit }}
+          persist-credentials: false
+
+      - name: Verify the version metadata
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: node scripts/release-check.mjs "$VERSION"
+
+  test:
+    name: Test the release commit
+    needs: resolve
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
+    with:
+      ref: ${{ needs.resolve.outputs.commit }}
+
+  publish:
+    name: Tag and publish
+    needs: [resolve, test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    # One publication at a time, across versions.
+    concurrency:
+      group: release-publish
+      cancel-in-progress: false
+    steps:
+      - name: Check out the release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.commit }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Create the tag and publish the release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+        run: node scripts/release-gh.mjs publish --version "$VERSION" --commit "$COMMIT"

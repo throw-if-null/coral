@@ -44,6 +44,7 @@ import path from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
 import { GOVERNANCE, GUIDE, ID_CORE, OPT_IN, isNormative, kernelLayerOf } from './rules.mjs'
+import { IDENTITY_RE } from './version.mjs'
 
 /** The file a consuming project keeps in its root. */
 export const ADHERENCE_FILE = 'CORAL.md'
@@ -73,8 +74,9 @@ const ENTRY_ID_RE = new RegExp(`^${ID_CORE}$`)
 // The family half of an ID: everything before the final `-N`. `SYS-TEST-1` -> `SYS-TEST`.
 const FAMILY_RE = new RegExp(`^(${ID_CORE.replace('-\\d+', '')})-\\d+$`)
 
-// A three-part version, the only form `targets` may take.
-const VERSION_RE = /^\d+\.\d+\.\d+$/
+// A three-part version, or the development identity of a tree that holds unreleased
+// changes (scripts/version.mjs). These are the only forms `targets` may take.
+const VERSION_RE = IDENTITY_RE
 
 /**
  * The one sentence said whenever a record and a model are for different Coral releases.
@@ -265,8 +267,9 @@ export function adherenceTarget(text) {
   if (typeof doc.targets !== 'string' || !VERSION_RE.test(doc.targets)) {
     problems.push(
       '`targets` must name the Coral version this project is audited against, as a quoted' +
-        ' three-part version ([VER-3]) — `targets: "0.6.0"`. Without it there is no way to know' +
-        ' which rule set, or which record schema, this file is written against.'
+        ' three-part version ([VER-3]) — `targets: "0.6.0"` — or as the development identity of a' +
+        ' Coral checkout with unreleased changes — `targets: "0.6.0+unreleased"`. Without it there' +
+        ' is no way to know which rule set, or which record schema, this file is written against.'
     )
     return { targets: null, problems }
   }
@@ -299,7 +302,7 @@ export function parseAdherenceRecord(text, version) {
   if (typeof version !== 'string' || !VERSION_RE.test(version)) {
     throw new TypeError(
       'parseAdherenceRecord(text, version): `version` is required and must be a three-part' +
-        ' version. A record schema belongs to a Coral release; validating one against an' +
+        ' version or a development identity. A record schema belongs to a Coral release; validating one against an' +
         ' unidentified release is how a rule gets applied to a project that predates it.'
     )
   }

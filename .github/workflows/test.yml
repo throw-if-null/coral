@@ -4,38 +4,66 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit to test. The release workflow passes a release PR's merge commit.
+        type: string
+        required: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # In a called workflow, github.workflow and github.ref are the caller's, so the input keeps two releases apart.
+  group: ${{ github.workflow }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    # Naming bash enables pipefail, so a pipe cannot mask a failing command.
+    shell: bash
 
 jobs:
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Empty outside workflow_call, which checks out the event's commit.
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: npm
-      - run: npm ci
-      - run: npm test
+      - name: Install
+        run: npm ci
+      - name: Test
+        run: npm test
+      # A release PR must stay a consistent release of its version. An update from main that
+      # brings changes the release section does not record fails here, before the merge.
+      - name: Check the release
+        if: startsWith(github.head_ref, 'release/')
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: node scripts/release-check.mjs "${HEAD_REF#release/}"
 
   go:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
+      # Job defaults replace the workflow defaults, so the shell is set again.
       run:
-        # Naming bash enables pipefail, so the tee in the test step cannot mask a failing go test.
         shell: bash
         working-directory: examples/go-api-slice
     services:
       postgres:
-        image: postgres:17
+        # postgres:17, pinned to its multi-platform image index.
+        image: postgres:17@sha256:223efeb196329b55b3b9a13db144956411dbc18e727e59f681c3e0aede6475cf
         env:
           # The container exists for this job only. The password protects nothing.
           POSTGRES_PASSWORD: coral
@@ -47,8 +75,14 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Empty outside workflow_call, which checks out the event's commit.
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           # Action inputs resolve from the repository root. working-directory applies to run steps only.
           go-version-file: examples/go-api-slice/go.mod

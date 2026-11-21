@@ -154,8 +154,8 @@ function fixture(overrides = {}) {
   const { layers, scales, profiles, version = FIXTURE_VERSION, extra = {} } = overrides
   return {
     // The version identity of the fixture's rule model. Records are resolved against it, so
-    // a test can build a model for a DIFFERENT release simply by naming one. The bare
-    // Unreleased heading is the other half: it asserts the tree still describes that release
+    // a test can build a model for a DIFFERENT release simply by naming one. The empty bare
+    // Unreleased heading is the other half: it states the tree still describes that release
     // rather than a successor, which the model requires to be stated rather than assumed.
     VERSION: `${version}\n`,
     'CHANGELOG.md': '# Changelog\n\n## Unreleased\n',

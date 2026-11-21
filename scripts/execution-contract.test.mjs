@@ -67,6 +67,7 @@ import {
   loadExecutionContract,
   writeExecutionContract,
 } from './execution-contract.mjs'
+import { planRelease, releaseProblems } from './release.mjs'
 import { coralVersion } from './version.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
@@ -1748,3 +1749,40 @@ test('every statement a real contract emits is the rule model\'s canonical one',
     assert.ok(md.includes(`- \`[${id}]\` ${statements.get(id)}`), `[${id}] was restated`)
   }
 })
+
+// ── version identity ─────────────────────────────────────────────────────────
+// A tree whose changelog holds entries under a bare `## Unreleased` describes changes that no
+// release records. Its model is `<VERSION>+unreleased`, so a contract generated from it can
+// never carry the published version's identity.
+
+const DEVELOPMENT = { extra: { 'CHANGELOG.md': '# Changelog\n\n## Unreleased\n\n`[K-1]` is tightened.\n' } }
+const DEVELOPMENT_ID = `${FIXTURE_VERSION}+unreleased`
+
+test('a released tree generates a contract that names its release', () => {
+  assert.match(contract(kernelOnly), /^- Coral: `9\.9\.9`$/m)
+})
+
+test('a tree with unreleased changes refuses a record that targets the published release', () => {
+  const { problems } = refused(kernelOnly, DEVELOPMENT)
+  assert.match(problems.join('\n'), /targets Coral 9\.9\.9, and this is the Coral 9\.9\.9\+unreleased model/)
+})
+
+test('a tree with unreleased changes names its development identity in the contract', () => {
+  const md = contract({ ...kernelOnly, targets: DEVELOPMENT_ID }, DEVELOPMENT)
+  assert.match(md, /^- Coral: `9\.9\.9\+unreleased`$/m)
+  assert.ok(!md.includes('Coral `9.9.9`'), 'the development contract names the published version')
+})
+
+test('cutting the batch makes the tree the selected release, with a reproducible contract', () =>
+  inTree(fixture(DEVELOPMENT), (coral) => {
+    const plan = planRelease(coral, '9.10.0', '2026-12-01')
+    assert.deepEqual(plan.problems, [])
+    for (const [rel, text] of plan.writes) fs.writeFileSync(path.join(coral, rel), text)
+    assert.deepEqual(releaseProblems(coral, '9.10.0'), [])
+    inTree({ [ADHERENCE_FILE]: record({ ...kernelOnly, targets: '9.10.0' }) }, (project) => {
+      const first = loadExecutionContract(coral, project)
+      assert.equal(first.ok, true, first.problems?.join('\n'))
+      assert.match(first.markdown, /^- Coral: `9\.10\.0`$/m)
+      assert.equal(loadExecutionContract(coral, project).markdown, first.markdown)
+    })
+  }))
