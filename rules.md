@@ -369,7 +369,7 @@ production baseline takes the app-scale part of that group and not the rest.
 | `[COMPOSE-1]` | `[review]` | kernel | Do not reach into another slice's internals. Depend on its published capability. |
 | `[ERR-1]` | `[review]` | kernel | One small, stable, structured error model per app or published package: categories declared once for it, construction through that model, presentation owned by a boundary and never by a slice. |
 | `[TEST-1]` | `[review]` | kernel | Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking. |
-| `[DEPS-1]` | `[review]` | kernel | Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location. |
+| `[DEPS-1]` | `[review]` | kernel | Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location. Bind each declared dependency deterministically to exactly one provider that satisfies your declared contract, keep explicit wiring identifiers from drifting, fail a missing or ambiguous binding before the consumer executes, in each supported configuration, and fail an incompatible binding before execution where reliable compatibility verification is available. |
 
 ## Coral Production Baseline — the App
 

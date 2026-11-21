@@ -254,8 +254,11 @@ audited against, in full:**
   for the app or published package, presented at a boundary rather than inside slices — **not** a
   fixed list of category names, and **not** a required field layout or stable error id), `[TEST-1]`
   (behavior-first at the entry point), `[DEPS-1]` (each unit receives only the dependencies and
-  configuration values it consumes, supplied by composition, with no service location — **not** a
-  required interface per consumer, a container, or a DI framework). Seven rules; that is the whole
+  configuration values it consumes, supplied by composition, with no service location; each binding
+  is deterministic, a missing or ambiguous binding fails before the consumer runs in every supported
+  configuration, and an incompatible one does too where reliable verification exists — **not** a
+  required interface per consumer, a container, a token, or a DI framework, and a verified mapping of
+  parameter names is conformant). Seven rules; that is the whole
   structural surface.
 - against **`CORAL.md`** — `[VER-3]` (a target is declared), `[VER-5]` (deviations are explicit and
   path-scoped), `[VER-6]` (what it adopts is declared). `[VER-5]` also reads the instruction files: a

@@ -354,121 +354,155 @@ directory. A fake that answers the calls the code makes is the mock `[TEST-1]` e
 ## 9. Dependency Exposure  `[DEPS-*]`
 
 A unit of code that receives the whole application's dependencies can reach every capability the
-application has. Its boundary then does not show what it uses. An agent must load the whole dependency
-set to know what the unit can do, and a new dependency appears as an attribute read inside a body, not
-as a change to the boundary that a reviewer reads.
+application has, and its boundary does not show what it uses. A new dependency then appears as an
+attribute read inside a body, not as a boundary change a reviewer reads. Wiring that nothing verifies
+can supply the wrong provider, or none, and the defect appears only when the consumer runs.
 
 **`[DEPS-1]` `[review]`** — A unit of code receives only the dependencies and configuration values it
-consumes: the consumer declares them at its own boundary, composition constructs and supplies them, no
-application-wide container or configuration object is passed to a consumer that uses only part of it,
-and no consumer obtains a dependency through service location.
+consumes: the consumer declares them at its own boundary, composition constructs and supplies them
+through deterministic, unambiguous, verified bindings, no application-wide container or configuration
+object is passed to a consumer that uses only part of it, and no consumer obtains a dependency through
+service location.
 
-Four parts, and all four are the rule:
+Five parts, and all five are the rule:
 
-- **Minimal exposure.** What a unit receives is what it uses. This applies to configuration as it
-  applies to services. A unit that needs a timeout receives the timeout, or a configuration value that
-  holds only the settings that unit reads. It does not receive the application's whole configuration.
+- **Minimal exposure.** What a unit receives is what it uses, for configuration as for services. A unit
+  that needs a timeout receives the timeout, or a value that holds only the settings it reads, not the
+  application's whole configuration.
 - **Consumer-owned contracts.** The consumer decides the shape of what it receives. The set of services
   the application happens to have does not decide it. `[MODEL-4]` is the production baseline's form of
-  this part for an adapter: the slice declares the port and lists only the operations it uses.
+  this part for an adapter.
 - **Composition-owned wiring.** Composition constructs concrete dependencies and connects them to their
   consumers. For an executable application, composition is the composition root. For a library, it is
-  the consuming application, because the consumer is the root (`[ROOT-3]`). The consumer never assembles
-  its own dependencies.
+  the consuming application (`[ROOT-3]`). The consumer never assembles its own dependencies.
 - **No service location.** A consumer does not obtain a dependency or a configuration value at runtime
-  from an application-wide container, registry, application context, settings object, or dependency
-  resolution API, whether by key, by type, or by attribute. Passing the container, the resolver, or a
-  provider that returns any dependency on request is the same pattern: the consumer's boundary then
-  names the container, not what it uses.
+  from an application-wide container, registry, application context, settings object, or resolution API,
+  whether by key, by type, or by attribute. Receiving the container, the resolver, or a function that
+  returns any dependency on request is the same pattern.
+- **Deterministic, verified binding.** Every declared dependency resolves to exactly one provider that
+  satisfies the consumer's declared contract, and the same composition and configuration always resolve
+  it to the same provider. An explicit identifier that selects a provider, such as a registration key,
+  token, or qualifier, has one authoritative definition or a binding mechanism that keeps its uses from
+  diverging silently. A missing or ambiguous binding fails before the affected consumer executes, in each
+  supported composition configuration. An incompatible binding also fails before execution where reliable
+  compatibility verification is available.
 
 **Scope.** The rule binds every boundary that composition wires, and every boundary between two units of
 code: a slice, a crosscut, an adapter, and a class or function that composition constructs or calls with
 dependencies. Inside one slice, how its private functions share what the slice received is the slice's
-own concern, because the slice boundary already bounds it (`[BOUND-2]`).
+own concern (`[BOUND-2]`).
 
-**The rule applies recursively.** Narrowing a unit's parameter is not sufficient when what it receives
-still exposes unrelated capabilities or the application-wide configuration. A `store` parameter whose
-object carries an `app_config` or a `deps` attribute exposes both. What counts is everything the unit
-can reach through what it receives.
+**What counts is everything a unit can reach.** A narrow parameter whose object carries an `app_config`
+or a `deps` attribute exposes both. The unit of exposure is a concern, not an operation: a dependency that
+owns one concern, such as a `db` crosscut or an adapter for one external system, may be passed whole. A
+dependency that bundles several concerns, such as an application-wide dependency object, a
+general-purpose service, or the whole configuration, may not. A consumer may declare a narrower contract
+for one concern, such as a read slice that must not write. The rule permits it and does not require it.
 
-**The unit of exposure is a concern, not an operation.** A dependency that owns one concern, such as a
-`db` crosscut or an adapter for one external system, may be passed whole to a consumer that uses some of
-its operations. A dependency that bundles several concerns, such as an application-wide dependency
-object, a general-purpose service, or the whole configuration, may not. A consumer that must not reach
-some operations of one concern, such as a read slice that must not write, may declare a narrower
-contract. The rule permits that narrower contract. It does not require it.
+**The rule prescribes no technique.** Constructor injection, parameter passing, partial application, and
+a dependency-injection framework all conform, if the framework's resolution API is called only from
+composition. The rule requires no interface, protocol, dependency object, factory, wrapper, registry,
+token, or framework. Composition may hold a broad container internally and unpack it at each consumer's
+boundary. Wiring that several executables share may sit in a module such as `wiring` or `di`. That module
+is part of the composition root (`[MODEL-1]`), not a crosscut, because no slice consumes it (`[XCUT-1]`).
+A slice that imports it to obtain a dependency is service location. A function that constructs one kind
+of dependency on demand, such as a transaction per trigger, is a dependency. A request context carries
+per-trigger values, such as the principal, a correlation id, or a deadline. A service stored in it and
+read back inside a slice is service location.
 
-**The abstraction is proportional.** The rule does not require an interface, a protocol, a dependency
-object, a factory, or a wrapper per consumer. Passing two or three concrete dependencies directly
-satisfies it. A function that constructs one kind of dependency on demand, such as a transaction per
-trigger, is a dependency like any other. A function that returns any dependency by key or type is a
-service locator.
+**Identity and compatibility are separate checks.** Identity selects the intended provider.
+Compatibility confirms that the provider satisfies the contract the consumer declares. A matching name
+does not prove compatibility, and a matching type does not prove identity: two connections can implement
+one interface and serve different databases.
 
-**A per-trigger context is input, not a container.** A request context that carries per-trigger values,
-such as the authenticated principal, a correlation id, or a deadline, is part of the trigger. Storing
-services in it, and reading them back inside a slice, is service location.
+- **Language-native declarations identify a dependency.** A parameter or constructor-argument name is the
+  dependency's declaration. Composition that maps those names to providers repeats the names without
+  defining them a second time, if the mapping is verified against the declarations. Direct wiring needs
+  no identifier: the call names the dependency, and the language checks the call.
+- **Explicit identifiers cannot drift.** A key typed independently at the consumer and at the
+  registration, with nothing that compares them, does not conform. A shared constant or token, or a check
+  that compares every consumer's identifiers with the registrations, does.
+- **Determinism excludes selection by accident, not by configuration.** Composition may choose a provider
+  from a configuration value. Selection by registration order ("the last registration wins"), by scan
+  order, or by which providers happen to be present does not conform. A consumer that declares a
+  collection of providers receives them in an order composition states.
+- **Verification covers the configurations the project supports.** It runs in the build, in composition
+  at startup, or in a test that constructs the composition. Verifying one configuration does not verify
+  another: a test that composes the in-memory store does not verify the production database binding. The
+  supported configurations are the composition variants the project ships or runs, not every possible
+  configuration value.
+- **Type checks are required where they are reliable.** Static analysis, a registration-time check, or
+  build validation verifies the provider against the consumer's declared contract, not only against the
+  type of an identifier. Where the language or tooling cannot establish compatibility reliably, the rule
+  requires no substitute, such as a runtime type-checking layer.
 
-**Composition owns assembly, and the rule does not prescribe how.** Constructor injection, parameter
-passing, partial application, and a dependency-injection framework all satisfy it, if the framework's
-resolution API is called only from composition. Composition code may hold a broad container internally
-when that is useful. It unpacks the container at each consumer's boundary and does not pass it on. Wiring
-that several executables share may sit in a module of its own, such as `wiring` or `di`. That module is
-part of the composition root under `[MODEL-1]`. It is not a crosscut, because no slice consumes it
-(`[XCUT-1]`), and a slice that imports it to obtain a dependency is service location. Nothing in this
-rule requires such a module, a framework, or a container. Direct wiring in the composition root is the
-simplest conforming form.
+**What this rule does not reach.** Importing a pure, stateless module, such as a formatter or a parse
+invariant, is not receiving a dependency. Whether a stateful crosscut must be injected rather than
+imported is `[XCUT-3]`. Whether a slice may read the process environment or other runtime context is
+`[CONFIG-2]`. Both are production baseline.
 
-**What this rule does not reach.** It governs what a unit receives and how it obtains dependencies at
-runtime. Importing a pure, stateless module, such as a formatter or a parse invariant, is not receiving
-a dependency. Whether a crosscut that holds configuration, a connection, or per-trigger state must be
-injected rather than imported is `[XCUT-3]`. Whether a slice may read the process environment or other
-runtime context is `[CONFIG-2]`. Both are production-baseline rules, and this rule does not restate
-them.
+**Examples.** The examples are Python for illustration. They prescribe no language, framework, or style.
 
-**Examples.** The examples are Python for illustration. They prescribe no language, no
-dependency-injection framework, and no coding style.
-
-An oversized dependency object does not conform. `AppDeps` also exposes Git, tmux, the editor
-integration, and the application configuration:
+Broad exposure and service location do not conform:
 
 ```python
-def list_todos(deps: AppDeps) -> list[Todo]:
+def list_todos(deps: AppDeps) -> list[Todo]:  # the whole application in reach
     return deps.todo_store.list()
-```
 
-An explicit, minimal dependency conforms. `TodoReader` is the consumer's own contract. A concrete
-`TodoStore` passed directly would conform too, because it owns one concern:
+def list_todos() -> list[Todo]:  # service location, global or parameter
+    return container.resolve(TodoReader).list()
 
-```python
-def list_todos(store: TodoReader) -> list[Todo]:
-    return store.list()
-```
-
-A service locator does not conform, whether `container` is a module-level global or a parameter:
-
-```python
-def list_todos() -> list[Todo]:
-    store = container.resolve(TodoReader)
-    return store.list()
-```
-
-Excessively broad configuration does not conform:
-
-```python
-def connect(config: AppConfig) -> Connection:
+def connect(config: AppConfig) -> Connection:  # the whole configuration for one value
     return Connection(timeout=config.timeout)
 ```
 
-Only the required configuration conforms:
+Direct wiring conforms. The consumer declares its requirements, composition constructs the providers and
+binds them in a call, and the type checker verifies each call's names and types before the program runs:
 
 ```python
+def list_todos(*, store: TodoReader) -> list[Todo]:
+    return store.list()
+
 def connect(timeout: float) -> Connection:
     return Connection(timeout=timeout)
+
+# composition root
+store = SqlTodoStore(connect(timeout=config.db_timeout))
+todos = list_todos(store=store)
 ```
 
-The rule is kernel because of who writes the code. A human team can accept a shared dependency object
-as a convenience. An agent that receives one uses what it offers, and the reviewer does not see the new
-coupling at the boundary. The membership argument is stated in full with the
+Name-based wiring conforms only if the verification in step 4 exists and runs. The consumer's keyword
+parameters are the identifiers, and composition maps each name to one provider:
+
+```python
+# 1. The consumer declares its requirements.
+def run(args: Namespace, *, tmux: Tmux, projects: ProjectTable) -> None: ...
+
+# 2. Composition defines one provider per name.
+PROVIDERS = {"tmux": make_tmux, "projects": load_projects, "editor": make_editor}
+
+# 3. Composition binds each declared name to its provider.
+def bind(command: Callable[..., object]) -> dict[str, object]:
+    return {name: PROVIDERS[name]() for name in declared(command)}
+
+# 4. A test checks every registered command: each declared name is in PROVIDERS, and the
+#    provider's return type satisfies the parameter's annotation.
+
+# 5. The consumer executes.
+run(args, **bind(run))
+```
+
+Independently typed keys do not conform. Nothing compares them before `ListTodos` is constructed:
+
+```python
+registry.register("todo-store", SqlTodoStore(db))
+registry.register("todo-store", MemoryTodoStore())  # ambiguous: the last registration wins
+
+class ListTodos:  # missing: the key differs from the registration
+    def __init__(self, store: Annotated[TodoReader, Inject("todo_store")]): ...
+```
+
+The rule is kernel because of who writes the code. The membership argument is stated with the
 [kernel block](./CONVENTIONS.md#the-kernel-rules).
 
 ---
@@ -502,7 +536,7 @@ app-type profiles are in the [appendices](#appendix-index). Rules for several ap
 - `[TEST-1]` Behavior-first: exercise the entry point, assert the observable contract, real or realistic temporary infra, minimal mocking.
 
 ### Dependencies
-- `[DEPS-1]` Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location.
+- `[DEPS-1]` Receive only the dependencies and configuration values you consume, declared at your own boundary and supplied by composition. Never receive an application-wide container or configuration object you use only part of, and never obtain a dependency through service location. Bind each declared dependency deterministically to exactly one provider that satisfies your declared contract, keep explicit wiring identifiers from drifting, fail a missing or ambiguous binding before the consumer executes, in each supported configuration, and fail an incompatible binding before execution where reliable compatibility verification is available.
 
 <!-- coral:contract:end -->
 

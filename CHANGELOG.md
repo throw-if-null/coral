@@ -41,7 +41,36 @@ adopts.
 
 ---
 
-## Unreleased
+## Unreleased — 0.11.0
+
+A version marks a release, not a commit (`[VER-2]`), so changes land here first and the bump happens when
+the batch is cut. **The batch is currently major**, because `[DEPS-1]` is tightened. Coral is still in
+`0.y.z`, so that major is cut as a **minor** bump (`0.10.0` → `0.11.0`) per semver's major-version-zero
+clause.
+
+**`[DEPS-1]`: dependency wiring is deterministic, unambiguous, and verified. Tightened, major under
+`[VER-2]`.**
+
+`ARCHITECTURE.md` § 9 adds a fifth part to `[DEPS-1]`, deterministic, verified binding, and states it in
+the contract line. The enforcement class stays `[review]`, and `rules.lock` is unchanged. Identity and
+compatibility are separate checks. Parameter names and other language-native declarations identify a
+dependency, and composition may map those names to providers when the mapping is verified. Direct wiring
+needs no identifier, registry, or token. The rest of § 9 is consolidated without a change in meaning, and
+its examples now show direct wiring, verified name-based wiring, and drifting keys.
+
+`CONVENTIONS.md` adds drift prevention and self-verification to the properties `[DEPS-1]` defends, and
+its composition-root row names verified binding. The adherence records this repository resolves target
+`0.11.0`.
+
+**What you must now satisfy:** each of these is a finding:
+
+- an explicit wiring identifier, such as a key or a token, that can diverge from its registration without
+  a check reporting it;
+- a provider chosen by registration order, scan order, or which providers are present;
+- a missing or ambiguous binding that a supported composition configuration reports only when the
+  consumer executes;
+- an incompatible binding that is not reported before execution where reliable compatibility
+  verification is available.
 
 ## 0.10.0 — 2026-11-21
 
