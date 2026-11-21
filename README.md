@@ -356,6 +356,15 @@ documents it.
 A release is a cut batch (`[VER-2]`), an annotated tag on the merged cut commit, and a GitHub Release
 for that tag. Each step is a separate maintainer action. Nothing is published on merge.
 
+```mermaid
+flowchart LR
+    A["main<br/>## Unreleased — X"] -->|"npm run release:prepare -- X"| B["release/X branch<br/>cut commit"]
+    B -->|"pull request, review, merge"| C["main<br/>merge commit"]
+    C -->|"git tag -a vX"| D["annotated tag vX"]
+    D -->|"gh workflow run release.yml -f tag=vX"| E["GitHub Release<br/>Coral X"]
+    E -->|"targets: X, checkout vX"| F["consuming project<br/>CORAL-CONTRACT.md"]
+```
+
 1. On a branch from `main`, prepare the release. The version is the one that the changelog's
    `## Unreleased` heading names, or the next patch when the heading names none:
 
@@ -389,6 +398,38 @@ for that tag. Each step is a separate maintainer action. Nothing is published on
 
    With `-f draft=true`, the workflow stops at a draft release, so the notes can be read on GitHub first.
    A second run without it publishes that draft.
+
+```mermaid
+flowchart TD
+    start(["workflow_dispatch<br/>tag, draft"]) --> resolve
+    subgraph resolve["resolve · contents: read"]
+        r1{"tag is vX.Y.Z,<br/>exists, annotated?"} -->|yes| r2{"main contains<br/>the tagged commit?"}
+        r2 -->|yes| r3{"release:check X<br/>on the commit?"}
+    end
+    r1 -->|no| fail(["refuse: nothing published"])
+    r2 -->|no| fail
+    r3 -->|no| fail
+    r3 -->|"yes: version, commit"| test
+    subgraph test["test · contents: read"]
+        t1["test.yml on the commit:<br/>npm test, Go example"]
+    end
+    t1 -->|fail| fail
+    t1 -->|pass| p1
+    subgraph publish["publish · contents: write"]
+        p1{"tag still names<br/>the tested commit?"} -->|yes| p2{"release for the tag?"}
+        p2 -->|none| p3["create draft<br/>notes = changelog section"]
+        p2 -->|draft| p4["reuse the draft"]
+        p3 --> p5{"draft input?"}
+        p4 --> p5
+        p5 -->|no| p6{"tag still names<br/>the tested commit?"}
+        p6 -->|yes| p7["publish the draft<br/>latest when highest version"]
+    end
+    p1 -->|no| fail
+    p2 -->|published| fail
+    p6 -->|no| fail
+    p5 -->|yes| draft(["stop at the draft"])
+    p7 --> done(["published release"])
+```
 
 The workflow refuses a tag that is not `v<major>.<minor>.<patch>`, does not exist, is lightweight, or
 names a commit that `main` does not contain. On the tagged commit, it runs `npm run release:check`, which
