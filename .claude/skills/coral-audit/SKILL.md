@@ -20,7 +20,7 @@ description: >
 
 # Coral repo audit
 
-> Written against **Coral 0.10.0**. Audit a project against the version its
+> Written against **Coral 0.11.0**. Audit a project against the version its
 > `CORAL.md` declares, not against this one (`[VER-3]`).
 >
 > **"Written against" names the latest *released* Coral.** A project pins a released version.
@@ -248,18 +248,17 @@ slicing, placement/naming, and thin composition — so do not treat them as warm
 not, they are observations (boundary rule 5) and the walk is short. **What a kernel-only project is
 audited against, in full:**
 
-- against the **source** — `[MODEL-1]` (the five categories), `[BOUND-2]` (one trigger, owned end to end),
-  `[XCUT-1]` (promotion to a crosscut needs a must-not-diverge invariant), `[COMPOSE-1]` (published
-  capability, never internals), `[ERR-1]` (one small, stable, structured error model declared once
-  for the app or published package, presented at a boundary rather than inside slices — **not** a
-  fixed list of category names, and **not** a required field layout or stable error id), `[TEST-1]`
-  (behavior-first at the entry point), `[DEPS-1]` (each unit receives only the dependencies and
-  configuration values it consumes, supplied by composition, with no service location; each binding
-  is deterministic, a missing or ambiguous binding fails before the consumer runs in every supported
-  configuration, and an incompatible one does too where reliable verification exists — **not** a
-  required interface per consumer, a container, a token, or a DI framework, and a verified mapping of
-  parameter names is conformant). Seven rules; that is the whole
-  structural surface.
+- - against the **source** — `[MODEL-1]` (the five categories), `[BOUND-2]` (one trigger, owned end to
+  end), `[XCUT-1]` (promotion to a crosscut needs a must-not-diverge invariant), `[COMPOSE-1]`
+  (published capability, never internals), `[ERR-1]` (one small, stable, structured error model
+  declared once for the app or published package, presented at a boundary rather than inside slices —
+  **not** a fixed list of category names, and **not** a required field layout or stable error id),
+  `[TEST-1]` (behavior-first at the entry point), `[DEPS-1]` (each unit receives only the dependencies
+  and configuration values it consumes, supplied by composition, with no service location; from 0.11.0,
+  each binding is deterministic, a missing or ambiguous binding fails before the consumer runs in every
+  supported configuration, and an incompatible one does too where reliable verification exists —
+  **not** a required interface per consumer, a container, a token, or a DI framework, and a verified
+  mapping of parameter names is conformant). Seven rules; that is the whole structural surface.
 - against **`CORAL.md`** — `[VER-3]` (a target is declared), `[VER-5]` (deviations are explicit and
   path-scoped), `[VER-6]` (what it adopts is declared). `[VER-5]` also reads the instruction files: a
   convention there that binds placement, naming, a must-not-diverge invariant, or a boundary, and that
