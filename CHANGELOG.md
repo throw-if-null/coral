@@ -31,10 +31,11 @@ version, satisfy the added rules **in the layers you have adopted**, run the
 [conflict check](https://github.com/throw-if-null/coral/blob/main/README.md#start-a-project) again, and
 re-audit.
 
-**The Unreleased section below is not a release.** `VERSION` holds the latest **released** (cut) Coral, and its GitHub Release publishes it. The
-**working** version is the rule set these documents currently describe. When it is a successor to
-`VERSION`, the heading beneath names it, and it ships when the batch is cut. A bare `## Unreleased`
-states that the working version is `VERSION`. A rule under Unreleased is not in any release, and a project
+**The Unreleased section below is not a release.** `VERSION` holds the latest **released** (cut) Coral,
+and its GitHub Release publishes it. The **working** version identifies the rule set these documents
+currently describe: the version the heading beneath names, or `VERSION` with the development suffix,
+such as `0.11.0+unreleased`, when entries sit under a bare heading. An empty bare heading states that
+the working version is `VERSION`. A rule under Unreleased is not in any release, and a project
 pinning `VERSION` does not owe it yet. A project pins a published release. A project that generates its
 contract from `main` targets the working version and owes the rules under Unreleased in the layers it
 adopts.
@@ -84,7 +85,9 @@ URLs to the tag of its target. `examples/go-api-slice/AGENTS.md` follows the sni
 workflow with a version, and it opens a release PR that `npm run release:prepare` prepared. Merging that
 PR runs the release workflow, which verifies and tests the merge commit, creates the annotated tag on
 it, and publishes the GitHub Release. The release notes are the changelog section. `VERSION` names the
-latest cut version, and the GitHub Release publishes it. `yaml` moves to `dependencies`, so
+latest cut version, and the GitHub Release publishes it. Entries under a bare `## Unreleased` give the
+working rule set the development identity `<VERSION>+unreleased`, so a contract generated from `main`
+never names a published version, and `targets` accepts that identity. `yaml` moves to `dependencies`, so
 `npm ci --omit=dev` installs everything the generator needs.
 
 ## 0.10.0 — 2026-11-21

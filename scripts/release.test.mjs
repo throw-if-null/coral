@@ -45,7 +45,7 @@ function fixture({ heading = '## Unreleased — 1.3.0', entries = '`[X-1]` is ti
     'package-lock.json': json({ name: 'coral', version: '1.2.0', packages: { '': { name: 'coral', version: '1.2.0' } } }),
     'examples/page.md': '# Page\n\n> Written against **Coral 1.2.0**.\n',
     'README.md': 'Load https://raw.githubusercontent.com/throw-if-null/coral/v1.2.0/guides/a.md first.\n',
-    'templates/CORAL.md': `targets: "${heading.includes('—') ? heading.split('— ')[1] : '1.2.0'}"\n`,
+    'templates/CORAL.md': `targets: "${heading.includes('—') ? heading.split('— ')[1] : '1.2.0+unreleased'}"\n`,
     'rules.lock': LOCK,
     'rules.md': 'RULE-1 does a thing.\n',
     ...extra,
@@ -169,12 +169,22 @@ test('a major that adds a rule after 1.0 is accepted', () =>
     assert.deepEqual([plan.problems, plan.bump, plan.surface.added], [[], 'major', ['RULE-2']])
   }))
 
+test('development after a cut plans no change to the records that target its identity', () =>
+  inTree(fixture(), (dir) => {
+    apply(dir, planRelease(dir, '1.3.0', '2026-02-02'))
+    const changelog = read(dir, 'CHANGELOG.md').replace('## Unreleased\n', '## Unreleased\n\nA later change.\n')
+    fs.writeFileSync(path.join(dir, 'CHANGELOG.md'), changelog)
+    fs.writeFileSync(path.join(dir, 'templates/CORAL.md'), 'targets: "1.3.0+unreleased"\n')
+    const plan = planRelease(dir, '1.3.0', '2026-03-03')
+    assert.deepEqual([plan.state, plan.writes.size, plan.problems], ['prepared', 0, []])
+  }))
+
 test('verification refuses a release commit with entries under Unreleased', () =>
   inTree(fixture(), (dir) => {
     apply(dir, planRelease(dir, '1.3.0', '2026-02-02'))
     const changelog = read(dir, 'CHANGELOG.md').replace('## Unreleased\n', '## Unreleased\n\nA later change.\n')
     fs.writeFileSync(path.join(dir, 'CHANGELOG.md'), changelog)
-    assert.match(releaseProblems(dir, '1.3.0').join('\n'), /Unreleased section is not empty/)
+    assert.match(releaseProblems(dir, '1.3.0').join('\n'), /holds changes, so these documents describe 1\.3\.0\+unreleased/)
   }))
 
 for (const [name, overrides, version, expected] of [
@@ -210,7 +220,7 @@ test('verification refuses a tree that describes a successor of the release', ()
     const changelog = read(dir, 'CHANGELOG.md').replace('## Unreleased\n', '## Unreleased — 1.4.0\n\nMore.\n')
     fs.writeFileSync(path.join(dir, 'CHANGELOG.md'), changelog)
     const [problem] = releaseProblems(dir, '1.3.0')
-    assert.match(problem, /describe 1\.4\.0, not 1\.3\.0/)
+    assert.match(problem, /describe 1\.4\.0,\s+not 1\.3\.0/)
   }))
 
 test('verification refuses a tree that has not cut the release', () =>

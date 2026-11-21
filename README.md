@@ -287,11 +287,12 @@ the build enforces that against.
 
 **Coral carries two versions, and the difference matters because `[VER-3]` makes version identity part
 of applicability.** The **latest released** version is in `VERSION`: the latest cut version. A project
-pins a version that has a published GitHub Release ([Releasing Coral](#releasing-coral)). The **working** version is the rule set these documents currently describe: the version the
-changelog's `## Unreleased` heading names, or `VERSION` when the heading names none. When the heading
-names a version, it is a successor to `VERSION`, and **`main` describes rules that are not in any release
-yet**. A project that generates its contract from `main` targets the working version, and the generator
-refuses any other target.
+pins a version that has a published GitHub Release ([Releasing Coral](#releasing-coral)). The
+**working** version identifies the rule set these documents currently describe. When `main` holds
+changes that no release records, it is the version the `## Unreleased` heading names, or a development
+identity such as `0.11.0+unreleased`, and **`main` describes rules that are not in any release yet**. A
+project that generates its contract from `main` targets the working version, and the generator refuses
+any other target.
 [`CONVENTIONS.md`](./CONVENTIONS.md#two-versions-released-and-working) states the split.
 
 A consuming project keeps a **`CORAL.md`** in its root. It is the one file that answers *what rules apply
@@ -421,8 +422,9 @@ flowchart TD
 
 The version terms:
 
-- `main` is development. `## Unreleased` holds the changes that are in no release. When its heading
-  names a version, that is the working version.
+- `main` is development. `## Unreleased` holds the changes that are in no release. While it holds
+  entries, the working rule set has a development identity, such as `0.11.0+unreleased`, unless the
+  heading names a version ([`CONVENTIONS.md`](./CONVENTIONS.md#two-versions-released-and-working)).
 - `VERSION` names the latest cut version in the tree. The release PR changes it. It does not show that
   the version is published.
 - The tag `v<version>` is the release source. The release workflow creates it on the release PR's merge

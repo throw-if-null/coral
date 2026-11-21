@@ -1505,7 +1505,7 @@ export function classifyRules({ rules, kernel, profiles, taxonomy, core = new Ma
  * @param {string} srcDir
  * `version` is the model's IDENTITY, and it is the working version rather than the released
  * one — the rule set these documents describe. It differs from what `VERSION` holds when the
- * changelog's Unreleased heading names a version, and equals it when the heading is bare.
+ * changelog's Unreleased section holds changes, and equals it when that section is empty.
  * Everything that resolves a project's declared target compares against it, so a model that
  * could not identify itself would let a project be audited against rules its target
  * predates. See scripts/version.mjs.

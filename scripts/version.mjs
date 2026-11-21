@@ -3,13 +3,13 @@
 //
 // Two versions, and conflating them is a real error rather than a pedantic one.
 //
-//   · the RELEASED version is what `VERSION` holds. It moves when a batch is cut,
-//     not when a commit lands — `[VER-2]` says so, and that is the whole reason
-//     the changelog has an Unreleased section.
-//   · the WORKING version is what the documents in the tree would ship as. When the
-//     Unreleased heading names a version, the two are not the same rule set, and
-//     saying they are is how a rule that does not exist in 0.6.0 gets presented to a
-//     project as a 0.6.0 rule. When the heading is bare, they are the same.
+//   · the RELEASED version is what `VERSION` holds: the latest cut. It moves when a
+//     batch is cut, not when a commit lands — `[VER-2]` says so, and that is the whole
+//     reason the changelog has an Unreleased section.
+//   · the WORKING version identifies the rule set the documents in the tree describe.
+//     When the tree holds changes that no release records, the two are not the same
+//     rule set, and saying they are is how a rule that does not exist in 0.6.0 gets
+//     presented to a project as a 0.6.0 rule.
 //
 // `[VER-6]` is an instance. It does not exist in 0.6.0, so the `CORAL.md` of a project
 // targeting 0.6.0 legitimately has no adoption declaration. An applicability resolver
@@ -19,20 +19,25 @@
 //
 // So the model carries an identity, and the identity is the working version.
 //
-// Where the working version comes from: the Unreleased heading names it, next to
-// the compatibility statement that already decides the bump level. One place, and
-// the place where the decision is already made. `## Unreleased — 0.12.0` says the
-// documents in this tree are the 0.12.0 rule set. A bare `## Unreleased` says the
-// batch changes no rule and the tree still describes the released version — the
-// same claim as a `[VER-2]` patch, written where patch-level is decided.
+// Where the working version comes from, in the changelog's Unreleased section:
 //
-// Both are STATEMENTS, and the difference between them and a missing statement is the
-// whole of this file's fail-closed posture. A bare heading is an assertion someone made;
-// no heading, or no changelog at all, is an absence — and reading an absence as
-// "working == released" recreates the exact bug this identity exists to prevent, one
-// deleted file later: the tree still holds unreleased rules, but now claims to be the
-// release before them, and a record targeting that release resolves against rules that
-// were never in it. So both are refused, and the model does not come back `classified`.
+//   · `## Unreleased — 0.12.0` names it: the tree is the 0.12.0 rule set.
+//   · a bare `## Unreleased` over entries: the tree holds changes that no release
+//     records, and the version they ship as is decided when the batch is cut. The
+//     working version is `0.11.0+unreleased`, a development identity that no release
+//     carries. A record or contract that names it cannot be read as the published 0.11.0.
+//   · a bare `## Unreleased` with nothing under it: the tree is the cut release itself,
+//     and the working version is `VERSION`. This is the state of a release commit.
+//
+// The entries decide, not a comparison with the previous release's files: the
+// changelog records every change to the rule set, and a full-text tightening leaves the
+// generated rule index unchanged.
+//
+// No heading, or no changelog at all, is an absence. Reading it as "working == released"
+// recreates the bug this identity exists to prevent: the tree still holds unreleased
+// rules, but claims to be the release before them, and a record targeting that release
+// resolves against rules that were never in it. So it is refused, and the model does not
+// come back `classified`.
 // ─────────────────────────────────────────────────────────────────────────────
 import fs from 'node:fs'
 import path from 'node:path'
@@ -41,6 +46,11 @@ export const VERSION_FILE = 'VERSION'
 export const CHANGELOG_FILE = 'CHANGELOG.md'
 
 const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)$/
+
+/** The suffix of a development identity: `VERSION` followed by changes no release records. */
+export const DEVELOPMENT_SUFFIX = '+unreleased'
+/** A version identity: a release version, or a development identity. */
+export const IDENTITY_RE = /^\d+\.\d+\.\d+(?:\+unreleased)?$/
 
 /** The "written against" marker of a worked example or a skill. scripts/check-versions.mjs states its contract. */
 export const DECLARATION = /Written against \*\*Coral (\d+\.\d+\.\d+)\*\*/g
@@ -86,12 +96,13 @@ export function compareVersions(a, b) {
  * The released and working versions of a documentation tree.
  *
  * `working` is what every version-identity check compares against, because it is what
- * the tree actually describes. It equals `released` unless the Unreleased heading names
- * a successor.
+ * the tree actually describes. It is the version the Unreleased heading names; else a
+ * development identity, `<released>+unreleased`, when entries sit under a bare heading;
+ * else `released`. `named` is the heading's version, or null.
  *
  * @param {string} srcDir
- * @returns {{released: string|null, working: string|null, unreleased: boolean,
- *            problems: string[]}}
+ * @returns {{released: string|null, working: string|null, named: string|null,
+ *            unreleased: boolean, problems: string[]}}
  */
 export function coralVersion(srcDir) {
   const problems = []
@@ -101,12 +112,12 @@ export function coralVersion(srcDir) {
       `${VERSION_FILE} is missing — it is what says which Coral this tree is. Nothing that` +
         ' resolves a project\'s target can run without it.'
     )
-    return { released: null, working: null, unreleased: false, problems }
+    return { released: null, working: null, named: null, unreleased: false, problems }
   }
   const released = fs.readFileSync(abs, 'utf8').trim()
   if (!SEMVER_RE.test(released)) {
     problems.push(`${VERSION_FILE} holds \`${released}\`, which is not a three-part version.`)
-    return { released: null, working: null, unreleased: false, problems }
+    return { released: null, working: null, named: null, unreleased: false, problems }
   }
 
   const changelog = path.join(srcDir, CHANGELOG_FILE)
@@ -117,37 +128,41 @@ export function coralVersion(srcDir) {
         ' a tree holding unreleased rules while claiming the release before them is how a project' +
         ' gets audited against rules its target predates.'
     )
-    return { released, working: null, unreleased: false, problems }
+    return { released, working: null, named: null, unreleased: false, problems }
   }
-  const headings = [...fs.readFileSync(changelog, 'utf8').matchAll(UNRELEASED_RE)]
+  const text = fs.readFileSync(changelog, 'utf8')
+  const headings = [...text.matchAll(UNRELEASED_RE)]
   if (headings.length > 1) {
     problems.push(
       `${CHANGELOG_FILE} has ${headings.length} Unreleased headings. There is one, and it is what` +
         ' names the version this tree would ship as; two would leave the identity ambiguous.'
     )
-    return { released, working: null, unreleased: false, problems }
+    return { released, working: null, named: null, unreleased: false, problems }
   }
   if (!headings.length) {
     problems.push(
       `${CHANGELOG_FILE} has no \`## Unreleased\` heading, so this tree does not say which rule set` +
-        ` it is. Write a bare \`## Unreleased\` to assert it is still ${released}, or` +
+        ` it is. Write \`## Unreleased\` above the changes since ${released}, or` +
         ' `## Unreleased — x.y.z` to name the successor it would ship as. An absent heading is a' +
         ' missing statement, not a claim that nothing has changed.'
     )
-    return { released, working: null, unreleased: false, problems }
+    return { released, working: null, named: null, unreleased: false, problems }
   }
-  // A BARE heading, on the other hand, is a statement: the batch changes no rule and the tree
-  // still describes the release. That is the same claim a `[VER-2]` patch makes, made where
-  // patch-level is decided.
   const named = headings[0][1]
-  if (!named) return { released, working: released, unreleased: false, problems }
+  if (!named) {
+    const start = headings[0].index + headings[0][0].length
+    const next = text.slice(start).search(/^## /m)
+    const entries = (next < 0 ? text.slice(start) : text.slice(start, start + next)).trim()
+    if (!entries) return { released, working: released, named: null, unreleased: false, problems }
+    return { released, working: `${released}${DEVELOPMENT_SUFFIX}`, named: null, unreleased: true, problems }
+  }
 
   if (compareVersions(named, released) <= 0) {
     problems.push(
       `${CHANGELOG_FILE}'s Unreleased heading names ${named}, which is not above the released` +
         ` ${released}. The next release is a later version than the last one.`
     )
-    return { released, working: null, unreleased: false, problems }
+    return { released, working: null, named: null, unreleased: false, problems }
   }
-  return { released, working: named, unreleased: true, problems }
+  return { released, working: named, named, unreleased: true, problems }
 }

@@ -409,21 +409,29 @@ are not interchangeable:
   frozen. A worked example or a skill that says *"Written against **Coral x.y.z**"* names the latest
   released version. The marker names a release because a release is frozen; the working version moves
   until the batch is cut.
-- the **working version** is the rule set the documents in the tree currently describe. When the
-  changelog's Unreleased heading names a version, such as `## Unreleased — 0.12.0`, the working version
-  is that version, a successor to `VERSION`. Live development docs on `main` then describe a version nobody
-  has released yet, and a rule that is in them may not be in any release. A `targets:` line in an
-  adherence record is resolved against this one, so a record kept *inside* this repository names it. A
-  project that generates its contract from `main` targets it too, and the generator refuses any other
-  target.
+- the **working version** identifies the rule set the documents in the tree currently describe. A
+  `targets:` line in an adherence record is resolved against it, so a record kept *inside* this
+  repository names it. A project that generates its contract from `main` targets it too, and the
+  generator refuses any other target. The changelog's Unreleased section decides it:
 
-When a batch changes no rule, the heading names no version, as a bare `## Unreleased`, and the two are
-the same. **That bare heading is a statement, and it is required.** A changelog with no Unreleased
-heading, or no changelog at all, is not a tree asserting that it is still the released version. It is a
-tree that has not said, and the build refuses it. The difference matters because the silent reading is
-the dangerous one. A tree still holding unreleased rules, but identifying as the release before them,
-would let a record targeting that release resolve against rules that were never in it. That is the
-failure the identity exists to prevent, arriving through a deleted file.
+  | Unreleased section | Working version | The tree is |
+  |---|---|---|
+  | `## Unreleased — 0.12.0` | `0.12.0` | the named successor, before it is cut |
+  | `## Unreleased` over entries | `0.11.0+unreleased` | `VERSION` plus changes that no release records |
+  | `## Unreleased` with no entries | `0.11.0`, the value of `VERSION` | the cut release itself |
+
+  `0.11.0+unreleased` is a **development identity**. No release carries it, so a record or a contract
+  that names it cannot be read as the published `0.11.0`, and the version the changes ship as is decided
+  when the batch is cut. Live development docs on `main` describe rules that may not be in any release.
+
+**The Unreleased heading is required.** A changelog with no Unreleased heading, or no changelog at all,
+is not a tree asserting that it is still the released version. It is a tree that has not said, and the
+build refuses it. The difference matters because the silent reading is the dangerous one. A tree still
+holding unreleased rules, but identifying as the release before them, would let a record targeting that
+release resolve against rules that were never in it. That is the failure the identity exists to prevent,
+arriving through a deleted file. The same reasoning makes every change to the rule set an entry under
+Unreleased: the entries, not a comparison with the previous release, are what separate the working rule
+set from the release.
 
 Everything mechanical follows from that split. `scripts/version.mjs` reads both. The canonical rule
 model carries the working version as its identity. Every applicability resolution compares a record's
@@ -1649,8 +1657,8 @@ grouped by document, with each ID linking to its definition.
 
 Supporting files:
 
-- `VERSION`: the latest released (cut) version. Its GitHub Release publishes it. The working version these documents describe is the version
-  the changelog's Unreleased heading names, or `VERSION` when the heading names none
+- `VERSION`: the latest released (cut) version. Its GitHub Release publishes it. The changelog's
+  Unreleased section decides the working version these documents describe
   ([above](#two-versions-released-and-working)).
 - [`CHANGELOG.md`](./CHANGELOG.md): what changed, per rule ID.
 - `rules.lock`: every published rule ID and class, checked in so `[VER-1]` can be enforced.

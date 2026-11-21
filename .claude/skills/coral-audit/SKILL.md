@@ -24,8 +24,8 @@ description: >
 > `CORAL.md` declares, not against this one (`[VER-3]`).
 >
 > **"Written against" names the latest *released* Coral.** A project pins a released version.
-> A project that generates its contract from `main` targets the working version: the version
-> the changelog's `## Unreleased` heading names, or `VERSION` when the heading names none.
+> A project that generates its contract from `main` targets the working version, which the
+> changelog's Unreleased section decides, such as `0.12.0` or `0.11.0+unreleased`.
 > `[VER-6]` and the error model below first ship in 0.7.0: `CORAL.md` adoption declarations,
 > the undeclared-normative-surface finding, scale filtering, `[ERR-1]` as a kernel rule naming
 > no categories, and `[ERR-5]` as the recommended six-category vocabulary. In 0.6.0 and earlier

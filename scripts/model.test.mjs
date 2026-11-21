@@ -42,7 +42,7 @@ import {
   parseLayers,
   serializeIndex,
 } from './rules.mjs'
-import { coralVersion } from './version.mjs'
+import { IDENTITY_RE, coralVersion } from './version.mjs'
 
 const REPO = path.resolve(import.meta.dirname, '..')
 
@@ -149,8 +149,8 @@ function fixture(overrides = {}) {
   return {
     // The model carries a version identity, so a fixture tree states one. Both halves are
     // required: `VERSION` is the release, and the changelog's Unreleased heading says whether
-    // the tree still describes it. A bare heading asserts that it does — an ABSENT heading is
-    // a missing statement, and the model refuses it rather than assuming.
+    // the tree still describes it. An empty bare heading states that it does — an ABSENT
+    // heading is a missing statement, and the model refuses it rather than assuming.
     VERSION: '9.9.9\n',
     'CHANGELOG.md': '# Changelog\n\n## Unreleased\n',
     [PROFILES_FILE]: conventions({ layers, scales, profiles, core, kernel, defs: conventionDefs }),
@@ -860,7 +860,7 @@ test('the model identifies itself as the version its documents describe, not the
   // are different versions, and saying they are the same is how an unreleased rule gets
   // presented to a project as a rule of the release before it.
   const { released, working, unreleased } = coralVersion(REPO)
-  assert.match(REAL.version, /^\d+\.\d+\.\d+$/)
+  assert.match(REAL.version, IDENTITY_RE)
   assert.equal(REAL.version, working)
   if (unreleased) {
     assert.notEqual(working, released, 'an unreleased batch must not claim the released version')
@@ -906,15 +906,21 @@ test('a tree that cannot say which Coral it is does not come back classified', (
   }
 })
 
-test('a bare `## Unreleased` is a statement, and the tree is the released version', () => {
-  // The one case that legitimately resolves to `working === released`: somebody wrote the
-  // heading and named no successor, which is the same claim a [VER-2] patch makes.
+test('an empty bare `## Unreleased` makes the tree the released version', () => {
+  // The state of a release commit: every change is recorded in the released section.
   const m = cleanModel()
   assert.equal(m.version, '9.9.9')
   const { released, working, unreleased } = inTree(fixture(), coralVersion)
-  assert.equal(released, '9.9.9')
-  assert.equal(working, '9.9.9')
-  assert.equal(unreleased, false)
+  assert.deepEqual([released, working, unreleased], ['9.9.9', '9.9.9', false])
+})
+
+test('entries under a bare `## Unreleased` give the tree a development identity', () => {
+  const tree = { ...fixture(), 'CHANGELOG.md': '# Changelog\n\n## Unreleased\n\n`[K-1]` is tightened.\n\n## 9.9.9 — 2026-01-01\n' }
+  const m = inTree(tree, loadRuleModel)
+  assert.deepEqual(m.problems, [])
+  assert.equal(m.version, '9.9.9+unreleased')
+  const { released, working, named, unreleased } = inTree(tree, coralVersion)
+  assert.deepEqual([released, working, named, unreleased], ['9.9.9', '9.9.9+unreleased', null, true])
 })
 
 test('a named `## Unreleased — x.y.z` makes the tree its successor', () => {

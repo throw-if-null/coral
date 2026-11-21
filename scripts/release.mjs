@@ -232,9 +232,9 @@ export function planRelease(root, version, date, { previous = null } = {}) {
       )
       return none()
     }
-    if (v.unreleased && v.working !== version) {
+    if (v.named && v.named !== version) {
       problems.push(
-        `${CHANGELOG_FILE}'s Unreleased heading names ${v.working}, not ${version}. The heading names the` +
+        `${CHANGELOG_FILE}'s Unreleased heading names ${v.named}, not ${version}. The heading names the` +
           ' version the batch ships as, so prepare that version or correct the heading.'
       )
       return none()
@@ -295,7 +295,7 @@ export function planRelease(root, version, date, { previous = null } = {}) {
       desired.set(rel, read(rel).replace(PROTOCOL_URL, (m, old) => m.replace(`v${old}/`, `v${version}/`)))
     }
   }
-  if (v.working !== version) {
+  if (state === 'cut' && v.working !== version) {
     const target = `targets: "${v.working}"`
     for (const rel of RECORD_FILES) {
       if (fs.existsSync(path.join(root, rel))) {
@@ -326,21 +326,13 @@ export function releaseProblems(root, version) {
   const plan = planRelease(root, version, '1970-01-01')
   if (plan.problems.length) return plan.problems
   const problems = [...plan.writes.keys()].map((rel) => `${rel} does not name ${version}. ${prepare}`)
+  // A release commit records every change in its own section, so its Unreleased section is
+  // bare and empty. Entries there are changes that reached the tree after the cut, typically
+  // by updating a release PR's branch from main, and no release section describes them.
   if (v.unreleased) {
     problems.push(
-      `${CHANGELOG_FILE}'s Unreleased heading names ${v.working}, so these documents describe ${v.working},` +
-        ` not ${version}. Release ${version} from the commit that cut it.`
-    )
-  }
-  // A release commit records every change in its own section. An entry under Unreleased is a
-  // change that reached the release PR after it was prepared, typically by updating its
-  // branch from main, and no release section describes it.
-  const changelog = fs.readFileSync(path.join(root, CHANGELOG_FILE), 'utf8')
-  const heading = UNRELEASED_LINE.exec(changelog)
-  if (heading && sectionAfter(changelog, heading).trim()) {
-    problems.push(
-      `${CHANGELOG_FILE}'s Unreleased section is not empty, so this tree holds changes that the ${version}` +
-        ' section does not record. Close the release PR, and prepare the release again from main.'
+      `${CHANGELOG_FILE}'s Unreleased section holds changes, so these documents describe ${v.working},` +
+        ` not ${version}. Close the release PR, and prepare the release again from main.`
     )
   }
   return problems
