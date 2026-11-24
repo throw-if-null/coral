@@ -154,41 +154,6 @@ test('recovery resolves only a release PR, not an ordinary merge with a matching
   assert.match(r.problems.join('\n'), /not from a release\/<version> branch/)
 })
 
-const BOOT_REPO = 'throw-if-null/coral'
-function bootstrapGithub(version = '0.11.0', pr = 45) {
-  const g = github({ versions: { [MERGE]: version } }, BOOT_REPO)
-  g.state.pulls[pr] = {
-    ...g.state.pulls[7],
-    head: { ref: 'feat/release-workflow', sha: HEAD, repo: { full_name: BOOT_REPO } },
-  }
-  return g
-}
-
-test('the bootstrap resolves #45 as 0.11.0 without a release branch', async () => {
-  const { api } = bootstrapGithub()
-  const r = await resolveRelease(api, { repo: BOOT_REPO, pr: 45 })
-  assert.deepEqual(r, { version: '0.11.0', commit: MERGE, problems: [] })
-})
-
-test('the bootstrap does not publish any other version from #45', async () => {
-  const { api } = bootstrapGithub('0.11.1')
-  const r = await resolveRelease(api, { repo: BOOT_REPO, pr: 45 })
-  assert.match(r.problems.join('\n'), /releases 0\.11\.0, but VERSION at its merge commit is 0\.11\.1/)
-})
-
-test('the bootstrap covers no other pull request', async () => {
-  const { api } = bootstrapGithub('0.11.0', 46)
-  const r = await resolveRelease(api, { repo: BOOT_REPO, pr: 46 })
-  assert.match(r.problems.join('\n'), /not from a release\/<version> branch/)
-})
-
-test('after v0.11.0 exists, the bootstrap resolves only to the commit it names', async () => {
-  const { api, state } = bootstrapGithub()
-  state.tags['v0.11.0'] = { commit: OTHER, annotated: true }
-  const r = await resolveRelease(api, { repo: BOOT_REPO, pr: 45 })
-  assert.match(r.problems.join('\n'), /never moved/)
-})
-
 test('publication creates the annotated tag at the merge commit, then the release', async () => {
   const { api, state } = github()
   const r = await publishRelease(api, publishArgs)

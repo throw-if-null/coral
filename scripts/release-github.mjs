@@ -26,11 +26,6 @@ import { compareVersions } from './version.mjs'
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 export const RELEASE_BRANCH_PREFIX = 'release/'
 
-// 0.11.0 was cut by #44 before the release workflow existed, and #45 added the workflow.
-// #45 is the one pull request that publishes a version without a release branch. Once
-// v0.11.0 exists, this entry can only resolve #45 to the commit that tag already names.
-export const BOOTSTRAP = { repo: 'throw-if-null/coral', pr: 45, version: '0.11.0' }
-
 /** The version a `release/<version>` branch names, or null. */
 export function releaseBranchVersion(ref) {
   if (!ref?.startsWith(RELEASE_BRANCH_PREFIX)) return null
@@ -127,8 +122,7 @@ export async function resolveRelease(api, { repo, pr }) {
   if (!p.merged_at) problems.push(`#${pr} is not merged. Merging the release PR approves the release.`)
   if (p.base.ref !== defaultBranch) problems.push(`#${pr} merged into ${p.base.ref}, not ${defaultBranch}.`)
   if (p.head.repo?.full_name !== repo) problems.push(`#${pr} comes from another repository.`)
-  const bootstrap = repo === BOOTSTRAP.repo && pr === BOOTSTRAP.pr
-  const branchVersion = bootstrap ? BOOTSTRAP.version : releaseBranchVersion(p.head.ref)
+  const branchVersion = releaseBranchVersion(p.head.ref)
   if (!branchVersion) {
     problems.push(`#${pr} comes from ${p.head.ref}, not from a ${RELEASE_BRANCH_PREFIX}<version> branch.`)
   }
